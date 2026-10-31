@@ -84,3 +84,21 @@ async def send_action(runtime, sn, action, arguments):
         raise ValueError('Сессия закрылась до отправки команды')
     item['delivery'] = 'sent'
     return item
+
+
+def push_directive(server_type, name, payload=None):
+    """Push с одной произвольной директивой (TASK-059: sdk.send_directive) — тот же
+    конверт, что у push_message, без проверки каталога."""
+    output = server_type()
+    output.Event.Header.MessageId = uuid.uuid4().hex
+    output.Event.Header.Ack = int(time.time() * 1000)
+    push = output.Event.Push
+    push.DeduplicationPushId = uuid.uuid4().hex
+    push.PushIds.append(uuid.uuid4().hex)
+    directive = push.Directives.add()
+    directive.Name = str(name)
+    directive.Type = 'client_action'
+    if payload:
+        json_format.ParseDict(payload, directive.Payload, descriptor_pool=server_type.DESCRIPTOR.file.pool)
+    output.Timings.SendingTime.seconds = int(time.time())
+    return output

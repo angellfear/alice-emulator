@@ -17,14 +17,14 @@ from urllib.parse import urlsplit
 log = logging.getLogger(__name__)
 
 # Режимы маршрута (TASK-044, решение вместо двух режимов 2026-10-24): у каждого
-# устройства свой route_mode, неизвестные получают default_route_mode. «Запись» — не маршрут,
-# а опция устройства record (TASK-054): off | on | misses, пишется поверх любого маршрута.
+# устройства свой route_mode; без него (и для неизвестных устройств) — emulate (TASK-064,
+# маршрута по умолчанию нет). «Запись» — не маршрут, а опция устройства record (TASK-054):
+# off | on | misses, пишется поверх любого маршрута.
 ROUTE_MODES = ("emulate", "hybrid", "proxy")
 RECORD_MODES = ("off", "on", "misses")
 ROUTE_MIGRATION_KEY = "route_migration"  # meta StateStore: {"excluded": [sn]} — очередь миграции
 RECORD_MIGRATION_KEY = "record_migration"  # meta: маршрут record → proxy + опция record (TASK-054), однократно
 DEFAULT = {
-    "default_route_mode": "emulate",  # маршрут устройств без собственного route_mode
     "intelligence": "agent",  # режим «Интеллект»: scenarios | model | agent (intelligence.py)
     "system_prompt": "Ты домашний голосовой помощник. Отвечай кратко по-русски.",
     "model": {"url": "", "model": "", "api_key": "", "temperature": 0.3},
@@ -105,7 +105,7 @@ class SettingsService:
         # Миграция режимной модели: partial больше не существует — стоявшие в нём
         # переводятся в эмуляцию; список emulation_ws_local (H05) упразднён. Блок
         # касается только настроек, где legacy-ключ ещё есть (TASK-044: без этого
-        # каждая загрузка добавляла mode обратно и перезатирала default_route_mode).
+        # каждая загрузка добавляла mode обратно и перезатирала прежний маршрут по умолчанию).
         legacy_mode = ("mode" in settings and settings["mode"] not in ("proxy", "emulate"))             or "emulation_ws_local" in settings
         if "mode" in settings and settings["mode"] not in ("proxy", "emulate"):
             settings["mode"] = "emulate"
@@ -122,6 +122,7 @@ class SettingsService:
             self.store.save_settings(settings)
         self._migrate_route_modes(settings)
         self._migrate_record_route(settings)
+        self._migrate_default_route(settings)
         self.load_scenario_files(settings)
         return settings
 
@@ -138,7 +139,7 @@ class SettingsService:
         excluded = [sn for sn in (settings.pop("emulation_excluded", None) or [])
                     if isinstance(sn, str) and sn.strip()]
         settings.pop("mode", None)
-        settings["default_route_mode"] = default  # legacy-режим определяет default, аддитивную миграцию перекрывает
+        settings["default_route_mode"] = default  # легаси-режим определяет прежний default (его уберёт _migrate_default_route)
         if excluded:
             pending = self.store.meta(ROUTE_MIGRATION_KEY)
             try:
@@ -184,6 +185,27 @@ class SettingsService:
             log.info("Миграция записи: маршрут record → proxy + опция record (устройств: %d)", changed)
         return True
 
+    def _migrate_default_route(self, settings):
+        """TASK-064: маршрута по умолчанию больше нет. Прежний default_route_mode ≠ emulate
+        переносится устройствам реестра без своего route_mode (поведение колонок не меняется
+        молча), ключ удаляется из настроек. Идёт после legacy-миграций (mode, record):
+        они приводят default к emulate | hybrid | proxy."""
+        if "default_route_mode" not in settings:
+            return False
+        default = settings.pop("default_route_mode")
+        changed = 0
+        if default in ROUTE_MODES and default != "emulate":
+            data = self.store.load_identity_data()
+            for device in data["devices"]:
+                if not device.get("route_mode"):
+                    device["route_mode"] = default
+                    changed += 1
+            if changed:
+                self.store.save_identity_data(data)
+        self.store.save_settings(settings)
+        log.info("Миграция маршрута по умолчанию: «%s» перенесён на устройства без своего маршрута (%d)", default, changed)
+        return True
+
     def persist(self, settings):
         """Сохранение: ревизия в БД (RF-08) + сверка каталога файлов сценариев."""
         self.store.save_settings(revision(settings))
@@ -208,11 +230,9 @@ class SettingsService:
 
     def validate(self, value, current):
         """Проверка присланных UI настроек → копия, готовая к persist.
-        current — прежние настройки для восстановления секретов __KEEP__.
-        preserve_mode (режим берётся из current) применяет вызывающий Runtime."""
-        if value.get("default_route_mode", current.get("default_route_mode", "emulate")) not in ROUTE_MODES:
-            raise ValueError("default_route_mode: " + " | ".join(ROUTE_MODES))
-        # TASK-044: устаревшая форма UI присылает старые ключи режимов — не сохраняем их
+        current — прежние настройки для восстановления секретов __KEEP__."""
+        # TASK-044/064: устаревшая форма UI присылает старые ключи режимов — не сохраняем их
+        value.pop("default_route_mode", None)
         value.pop("mode", None)
         value.pop("emulation_excluded", None)
         from .intelligence import LEVELS, ext_id

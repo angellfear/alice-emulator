@@ -156,7 +156,7 @@ class IdentityRegistry:
 
     @staticmethod
     def route_mode(value):
-        """Маршрут устройства (TASK-044): None — наследовать default_route_mode."""
+        """Маршрут устройства (TASK-044): None — без своего маршрута (Эмуляция)."""
         if value in (None, ''):
             return None
         if value not in ROUTE_MODES:
@@ -349,7 +349,7 @@ class IdentityRegistry:
             value['devices'] = [d for d in value['devices'] if d['sn'] != sn] + [device]
             value['unassigned'] = [d for d in value['unassigned'] if d['device_id'] not in aliases]
         elif operation == 'route_mode':
-            # TASK-044: смена маршрута одного устройства; mode=None — снова наследовать default
+            # TASK-044: смена маршрута одного устройства; mode=None — снять свой маршрут (Эмуляция)
             sn = self.text(request.get('sn'), 'SN')
             device = next((d for d in value['devices'] if d['sn'] == sn), None)
             if device is None:

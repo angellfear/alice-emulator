@@ -22,7 +22,7 @@ async def _save_tools(runtime, mutate):
     # save_settings берёт runtime.lock сам — здесь замок не нужен (он не реентерабелен)
     settings = runtime.public()
     result = mutate(settings)
-    await runtime.save_settings(settings, preserve_mode=True)
+    await runtime.save_settings(settings)
     return result
 
 

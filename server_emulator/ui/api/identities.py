@@ -1,8 +1,7 @@
 """Домен identities: реестр идентичностей (пользователи/устройства) (RF-03).
 
 GET — слепок реестра + сводка активных сессий (без служебных ключей
-runtime/send/ws/transport) + activity («виден/последний IP» для таблицы устройств) +
-default_route_mode (TASK-044: эффективный режим устройства без собственного);
+runtime/send/ws/transport) + activity («виден/последний IP» для таблицы устройств);
 POST — мутация привязки/удаления под runtime.lock, затем затронутым WS-сессиям рвётся
 соединение (1012 «переподключись») в фоне — ответ не ждёт колонку (TASK-057).
 """
@@ -19,8 +18,7 @@ async def identities(request, runtime, app):
         # activity — оперативная сводка «виден/последний IP» для таблицы устройств
         return web.json_response({**runtime.identities.public(),
                                   'sessions': [{k:v for k,v in s.items() if k not in ('runtime','send','ws','transport')} for s in runtime.sessions.values()],
-                                  'activity': copy.deepcopy(runtime.identities.activity),
-                                  'default_route_mode': runtime.settings.get('default_route_mode', 'emulate')})
+                                  'activity': copy.deepcopy(runtime.identities.activity)})
     if request.method != 'POST':
         raise web.HTTPMethodNotAllowed(request.method, ['GET', 'POST'])
     value = await request.json()
@@ -55,8 +53,9 @@ async def identities(request, runtime, app):
 
 @route("route_mode", methods=("PUT",))
 async def route_mode(request, runtime, app):
-    """Маршрут одного устройства (TASK-044): PUT {sn, mode} — открытые соединения
-    этого устройства закрываются (1012), колонка переподключается сама."""
+    """Маршрут одного устройства (TASK-044): PUT {sn, mode}. Соединение закрывается (1012,
+    колонка переподключается сама) только если меняется обслуживание открытого WS:
+    переход в «Прозрачно» или из него (TASK-064)."""
     value = await request.json()
     return web.json_response(await runtime.set_device_route_mode(value.get('sn'), value.get('mode')))
 

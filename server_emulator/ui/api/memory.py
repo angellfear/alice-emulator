@@ -64,7 +64,7 @@ async def memory_api(request, runtime, app):
                   "embed": {k: str(embed.get(k) or "") for k in ("url", "model", "api_key")}}
         settings = runtime.public()  # форма UI: секреты провайдеров — маской, save_settings их сохранит
         settings["memory"] = stored
-        await runtime.save_settings(settings, preserve_mode=True)
+        await runtime.save_settings(settings)
         return web.json_response({"ok": True})
     if op == "test_embed":
         cfg = memory.options(runtime)

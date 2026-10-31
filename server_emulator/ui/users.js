@@ -18,7 +18,7 @@
     const seq = ++fetchSeq;
     const value = await api('identities');
     if (seq !== fetchSeq) return false;
-    registry = { users: value.users || [], devices: value.devices || [], unassigned: value.unassigned || [], sessions: value.sessions || [], activity: value.activity || {}, default_route_mode: value.default_route_mode || 'emulate' };
+    registry = { users: value.users || [], devices: value.devices || [], unassigned: value.unassigned || [], sessions: value.sessions || [], activity: value.activity || {} };
     return true;
   }
   const refresh = () => work(async () => { if (await fetchRegistry()) fingerprint = '', refreshDevices(); });
@@ -369,9 +369,9 @@
   }
 
   // Маршрут устройства (TASK-044): сегментированный переключатель «Эмуляция · Гибрид ·
-  // Прокси» (стиль .segmented), на узкой ширине — выпадающий список (CSS).
-  // Смена — с подтверждением в <dialog>: соединение устройства закрывается.
-  const ROUTE_LABEL = { emulate: 'Эмуляция', hybrid: 'Гибрид', proxy: 'Прокси' };
+  // Прозрачно» (стиль .segmented), на узкой ширине — выпадающий список (CSS).
+  // Значение proxy в данных и API прежнее, «Прозрачно» — только подпись (TASK-064).
+  const ROUTE_LABEL = { emulate: 'Эмуляция', hybrid: 'Гибрид', proxy: 'Прозрачно' };
   // Опция «Запись» устройства (TASK-054): пишет журнал трафика поверх любого маршрута.
   // Смена — сразу, без диалога: соединение не закрывается, опция действует на следующем обмене.
   const RECORD_LABEL = { off: 'Выключено', on: 'Включено', misses: 'Нет обработчиков' };
@@ -384,47 +384,18 @@
       message('Запись «' + device.name + '»: ' + RECORD_LABEL[mode] + '.');
     });
   }
-  const effectiveRoute = device => device.route_mode || registry.default_route_mode || 'emulate';
+  const effectiveRoute = device => device.route_mode || 'emulate';
+  // Смена — сразу, без подтверждения (TASK-064). Сервер закрывает соединение (1012) только
+  // при переходе в «Прозрачно» или из него; emulate ↔ hybrid открытый WS не трогает.
   function changeRoute(device, mode) {
     if (mode === effectiveRoute(device)) return;
-    const { dialog, form } = dialogFrame('Маршрут «' + device.name + '»');
-    const text = node('p', 'Сменить «' + ROUTE_LABEL[effectiveRoute(device)] + '» на «' + ROUTE_LABEL[mode] + '»? Открытое соединение устройства закроется — колонка переподключится сама.');
-    text.className = 'hint';
-    const save = node('button', 'Сменить'); save.type = 'submit';
-    const cancel = node('button', 'Отмена'); cancel.type = 'button'; cancel.className = 'secondary';
-    cancel.onclick = () => { dialog.close(); dialog.remove(); refresh(); };
-    const row = node('div'); row.className = 'row'; row.append(cancel, save);
-    form.append(text, row);
-    const errLine = errorLine(form);
-    submitForm(form, errLine, async () => {
-      await api('route_mode', 'PUT', { sn: device.sn, mode });
-      dialog.close(); dialog.remove(); await afterChange();
-      message('Маршрут «' + device.name + '»: ' + ROUTE_LABEL[mode] + '.');
+    work(async () => {
+      try {
+        const result = await api('route_mode', 'PUT', { sn: device.sn, mode });
+        await afterChange();
+        message('Маршрут «' + device.name + '»: ' + ROUTE_LABEL[mode] + (result.disconnected ? '; соединение закрыто.' : '.'));
+      } catch (err) { renderDevices(); throw err; } // выпадающий список вернётся к прежнему значению
     });
-    dialog.showModal();
-  }
-  // Маршрут по умолчанию — для устройств без своего; соединения закрываются только у них
-  function changeDefaultRoute(mode) {
-    if (mode === registry.default_route_mode) return;
-    const { dialog, form } = dialogFrame('Маршрут по умолчанию');
-    const text = node('p', 'Сменить «' + ROUTE_LABEL[registry.default_route_mode] + '» на «' + ROUTE_LABEL[mode] + '»? Открытые соединения устройств без своего маршрута можно закрыть — колонки переподключатся сами.');
-    text.className = 'hint';
-    let connections = 'disconnect';
-    const now = node('button', 'Сменить и закрыть соединения'); now.type = 'submit';
-    now.onclick = () => { connections = 'disconnect'; };
-    const wait = node('button', 'Сменить, ждать переподключения'); wait.type = 'submit'; wait.className = 'secondary';
-    wait.onclick = () => { connections = 'wait'; };
-    const cancel = node('button', 'Отмена'); cancel.type = 'button'; cancel.className = 'secondary';
-    cancel.onclick = () => { dialog.close(); dialog.remove(); };
-    const row = node('div'); row.className = 'row'; row.append(cancel, wait, now);
-    form.append(text, row);
-    const errLine = errorLine(form);
-    submitForm(form, errLine, async () => {
-      const result = await api('mode', 'PUT', { mode, connections });
-      dialog.close(); dialog.remove(); await afterChange();
-      message('Маршрут по умолчанию: ' + ROUTE_LABEL[result.mode] + (connections === 'disconnect' ? '; соединения закрыты.' : '; ждём переподключения.'));
-    });
-    dialog.showModal();
   }
   function routeCell(device) {
     const cell = node('td'); cell.className = 'route-cell';
@@ -477,8 +448,8 @@
     routeNote.append(node('br'));
     routeLine('Гибрид', 'эмулятор, где есть обработчик; остальное — в Яндекс.');
     routeNote.append(node('br'));
-    routeLine('Прокси', 'всё в Яндекс.');
-    routeNote.append(node('br'), node('b', 'Без своего маршрута'), document.createTextNode(' устройство наследует маршрут по умолчанию (над таблицей).'));
+    routeLine('Прозрачно', 'всё в Яндекс.');
+    routeNote.append(node('br'), node('b', 'Новое устройство'), document.createTextNode(' — Эмуляция.'));
     routeNote.append(node('br'));
     routeLine('Запись', 'журнал трафика устройства, в любом маршруте: «Включено» — каждый обмен (ответ эмулятора или Яндекса) и AAPI-сообщения; «Нет обработчиков» — только то, чего эмулятор не умеет обработать. Звук не пишется. Смена действует сразу. Журнал — «Эмулятор → Журнал».');
     devicesRoot.append(routeNote);
@@ -490,13 +461,7 @@
     reload.onclick = refresh;
     const add = node('button', 'Добавить устройство'); add.type = 'button';
     add.onclick = () => deviceDialog(null);
-    const defaultLabel = node('label', 'Маршрут по умолчанию'); defaultLabel.className = 'default-route';
-    const defaultSelect = node('select');
-    for (const [value, label] of Object.entries(ROUTE_LABEL)) defaultSelect.append(new Option(label, value));
-    defaultSelect.value = registry.default_route_mode;
-    defaultSelect.onchange = () => { const target = defaultSelect.value; defaultSelect.value = registry.default_route_mode; changeDefaultRoute(target); };
-    defaultLabel.append(defaultSelect);
-    toolbar.append(counts, defaultLabel, reload, add); devicesRoot.append(toolbar);
+    toolbar.append(counts, reload, add); devicesRoot.append(toolbar);
 
     const table = node('table'); table.className = 'dev-table';
     const head = node('tr');

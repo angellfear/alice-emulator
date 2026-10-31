@@ -375,6 +375,36 @@ def migrate(from_version, settings):
     """При обновлении: from_version — версия, с которой переносим настройки."""
 ```
 
+## Обработчики WS (TASK-059, SDK 1.3.0)
+
+Папка `aapi/*.py`: обработчики сообщений и событий колонки регистрируются публичным
+декоратором SDK — сигнатура `async handler(event, ctx) -> bool`, без внутренних классов:
+
+```python
+from server_emulator import sdk
+
+@sdk.aapi_handler('@@mm_custom')            # или 'TextInput', 'VoiceInput', ...
+async def greet(event, ctx):
+    await ctx.reply(sdk.say('привет от расширения'))
+    return True
+
+@sdk.on_event('@@mm_custom')                # наблюдатель: видит каждое событие,
+async def watch(event, ctx): ...            # в выборе обработчика не участвует
+```
+
+- `event` — разобранное сообщение: `{name, type, message_id, request_id, dialog_id, payload, text}`
+  (`payload` — dict из protobuf Struct); `ctx` — `sn`, `device`, `extension` (ExtensionContext),
+  `reply(say(...)/card(...)/directive(...)/silent())`, `send(байты)`, `push(действие, параметры)`.
+- Каждый триггер обязан быть объявлен в `permissions.aapi: ["<событие>", …]` — без объявления
+  обработчик не регистрируется (запись в warnings, как у других разрешений).
+- Источник — `extension:<id>`, виден во вкладке «Эмулятор → WS → Входящие». Вызываются ПОСЛЕ
+  встроенных: расширение не перекрывает встроенные ответы протокола без явного намерения.
+- Выключение/удаление расширения снимает его обработчики (пересборка реестра); битый модуль
+  отключает расширение целиком — как у actions/datasets.
+- Отправка на устройство из кода расширения: `sdk.send_push(sn, action, params)` (каталог
+  actions.py) и `sdk.send_directive(sn, name, payload)`; у сценария — то же методами
+  `ctx.send_push(...)` / `ctx.send_directive(...)`. Устройство не в сети — `SDKError`.
+
 ## Не реализовано
 
 - Менеджер: источники, установка, включение, обновление, откат, хуки, python-зависимости,

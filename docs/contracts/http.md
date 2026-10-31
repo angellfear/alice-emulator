@@ -64,28 +64,32 @@ Query `device_id` — ЦЕЛЕВОЕ устройство (токен «для �
 ### Режимы маршрута устройств (TASK-044)
 
 Ось «кто отвечает» — у каждого устройства своя: `route_mode` в реестре (identities), устройства
-без своего маршрута наследуют `settings.default_route_mode`. Глобального `settings.mode` больше
-нет (запрет режимов для standalone снят — проход наверх свой, TASK-043). Миграция: `mode: emulate`
-→ default `emulate`, `mode: proxy` → default `proxy` и опция `record: on` устройствам без своего
-маршрута, SN из `emulation_excluded` → `route_mode: proxy` (очередь в meta `route_migration`,
+без своего маршрута и неизвестные устройства — всегда `emulate` (TASK-064: маршрута по умолчанию
+нет). Глобального `settings.mode` больше нет (запрет режимов для standalone снят — проход наверх
+свой, TASK-043). Миграция: `mode: emulate` → `emulate`, `mode: proxy` → `proxy` и опция
+`record: on` устройствам без своего маршрута, SN из `emulation_excluded` → `route_mode: proxy` (очередь в meta `route_migration`,
 применяется и устройствам, подключившимся позже); ключи `mode`/`emulation_excluded` удалены.
 Прежний маршрут `record` (TASK-054): `route_mode: record` → `proxy` + `record: on`,
 `default_route_mode: record` → `proxy` + `record: on` устройствам без своего маршрута (однократно,
-meta `record_migration`); `record` как значение `route_mode` / `default_route_mode` — 400.
+meta `record_migration`); `record` как значение `route_mode` — 400. Прежний
+`settings.default_route_mode` ≠ `emulate` однократно записывается как `route_mode` устройствам
+реестра без своего маршрута, ключ удаляется из настроек (`PUT /api/settings` его игнорирует).
 
 | Режим | HTTP | WS |
 |---|---|---|
 | `emulate` (Эмуляция) | эмулятор | эмулятор |
 | `hybrid` (Гибрид) | эмулятор, где есть обработчик; промах — upstream, промах остаётся в «Без ответа» с отметкой «ушёл в Яндекс» | эмулятор (фаза 1); пересылка отдельных необработанных сообщений — фаза 2 |
-| `proxy` (Прокси) | upstream | мост upstream |
+| `proxy` (Прозрачно) | upstream | мост upstream |
 
 Решение — `dispatcher.route_mode_for(request) → (sn, device_id, mode)`: заголовки
 uprx/quasar → query device_id → реестр (resolve-only); цель строит `upstream.target_for`
 (канонический хост из алиасов, https/wss; алиас может задавать полный `http://…` upstream —
-тесты). API: `PUT /api/route_mode {sn, mode}` — смена маршрута устройства (его WS-соединения
-закрываются, 1012); `PUT /api/mode {mode, connections}` — маршрут по умолчанию (при
-`connections: disconnect` закрываются соединения только устройств без собственного маршрута);
-`GET /api/identities` отдаёт `default_route_mode` и у каждого устройства `route_mode`, `record`. В proxy
+тесты). API: `PUT /api/route_mode {sn, mode}` (`mode`: `emulate` | `hybrid` | `proxy`, `null` — снять
+свой маршрут, то есть `emulate`) → `{sn, mode, disconnected}` — смена маршрута устройства сразу, без
+ожидания колонки. WS устройства закрываются (1012, в фоне; `disconnected` — число закрываемых)
+только при переходе в `proxy` или из него: `emulate` ↔ `hybrid` WS не рвёт, HTTP маршрутизируется
+заново на каждом запросе. `PUT /api/mode` (маршрут по умолчанию) удалён; `GET /api/identities`
+отдаёт у каждого устройства `route_mode`, `record` (поля `default_route_mode` нет). В proxy
 устройство регистрируется в реестре при представлении — маршрут виден и сменяем в UI (колонка
 «Маршрут» таблицы устройств).
 

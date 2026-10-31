@@ -166,3 +166,64 @@ callback_route('@@agent_say', 'agent_say.requested', None, 'сообщение �
                'event:@@agent_say')
 callback_route('@@timer_fired', 'timer_fired.requested', None, 'срабатывание таймера/будильника',
                'event:@@timer_fired')
+
+
+# --- обработчики и наблюдатели расширений (TASK-059, sdk.aapi_handler / sdk.on_event) ---
+
+_OBSERVERS: dict[str, list] = {}  # trigger → [(handler, meta)] — наблюдатели, выбор не участвуют
+
+
+def drop_extensions():
+    """Убрать обработчики и наблюдателей расширений (пересборка реестра при
+    включении/выключении/удалении): встроенные и колбэк-маршруты остаются."""
+    for table in (_HANDLERS, _OBSERVERS):
+        for trigger in list(table):
+            table[trigger] = [item for item in table[trigger]
+                              if not item[-1]["source"].startswith("extension:")]
+            if not table[trigger]:
+                del table[trigger]
+
+
+def register_extension(trigger, handler, enabled, ext_id, name="", description="", observer=False):
+    """Обработчик/наблюдатель расширения: источник extension:<id>. Регистрируется ПОСЛЕ
+    встроенных — расширение не перекрывает встроенные ответы протокола без явного намерения.
+    В реестр идёт адаптер (aapi_handlers-сигнатура → sdk.adapt_aapi_call): наружу публичная
+    сигнатура handler(event, ctx)."""
+    meta = {"source": f"extension:{ext_id}",
+            "name": name or getattr(handler, "__name__", "handler"),
+            "description": description}
+
+    async def call(conversation, incoming, trigger):
+        from .sdk import adapt_aapi_call
+        return bool(await adapt_aapi_call(handler, conversation, incoming, trigger, meta))
+
+    call.__name__ = meta["name"]
+    table = _OBSERVERS if observer else _HANDLERS
+    table.setdefault(str(trigger), []).append((call, enabled, meta))
+
+
+def observers(trigger):
+    """Наблюдатели события (sdk.on_event): вызываются для каждого события, в выборе
+    обработчика не участвуют."""
+    return [handler for handler, _enabled, _meta in _OBSERVERS.get(str(trigger), ())]
+
+
+def notify_observers(conversation, incoming, trigger):
+    """Запустить наблюдателей события фоном: сбой или зависание наблюдателя не тормозит
+    протокол и не мешает ответу. Наблюдателей нет — ничего не происходит."""
+    items = list(_OBSERVERS.get(str(trigger), ()))
+    if not items:
+        return
+    import asyncio
+
+    async def run(call):
+        try:
+            await call(conversation, incoming, str(trigger))
+        except Exception:  # noqa: BLE001 — наблюдатель не ломает обработку события
+            pass
+
+    for call, _enabled, _meta in items:
+        try:
+            asyncio.get_running_loop().create_task(run(call))
+        except RuntimeError:
+            pass  # вне цикла событий (тесты реестра) — наблюдатели не вызываются

@@ -30,6 +30,11 @@ def _finalize(message, ctx):
     finalize(message, sequence)
     _ref_header(message, ctx)
 
+def finalize_reply(message, ctx):
+    """Публичная обёртка каркаса для внешних сборщиков ответа (sdk._AapiContext.reply,
+    TASK-059): CardId/SequenceNumber/RefMessageId — то же, что делает диалоговый слой."""
+    _finalize(message, ctx)
+
 
 def _ref_header(message, ctx):
     """Correlation IDs доставки: RefMessageId ← входящее сообщение, MessageId новый."""

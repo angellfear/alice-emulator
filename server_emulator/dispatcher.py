@@ -8,7 +8,7 @@ WS-сессия остаётся у runtime (sessions — его состоян�
 
 resolve DeviceId (B03), IP клиента через client_peer и журнал recent — здесь;
 маршрут запроса — route_mode_for (TASK-044): (sn, device_id, mode) по заголовкам/
-query и реестру, неизвестные устройства получают settings.default_route_mode.
+query и реестру; устройство без своего маршрута и неизвестное — emulate (TASK-064).
 Режимы: emulate — локально; proxy — upstream; hybrid — локально, где есть обработчик,
 промах — наверх с отметкой в «Без ответа». Что писать в журнал, решает не маршрут, а опция
 устройства «Запись» (TASK-054): local_handler определяет «есть ли обработчик» одной функцией
@@ -64,16 +64,15 @@ class Dispatcher:
     def route_mode_for(self, request):
         """(sn, device_id, mode) маршрута запроса (TASK-044). Идентичность —
         заголовки соединения (uprx/quasar), затем query device_id; разрешение чистым
-        resolve (без регистрации). Неизвестное устройство наследует default_route_mode."""
+        resolve (без регистрации). Устройство без route_mode и неизвестное — emulate."""
         runtime = self.runtime
         device_id = (request.headers.get('x-uprx-device-id')
                      or request.headers.get('X-YaQuasarDeviceId')
                      or request.query.get('device_id') or '')
-        default = runtime.settings.get('default_route_mode', 'emulate')
         device = runtime.identities.resolve(device_id) if device_id else None
         if device:
-            return device.get('sn'), device_id or None, (device.get('route_mode') or default)
-        return None, device_id or None, default
+            return device.get('sn'), device_id or None, (device.get('route_mode') or 'emulate')
+        return None, device_id or None, 'emulate'
 
     def canonical_host(self, request, host=None):
         """Канонический хост запроса: алиасы settings.aliases приводят Host к настоящему."""
@@ -107,6 +106,21 @@ class Dispatcher:
         handled = self.local_handler(host, request.method, path)
         upstream.record_emulated(sn, device_id, handled, host, request.method, str(request.rel_url), status,
                                  list(request.headers.items()), list(headers.items()), body, output, started)
+
+    def remember_sync_headers(self, request, device):
+        """TASK-052: заголовки последнего опроса конфига — только в памяти, по SN
+        (кнопка «Получить с оригинального сервера»); в БД/state не пишутся."""
+        self.runtime.quasar_sync_headers[device['sn']] = {
+            'ts': time.time(), 'query': request.query_string,
+            'headers': [[k, v] for k, v in request.headers.items()
+                        if k.lower() not in ('host', 'content-length')]}
+
+    @staticmethod
+    def sync_info_transparent(device):
+        """TASK-065: замены get_sync_info в маршруте «Прозрачно» — источник «Напрямую» и
+        галочка «И в прозрачном маршруте» (state.quasar_direct_transparent) устройства."""
+        state = device.get('state') or {}
+        return state.get('quasar_source') == 'direct' and state.get('quasar_direct_transparent') is True
 
     async def direct_sync_info(self, request, device, device_id, sn, body, upstream):
         """TASK-052, «Напрямую»: get_sync_info пересылается настоящему quasar.yandex.net,
@@ -216,6 +230,7 @@ class Dispatcher:
             # TASK-044: прямой проход — WS мостом, HTTP пересылкой. Запись в журнал — по опции
             # «Запись» устройства (TASK-054): HTTP решается здесь, WS — на каждом кадре.
             # Устройство наблюдается: колонка остаётся в реестре, маршрут виден и сменяем в UI.
+            observed = None
             if device_id:
                 observed = runtime.identities.observe(device_id, source='header.x-uprx-device-id',
                                                       ip=self.client_ip(request), register=True)
@@ -226,6 +241,13 @@ class Dispatcher:
                                             journal=lambda: upstream.record_mode(sn),
                                             device_sn=sn, device_id=device_id)
             canonical = self.canonical_host(request, host)
+            if observed is not None and canonical == 'quasar.yandex.net' and (path or request.path) == '/get_sync_info' \
+                    and self.sync_info_transparent(observed):
+                # TASK-065: «Напрямую» + «И в прозрачном маршруте» — замены применяются и здесь;
+                # остальной трафик маршрута идёт прямым проходом ниже
+                body = await request.read()
+                self.remember_sync_headers(request, observed)
+                return await self.direct_sync_info(request, observed, device_id, observed['sn'], body, upstream)
             handled = upstream.record_mode(sn) == 'off' or self.local_handler(canonical, request.method, path or request.path)
             return await upstream.serve(request, target, host=host, path=path,
                                         journal=upstream.recording(sn, handled), unhandled=not handled,
@@ -270,10 +292,7 @@ class Dispatcher:
             # TASK-052: заголовки последнего опроса конфига — только в памяти, по SN
             # (кнопка «Получить с оригинального сервера»); в БД/state не пишутся.
             if device is not None:
-                runtime.quasar_sync_headers[device['sn']] = {
-                    'ts': time.time(), 'query': request.query_string,
-                    'headers': [[k, v] for k, v in request.headers.items()
-                                if k.lower() not in ('host', 'content-length')]}
+                self.remember_sync_headers(request, device)
             if upstream is not None and (device or {}).get('state', {}).get('quasar_source') == 'direct':
                 return await self.direct_sync_info(request, device, device_id, device['sn'], body, upstream)
         update = await self.handle_update(request, canonical_host, path or request.path, record)

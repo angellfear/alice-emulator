@@ -16,8 +16,8 @@ class FakeRuntime:
         self.settings = copy.deepcopy(DEFAULT_KEYS)
         self.saved = []
 
-    async def save_settings(self, value, preserve_mode=False):
-        self.saved.append(preserve_mode)
+    async def save_settings(self, value):
+        self.saved.append(True)
         self.settings = value
 
 

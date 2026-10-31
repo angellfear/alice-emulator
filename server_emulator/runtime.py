@@ -22,6 +22,7 @@ from .state_store import StateStore, migrate_legacy
 from .endpoints import EndpointCatalog
 from .params import ParamStore
 from .quasar_config import PlatformStore
+from . import aapi_handlers
 from .aapi_handlers import has_handler as aapi_has_handler
 from .voice import Conversation
 from .identity import IdentityRegistry, collect_device_id
@@ -109,6 +110,8 @@ class Runtime:
         from .extensions.legacy_registry import migrate_registry
         migrate_registry(self)  # TASK-036: прежний реестр сценариев → источник и расширения (единожды)
         self.extensions.load_enabled()
+        from .sdk import bind_runtime  # TASK-059: sdk.send_push/send_directive без ctx
+        bind_runtime(self)
         # TASK-030: check_template (validate.py про runtime не знает) разрешает {ссылки}
         # сценариев на списки включённых расширений — как при матчинге шаблонов.
         from .scenario_engine import templates as scenario_templates
@@ -411,7 +414,8 @@ class Runtime:
         if runners is None:
             from .scripting import ScriptRunner
             runners = self._extension_runners = (ScriptRunner(prefix="ext_actions"),
-                                                 ScriptRunner(prefix="ext_datasets"))
+                                                 ScriptRunner(prefix="ext_datasets"),
+                                                 ScriptRunner(prefix="ext_aapi"))
 
         def folders(kind):
             found = {}
@@ -436,10 +440,12 @@ class Runtime:
             return result
 
         action_dirs, dataset_dirs = folders("actions"), folders("datasets")
+        aapi_dirs = folders("aapi")  # TASK-059: обработчики событий колонки из расширений
         actions, plugins = dict(self._builtin_actions), dict(self._builtin_plugins)
         action_owner = {name: "" for name in self._builtin_actions}  # "" — встроенное
         dataset_owner = {name: "" for name in self._builtin_plugins}
         bad = {}
+        aapi_handlers.drop_extensions()  # TASK-059: пересборка — расширения регистрируются заново
         for ext_id in sorted(extensions.loaded):
             manifest = extensions.loaded[ext_id]["manifest"]
             prefix = str(extensions.action_prefix(ext_id)).rstrip(".")
@@ -490,6 +496,32 @@ class Runtime:
                             break
                 except ValueError as exc:  # битый модуль datasets/*.py
                     error = str(exc)
+            if error is None:
+                # TASK-059: aapi/*.py — обработчики событий колонки (sdk.aapi_handler/on_event);
+                # событие обязано быть в permissions.aapi — иначе не регистрируется (warning)
+                from . import sdk as sdk_module
+                try:
+                    with sdk_module.loading_extension(ext_id):
+                        for path in aapi_dirs.get(ext_id, []):
+                            for file in sorted(path.glob("*.py")):
+                                try:
+                                    runners[2]._module(file)
+                                except Exception as exc:  # noqa: BLE001 — битый модуль отключает расширение
+                                    raise ValueError(f"{file.name}: модуль не загружается "
+                                                     f"({type(exc).__name__}: {str(exc)[:150]})") from exc
+                except ValueError as exc:
+                    error = str(exc)
+                allowed = [a for a in (manifest["permissions"].get("aapi") or []) if isinstance(a, str)]
+                for registration in sdk_module._pending():
+                    for trigger in registration["triggers"]:
+                        if str(trigger) not in allowed:
+                            extensions.warnings.append(
+                                {"id": ext_id, "error": f"aapi {trigger!r}: события нет в "
+                                 f"permissions.aapi — обработчик не зарегистрирован"})
+                            continue
+                        aapi_handlers.register_extension(str(trigger), registration["handler"],
+                                                         registration["enabled"], ext_id,
+                                                         observer=registration["observer"])
             if error:
                 bad[ext_id] = error
                 continue
@@ -574,6 +606,19 @@ class Runtime:
         item["delivery"] = "sent"
         return item
 
+    async def send_message(self, sn, message):
+        """Отправить готовое сообщение живой WS-сессии устройства по SN (TASK-059,
+        sdk.send_directive). True — отправлено; False — сессии нет или сокет упал."""
+        session = next((x for x in self.sessions.values()
+                        if x.get("device_sn") == str(sn) and x.get("send")), None)
+        if session is None:
+            return False
+        try:
+            await session["send"](b"AAPI" + message.SerializeToString())
+        except (ConnectionError, RuntimeError):
+            return False
+        return True
+
     def speech_sink(self, record):
         """Приёмник событий SpeechTrace. In-place: scoped-копии runtime в WS-сессиях
         делят этот список с основным — трасса видна из API корневого runtime."""
@@ -631,12 +676,10 @@ class Runtime:
             device=self.identities.resolve(session.get('device_id',''))
             session['runtime'].settings=self.identities.settings_for(self.settings,device)
 
-    async def save_settings(self, value, preserve_mode=False):
+    async def save_settings(self, value):
         value = self.settings_service.validate(value, self.settings)
         tts_changed = value.get("tts") != self.settings.get("tts")
         async with self.lock:
-            if preserve_mode:  # форма настроек не меняет маршрут по умолчанию
-                value["default_route_mode"] = self.settings["default_route_mode"]
             self.write("settings.json", value)
             self.settings = value
             self.refresh_profiles()
@@ -666,7 +709,7 @@ class Runtime:
 
     def device_sockets(self, match):
         """[(ws, transport)] соединений устройств, чей SN подходит под match(sn): WS-сессии
-        эмулятора и мосты прохода наверх (режим «Прокси» — их в sessions нет)."""
+        эмулятора и мосты прохода наверх (режим «Прозрачно» — их в sessions нет)."""
         entries = [(s['ws'], s.get('transport')) for s in self.sessions.values()
                    if s.get('ws') and match(self._session_sn(s))]
         upstream = getattr(self, 'upstream', None)
@@ -680,33 +723,20 @@ class Runtime:
         Возвращает число закрываемых соединений; колонка переподключается сама."""
         return self.closer.close(self.device_sockets(match), 1012, message)
 
-    async def set_default_route_mode(self, mode, connections='wait'):
-        """Маршрут по умолчанию (TASK-044). При connections=disconnect рвутся
-        соединения только устройств без собственного route_mode — у них изменился
-        эффективный режим; устройства с явным маршрутом не трогаются."""
-        if mode not in ROUTE_MODES:
-            raise ValueError("mode: " + " | ".join(ROUTE_MODES))
-        if connections not in ('wait', 'disconnect'):
-            raise ValueError('connections: wait или disconnect')
-        async with self.lock:
-            value = copy.deepcopy(self.settings)
-            value["default_route_mode"] = mode
-            self.write("settings.json", value)
-            self.settings = value
-            closed = 0
-            if connections == 'disconnect':
-                explicit = {d['sn'] for d in self.identities.data['devices'] if d.get('route_mode')}
-                closed = self.disconnect_devices(lambda sn: sn not in explicit, b'Mode changed')
-        return {"mode": mode, 'connections': connections, 'disconnected': closed}
-
     async def set_device_route_mode(self, sn, mode):
-        """Маршрут одного устройства (TASK-044); mode=None — снова default.
-        Открытые соединения устройства закрываются — колонка переподключается сама."""
+        """Маршрут одного устройства (TASK-044); mode=None — снять свой маршрут (Эмуляция, TASK-064).
+        Соединения закрываются (колонка переподключается сама) только если меняется то, как
+        обслуживается открытый WS: эмулятором (emulate, hybrid) или мостом в Яндекс (proxy).
+        emulate ↔ hybrid WS не рвёт, HTTP маршрутизируется заново на каждом запросе."""
         if mode not in (None, *ROUTE_MODES):
             raise ValueError("mode: " + " | ".join(ROUTE_MODES) + " или null")
         async with self.lock:
+            device = next((d for d in self.identities.data['devices'] if d['sn'] == sn), None)
+            before = ((device or {}).get('route_mode') or 'emulate') == 'proxy'
             self.identities.mutate({"operation": "route_mode", "sn": sn, "mode": mode})
-            closed = self.disconnect_devices(lambda device_sn: device_sn == sn, b'Route changed')
+            closed = 0
+            if before != ((mode or 'emulate') == 'proxy'):
+                closed = self.disconnect_devices(lambda device_sn: device_sn == sn, b'Route changed')
         return {"sn": sn, "mode": mode, "disconnected": closed}
 
     async def set_device_record_mode(self, sn, mode):

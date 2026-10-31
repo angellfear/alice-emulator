@@ -119,8 +119,9 @@ async def quasar_composed(request, runtime, app):
 async def quasar_source(request, runtime, app):
     """Источник конфига устройства (TASK-052).
 
-    GET ?sn= → {mode, direct_last, custom, replace, can_fetch}; PUT {sn, mode?, custom?, replace?} —
-    сохранение режима, своего ответа и/или замен regexp «Напрямую» (TASK-063) в state устройства
+    GET ?sn= → {mode, direct_last, custom, replace, transparent, can_fetch}; PUT {sn, mode?, custom?,
+    replace?, transparent?} — сохранение режима, своего ответа, замен regexp «Напрямую» (TASK-063) и/или
+    галочки «И в прозрачном маршруте» (TASK-065, bool) в state устройства
     (под runtime.lock; custom — JSON-объект с объектом config; replace — [{enabled, pattern, replace}],
     невалидный regex — 400 с номером строки, ничего не сохраняется); POST {sn, action} — generate (ответ
     compose, ничего не сохраняет) и fetch (запрос оригинальному серверу с
@@ -140,6 +141,7 @@ async def quasar_source(request, runtime, app):
                                   'direct_last': state.get('quasar_direct_last'),
                                   'custom': state.get('quasar_custom'),
                                   'replace': state.get('quasar_direct_replace') or [],
+                                  'transparent': state.get('quasar_direct_transparent') is True,
                                   'can_fetch': device['sn'] in runtime.quasar_sync_headers})
     value = await request.json()
     device = device_of(value.get('sn', ''))
@@ -153,6 +155,9 @@ async def quasar_source(request, runtime, app):
                 not isinstance(custom, dict) or not isinstance(custom.get('config'), dict)):
             raise ValueError('Свой ответ: JSON-объект с объектом config')
         rules = validate_rules(value['replace']) if 'replace' in value else None
+        transparent = value.get('transparent')
+        if 'transparent' in value and not isinstance(transparent, bool):
+            raise ValueError('transparent: true | false')
         async with runtime.lock:
             device = device_of(sn)  # свежая запись: пока ждали lock, state могли переписать
             state = copy.deepcopy(device.get('state') or {})
@@ -170,6 +175,11 @@ async def quasar_source(request, runtime, app):
                     state['quasar_direct_replace'] = rules
                 else:
                     state.pop('quasar_direct_replace', None)
+            if 'transparent' in value:
+                if transparent:
+                    state['quasar_direct_transparent'] = True
+                else:
+                    state.pop('quasar_direct_transparent', None)  # отсутствие поля — выключено
             runtime.identities.mutate({'operation': 'state', 'sn': sn, 'state': state})
         return web.json_response({'saved': sn})
     action = value.get('action')

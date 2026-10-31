@@ -365,7 +365,7 @@ async def test_context_readonly_and_repr_masks_secret(tmp_path, monkeypatch):
         with pytest.raises(AttributeError):
             ctx.id = "другое"
         # тип экспортируется SDK для аннотаций; версия поднята минорно (1.1.0 → 1.2.0)
-        assert sdk_module.ExtensionContext is ExtensionContext and SDK_VERSION == "1.2.0"
+        assert sdk_module.ExtensionContext is ExtensionContext and SDK_VERSION == "1.3.0"
         # владелец действия: встроенное и чужое — None
         assert runtime.extensions.action_context("timer.start") is None
         assert runtime.extensions.action_context("tea.brew") is None

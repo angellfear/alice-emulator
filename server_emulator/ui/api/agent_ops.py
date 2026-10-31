@@ -73,7 +73,7 @@ async def _save(runtime, value):
     settings["agent"] = current  # токен — настоящий, не маска public()
     if intelligence:
         settings["intelligence"] = intelligence
-    await runtime.save_settings(settings, preserve_mode=True)
+    await runtime.save_settings(settings)
     routines = getattr(runtime, "routines", None)
     if routines is not None and routines.scheduler is not None:
         routines._schedule_suggest()

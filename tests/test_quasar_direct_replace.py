@@ -195,3 +195,126 @@ async def test_rules_are_per_device(tmp_path):
         assert json.loads(body)["config"]["volume"] == 1
     finally:
         await stop(runtime, upstream_runner, runner)
+
+
+# --- TASK-065: «Напрямую» + «И в прозрачном маршруте» ---------------------------------------------------------
+RAW = b'{"status":  "ok", "config": {"volume": 5,   "name": "yandex-station"}}'  # нетипичные пробелы: байт-в-байт виден
+
+
+async def start_transparent(tmp_path, transparent, source="direct", rules=None):
+    """Маршрут устройства «Прозрачно»; галочка и источник задаются, правила меняют volume 5 → 9."""
+    runtime, upstream_runner, runner, url = await start(
+        tmp_path, [rule('"volume": 5', '"volume": 9')] if rules is None else rules, reply=RAW)
+    state = dict(state_of(runtime), quasar_source=source)
+    if transparent is not None:
+        state["quasar_direct_transparent"] = transparent
+    runtime.identities.mutate({"operation": "state", "sn": "SN-Q", "state": state})
+    runtime.identities.mutate({"operation": "route_mode", "sn": "SN-Q", "mode": "proxy"})
+    runtime.settings["aliases"]["rpc.alice.yandex.net"] = runtime.settings["aliases"]["quasar.yandex.net"]
+    return runtime, upstream_runner, runner, url
+
+
+async def get_raw(url, path="/get_sync_info?device_id=q-id", headers=HEADERS):
+    async with ClientSession() as client:
+        async with client.get(url + path, headers=headers) as response:
+            return response.status, await response.read()
+
+
+async def test_transparent_route_applies_replacements(tmp_path):
+    runtime, upstream_runner, runner, url = await start_transparent(tmp_path, True)
+    try:
+        status, body = await get_raw(url)
+        assert status == 200 and json.loads(body)["config"]["volume"] == 9
+        last = state_of(runtime)["quasar_direct_last"]
+        assert last["body"]["config"]["volume"] == 5 and last["body_sent"]["config"]["volume"] == 9
+        assert last["replaced"] == 1
+        assert "SN-Q" in runtime.quasar_sync_headers  # кнопка «Получить с оригинального сервера» работает и здесь
+    finally:
+        await stop(runtime, upstream_runner, runner)
+
+
+async def test_transparent_route_without_flag_is_byte_exact(tmp_path):
+    for flag in (None, False):
+        runtime, upstream_runner, runner, url = await start_transparent(tmp_path, flag)
+        try:
+            status, body = await get_raw(url)
+            assert status == 200 and body == RAW
+            assert "quasar_direct_last" not in state_of(runtime)
+        finally:
+            await stop(runtime, upstream_runner, runner)
+
+
+async def test_transparent_flag_other_source_is_byte_exact(tmp_path):
+    for source in ("generated", "custom"):
+        runtime, upstream_runner, runner, url = await start_transparent(tmp_path, True, source=source)
+        try:
+            status, body = await get_raw(url)
+            assert status == 200 and body == RAW
+            assert "quasar_direct_last" not in state_of(runtime)
+        finally:
+            await stop(runtime, upstream_runner, runner)
+
+
+async def test_transparent_flag_other_traffic_is_byte_exact(tmp_path):
+    runtime, upstream_runner, runner, url = await start_transparent(tmp_path, True)
+    try:
+        status, body = await get_raw(url, "/other_path?device_id=q-id")  # другой путь quasar.yandex.net
+        assert status == 200 and body == RAW
+        status, body = await get_raw(url, headers=dict(HEADERS, Host="rpc.alice.yandex.net"))  # другой хост
+        assert status == 200 and body == RAW
+        assert "quasar_direct_last" not in state_of(runtime)
+    finally:
+        await stop(runtime, upstream_runner, runner)
+
+
+async def test_transparent_flag_does_not_affect_other_routes(tmp_path):
+    """Галочка относится только к «Прозрачно»: в «Эмуляции» замены в «Напрямую» работают как раньше."""
+    runtime, upstream_runner, runner, url = await start_transparent(tmp_path, False)
+    runtime.identities.mutate({"operation": "route_mode", "sn": "SN-Q", "mode": "emulate"})
+    try:
+        status, body = await get_raw(url)
+        assert status == 200 and json.loads(body)["config"]["volume"] == 9  # галочка выключена, замены всё равно есть
+    finally:
+        await stop(runtime, upstream_runner, runner)
+
+
+async def test_transparent_upstream_error_gives_502(tmp_path):
+    runtime, upstream_runner, runner, url = await start_transparent(tmp_path, True)
+    await upstream_runner.cleanup()  # «Яндекс» недоступен
+    try:
+        status, body = await get_raw(url)
+        assert status == 502 and json.loads(body)["error"] == "upstream_unavailable"
+        assert "quasar_direct_last" not in state_of(runtime)
+    finally:
+        await stop(runtime, upstream_runner, runner)
+
+
+async def test_put_transparent_validates_and_get_returns_it(tmp_path):
+    runtime, upstream_runner, runner, url = await start(tmp_path)
+    try:
+        async with ClientSession() as client:
+            async with client.get(url + "/emulator/api/quasar_source?sn=SN-Q") as r:
+                assert (await r.json())["transparent"] is False
+            for bad in ("true", 1, None, [], {}):
+                async with client.put(url + "/emulator/api/quasar_source", headers=API,
+                                      json={"sn": "SN-Q", "transparent": bad}) as r:
+                    assert r.status == 400
+            assert "quasar_direct_transparent" not in state_of(runtime)
+            async with client.put(url + "/emulator/api/quasar_source", headers=API,
+                                  json={"sn": "SN-Q", "transparent": True}) as r:
+                assert r.status == 200
+            assert state_of(runtime)["quasar_direct_transparent"] is True
+            assert state_of(runtime)["quasar_source"] == "direct"  # остальное не затронуто
+            async with client.get(url + "/emulator/api/quasar_source?sn=SN-Q") as r:
+                assert (await r.json())["transparent"] is True
+            # другое поле PUT галочку не сбрасывает
+            async with client.put(url + "/emulator/api/quasar_source", headers=API,
+                                  json={"sn": "SN-Q", "replace": []}) as r:
+                assert r.status == 200
+            assert state_of(runtime)["quasar_direct_transparent"] is True
+            async with client.put(url + "/emulator/api/quasar_source", headers=API,
+                                  json={"sn": "SN-Q", "transparent": False}) as r:
+                assert r.status == 200
+            assert "quasar_direct_transparent" not in state_of(runtime)
+    finally:
+        await stop(runtime, upstream_runner, runner)

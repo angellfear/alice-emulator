@@ -35,7 +35,7 @@ from .extensions.context import ExtensionContext, action_context  # ExtensionCon
 from .scenario_engine import bindings as _bindings
 from .scenario_engine import parsers as _parsers
 
-SDK_VERSION = "1.2.0"
+SDK_VERSION = "1.3.0"
 DATASET_REFRESH_TIMEOUT_S = 10.0  # как у шага refresh без timeout
 
 
@@ -49,6 +49,210 @@ def secret(value):
     адаптер расширения раскрывает так `api_key` своего пресета (настройки расширения
     ExtensionContext раскрывает сам)."""
     return _secret(value)
+
+
+# --- 1.3.0: обработчики AAPI расширений и отправка на устройство (TASK-059) ----------
+
+_RUNTIME = None      # привязывает Runtime.__init__ (bind_runtime) — модульные отправки
+_LOADING = None      # id расширения, чьи aapi/*.py импортирует загрузчик (rebuild_extension_registries)
+_PENDING: list = []  # регистрации за импорт модулей расширения; забирает загрузчик (_pending)
+
+
+def bind_runtime(runtime):
+    """Привязать runtime для модульных send_push/send_directive — как bind_manager
+    у расширений; последний вызов побеждает (один самостоятельный сервер)."""
+    global _RUNTIME
+    _RUNTIME = runtime
+
+
+class _LoadingExt:
+    """Контекст загрузки aapi-модулей расширения: декораторам известно имя владельца."""
+
+    def __init__(self, ext_id):
+        self.ext_id = str(ext_id)
+        self.previous = None
+
+    def __enter__(self):
+        global _LOADING
+        self.previous, _LOADING = _LOADING, self.ext_id
+        return self
+
+    def __exit__(self, *exc):
+        global _LOADING
+        _LOADING = self.previous
+        return False
+
+
+def loading_extension(ext_id):
+    """Контекст для загрузчика расширений: внутри импортируются aapi/*.py одного
+    расширения, декораторы aapi_handler/on_event записывают регистрации ему."""
+    return _LoadingExt(ext_id)
+
+
+def _pending():
+    """Регистрации, накопленные за импорт модулей расширения."""
+    taken, _PENDING[:] = _PENDING[:], []
+    return taken
+
+
+def aapi_handler(*triggers, enabled=None):
+    """Обработчик AAPI-события колонки из расширения: async handler(event, ctx) -> bool.
+
+    event — разобранное сообщение {name, type, message_id, request_id, dialog_id, payload,
+    text}; ctx — отправка и устройство (ctx.sn/device/extension, ctx.reply(say(...)),
+    ctx.send(байты), ctx.push(действие, параметры)). triggers — имена сообщений и
+    служебных событий ('TextInput', '@@mm_typed_callback', ...); каждое обязано быть
+    объявлено в permissions.aapi манифеста, иначе не регистрируется. Источник —
+    extension:<id>; вызываются после встроенных. Выключение/удаление расширения снимает
+    обработчики (пересборка реестра)."""
+
+    def register(handler):
+        if _LOADING is None:
+            raise SDKError("sdk.aapi_handler — только в aapi/*.py расширения")
+        _PENDING.append({"triggers": triggers, "enabled": enabled, "handler": handler, "observer": False})
+        return handler
+
+    return register
+
+
+def on_event(name):
+    """Наблюдатель события (1.3.0): async fn(event, ctx) вызывается для каждого события
+    фоном — в выборе обработчика не участвует и ответ колонке не меняет. Тоже требует
+    permissions.aapi."""
+
+    def register(fn):
+        if _LOADING is None:
+            raise SDKError("sdk.on_event — только в aapi/*.py расширения")
+        _PENDING.append({"triggers": (str(name),), "enabled": None, "handler": fn, "observer": True})
+        return fn
+
+    return register
+
+
+def _aapi_event(conversation, incoming, trigger):
+    """Разобранное сообщение для обработчика расширения — публичный dict без
+    protobuf-классов: имя, тип, заголовки, Payload как dict, текст TextInput."""
+    from google.protobuf import json_format
+
+    message = getattr(incoming.Event, str(trigger), None)
+    request = getattr(message, "Request", None)
+    event_obj = getattr(request, "Event", None) if request is not None else getattr(message, "Event", None)
+    header = getattr(message, "Header", None)  # заголовок сообщения (TEvent своего Header не имеет)
+    event = {"name": str(getattr(event_obj, "Name", "") or trigger),
+             "type": int(getattr(event_obj, "Type", 0) or 0),
+             "message_id": str(getattr(incoming.Event.Header, "MessageId", "") or ""),
+             "request_id": str(getattr(header, "RequestId", "") or ""),
+             "dialog_id": str(getattr(header, "DialogId", "") or ""),
+             "payload": {},
+             "text": str(getattr(event_obj, "Text", "") or "")}
+    if event_obj is not None:
+        payload = getattr(event_obj, "Payload", None)
+        if payload is not None and len(payload.fields):
+            try:
+                event["payload"] = json_format.MessageToDict(payload, preserving_proto_field_name=True)
+            except Exception:  # noqa: BLE001 — битый Payload отдаётся пустым
+                event["payload"] = {}
+    return event
+
+
+def _aapi_compose_ctx(conversation, event):
+    """Контекст compose для ctx.reply: те же поля запроса, что собирает voice.py."""
+    return {"input": {"message_id": event["message_id"], "request_id": event["request_id"],
+                      "dialog_id": event["dialog_id"], "sn": event["sn"], "text": ""},
+            "clock": {"now": datetime.datetime.now()},
+            "sequence": next(conversation.runtime.sequence)}
+
+
+class _AapiContext:
+    """Контекст обработчика AAPI расширения (1.3.0): ExtensionContext, устройство,
+    ответ колонке и push. reply(spec) — сборка тем же compose_reply, что у сценариев
+    (say/card/directive/silent); send(data) — сырой AAPI-фрейм в сокет этой колонки;
+    push(action, params) — действие каталога (actions.py)."""
+
+    __slots__ = ("conversation", "event", "extension", "_compose_ctx")
+
+    def __init__(self, conversation, event, extension, compose_ctx):
+        self.conversation = conversation
+        self.event = event
+        self.extension = extension
+        self._compose_ctx = compose_ctx
+
+    @property
+    def sn(self):
+        """SN колонки, от которой пришло событие."""
+        return self._compose_ctx["input"]["sn"]
+
+    @property
+    def device(self):
+        """Запись реестра о колонке (как ctx.device у сценариев)."""
+        return (self.conversation.runtime._scenario_context(sn=self.sn) or {}).get("device") or {}
+
+    async def reply(self, spec):
+        """Ответ колонке из построителя SDK (say/card/directive/silent): сборка и каркас —
+        как у шага compose сценария."""
+        from .scenario_engine.dialog import finalize_reply
+        from .scenario_engine.reply_compose import compose_reply
+        runtime = self.conversation.runtime
+        message = compose_reply(dict(spec or {}), self._compose_ctx, runtime.scenario_executor.schemas_root)
+        finalize_reply(message, self._compose_ctx)
+        await self.conversation.send(b"AAPI" + message.SerializeToString())
+
+    async def send(self, data):
+        """Сырой фрейм в сокет колонки (байты; AAPI-префикс не добавляется)."""
+        await self.conversation.send(data)
+
+    async def push(self, action, params=None):
+        """Push-действие каталога этой колонке (как send_push)."""
+        return await _push(self.conversation.runtime, self.sn, action, params)
+
+
+async def adapt_aapi_call(handler, conversation, incoming, trigger, meta=None):
+    """Мост реестра → публичная сигнатура (TASK-059): event (dict) + ctx (ExtensionContext
+    расширения-владельца, устройство, reply/send). Возвращённое приводится к bool."""
+    event = _aapi_event(conversation, incoming, trigger)
+    event["sn"] = conversation.trace_context.get("sn") or ""
+    ext_id = (meta or {}).get("source", "").removeprefix("extension:")
+    manager = getattr(conversation.runtime, "extensions", None)
+    extension = manager.context(ext_id) if ext_id and manager is not None else None
+    ctx = _AapiContext(conversation, event, extension, _aapi_compose_ctx(conversation, event))
+    result = handler(event, ctx)
+    if inspect.isawaitable(result):
+        result = await result
+    return bool(result)
+
+
+async def _push(runtime, sn, action, params):
+    """Общая отправка Push-действия каталога (actions.py): неизвестное действие и
+    устройство не в сети — понятное исключение SDK."""
+    try:
+        result = await runtime.push_action(str(sn), str(action), dict(params or {}))
+    except ValueError as exc:  # неизвестное действие / параметры
+        raise SDKError(str(exc)) from exc
+    if not result or result.get("delivery") == "no_session":
+        raise SDKError(f"устройство {sn} не в сети — push не отправлен")
+    return result
+
+
+async def send_push(sn, action, params=None):
+    """Push-действие каталога (actions.py CATALOG) выбранному устройству (1.3.0):
+    для сценариев (вне ctx) и расширений. Устройство не в сети — SDKError."""
+    if _RUNTIME is None:
+        raise SDKError("SDK не привязан к runtime")
+    return await _push(_RUNTIME, sn, action, params)
+
+
+async def send_directive(sn, name, payload=None):
+    """Директива Push произвольного вида выбранному устройству (1.3.0). Устройство
+    не в сети — SDKError."""
+    if _RUNTIME is None:
+        raise SDKError("SDK не привязан к runtime")
+    from . import actions as _actions
+    from .runtime import ROOT
+    from .schema import load_type
+    message = _actions.push_directive(load_type(ROOT / "schemas", "alice-api.pb",
+                                                "NAlice.NAliceApi.TServerMessage"), name, payload)
+    if not await _RUNTIME.send_message(str(sn), message):
+        raise SDKError(f"устройство {sn} не в сети — директива не отправлена")
 
 
 # --- построители ответа: return-значение handle() -------------------------------
@@ -307,6 +511,22 @@ class ScenarioContext:
         if inspect.isawaitable(result):
             result = await result
         return result
+
+    async def send_push(self, sn, action, params=None):
+        """Push-действие каталога (actions.py CATALOG) выбранному устройству (1.3.0):
+        громкость, bluetooth, LED-анимация... Устройство не в сети — SDKError."""
+        return await _push(self._runtime, sn, action, params)
+
+    async def send_directive(self, sn, name, payload=None):
+        """Директива Push произвольного вида выбранному устройству (1.3.0): тот же
+        конверт Push, без проверки каталога. Не в сети — SDKError."""
+        from . import actions as _actions
+        from .runtime import ROOT
+        from .schema import load_type
+        message = _actions.push_directive(load_type(ROOT / "schemas", "alice-api.pb",
+                                                    "NAlice.NAliceApi.TServerMessage"), name, payload)
+        if not await self._runtime.send_message(str(sn), message):
+            raise SDKError(f"устройство {sn} не в сети — директива не отправлена")
 
     async def fetch_json(self, url, ttl=0):
         """GET JSON через общий fetcher движка (кеш TTL, лимит размера, честная ошибка)."""

@@ -65,7 +65,7 @@ async def start(tmp_path, sn="SN-RC", device_id="rc-id", mode="emulate"):
     calls = []
     upstream_runner, port = await start_upstream(calls)
     alias_upstream(runtime, port)
-    runtime.settings["default_route_mode"] = mode
+    set_route(runtime, sn, mode)
     runner, url = await listen(create_app(runtime=runtime))
     return runtime, calls, upstream_runner, runner, url
 
@@ -74,6 +74,10 @@ async def stop(runtime, upstream_runner, runner):
     await upstream_runner.cleanup()
     await runner.cleanup()
     await runtime.close()
+
+
+def set_route(runtime, sn, mode):
+    runtime.identities.mutate({"operation": "route_mode", "sn": sn, "mode": mode})
 
 
 def set_record(runtime, sn, mode):
@@ -104,16 +108,16 @@ async def test_migration_record_route_to_proxy_plus_record(tmp_path):
 
     migrated = Runtime(tmp_path)
     try:
-        assert migrated.settings["default_route_mode"] == "proxy"
+        assert "default_route_mode" not in migrated.settings  # прежний default перенесён на устройства (TASK-064)
         a, b, c = (migrated.identities.resolve(i) for i in ("a-id", "b-id", "c-id"))
         assert (a["route_mode"], a["record"]) == ("proxy", "on")
-        assert (b["route_mode"], b["record"]) == (None, "on")  # наследовал default record
+        assert (b["route_mode"], b["record"]) == ("proxy", "on")  # без своего маршрута: default record → proxy + запись
         assert (c["route_mode"], c["record"]) == ("emulate", "off")  # свой маршрут — запись не включается
     finally:
         await migrated.close()
     again = Runtime(tmp_path)  # однократно: повторная загрузка ничего не меняет
     try:
-        assert again.settings["default_route_mode"] == "proxy"
+        assert "default_route_mode" not in again.settings
         assert again.identities.resolve("b-id")["record"] == "on"
         assert again.identities.resolve("c-id")["record"] == "off"
     finally:
@@ -127,8 +131,6 @@ async def test_record_is_not_a_route_mode(tmp_path):
     try:
         async with ClientSession(headers=API) as client:
             async with client.put(url + "/emulator/api/route_mode", json={"sn": "SN-UP", "mode": "record"}) as response:
-                assert response.status == 400
-            async with client.put(url + "/emulator/api/mode", json={"mode": "record"}) as response:
                 assert response.status == 400
             async with client.put(url + "/emulator/api/record_mode", json={"sn": "SN-UP", "mode": "turbo"}) as response:
                 assert response.status == 400
@@ -168,7 +170,7 @@ async def test_off_writes_nothing_in_any_route(tmp_path):
     try:
         async with ClientSession() as client:
             for mode in ("emulate", "hybrid", "proxy"):
-                runtime.settings["default_route_mode"] = mode
+                set_route(runtime, "SN-RC", mode)
                 for path in ("/check_updates", "/no/handler"):
                     async with client.get(url + path, headers=DEVICE):
                         pass
@@ -189,7 +191,7 @@ async def test_on_records_emulator_and_upstream_answers(tmp_path):
                 assert response.status == 200
             async with client.get(url + "/no/handler?x=1", headers=DEVICE) as response:
                 assert response.status == 404
-            runtime.settings["default_route_mode"] = "proxy"
+            set_route(runtime, "SN-RC", "proxy")
             async with client.get(url + "/check_updates", headers=DEVICE) as response:
                 assert (await response.json())["from"] == "upstream"
         await runtime.upstream.journal.flush()
@@ -219,16 +221,16 @@ async def test_misses_in_emulate_hybrid_and_proxy(tmp_path):
                 return [(i["source"], i["path"]) for i in journal.list()["items"]]
 
             # эмуляция: пишется только промах (его ответ — 404 эмулятора)
-            runtime.settings["default_route_mode"] = "emulate"
+            set_route(runtime, "SN-RC", "emulate")
             await hit("/check_updates")
             assert await hit("/no/one") == [("emulator", "/no/one")]
             # гибрид: обработанное — локально и не пишется; промах, ушедший наверх, пишется
-            runtime.settings["default_route_mode"] = "hybrid"
+            set_route(runtime, "SN-RC", "hybrid")
             await hit("/check_updates")
             assert await hit("/no/two") == [("upstream", "/no/two"), ("emulator", "/no/one")]
             # прокси: запрос, для которого у эмулятора есть обработчик, идёт наверх, но не пишется;
             # без обработчика — пишется (запрос всё равно идёт в Яндекс)
-            runtime.settings["default_route_mode"] = "proxy"
+            set_route(runtime, "SN-RC", "proxy")
             await hit("/check_updates")
             assert await hit("/no/three") == [("upstream", "/no/three"), ("upstream", "/no/two"),
                                               ("emulator", "/no/one")]
@@ -446,7 +448,7 @@ async def test_ws_bridge_records_by_option(tmp_path):
     upstream_app.router.add_route("GET", "/uni.ws", uniproxy)
     upstream_runner, port = await start_upstream_app(upstream_app)
     alias_upstream(runtime, port)
-    runtime.settings["default_route_mode"] = "proxy"
+    set_route(runtime, "SN-W", "proxy")
     runner, url = await listen(create_app(runtime=runtime))
     journal = runtime.upstream.journal
 

@@ -91,14 +91,14 @@ async def scenarios(request, runtime, app):
             off = set(runtime.settings.get('builtin_disabled') or [])
             (off.discard if value['enabled'] else off.add)(value['id'])
             await runtime.save_settings({**runtime.settings,
-                                         'builtin_disabled': sorted(off)}, preserve_mode=True)
+                                         'builtin_disabled': sorted(off)})
             return web.json_response({'id': value['id'], 'enabled': bool(value['enabled'])})
         scenarios = runtime.settings.get('scenarios', [])
         scenario = next((x for x in scenarios if x.get('id') == value['id']), None)
         if scenario is None:
             raise ValueError('Сценарий не найден')
         scenario['enabled'] = bool(value['enabled'])
-        await runtime.save_settings({**runtime.settings, 'scenarios': scenarios}, preserve_mode=True)
+        await runtime.save_settings({**runtime.settings, 'scenarios': scenarios})
         return web.json_response({'id': value['id'], 'enabled': scenario['enabled']})
     if request.method == 'PUT':
         payload = dict(value or {})
@@ -120,7 +120,7 @@ async def scenarios(request, runtime, app):
                 raise ValueError('executor script: нет кода и файла обработчика')
         scenarios = [x for x in runtime.settings.get('scenarios', [])
                      if x.get('id') != scenario['id']] + [scenario]
-        await runtime.save_settings({**runtime.settings, 'scenarios': scenarios}, preserve_mode=True)
+        await runtime.save_settings({**runtime.settings, 'scenarios': scenarios})
         return web.json_response({'saved': scenario['id']})
     if request.method == 'DELETE':
         removed = request.query.get('id')
@@ -136,7 +136,7 @@ async def scenarios(request, runtime, app):
             (runtime.scenario_dir / (removed + '.py')).unlink()
         except OSError:
             pass
-        await runtime.save_settings({**runtime.settings, 'scenarios': scenarios}, preserve_mode=True)
+        await runtime.save_settings({**runtime.settings, 'scenarios': scenarios})
         return web.json_response({'deleted': removed})
     if request.method == 'POST':  # dry-run без устройства
         text = (value or {}).get('text', '')

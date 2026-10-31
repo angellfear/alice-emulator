@@ -63,6 +63,7 @@
       const line = make('div', null, 'name-line');
       line.append(make('b', h.trigger), make('span', h.name, 'chip'));
       if (h.source === 'callback') line.append(make('span', 'колбэк', 'chip'));
+      else if (h.source.startsWith('extension:')) line.append(make('span', h.source, 'chip'));
       if (!h.enabled) line.append(make('span', 'выключен', 'chip warn'));
       row.append(line, make('small', (h.description || '') + (h.enabled_text ? ' · ' + h.enabled_text : ''), 'hint'),
                  make('small', counters(h.counters), 'hint'));

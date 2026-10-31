@@ -44,7 +44,7 @@ log = logging.getLogger(__name__)
 MANIFEST = "extension.json"
 HOOK_TIMEOUT = 10.0  # таймаут хука hooks.py (ScriptRunner)
 MAX_ZIP_BYTES = 50 * 1024 * 1024  # лимит архива расширения (модели тяжелее — это класс install)
-FOLDERS = ("scenarios", "endpoints", "quasar", "voice", "lists", "modes", "mcp", "actions",
+FOLDERS = ("scenarios", "endpoints", "quasar", "voice", "lists", "modes", "mcp", "aapi", "actions",
            "datasets", "animations", "params", "replies", "catalog", "updates", "sounds", "ui")
 
 SEMVER_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$")
@@ -145,12 +145,14 @@ def validate_manifest(data):
     if not isinstance(packages, list) or not all(isinstance(p, str) and p.strip() for p in packages):
         raise ValueError("extension.json: requires.python_packages — список строк")
     permissions = data["permissions"]
-    if not isinstance(permissions, dict) or set(permissions) - {"network", "actions", "device_push", "install"}:
-        raise ValueError("extension.json: permissions — объект network/actions/device_push/install")
+    if not isinstance(permissions, dict) or set(permissions) - {"network", "actions", "device_push", "install", "aapi"}:
+        raise ValueError("extension.json: permissions — объект network/actions/device_push/install/aapi")
     if not all(isinstance(h, str) and HOST_RE.match(h) for h in permissions.get("network", [])):
         raise ValueError("extension.json: permissions.network — список хостов")
     if not all(isinstance(a, str) and a.strip() for a in permissions.get("actions", [])):
         raise ValueError("extension.json: permissions.actions — список строк")
+    if not all(isinstance(a, str) and a.strip() for a in permissions.get("aapi", [])):
+        raise ValueError("extension.json: permissions.aapi — список событий (TASK-059)")
     for key in ("device_push", "install"):
         if not isinstance(permissions.get(key, False), bool):
             raise ValueError(f"extension.json: permissions.{key} — boolean")
@@ -218,7 +220,7 @@ class ExtensionManager:
         return state
 
     async def _save(self):
-        await self.runtime.save_settings(dict(self.runtime.settings), preserve_mode=True)
+        await self.runtime.save_settings(dict(self.runtime.settings))
 
     def _installed(self, ext_id):
         entry = self._state()["installed"].get(ext_id)

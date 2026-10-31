@@ -101,25 +101,22 @@ async def test_model_speech_and_mcp_with_local_providers(tmp_path):
         await runner.cleanup()
 
 
-async def test_mode_toggle_preserves_settings_and_stale_form_cannot_reset_mode(tmp_path):
-    """TASK-044: /api/mode — маршрут по умолчанию; форма настроек его не меняет."""
+async def test_settings_form_keeps_secrets_and_ignores_default_route_mode(tmp_path):
+    """TASK-064: маршрута по умолчанию нет — форма настроек его не сохраняет, секреты __KEEP__ целы."""
     runtime = Runtime(tmp_path)
     runtime.settings['model']['api_key'] = 'keep-secret'
     stale_form = runtime.public()
+    stale_form['default_route_mode'] = 'hybrid'
     runner, url = await listen(create_app(runtime=runtime))
     try:
         async with ClientSession(headers={'X-Emulator': '1'}) as client:
-            async with client.put(url+'/emulator/api/mode', json={'mode': 'hybrid'}) as response:
-                assert await response.json() == {'mode': 'hybrid', 'connections': 'wait', 'disconnected': 0}
-            assert runtime.settings['model']['api_key'] == 'keep-secret'
             stale_form['system_prompt'] = 'edited prompt'
             async with client.put(url+'/emulator/api/settings', json=stale_form) as response:
                 assert response.status == 200
-                assert (await response.json())['default_route_mode'] == 'hybrid'
+                assert 'default_route_mode' not in await response.json()
+            assert runtime.settings['model']['api_key'] == 'keep-secret'
             assert runtime.settings['system_prompt'] == 'edited prompt'
-            async with client.put(url+'/emulator/api/mode', json={'mode': 'invalid'}) as response:
-                assert response.status == 400
-            assert Runtime(tmp_path).settings['default_route_mode'] == 'hybrid'
+            assert 'default_route_mode' not in Runtime(tmp_path).settings
     finally:
         await runner.cleanup()
 

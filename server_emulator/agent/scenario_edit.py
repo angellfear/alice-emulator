@@ -223,7 +223,7 @@ async def _save(runtime, scenario, disable_builtin=None, script=None):
     settings = {**runtime.settings, "scenarios": scenarios}
     if disable_builtin:
         settings["builtin_disabled"] = sorted(set(runtime.settings.get("builtin_disabled") or []) | {disable_builtin})
-    await runtime.save_settings(settings, preserve_mode=True)
+    await runtime.save_settings(settings)
 
 
 async def activate(runtime, draft_id, user_id=None, approved_by_admin=False):

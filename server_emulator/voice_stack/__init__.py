@@ -706,7 +706,7 @@ class VoiceStack:
         settings = copy.deepcopy(self.runtime.settings)
         settings[SETTINGS_KEY[service]] = config
         settings["voice_stack"] = {**(settings.get("voice_stack") or {}), service: ref}
-        await self.runtime.save_settings(settings, preserve_mode=True)
+        await self.runtime.save_settings(settings)
         if package:
             await self.local.start(package)
         return {"service": service, "active": ref}
@@ -737,7 +737,7 @@ class VoiceStack:
         settings = copy.deepcopy(self.runtime.settings)
         settings[name] = {**current, "adapter": adapter_id}
         settings["voice_stack"] = {**(settings.get("voice_stack") or {}), service: "p:" + preset["id"]}
-        await self.runtime.save_settings(settings, preserve_mode=True)
+        await self.runtime.save_settings(settings)
 
     async def public(self):
         await self.migrate()

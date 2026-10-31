@@ -333,7 +333,7 @@
   let selectedPlatformBody=null;
   // Источник конфига устройства (TASK-052): Генерируемый · Напрямую · Свой.
   // Переключатель в строке заголовка (на 400px переносится под него), смена
-  // сохраняется сразу; при маршруте устройства Прокси/Запись неактивен.
+  // сохраняется сразу и в маршруте «Прозрачно» (там применяется только «Напрямую» с галочкой, TASK-065).
   const SOURCE_LABEL={generated:'Генерируемый',direct:'Напрямую',custom:'Свой'};
   const SOURCE_HINT={
     generated:'Колонка получает конфиг, собранный эмулятором: платформа → переопределения → инлайн-узлы. Ниже — переопределения и итоговая сборка.',
@@ -344,30 +344,28 @@
     let source;
     try{source=await api('quasar_source?sn='+encodeURIComponent(device.sn))}
     catch(e){const pe=make('p','Ошибка загрузки: '+e.message);pe.className='hint';root.append(pe);return}
-    const routed=device.route_mode||registry.default_route_mode||'emulate';
+    const routed=device.route_mode||'emulate';
     const locked=routed==='proxy';
     const headRow=make('div');headRow.className='src-head';
     headRow.append(make('h3','Переопределения · '+device.sn));
-    if(locked){
-      const badge=make('span','маршрут: Прокси','chip');
-      headRow.append(badge);
-    }else{
-      const seg=make('div');seg.className='segmented';
-      for(const [value,label] of Object.entries(SOURCE_LABEL)){
-        const b=make('button',label);b.type='button';
-        if(source.mode===value)b.classList.add('active');
-        b.onclick=()=>work(async()=>{await put('quasar_source',{sn:device.sn,mode:value});await render()});
-        seg.append(b);
-      }
-      headRow.append(seg);
+    if(locked)headRow.append(make('span','маршрут: Прозрачно','chip'));
+    const seg=make('div');seg.className='segmented';
+    for(const [value,label] of Object.entries(SOURCE_LABEL)){
+      const b=make('button',label);b.type='button';
+      if(source.mode===value)b.classList.add('active');
+      b.onclick=()=>work(async()=>{await put('quasar_source',{sn:device.sn,mode:value});await render()});
+      seg.append(b);
     }
+    headRow.append(seg);
     root.append(headRow);
     const hint=make('p');hint.className='hint';
-    hint.textContent=locked
-      ?'Маршрут устройства «'+(routed==='proxy'?'Прокси':'Запись')+'»: все запросы и так уходят на настоящий сервер, источник конфига не применяется.'
-      :SOURCE_HINT[source.mode];
+    if(locked)hint.textContent='Маршрут устройства «Прозрачно»: все запросы уходят на настоящий сервер. '
+      +(source.mode==='direct'
+        ?'Ответ get_sync_info правится заменами, только пока включена галочка «И в прозрачном маршруте»; без неё замены в этом маршруте не применяются.'
+        :'Генерируемый и свой ответ в этом маршруте не применяются; чтобы править ответ заменами, выберите «Напрямую».');
+    else hint.textContent=SOURCE_HINT[source.mode];
     root.append(hint);
-    if(locked)return;
+    if(locked&&source.mode!=='direct')return;
     if(source.mode==='direct')return renderDirect(root,device,source);
     if(source.mode==='custom')return renderCustom(root,device,source);
     return renderGenerated(root,device);
@@ -380,7 +378,15 @@
     const bar=make('div');bar.className='sc-toolbar';
     const replaceB=make('button','Замены'+(enabled?' · '+enabled:''));replaceB.type='button';replaceB.className='secondary';
     replaceB.onclick=()=>replaceDialog(device,rules);
-    bar.append(replaceB);root.append(bar);
+    const transparent=make('label');transparent.className='check';
+    const flag=make('input');flag.type='checkbox';flag.checked=source.transparent===true;
+    flag.onchange=()=>work(async()=>{
+      try{await put('quasar_source',{sn:device.sn,transparent:flag.checked})}
+      catch(e){flag.checked=!flag.checked;throw e}
+      notify(flag.checked?'Замены применяются и в маршруте «Прозрачно»':'В маршруте «Прозрачно» замены не применяются');
+    });
+    transparent.append(flag,document.createTextNode('И в прозрачном маршруте'));
+    bar.append(replaceB,transparent);root.append(bar);
     root.append(make('h3','Последний ответ'));
     const last=source.direct_last;
     if(!last||!last.body){

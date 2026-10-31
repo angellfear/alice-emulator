@@ -405,6 +405,8 @@ class Conversation:
 
         aapi_handlers.count(trigger)
 
+        aapi_handlers.notify_observers(self, incoming, trigger)  # TASK-059: наблюдатели фоном
+
         for handler in aapi_handlers.handlers(trigger, self.runtime.settings):
 
             if await handler(self, incoming, trigger):
@@ -1129,6 +1131,8 @@ class Conversation:
 
                 aapi_handlers.count(event_name)
 
+                aapi_handlers.notify_observers(self, incoming, event_name)  # TASK-059
+
                 handled = False
 
                 if provide:
@@ -1136,6 +1140,18 @@ class Conversation:
                     report = await dialog.handle_event(provide, ctx, dialog_id, self.send)
 
                     handled = bool(report.get('handled'))
+
+                if not handled:
+
+                    # обработчики расширений на это имя события (TASK-059) — после встроенных
+
+                    for ext_handler in aapi_handlers.handlers(event_name, self.runtime.settings):
+
+                        if await ext_handler(self, incoming, event_name):
+
+                            handled = True
+
+                            break
 
                 if not handled:
 

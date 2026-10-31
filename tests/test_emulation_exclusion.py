@@ -28,16 +28,14 @@ async def test_route_mode_from_headers_and_query(tmp_path):
     runtime = Runtime(tmp_path)
     _registry(runtime)
     assert runtime.route_mode_for(FakeRequest(headers={'x-uprx-device-id': 'real-id'})) \
-        == ('SN-REAL', 'real-id', 'emulate')  # без своего маршрута — default
+        == ('SN-REAL', 'real-id', 'emulate')  # без своего маршрута — эмуляция
     runtime.identities.mutate({'operation': 'route_mode', 'sn': 'SN-REAL', 'mode': 'hybrid'})
     assert runtime.route_mode_for(FakeRequest(headers={'x-uprx-device-id': 'real-id'}))[2] == 'hybrid'
     assert runtime.route_mode_for(FakeRequest(query={'device_id': 'emu-id'})) \
         == ('SN-EMU', 'emu-id', 'emulate')
-    # неизвестное устройство и запрос без маркеров — default_route_mode
+    # неизвестное устройство и запрос без маркеров — всегда эмуляция (маршрута по умолчанию нет, TASK-064)
     assert runtime.route_mode_for(FakeRequest(headers={'x-uprx-device-id': 'ghost'}))[2] == 'emulate'
     assert runtime.route_mode_for(FakeRequest()) == (None, None, 'emulate')
-    runtime.settings['default_route_mode'] = 'proxy'
-    assert runtime.route_mode_for(FakeRequest())[2] == 'proxy'
     await runtime.close()
 
 
@@ -53,11 +51,13 @@ async def test_set_device_route_mode_closes_only_its_sessions(tmp_path):
     runtime.sessions['b'] = {'device_sn': 'SN-EMU', 'ws': FakeWS()}
     runtime.sessions['c'] = {'device_id': 'real-id', 'ws': FakeWS()}  # handshake без sync: SN через DeviceId
     result = await runtime.set_device_route_mode('SN-REAL', 'hybrid')
-    assert result == {'sn': 'SN-REAL', 'mode': 'hybrid', 'disconnected': 2}
+    assert result == {'sn': 'SN-REAL', 'mode': 'hybrid', 'disconnected': 0}  # emulate → hybrid: WS не рвётся
+    result = await runtime.set_device_route_mode('SN-REAL', 'proxy')
+    assert result == {'sn': 'SN-REAL', 'mode': 'proxy', 'disconnected': 2}  # в «Прозрачно» — рвётся
     await runtime.closer.drain()  # закрытие идёт в фоне (TASK-057)
     assert len(closed) == 2 and all(item['code'] == 1012 for item in closed)
-    assert runtime.identities.resolve('real-id')['route_mode'] == 'hybrid'
-    # сброс в None возвращает устройство на default_route_mode
+    assert runtime.identities.resolve('real-id')['route_mode'] == 'proxy'
+    # сброс в None — снова без своего маршрута (эмуляция)
     result = await runtime.set_device_route_mode('SN-REAL', None)
     assert result['mode'] is None
     assert runtime.identities.resolve('real-id')['route_mode'] is None

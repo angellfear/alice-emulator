@@ -34,7 +34,7 @@ async def self_update(request, runtime, app):
             raise ValueError("нет новой версии, чтобы её пропустить")
         settings = copy.deepcopy(runtime.settings)
         settings["self_update"]["skipped"] = version
-        await runtime.save_settings(settings, preserve_mode=True)
+        await runtime.save_settings(settings)
         return web.json_response(service.status(app))
     if action == "stash_update":  # «Отложить правки и обновить»: stash по клику, как у ComfyUI
         stash_sha = repo.stash(repo.discover(service.root))

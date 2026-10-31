@@ -12,7 +12,7 @@ from server_emulator.runtime import Runtime
 from server_emulator.server import create_app
 from tests.conftest import listen
 
-CATALOG_ACTIONS = ["mode", "settings", "status", "identities", "actions", "updates",
+CATALOG_ACTIONS = ["settings", "status", "identities", "actions", "updates",
                    "speech", "scenarios", "catalog", "endpoints",
                    "quasar_platforms", "quasar_composed", "params", "param_values",
                    "animations", "animations-media"]
