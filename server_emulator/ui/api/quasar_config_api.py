@@ -14,6 +14,7 @@ import copy
 from aiohttp import web
 
 from ...quasar_config import account_layer, compose, poll_period_warnings
+from ...quasar_replace import validate_rules
 from ...upstream import UpstreamError, forward_headers
 from ...upstream.forward import decoded_json
 
@@ -118,9 +119,10 @@ async def quasar_composed(request, runtime, app):
 async def quasar_source(request, runtime, app):
     """Источник конфига устройства (TASK-052).
 
-    GET ?sn= → {mode, direct_last, custom, can_fetch}; PUT {sn, mode?, custom?} —
-    сохранение режима и/или своего ответа в state устройства (под runtime.lock;
-    custom — JSON-объект с объектом config); POST {sn, action} — generate (ответ
+    GET ?sn= → {mode, direct_last, custom, replace, can_fetch}; PUT {sn, mode?, custom?, replace?} —
+    сохранение режима, своего ответа и/или замен regexp «Напрямую» (TASK-063) в state устройства
+    (под runtime.lock; custom — JSON-объект с объектом config; replace — [{enabled, pattern, replace}],
+    невалидный regex — 400 с номером строки, ничего не сохраняется); POST {sn, action} — generate (ответ
     compose, ничего не сохраняет) и fetch (запрос оригинальному серверу с
     запомненными заголовками колонки; обмен — в «Журнал», ничего не сохраняет).
     """
@@ -137,6 +139,7 @@ async def quasar_source(request, runtime, app):
         return web.json_response({'mode': state.get('quasar_source') or 'generated',
                                   'direct_last': state.get('quasar_direct_last'),
                                   'custom': state.get('quasar_custom'),
+                                  'replace': state.get('quasar_direct_replace') or [],
                                   'can_fetch': device['sn'] in runtime.quasar_sync_headers})
     value = await request.json()
     device = device_of(value.get('sn', ''))
@@ -146,8 +149,10 @@ async def quasar_source(request, runtime, app):
         if mode is not None and mode not in ('generated', 'direct', 'custom'):
             raise ValueError('Источник: generated | direct | custom')
         custom = value.get('custom')
-        if 'custom' in value and custom is not None and                 (not isinstance(custom, dict) or not isinstance(custom.get('config'), dict)):
+        if 'custom' in value and custom is not None and (
+                not isinstance(custom, dict) or not isinstance(custom.get('config'), dict)):
             raise ValueError('Свой ответ: JSON-объект с объектом config')
+        rules = validate_rules(value['replace']) if 'replace' in value else None
         async with runtime.lock:
             device = device_of(sn)  # свежая запись: пока ждали lock, state могли переписать
             state = copy.deepcopy(device.get('state') or {})
@@ -160,6 +165,11 @@ async def quasar_source(request, runtime, app):
                     state.pop('quasar_custom', None)
                 else:
                     state['quasar_custom'] = custom
+            if rules is not None:
+                if rules:
+                    state['quasar_direct_replace'] = rules
+                else:
+                    state.pop('quasar_direct_replace', None)
             runtime.identities.mutate({'operation': 'state', 'sn': sn, 'state': state})
         return web.json_response({'saved': sn})
     action = value.get('action')

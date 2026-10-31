@@ -23,6 +23,7 @@ from aiohttp import web
 from multidict import CIMultiDict
 
 from .identity import collect_device_id
+from .quasar_replace import apply_replacements, replaced_headers
 from .upstream import UpstreamError, forward_headers
 from .upstream.forward import decoded_json
 
@@ -109,7 +110,8 @@ class Dispatcher:
 
     async def direct_sync_info(self, request, device, device_id, sn, body, upstream):
         """TASK-052, «Напрямую»: get_sync_info пересылается настоящему quasar.yandex.net,
-        ответ колонке без изменений; успешный JSON сохраняется в state.quasar_direct_last.
+        ответ колонке без изменений (кроме замен regexp устройства, TASK-063 — quasar_replace.py);
+        успешный JSON сохраняется в state.quasar_direct_last (оригинал; body_sent — после замен).
         Ошибка соединения/петли — 502 (как отвечает механизм TASK-043); сохранённый
         последний ответ не затирается."""
         runtime = self.runtime
@@ -122,17 +124,30 @@ class Dispatcher:
                 device_sn=sn, device_id=device_id)
         except UpstreamError as exc:
             return web.json_response({'error': 'upstream_unavailable', 'detail': str(exc)[:200]}, status=502)
+        replaced = None
         if status == 200 and sn:
+            # TASK-063: замены regexp в ответе (правила устройства); сломанный JSON колонке не уходит
+            replaced = apply_replacements((device.get('state') or {}).get('quasar_direct_replace'), headers, payload)
+            if replaced and 'error' in replaced:
+                runtime.recent = (runtime.recent + [{'kind': 'quasar_replace', 'device_sn': sn,
+                                                     'error': replaced['error']}])[-30:]
+                replaced = None
             parsed = decoded_json(headers, payload)
             if parsed is not None:
                 # state перечитывается под lock: снимок до пересылки устарел — правки UI за время
                 # запроса (режим, переопределения) иначе откатились бы
+                last = {'ts': time.time(), 'status': status, 'body': parsed}
+                if replaced:
+                    last.update(body_sent=json.loads(replaced['text']), replaced=replaced['applied'])
                 async with runtime.lock:
                     current = next((d for d in runtime.identities.data['devices'] if d.get('sn') == sn), None)
                     if current is not None:
                         state = dict(current.get('state') or {})
-                        state['quasar_direct_last'] = {'ts': time.time(), 'status': status, 'body': parsed}
+                        state['quasar_direct_last'] = last
                         runtime.identities.mutate({'operation': 'state', 'sn': sn, 'state': state})
+        if replaced:
+            return web.Response(status=status, body=replaced['payload'],
+                                headers=CIMultiDict(replaced_headers(forward_headers(headers))))
         return web.Response(status=status, body=payload, headers=CIMultiDict(forward_headers(headers)))
 
     async def handle_update(self, request, host, path, record=None):

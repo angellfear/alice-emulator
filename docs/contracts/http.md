@@ -14,7 +14,7 @@ module: "server_emulator/quasar.py"
 | Endpoint | Запрос | Ответ | Side effect | Тест |
 |---|---|---|---|---|
 | GET /check_updates | — | `{"hasUpdate":false}` | нет | test_quasar_backend |
-| GET /get_sync_info | device_id (query/header) | `{status,config,tags,glagol?,subscription?}` из state.quasar | нет; 409 `device_config_not_set` без конфига | test_quasar_backend |
+| GET /get_sync_info | device_id (query/header) | `{status,config,tags,glagol?,subscription?}` из state.quasar; источник «Напрямую» — ответ Яндекса с заменами regexp устройства (`state.quasar_direct_replace`, сломанный JSON не уходит), см. quasar-config.md | нет; 409 `device_config_not_set` без конфига | test_quasar_backend, test_quasar_direct_replace |
 | GET /glagol/device_list | назначенный SN | устройства того же владельца: id/name/platform/networkInfo/config/deviceConfig | нет | test_quasar_backend |
 | GET /glagol/token | device_id | HS256 JWT (sub=DeviceId, uid=user, exp 24 ч), ключ в quasar-secret.json | нет | test_quasar_backend |
 | POST /glagol/check_token | JWT в теле | `{status,valid}` | нет | test_quasar_backend |

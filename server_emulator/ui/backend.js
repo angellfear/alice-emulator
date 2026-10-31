@@ -370,24 +370,97 @@
       :SOURCE_HINT[source.mode];
     root.append(hint);
     if(locked)return;
-    if(source.mode==='direct')return renderDirect(root,source);
+    if(source.mode==='direct')return renderDirect(root,device,source);
     if(source.mode==='custom')return renderCustom(root,device,source);
     return renderGenerated(root,device);
   }
 
-  // «Напрямую»: последний ответ Яндекса, только чтение
-  function renderDirect(root,source){
+  // «Напрямую»: кнопка «Замены» (regexp в ответе Яндекса) и последний ответ, только чтение
+  function renderDirect(root,device,source){
+    const rules=source.replace||[];
+    const enabled=rules.filter(r=>r.enabled).length;
+    const bar=make('div');bar.className='sc-toolbar';
+    const replaceB=make('button','Замены'+(enabled?' · '+enabled:''));replaceB.type='button';replaceB.className='secondary';
+    replaceB.onclick=()=>replaceDialog(device,rules);
+    bar.append(replaceB);root.append(bar);
     root.append(make('h3','Последний ответ Яндекса'));
     const last=source.direct_last;
     if(!last||!last.body){
       const p=make('p','Ответов от Яндекса ещё не было: колонка опросит конфиг сама, ответ появится здесь.');
       p.className='hint';root.append(p);return;
     }
-    root.append(make('p','Получен: '+new Date(last.ts*1000).toLocaleString('ru-RU')+' · статус '+last.status,'hint'));
+    const info=make('p','Получен: '+new Date(last.ts*1000).toLocaleString('ru-RU')+' · статус '+last.status
+      +(last.body_sent?' · замен сработало: '+last.replaced:''));
+    info.className='hint';root.append(info);
     const holder=make('div');holder.className='panel';
-    makeCM(holder,{value:JSON.stringify(last.body,null,2),readOnly:true,height:'520px'});
+    const ed=makeCM(holder,{value:JSON.stringify(last.body_sent||last.body,null,2),readOnly:true,height:'520px'});
+    if(last.body_sent){
+      const seg=make('div');seg.className='segmented';seg.style.margin='0 0 8px';
+      for(const [label,value] of [['Отправлено колонке',last.body_sent],['Получено от Яндекса',last.body]]){
+        const b=make('button',label);b.type='button';
+        if(value===last.body_sent)b.classList.add('active');
+        b.onclick=()=>{seg.querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b));
+          ed.setValue(JSON.stringify(value,null,2));setTimeout(()=>ed.refresh(),0)};
+        seg.append(b);
+      }
+      root.append(seg);
+    }
     root.append(holder);
     setTimeout(()=>[...holder.querySelectorAll('.CodeMirror')].forEach(el=>el.CodeMirror.refresh()),50);
+  }
+
+  // Окно «Замены»: правила regexp устройства (вкл/выкл, pattern, replace); ошибка сервера «Строка N: …»
+  // показывается у своей строки
+  function replaceDialog(device,rules){
+    const dlg=document.createElement('dialog');dlg.className='catalog-dialog replace-dialog';
+    const form=document.createElement('form');dlg.append(form);document.body.append(dlg);
+    const head=make('h3','Замены в ответе Яндекса · '+device.sn);
+    const hint=make('p','Python regex, правила применяются сверху вниз к тексту ответа Яндекса перед отправкой колонке; группы — \\1, \\g<name>. Обычные символы . ? [ ( экранируются обратной косой чертой.');
+    hint.className='hint';
+    const list=make('div');list.className='rp-list';
+    const generalErr=make('p');generalErr.className='sc-err';generalErr.hidden=true;
+    const addRow=(rule={enabled:true,pattern:'',replace:''})=>{
+      const row=make('div');row.className='rp-row';
+      const on=make('input');on.type='checkbox';on.checked=rule.enabled!==false;on.title='Включено';on.className='rp-on';
+      const pattern=make('input');pattern.type='text';pattern.className='code rp-pattern';pattern.value=rule.pattern||'';
+      pattern.placeholder='pattern';pattern.spellcheck=false;
+      const replace=make('input');replace.type='text';replace.className='code rp-replace';replace.value=rule.replace||'';
+      replace.placeholder='replace';replace.spellcheck=false;
+      const del=make('button','✕');del.type='button';del.className='icon-btn rp-del';del.title='Удалить правило';
+      del.onclick=()=>row.remove();
+      const err=make('p');err.className='sc-err rp-err';err.hidden=true;
+      for(const el of [pattern,replace])el.oninput=()=>{err.hidden=true};
+      row.append(on,pattern,replace,del,err);list.append(row);return row;
+    };
+    for(const rule of rules)addRow(rule);
+    const add=make('button','＋ Добавить правило');add.type='button';add.className='secondary';
+    add.onclick=()=>{const row=addRow();row.querySelector('.rp-pattern').focus()};
+    const save=make('button','Сохранить');save.type='submit';
+    const cancel=make('button','Отмена');cancel.type='button';cancel.className='secondary';
+    cancel.onclick=()=>{dlg.close()};
+    const actions=make('div');actions.className='row';actions.append(cancel,save);
+    form.onsubmit=async e=>{
+      e.preventDefault();
+      const rows=[...list.children];
+      rows.forEach(r=>{r.querySelector('.rp-err').hidden=true});generalErr.hidden=true;
+      const replace=rows.map(r=>({enabled:r.querySelector('.rp-on').checked,
+        pattern:r.querySelector('.rp-pattern').value,replace:r.querySelector('.rp-replace').value}));
+      save.disabled=true;
+      try{
+        await put('quasar_source',{sn:device.sn,replace});
+        dlg.close();notify('Замены сохранены: '+replace.filter(r=>r.enabled).length+' вкл. из '+replace.length);
+        await render();
+      }catch(err){
+        const m=/^Строка (\d+):\s*([\s\S]*)$/.exec(err.message);
+        const row=m&&rows[Number(m[1])-1];
+        if(row){const line=row.querySelector('.rp-err');line.textContent=m[2];line.hidden=false;row.scrollIntoView({block:'nearest'})}
+        else{generalErr.textContent=err.message;generalErr.hidden=false}
+      }finally{save.disabled=false}
+    };
+    form.append(head,hint,list,add,generalErr,actions);
+    dlg.addEventListener('close',()=>dlg.remove());
+    dlg.showModal();
+    if(!rules.length)add.click();
   }
 
   // «Свой»: редактор ответа + генерация эмулятором и загрузка с оригинального сервера

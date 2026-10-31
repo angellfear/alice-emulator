@@ -36,10 +36,9 @@ class UpstreamError(RuntimeError):
     """Пересылка не удалась (резолв, соединение, лимит) — диспетчер отвечает 502."""
 
 
-def decoded_json(headers, payload, maximum=8 * 1024 ** 2):
-    """Тело ответа как JSON-объект: content-encoding снимается, лимит 8 МиБ.
-    Не JSON и не распаковалось — None (TASK-052: quasar_direct_last / fetch)."""
-    import json
+def decoded_body(headers, payload, maximum=8 * 1024 ** 2):
+    """Тело ответа с снятым content-encoding (gzip/deflate), лимит 8 МиБ.
+    Пустое тело, битый или слишком большой поток — None."""
     import zlib
     if not payload:
         return None
@@ -53,6 +52,16 @@ def decoded_json(headers, payload, maximum=8 * 1024 ** 2):
                 return None
         except zlib.error:
             return None
+    return raw
+
+
+def decoded_json(headers, payload, maximum=8 * 1024 ** 2):
+    """Тело ответа как JSON-объект: content-encoding снимается, лимит 8 МиБ.
+    Не JSON и не распаковалось — None (TASK-052: quasar_direct_last / fetch)."""
+    import json
+    raw = decoded_body(headers, payload, maximum)
+    if raw is None:
+        return None
     try:
         parsed = json.loads(raw)
     except ValueError:
