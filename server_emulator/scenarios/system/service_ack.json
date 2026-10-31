@@ -1,0 +1,54 @@
+{
+ "format_version": 2,
+ "version": "2.0.0",
+ "category": "system",
+ "id": "system.service_ack",
+ "title": {
+  "ru": "Тихое подтверждение служебных событий",
+  "en": "Silent service ack"
+ },
+ "description": {
+  "ru": "Прочие служебные колбэки (collect_upper_shutter, screensaver_*, stack_engine, music_thin_client_*): пустой тихий ответ вместо устной заглушки"
+ },
+ "priority": 1000,
+ "fallback": true,
+ "triggers": [
+  {
+   "kind": "event",
+   "name": "@@mm_typed_callback"
+  },
+  {
+   "kind": "event",
+   "name": "@@mm_semantic_frame"
+  },
+  {
+   "kind": "event",
+   "name": "@@mm_stack_engine_get_next"
+  },
+  {
+   "kind": "event",
+   "name": "music_thin_client_on_started"
+  },
+  {
+   "kind": "event",
+   "name": "music_thin_client_on_stopped"
+  }
+ ],
+ "flow": [
+  {
+   "id": "reply",
+   "op": "compose",
+   "reply": {
+    "text": "",
+    "card": false
+   }
+  },
+  {
+   "id": "done",
+   "op": "finish"
+  }
+ ],
+ "provenance": {
+  "source": "reports/emulator-timesync-voice-bug-20261025.md: служебные server_action не должны озвучиваться"
+ }
+}

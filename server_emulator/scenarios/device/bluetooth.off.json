@@ -1,0 +1,51 @@
+{
+ "format_version": 2,
+ "version": "2.0.0",
+ "category": "device",
+ "id": "device.bluetooth.off",
+ "title": {
+  "ru": "Bluetooth: выключить",
+  "en": "Bluetooth off"
+ },
+ "priority": 90,
+ "triggers": [
+  {
+   "kind": "phrase",
+   "phrases": [
+    "выключи блютуз",
+    "выключи bluetooth",
+    "выключи блютус"
+   ]
+  }
+ ],
+ "flow": [
+  {
+   "id": "push",
+   "op": "action",
+   "ref": "device.push",
+   "arguments": {
+    "action": "stop_bluetooth"
+   },
+   "on_failure": "fail"
+  },
+  {
+   "id": "reply",
+   "op": "compose",
+   "reply": {
+    "text": "Выключаю."
+   }
+  },
+  {
+   "id": "done",
+   "op": "finish"
+  },
+  {
+   "id": "fail",
+   "op": "error",
+   "message": "Не удалось передать команду Bluetooth"
+  }
+ ],
+ "provenance": {
+  "source": "wire Push start_bluetooth/stop_bluetooth (actions.CATALOG)"
+ }
+}

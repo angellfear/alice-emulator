@@ -1,0 +1,163 @@
+{
+ "format_version": 1,
+ "name": "screen-divui",
+ "proves": "Экранное действие по голосу: AliceResponse с директивой divui_show_view, DeferredAliceResponse и TTS-ответ.",
+ "source": {
+  "kind": "capture",
+  "database": "data/traffic.sqlite3",
+  "captured_at": "2026-10-22T07:10:40+00:00",
+  "connection": "000000000000000000000000feed046f",
+  "anchor_event": "000000000000000000000000feed0479",
+  "window": [
+   -1.0,
+   1.5
+  ],
+  "event_ids": [
+   "000000000000000000000000feed047a",
+   "000000000000000000000000feed047b",
+   "000000000000000000000000feed047c",
+   "000000000000000000000000feed047d",
+   "000000000000000000000000feed047e",
+   "000000000000000000000000feed047f",
+   "000000000000000000000000feed0480",
+   "000000000000000000000000feed0481",
+   "000000000000000000000000feed0482",
+   "000000000000000000000000feed0483",
+   "000000000000000000000000feed0484",
+   "000000000000000000000000feed0485",
+   "000000000000000000000000feed0486",
+   "000000000000000000000000feed0487",
+   "000000000000000000000000feed0488",
+   "000000000000000000000000feed0489",
+   "000000000000000000000000feed048a",
+   "000000000000000000000000feed0479",
+   "000000000000000000000000feed048b",
+   "000000000000000000000000feed048c",
+   "000000000000000000000000feed048d",
+   "000000000000000000000000feed048e",
+   "000000000000000000000000feed048f",
+   "000000000000000000000000feed0490",
+   "000000000000000000000000feed0491"
+  ],
+  "sanitization": "идентификаторы сообщений/запросов/устройств заменены алиасами; аудио заменено синтетическими маркерами; длинные списки/строки усечены (см. truncated)"
+ },
+ "schema": {
+  "file": "server_emulator/schemas/alice-api.pb",
+  "sha256": "fa406a0c58c5d07f72534075a051666d53b675be122cc9c751dabd4b3aaedd87",
+  "types": [
+   "NAlice.NAliceApi.TClientMessage",
+   "NAlice.NAliceApi.TServerMessage"
+  ]
+ },
+ "messages": [
+  {
+   "t_ms": -958,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 15,
+   "label": "Ogg · фрагмент",
+   "bytes": 64,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": -958,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 15,
+   "label": "Ogg · фрагмент",
+   "bytes": 64,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": -958,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 15,
+   "label": "Ogg · фрагмент",
+   "bytes": 65,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": -907,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 15,
+   "label": "Ogg · фрагмент",
+   "bytes": 61,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": -907,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 15,
+   "label": "Ogg · фрагмент",
+   "bytes": 65,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": -876,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 15,
+   "label": "Ogg · фрагмент",
+   "bytes": 64,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": -876,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 15,
+   "label": "Ogg · фрагмент",
+   "bytes": 63,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": -841,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 15,
+   "label": "Ogg · фрагмент",
+   "bytes": 69,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": -801,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 15,
+   "label": "Ogg · фрагмент",
+   "bytes": 64,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": -801,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 15,
+   "label": "Ogg · фрагмент",
+   "bytes": 65,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": -750,
+   "dir": "c2s",
+   "kind": "control",
+   "label": "StreamControl · Close",
+   "bytes": 50,
+   "message": {
+    "StreamControl": {
+     "StreamId": "15",
+     "MessageId": "id-007",
+     "Close": {
+      "Reason": "CANCEL"
+     }
+    }
+   }
+  }
+ ],
+ "external_references": [
+  "id-002"
+ ]
+}

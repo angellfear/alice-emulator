@@ -1,0 +1,226 @@
+{
+  "id": "f5-tts",
+  "service": "tts",
+  "title": "F5-TTS",
+  "order": 20,
+  "description": "Синтез с клонированием голоса по эталонной записи 5–15 с. Нужна видеокарта NVIDIA (≥6 ГБ); на процессоре — очень медленно. Ставит PyTorch (~3 ГБ); модель скачивается при первом запуске.",
+  "requirements": {
+    "gpu": true,
+    "vram_gb": 6,
+    "disk_gb": 6
+  },
+  "adapter": "openai",
+  "config": {
+    "url": "http://127.0.0.1:{port}/v1/audio/speech",
+    "model": "f5-tts",
+    "voice": "reference",
+    "response_format": "pcm_f32le"
+  },
+  "fields": [
+    {
+      "key": "device",
+      "label": "Устройство",
+      "type": "select",
+      "options": [
+        {
+          "value": "cpu",
+          "label": "Процессор (CPU)"
+        },
+        {
+          "value": "cuda",
+          "label": "Видеокарта NVIDIA (CUDA)"
+        }
+      ]
+    },
+    {
+      "key": "gpu",
+      "label": "Видеокарта",
+      "type": "select",
+      "options_from": "gpus",
+      "when": {
+        "device": "cuda"
+      }
+    },
+    {
+      "key": "threads",
+      "label": "Потоков процессора",
+      "type": "number",
+      "step": 1,
+      "when": {
+        "device": "cpu"
+      }
+    },
+    {
+      "key": "priority",
+      "label": "Приоритет процесса",
+      "type": "select",
+      "options": [
+        {
+          "value": "normal",
+          "label": "Обычный"
+        },
+        {
+          "value": "low",
+          "label": "Низкий (фоновый)"
+        }
+      ]
+    },
+    {
+      "key": "checkpoint",
+      "label": "Чекпойнт модели (путь или hf://)",
+      "type": "text"
+    },
+    {
+      "key": "vocab",
+      "label": "Словарь модели (путь или hf://)",
+      "type": "text"
+    },
+    {
+      "key": "ref_audio",
+      "label": "Эталонная запись голоса (WAV, 2–30 с)",
+      "type": "file",
+      "accept": ".wav"
+    },
+    {
+      "key": "ref_text",
+      "label": "Текст эталонной записи",
+      "type": "textarea"
+    },
+    {
+      "key": "speed",
+      "label": "Скорость речи",
+      "type": "number",
+      "step": 0.1
+    },
+    {
+      "key": "nfe",
+      "label": "Шагов синтеза (качество/время)",
+      "type": "number",
+      "step": 1
+    },
+    {
+      "key": "port",
+      "label": "Порт",
+      "type": "number",
+      "step": 1
+    }
+  ],
+  "defaults": {
+    "device": "cuda",
+    "gpu": "0",
+    "checkpoint": "hf://Misha24-10/F5-TTS_RUSSIAN/F5TTS_v1_Base/model_240000_inference.safetensors",
+    "vocab": "hf://Misha24-10/F5-TTS_RUSSIAN/F5TTS_v1_Base/vocab.txt",
+    "ref_audio": "",
+    "ref_text": "",
+    "speed": 1.0,
+    "nfe": 32,
+    "port": 8777,
+    "threads": 4,
+    "priority": "normal"
+  },
+  "server": {
+    "script": "tools/f5_tts_server.py",
+    "health": "/health",
+    "env": {
+      "F5_DEVICE": "{device}",
+      "F5_CKPT": "{checkpoint}",
+      "F5_VOCAB": "{vocab}",
+      "F5_REF_AUDIO": "{ref_audio}",
+      "F5_REF_TEXT": "{ref_text}",
+      "F5_SPEED": "{speed}",
+      "F5_NFE": "{nfe}",
+      "CUDA_VISIBLE_DEVICES": "{gpu}",
+      "F5_THREADS": "{threads}"
+    }
+  },
+  "platforms": {
+    "windows": {
+      "cuda": [
+        {
+          "pip": [
+            "torch",
+            "torchaudio"
+          ],
+          "args": [
+            "--index-url",
+            "https://download.pytorch.org/whl/cu126"
+          ]
+        },
+        {
+          "pip": [
+            "f5-tts",
+            "aiohttp",
+            "cached_path"
+          ]
+        }
+      ],
+      "cpu": [
+        {
+          "pip": [
+            "torch",
+            "torchaudio"
+          ],
+          "args": [
+            "--index-url",
+            "https://download.pytorch.org/whl/cpu"
+          ]
+        },
+        {
+          "pip": [
+            "f5-tts",
+            "aiohttp",
+            "cached_path"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "cuda": [
+        {
+          "pip": [
+            "torch",
+            "torchaudio"
+          ],
+          "args": [
+            "--index-url",
+            "https://download.pytorch.org/whl/cu126"
+          ]
+        },
+        {
+          "pip": [
+            "f5-tts",
+            "aiohttp",
+            "cached_path"
+          ]
+        }
+      ],
+      "cpu": [
+        {
+          "pip": [
+            "torch",
+            "torchaudio"
+          ],
+          "args": [
+            "--index-url",
+            "https://download.pytorch.org/whl/cpu"
+          ]
+        },
+        {
+          "pip": [
+            "f5-tts",
+            "aiohttp",
+            "cached_path"
+          ]
+        }
+      ]
+    }
+  },
+  "notes": {
+    "windows": "Нужен драйвер NVIDIA с поддержкой CUDA 12.6.",
+    "linux": "Нужен драйвер NVIDIA с поддержкой CUDA 12.6; для эталона в mp3 — ffmpeg."
+  },
+  "models": [],
+  "reinstall_on": [
+    "device"
+  ]
+}

@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Расширение эмулятора: extension.json",
+  "description": "Схема манифеста расширения — docs/contracts/extensions.md (TASK-028). Валидацию выполняет менеджер расширений (TASK-029); jsonschema в зависимостях проекта нет — при использовании без добавления зависимости понадобится ручная проверка по этой же структуре. Неизвестные поля запрещены: опечатка в permissions не должна молча превратить расширение в «без разрешений».",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "version", "description", "author", "license", "requires", "permissions"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Строчная латиница, цифры, точки, дефисы; уникален среди установленных; префикс имён элементов <ext-id>.",
+      "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Название в UI."
+    },
+    "version": {
+      "type": "string",
+      "description": "Semver.",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+    },
+    "description": {
+      "type": "string",
+      "description": "Что добавляет."
+    },
+    "author": {
+      "type": "string"
+    },
+    "license": {
+      "type": "string",
+      "description": "SPDX-идентификатор."
+    },
+    "homepage": {
+      "type": "string",
+      "format": "uri"
+    },
+    "requires": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["emulator", "sdk"],
+      "properties": {
+        "emulator": {
+          "type": "string",
+          "description": "Диапазон semver версий эмулятора (сверяет менеджер при установке, TASK-029)."
+        },
+        "sdk": {
+          "type": "string",
+          "description": "Диапазон semver; сверяется с SDK_VERSION из server_emulator/sdk.py (сейчас \"1.0.0\"; ломающие изменения SDK — только major)."
+        },
+        "python_packages": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Pip-требования; менеджер не ставит молча — установка отдельной кнопкой с подтверждением (TASK-029)."
+        }
+      }
+    },
+    "permissions": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Объявления для информированного подтверждения при установке; не песочница. {} для data-расширения.",
+      "properties": {
+        "network": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(\\*\\.)?[a-z0-9]([a-z0-9.-]*[a-z0-9])?$",
+            "description": "Хост (без порта); *.example.com — поддомены."
+          }
+        },
+        "actions": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Действия реестра Executor, которые расширение использует и регистрирует."
+        },
+        "device_push": {
+          "type": "boolean",
+          "description": "Шлёт server_action на колонки (push-шаги, device.push)."
+        },
+        "install": {
+          "type": "boolean",
+          "description": "Скачивает программы/модели."
+        }
+      }
+    },
+    "settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Схема настроек расширения: поля — формат fields из voice_stack/packages/*.json; значения хранит менеджер, рендерит вкладка «Расширений» (TASK-035).",
+      "properties": {
+        "fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/field" }
+        },
+        "defaults": {
+          "type": "object",
+          "description": "Значения по умолчанию по ключам полей."
+        }
+      }
+    },
+    "contributes": {
+      "type": "object",
+      "minProperties": 1,
+      "description": "Переопределяет поиск по папкам: ключи-имена папок → путь или список путей внутри расширения; actions.prefix — префикс имён действий вместо <id>.",
+      "properties": {
+        "actions": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "prefix": {
+              "type": "string",
+              "pattern": "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
+            }
+          }
+        }
+      },
+      "additionalProperties": {
+        "anyOf": [
+          { "type": "string", "minLength": 1 },
+          { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "field": {
+      "type": "object",
+      "required": ["key", "label", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "enum": ["text", "password", "number", "select", "textarea", "file"]
+        },
+        "options": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Варианты select: {value, label} (как в voice_stack/packages/*.json).",
+          "items": {
+            "anyOf": [
+              { "type": "string" },
+              {
+                "type": "object",
+                "required": ["value", "label"],
+                "additionalProperties": false,
+                "properties": {
+                  "value": {},
+                  "label": { "type": "string" }
+                }
+              }
+            ]
+          }
+        },
+        "options_from": {
+          "type": "string",
+          "description": "Динамический список значений (сейчас только gpus — видеокарты из nvidia-smi)."
+        },
+        "when": {
+          "type": "object",
+          "description": "Поле видно при значениях других полей: {ключ: значение}.",
+          "additionalProperties": { "type": ["string", "number", "boolean"] }
+        },
+        "step": {
+          "type": "number",
+          "description": "Шаг для number."
+        }
+      }
+    }
+  }
+}

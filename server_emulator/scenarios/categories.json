@@ -1,0 +1,14 @@
+[
+  {"id": "system", "title": {"ru": "Системные", "en": "System"},
+   "description": {"ru": "Служебные колбэки станции, синхронизация времени, сброс диалога"}},
+  {"id": "informers", "title": {"ru": "Информеры", "en": "Informers"},
+   "description": {"ru": "Погода (голос, виджет, тап по виджету), время"}},
+  {"id": "device", "title": {"ru": "Управление устройством", "en": "Device control"},
+   "description": {"ru": "Громкость, плеер, Bluetooth, LED-эмоции, приложения"}},
+  {"id": "smart_home", "title": {"ru": "Умный дом", "en": "Smart home"},
+   "description": {"ru": "Свет и устройства дома"}},
+  {"id": "timers", "title": {"ru": "Таймеры и будильники", "en": "Timers & alarms"},
+   "description": {"ru": "Таймеры, будильники, отмена"}},
+  {"id": "custom", "title": {"ru": "Пользовательские", "en": "Custom"},
+   "description": {"ru": "Сценарии, созданные в панели"}}
+]

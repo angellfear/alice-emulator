@@ -1,0 +1,8 @@
+# Защита от утечки приватных данных (серийники, токены, адреса домашней сети и т. д.).
+# После клонирования: pip install pre-commit && pre-commit install
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+        args: ["--config=.gitleaks.toml"]

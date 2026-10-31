@@ -1,0 +1,40 @@
+{
+ "format_version": 2,
+ "id": "informers.weather",
+ "version": "2.0.0",
+ "category": "informers",
+ "title": {
+  "ru": "Погода",
+  "en": "Weather"
+ },
+ "description": {
+  "ru": "«какая погода», «сколько градусов» и тап по виджету погоды → фраза + карточка с почасовым прогнозом"
+ },
+ "priority": 100,
+ "triggers": [
+  {
+   "kind": "phrase",
+   "phrases": [
+    "погода",
+    "какая погода",
+    "погода на улице",
+    "сколько градусов"
+   ]
+  },
+  {
+   "kind": "event",
+   "name": "@@mm_semantic_frame",
+   "purpose": "weather_informer_tap_action"
+  }
+ ],
+ "executor": {
+  "kind": "script"
+ },
+ "provenance": {
+  "source": "формат директив — по перехвату (divui_show_view с div2-карточкой + draw_animation_directive), карточка WeatherNow своя; тап по виджету — трафик .84 2026-10-27 15:42 (@@mm_semantic_frame, purpose weather_informer_tap_action)",
+  "data": "датасет weather в БД (ключ — гео колонки params.effective.location); свежесть — server.weather.max_age_hours; старше — плагин weather (пока заглушка: Open-Meteo), ожидание server.weather.refresh_timeout, таймаут — старые данные с пометкой давности",
+  "unverified": [
+   "анимации кроме clear — пути для других состояний не перехвачены, используется clear day/night; своя карточка на колонке не проверена"
+  ]
+ }
+}

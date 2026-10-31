@@ -1,0 +1,37 @@
+{
+ "format_version": 2,
+ "version": "2.0.0",
+ "category": "device",
+ "id": "device.led.emotion",
+ "title": {
+  "ru": "LED-эмоции",
+  "en": "LED emotions"
+ },
+ "description": {
+  "ru": "«покажи глазки», «подмигни» → анимация на LED-матрице (модели с экраном эмоций)"
+ },
+ "priority": 100,
+ "triggers": [
+  {
+   "kind": "phrase",
+   "phrases": [
+    "глазки",
+    "покажи глазки",
+    "подмигни"
+   ]
+  }
+ ],
+ "executor": {
+  "kind": "script"
+ },
+ "lexicon": {
+  "emotions": {
+   "подмигн*": "wink",
+   "глазк*": "joy",
+   "глаз*": "joy"
+  }
+ },
+ "provenance": {
+  "source": "перехват ответа облака на «покажи глазки»: draw_led_screen с animation_sequence frontal_led_image (Struct)"
+ }
+}

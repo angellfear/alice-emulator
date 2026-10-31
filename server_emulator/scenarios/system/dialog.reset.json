@@ -1,0 +1,35 @@
+{
+ "format_version": 2,
+ "version": "2.0.0",
+ "category": "system",
+ "id": "system.dialog.reset",
+ "title": {
+  "ru": "Сброс диалога",
+  "en": "Reset dialog"
+ },
+ "priority": 100,
+ "triggers": [
+  {
+   "kind": "phrase",
+   "phrases": [
+    "забудь всё",
+    "начни заново",
+    "сбрось диалог",
+    "очисти контекст"
+   ]
+  }
+ ],
+ "flow": [
+  {
+   "id": "reply",
+   "op": "compose",
+   "reply": {
+    "text": "Готово, начинаем с чистого листа."
+   }
+  },
+  {
+   "id": "done",
+   "op": "finish"
+  }
+ ]
+}

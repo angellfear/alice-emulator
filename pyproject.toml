@@ -1,0 +1,44 @@
+[project]
+name = "alica-emule"
+version = "0.1.0"
+description = "Эмулятор сервера Яндекс Алисы: HTTP, WebSocket и AAPI для колонок, сценарии, расширения"
+requires-python = ">=3.11"
+dependencies = [
+  "aiohttp>=3.11,<4",
+  "mcp>=1.26,<2",
+  "protobuf>=5,<8",
+  "grpcio-tools>=1.60,<2",
+  "zstandard>=0.23,<1",
+  "androguard>=4.1,<5",
+  "numpy>=2,<3",
+  "soxr>=1,<2",
+  "PyOgg==0.6.14a1",
+  "langchain>=1.4,<2",
+  "langgraph>=1.2,<2",
+  "langgraph-checkpoint-sqlite>=3.1,<4",
+  "langmem>=0.0.30,<0.1",
+  "apscheduler>=3.11,<4",
+  "ddgs>=9,<10",
+  "trafilatura>=2,<3",
+  "httpx>=0.28,<1",
+  "hassil>=3.12,<4",
+  "aiodns>=3.2,<4",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8", "pytest-asyncio>=0.24", "cryptography>=43"]
+windows = ["pystray>=0.19,<1; sys_platform == 'win32'", "Pillow>=10,<13; sys_platform == 'win32'"]
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["server_emulator*"]
+
+[tool.setuptools.package-data]
+server_emulator = ["ui/*", "schemas/*.pb", "requirements.txt", "voice_stack/packages/*.json"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

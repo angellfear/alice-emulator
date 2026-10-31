@@ -1,0 +1,1 @@
+# Зависимости перенесены в pyproject.toml [emulator]. pip install -e ".[emulator]"

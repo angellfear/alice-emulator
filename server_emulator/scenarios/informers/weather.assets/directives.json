@@ -1,0 +1,249 @@
+[
+ {
+  "name": "draw_animation_directive",
+  "analytics_type": "draw_animation_directive",
+  "is_led_silent": true,
+  "proto": "NAlice.TAnimationCapability.TDrawAnimationDirective",
+  "fields": {
+   "Animations": [
+    {
+     "S3Directory": {
+      "Bucket": "https://quasar.s3.yandex.net",
+      "Path": "{{state.animation}}"
+     }
+    }
+   ],
+   "AnimationStopPolicy": "RepeatTillScreenAlive",
+   "SpeakingAnimationPolicy": "PlaySpeakingEndOfTts",
+   "Name": "draw_animation_directive"
+  }
+ },
+ {
+  "name": "divui_show_view",
+  "analytics_type": "divui_show_view",
+  "proto": "NAlice.TLayeredDivUICapability.TDivUIShowViewDirective",
+  "fields": {
+   "Name": "divui_show_view",
+   "Layer": {
+    "Dialog": {}
+   },
+   "InactivityTimeout": "Long",
+   "OverlayBehaviour": "Hide",
+   "Div2Card": {
+    "CardName": "WeatherNow",
+    "Id": {
+     "CardName": "weather",
+     "CardId": "weather_now"
+    },
+    "StringBody": {
+     "$json": {
+      "card": {
+       "log_id": "weather_now",
+       "states": [
+        {
+         "state_id": 0,
+         "div": {
+          "type": "container",
+          "orientation": "overlap",
+          "width": {
+           "type": "match_parent"
+          },
+          "height": {
+           "type": "match_parent"
+          },
+          "background": [
+           {
+            "type": "solid",
+            "color": "#101820"
+           }
+          ],
+          "items": [
+           {
+            "type": "container",
+            "orientation": "vertical",
+            "content_alignment_horizontal": "center",
+            "content_alignment_vertical": "center",
+            "width": {
+             "type": "match_parent"
+            },
+            "height": {
+             "type": "match_parent"
+            },
+            "paddings": {
+             "top": 48,
+             "bottom": 32,
+             "left": 48,
+             "right": 48
+            },
+            "items": [
+             {
+              "type": "text",
+              "text": "{{state.title}}",
+              "font_size": 32,
+              "line_height": 40,
+              "text_color": "#b8c4d2",
+              "text_alignment_horizontal": "center",
+              "alignment_horizontal": "center",
+              "width": {
+               "type": "wrap_content",
+               "constrained": 1
+              }
+             },
+             {
+              "type": "text",
+              "text": "{{slots.weather.current.temperature_2m|signed}}°",
+              "font_size": 120,
+              "line_height": 150,
+              "text_color": "#ffffff",
+              "text_alignment_horizontal": "center",
+              "alignment_horizontal": "center",
+              "width": {
+               "type": "wrap_content",
+               "constrained": 1
+              },
+              "font_weight": "light",
+              "margins": {
+               "top": 8
+              }
+             },
+             {
+              "type": "text",
+              "text": "Ощущается как {{slots.weather.current.apparent_temperature|signed}}°, {{state.condition}}",
+              "font_size": 30,
+              "line_height": 38,
+              "text_color": "#b8c4d2",
+              "text_alignment_horizontal": "center",
+              "alignment_horizontal": "center",
+              "width": {
+               "type": "wrap_content",
+               "constrained": 1
+              }
+             },
+             {
+              "type": "gallery",
+              "id": "weather_hours",
+              "orientation": "horizontal",
+              "item_spacing": 16,
+              "margins": {
+               "top": 40
+              },
+              "height": {
+               "type": "fixed",
+               "value": 96
+              },
+              "width": {
+               "type": "match_parent"
+              },
+              "paddings": {
+               "left": 24,
+               "right": 24
+              },
+              "items": {
+               "$each": "state.hours",
+               "as": "h",
+               "item": {
+                "type": "container",
+                "orientation": "vertical",
+                "content_alignment_horizontal": "center",
+                "width": {
+                 "type": "fixed",
+                 "value": 96
+                },
+                "items": [
+                 {
+                  "type": "text",
+                  "text": "{{h.time|hour_label}}",
+                  "font_size": 26,
+                  "line_height": 32,
+                  "text_color": "#b8c4d2",
+                  "text_alignment_horizontal": "center",
+                  "alignment_horizontal": "center",
+                  "width": {
+                   "type": "wrap_content",
+                   "constrained": 1
+                  }
+                 },
+                 {
+                  "type": "text",
+                  "text": "{{h.temperature_2m|signed}}°",
+                  "font_size": 34,
+                  "line_height": 42,
+                  "text_color": "#ffffff",
+                  "text_alignment_horizontal": "center",
+                  "alignment_horizontal": "center",
+                  "width": {
+                   "type": "wrap_content",
+                   "constrained": 1
+                  }
+                 }
+                ]
+               }
+              }
+             }
+            ]
+           },
+           {
+            "type": "container",
+            "alignment_horizontal": "right",
+            "alignment_vertical": "top",
+            "width": {
+             "type": "fixed",
+             "value": 72
+            },
+            "height": {
+             "type": "fixed",
+             "value": 72
+            },
+            "margins": {
+             "top": 36,
+             "right": 36
+            },
+            "paddings": {
+             "top": 12,
+             "right": 12,
+             "bottom": 12,
+             "left": 12
+            },
+            "border": {
+             "corner_radius": 36
+            },
+            "background": [
+             {
+              "type": "solid",
+              "color": "#1c2836"
+             }
+            ],
+            "actions": [
+             {
+              "log_id": "weather_close",
+              "url": "centaur://local_command?local_commands=%5B%22execute_terminate_actions%22%5D&id=%7B%22cardId%22%3A+%22weather_now%22%2C+%22cardName%22%3A+%22weather%22%7D"
+             }
+            ],
+            "items": [
+             {
+              "type": "image",
+              "image_url": "",
+              "preview": "iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAABX0lEQVR42u3cQQ7DMAhE0dz/0nTfVVWphYEXafbAb2Mbxnmq6qE+KQIAABAAABAAABAAABAAABAAABAAABAAABAAABAAAFAggPcnrTh/if+fCVRw8dcAqNDirwJQgcWv1EU4CUJLrGsTS4lxfYLTYzuT6NSYziU8LZbnaOJjfggX//qjXoXXFr9x69ClHcjIndiVPfjYbfCFg9Dog+D2VsD4U/jmfkxEH2prRzKmCbixLRzVBk8cjNSmGUTqdKqWDIAiXBGfFDay+Em2lG8fvqBGCIxZjRAYsxohcMYB4BUEgEXYNtQ21EFMK0IrQjNOO1o72kDGSNJI0lCeLYUthTGLNZE1kTmXPX0UBBc0miG4otQci0t6zTG5ptocm4vayy9qJ3UmW2JV/MUf60id064G4INNjQDSPUiMWRulCAAAQAAAQAAAQAAAQAAAQAAAQAAAQAAAQAAAQAAAQD/SCzkMP8tscB74AAAAAElFTkSuQmCC",
+              "high_priority_preview_show": true,
+              "tint_color": "#cce6eef9",
+              "width": {
+               "type": "match_parent"
+              },
+              "height": {
+               "type": "match_parent"
+              }
+             }
+            ]
+           }
+          ]
+         }
+        }
+       ]
+      }
+     }
+    }
+   }
+  },
+  "is_led_silent": true
+ }
+]

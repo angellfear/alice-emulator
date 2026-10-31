@@ -1,0 +1,40 @@
+{
+ "format_version": 2,
+ "version": "2.0.0",
+ "category": "device",
+ "id": "device.player.pause",
+ "title": {
+  "ru": "Пауза",
+  "en": "Pause"
+ },
+ "priority": 100,
+ "triggers": [
+  {
+   "kind": "phrase",
+   "phrases": [
+    "пауза",
+    "останови музыку",
+    "стоп музыка",
+    "выключи музыку"
+   ]
+  }
+ ],
+ "flow": [
+  {
+   "id": "reply",
+   "op": "compose",
+   "reply": {
+    "text": "Пауза пока не поддерживается: протокол плеера не восстановлен"
+   }
+  },
+  {
+   "id": "done",
+   "op": "finish"
+  }
+ ],
+ "provenance": {
+  "unsupported": [
+   "директива паузы плеера не восстановлена"
+  ]
+ }
+}

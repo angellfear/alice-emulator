@@ -1,0 +1,33 @@
+{
+ "format_version": 2,
+ "version": "1.0.0",
+ "category": "system",
+ "id": "system.agent_say",
+ "title": {
+  "ru": "Сообщение агента",
+  "en": "Agent message"
+ },
+ "description": {
+  "ru": "Служебное событие @@agent_say: текст задания по расписанию → сообщение в колонку (как срабатывание таймера)"
+ },
+ "priority": 10,
+ "triggers": [
+  {
+   "kind": "event",
+   "name": "@@agent_say"
+  }
+ ],
+ "flow": [
+  {
+   "id": "reply",
+   "op": "compose",
+   "reply": {
+    "text": "{{input.text}}"
+   }
+  },
+  {
+   "id": "done",
+   "op": "finish"
+  }
+ ]
+}

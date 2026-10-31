@@ -1,0 +1,165 @@
+{
+  "id": "sherpa-t-one",
+  "service": "asr",
+  "title": "Sherpa-ONNX T-one",
+  "order": 10,
+  "description": "Потоковое распознавание русской речи с частичными результатами, без интернета. Модель T-one (~300 МБ) + Silero VAD.",
+  "requirements": {
+    "gpu": false,
+    "vram_gb": 0,
+    "disk_gb": 0.5
+  },
+  "adapter": "stream",
+  "config": {
+    "url": "http://127.0.0.1:{port}/asr/stream",
+    "model": "t-one-russian",
+    "language": "ru"
+  },
+  "fields": [
+    {
+      "key": "device",
+      "label": "Устройство",
+      "type": "select",
+      "options": [
+        {
+          "value": "cpu",
+          "label": "Процессор (CPU)"
+        },
+        {
+          "value": "cuda",
+          "label": "Видеокарта NVIDIA (CUDA)"
+        }
+      ]
+    },
+    {
+      "key": "gpu",
+      "label": "Видеокарта",
+      "type": "select",
+      "options_from": "gpus",
+      "when": {
+        "device": "cuda"
+      }
+    },
+    {
+      "key": "threads",
+      "label": "Потоков на запрос",
+      "type": "number",
+      "step": 1
+    },
+    {
+      "key": "workers",
+      "label": "Параллельных запросов",
+      "type": "number",
+      "step": 1
+    },
+    {
+      "key": "priority",
+      "label": "Приоритет процесса",
+      "type": "select",
+      "options": [
+        {
+          "value": "normal",
+          "label": "Обычный"
+        },
+        {
+          "value": "low",
+          "label": "Низкий (фоновый)"
+        }
+      ]
+    },
+    {
+      "key": "port",
+      "label": "Порт",
+      "type": "number",
+      "step": 1
+    }
+  ],
+  "defaults": {
+    "device": "cpu",
+    "threads": 2,
+    "workers": 2,
+    "port": 5013,
+    "gpu": "0",
+    "priority": "normal"
+  },
+  "server": {
+    "script": "tools/builder_asr.py",
+    "health": "/health",
+    "env": {
+      "ASR_MODEL_DIR": "{dir}/sherpa-onnx-streaming-t-one-russian-2025-09-08",
+      "ASR_THREADS": "{threads}",
+      "ASR_WORKERS": "{workers}",
+      "ASR_PROVIDER": "{device}",
+      "CUDA_VISIBLE_DEVICES": "{gpu}"
+    }
+  },
+  "platforms": {
+    "windows": {
+      "cpu": [
+        {
+          "pip": [
+            "sherpa-onnx==1.13.8",
+            "numpy",
+            "aiohttp",
+            "soxr"
+          ]
+        }
+      ],
+      "cuda": [
+        {
+          "pip": [
+            "sherpa-onnx==1.13.8+cuda",
+            "numpy",
+            "aiohttp",
+            "soxr"
+          ],
+          "args": [
+            "-f",
+            "https://k2-fsa.github.io/sherpa/onnx/cuda.html"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "cpu": [
+        {
+          "pip": [
+            "sherpa-onnx==1.13.8",
+            "numpy",
+            "aiohttp",
+            "soxr"
+          ]
+        }
+      ],
+      "cuda": [
+        {
+          "pip": [
+            "sherpa-onnx==1.13.8+cuda",
+            "numpy",
+            "aiohttp",
+            "soxr"
+          ],
+          "args": [
+            "-f",
+            "https://k2-fsa.github.io/sherpa/onnx/cuda.html"
+          ]
+        }
+      ]
+    }
+  },
+  "notes": {
+    "linux": "CUDA: нужен драйвер NVIDIA с CUDA 12 и cuDNN 9."
+  },
+  "models": [
+    {
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-t-one-russian-2025-09-08.tar.bz2"
+    },
+    {
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx",
+      "name": "silero_vad.onnx"
+    }
+  ],
+  "reinstall_on": [
+    "device"
+  ]
+}

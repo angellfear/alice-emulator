@@ -1,0 +1,24 @@
+{
+ "format_version": 2,
+ "version": "2.0.0",
+ "category": "timers",
+ "id": "timers.timer.cancel",
+ "title": {
+  "ru": "Отменить таймер",
+  "en": "Cancel timer"
+ },
+ "priority": 90,
+ "triggers": [
+  {
+   "kind": "phrase",
+   "phrases": [
+    "отмени таймер",
+    "отключи таймер",
+    "стоп таймер"
+   ]
+  }
+ ],
+ "executor": {
+  "kind": "script"
+ }
+}

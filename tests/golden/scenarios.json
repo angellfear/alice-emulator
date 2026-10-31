@@ -1,0 +1,2717 @@
+{
+  "meta": {
+    "catalog": "builtin",
+    "location": [
+      55.755826,
+      37.617326
+    ],
+    "now": "2026-10-27T21:07:00",
+    "owner": "owner",
+    "scenarios": [
+      "device.app.open",
+      "device.bluetooth.off",
+      "device.bluetooth.on",
+      "device.led.emotion",
+      "device.player.pause",
+      "device.volume",
+      "informers.clock",
+      "informers.weather",
+      "informers.weather.widget",
+      "smart_home.light",
+      "system.agent_say",
+      "system.dialog.reset",
+      "system.service_ack",
+      "system.timesync",
+      "timers.alarm.cancel",
+      "timers.alarm.set",
+      "timers.fired",
+      "timers.timer.cancel",
+      "timers.timer.set"
+    ],
+    "sn": "SN-GOLDEN",
+    "timezone": "Asia/Tashkent"
+  },
+  "scenarios": [
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "открой ютуб"
+          },
+          "name": "app.open-found",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Приложение «ютуб» найдено. Запуск пока не поддерживается: директива запуска не восстановлена в схеме.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Приложение «ютуб» найдено. Запуск пока не поддерживается: директива запуска не восстановлена в схеме."
+                }
+              ],
+              "reason": "phrase:contains",
+              "scenario": "device.app.open",
+              "speech": "Приложение «ютуб» найдено. Запуск пока не поддерживается: директива запуска не восстановлена в схеме.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "открой ютуб"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "запусти спотифай"
+          },
+          "name": "app.open-found-second",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Приложение «спотифай» найдено. Запуск пока не поддерживается: директива запуска не восстановлена в схеме.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Приложение «спотифай» найдено. Запуск пока не поддерживается: директива запуска не восстановлена в схеме."
+                }
+              ],
+              "reason": "phrase:contains",
+              "scenario": "device.app.open",
+              "speech": "Приложение «спотифай» найдено. Запуск пока не поддерживается: директива запуска не восстановлена в схеме.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "запусти спотифай"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "открой телеграм"
+          },
+          "name": "app.open-not-found",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Приложение «телеграм» не найдено.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Приложение «телеграм» не найдено."
+                }
+              ],
+              "reason": "phrase:contains",
+              "scenario": "device.app.open",
+              "speech": "Приложение «телеграм» не найдено.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "открой телеграм"
+            }
+          ]
+        }
+      ],
+      "id": "device.app.open"
+    },
+    {
+      "cases": [
+        {
+          "effects": [
+            {
+              "arguments": {
+                "action": "stop_bluetooth"
+              },
+              "ref": "device.push",
+              "result": "no_session"
+            }
+          ],
+          "input": {
+            "kind": "text",
+            "phrase": "выключи блютуз"
+          },
+          "name": "bluetooth.off-ru",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Выключаю.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Выключаю."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "device.bluetooth.off",
+              "speech": "Выключаю.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "выключи блютуз"
+            }
+          ]
+        },
+        {
+          "effects": [
+            {
+              "arguments": {
+                "action": "stop_bluetooth"
+              },
+              "ref": "device.push",
+              "result": "no_session"
+            }
+          ],
+          "input": {
+            "kind": "text",
+            "phrase": "выключи bluetooth"
+          },
+          "name": "bluetooth.off-latin",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Выключаю.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Выключаю."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "device.bluetooth.off",
+              "speech": "Выключаю.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "выключи bluetooth"
+            }
+          ]
+        }
+      ],
+      "id": "device.bluetooth.off"
+    },
+    {
+      "cases": [
+        {
+          "effects": [
+            {
+              "arguments": {
+                "action": "start_bluetooth"
+              },
+              "ref": "device.push",
+              "result": "no_session"
+            }
+          ],
+          "input": {
+            "kind": "text",
+            "phrase": "включи блютуз"
+          },
+          "name": "bluetooth.on-ru",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Включаю.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Включаю."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "device.bluetooth.on",
+              "speech": "Включаю.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "включи блютуз"
+            }
+          ]
+        },
+        {
+          "effects": [
+            {
+              "arguments": {
+                "action": "start_bluetooth"
+              },
+              "ref": "device.push",
+              "result": "no_session"
+            }
+          ],
+          "input": {
+            "kind": "text",
+            "phrase": "включи bluetooth"
+          },
+          "name": "bluetooth.on-latin",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Включаю.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Включаю."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "device.bluetooth.on",
+              "speech": "Включаю.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "включи bluetooth"
+            }
+          ]
+        }
+      ],
+      "id": "device.bluetooth.on"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "покажи глазки"
+          },
+          "name": "led.emotion-joy",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "А вот и глазки!",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "is_led_silent": true,
+                      "name": "draw_led_screen",
+                      "payload": {
+                        "animation_sequence": [
+                          {
+                            "frontal_led_image": "https://static-alice.s3.yandex.net/led-production/emotions/v3/joy.gif"
+                          }
+                        ],
+                        "till_end_of_speech": false
+                      },
+                      "type": "client_action"
+                    },
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "<speaker voice=\"emotional_alice.gpu\" emotion=\"calm_happy\"> А вот и глазки!"
+                }
+              ],
+              "reason": "phrase:contains",
+              "scenario": "device.led.emotion",
+              "speech": "<speaker voice=\"emotional_alice.gpu\" emotion=\"calm_happy\"> А вот и глазки!",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "покажи глазки"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "подмигни"
+          },
+          "name": "led.emotion-wink",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Научилась подмигивать специально для таких случаев.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "is_led_silent": true,
+                      "name": "draw_led_screen",
+                      "payload": {
+                        "animation_sequence": [
+                          {
+                            "frontal_led_image": "https://static-alice.s3.yandex.net/led-production/emotions/v3/wink.gif"
+                          }
+                        ],
+                        "till_end_of_speech": false
+                      },
+                      "type": "client_action"
+                    },
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "<speaker voice=\"emotional_alice.gpu\" emotion=\"calm_happy\"> Научилась подмигивать специально для таких случаев."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "device.led.emotion",
+              "speech": "<speaker voice=\"emotional_alice.gpu\" emotion=\"calm_happy\"> Научилась подмигивать специально для таких случаев.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "подмигни"
+            }
+          ]
+        }
+      ],
+      "id": "device.led.emotion"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "пауза"
+          },
+          "name": "player.pause-pause",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Пауза пока не поддерживается: протокол плеера не восстановлен",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Пауза пока не поддерживается: протокол плеера не восстановлен"
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "device.player.pause",
+              "speech": "Пауза пока не поддерживается: протокол плеера не восстановлен",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "пауза"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "останови музыку"
+          },
+          "name": "player.pause-stop-music",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Пауза пока не поддерживается: протокол плеера не восстановлен",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Пауза пока не поддерживается: протокол плеера не восстановлен"
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "device.player.pause",
+              "speech": "Пауза пока не поддерживается: протокол плеера не восстановлен",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "останови музыку"
+            }
+          ]
+        }
+      ],
+      "id": "device.player.pause"
+    },
+    {
+      "cases": [
+        {
+          "effects": [
+            {
+              "arguments": {
+                "action": "sound_set_level",
+                "arguments": {
+                  "level": 5
+                }
+              },
+              "ref": "device.push",
+              "result": "no_session"
+            }
+          ],
+          "input": {
+            "kind": "text",
+            "phrase": "громкость 5"
+          },
+          "name": "volume-level",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Громкость 5 из 10.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Громкость 5 из 10."
+                }
+              ],
+              "reason": "phrase:contains",
+              "scenario": "device.volume",
+              "speech": "Громкость 5 из 10.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "громкость 5"
+            }
+          ]
+        },
+        {
+          "effects": [
+            {
+              "arguments": {
+                "action": "sound_set_level",
+                "arguments": {
+                  "level": "5"
+                }
+              },
+              "ref": "device.push",
+              "result": "no_session"
+            }
+          ],
+          "input": {
+            "kind": "text",
+            "phrase": "громкость 50"
+          },
+          "name": "volume-percent",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Громкость 5 из 10.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Громкость 5 из 10."
+                }
+              ],
+              "reason": "phrase:contains",
+              "scenario": "device.volume",
+              "speech": "Громкость 5 из 10.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "громкость 50"
+            }
+          ]
+        },
+        {
+          "effects": [
+            {
+              "arguments": {
+                "action": "sound_set_level",
+                "arguments": {
+                  "level": 0
+                }
+              },
+              "ref": "device.push",
+              "result": "no_session"
+            }
+          ],
+          "input": {
+            "kind": "text",
+            "phrase": "выключи звук"
+          },
+          "name": "volume-mute",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Звук выключен.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Звук выключен."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "device.volume",
+              "speech": "Звук выключен.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "выключи звук"
+            }
+          ]
+        },
+        {
+          "effects": [
+            {
+              "arguments": {
+                "action": "sound_set_level",
+                "arguments": {
+                  "level": 10
+                }
+              },
+              "ref": "device.push",
+              "result": "no_session"
+            }
+          ],
+          "input": {
+            "kind": "text",
+            "phrase": "максимальная громкость"
+          },
+          "name": "volume-max",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Максимальная громкость.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Максимальная громкость."
+                }
+              ],
+              "reason": "phrase:contains",
+              "scenario": "device.volume",
+              "speech": "Максимальная громкость.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "максимальная громкость"
+            }
+          ]
+        },
+        {
+          "effects": [
+            {
+              "arguments": {
+                "action": "sound_louder"
+              },
+              "ref": "device.push",
+              "result": "no_session"
+            }
+          ],
+          "input": {
+            "kind": "text",
+            "phrase": "громче"
+          },
+          "name": "volume-up",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Громче.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Громче."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "device.volume",
+              "speech": "Громче.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "громче"
+            }
+          ]
+        },
+        {
+          "effects": [
+            {
+              "arguments": {
+                "action": "sound_quiter"
+              },
+              "ref": "device.push",
+              "result": "no_session"
+            }
+          ],
+          "input": {
+            "kind": "text",
+            "phrase": "тише"
+          },
+          "name": "volume-down",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Тише.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Тише."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "device.volume",
+              "speech": "Тише.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "тише"
+            }
+          ]
+        }
+      ],
+      "id": "device.volume"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "сколько времени"
+          },
+          "name": "clock-how-much",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Сейчас 21 час 7 минут.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Сейчас 21 час 7 минут."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "informers.clock",
+              "speech": "Сейчас 21 час 7 минут.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "сколько времени"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "который час"
+          },
+          "name": "clock-which-hour",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Сейчас 21 час 7 минут.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Сейчас 21 час 7 минут."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "informers.clock",
+              "speech": "Сейчас 21 час 7 минут.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "который час"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "скажи время"
+          },
+          "name": "clock-tell",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Сейчас 21 час 7 минут.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Сейчас 21 час 7 минут."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "informers.clock",
+              "speech": "Сейчас 21 час 7 минут.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "скажи время"
+            }
+          ]
+        }
+      ],
+      "id": "informers.clock"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "какая погода"
+          },
+          "name": "weather-phrase",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Сейчас +12. Сегодня от +8 до +14. Осадки не ожидаются.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "draw_animation_directive",
+                      "is_led_silent": true,
+                      "name": "draw_animation_directive",
+                      "payload_raw": "Cj4SPAocaHR0cHM6Ly9xdWFzYXIuczMueWFuZGV4Lm5ldBIcYW5pbWF0aW9ucy93ZWF0aGVyL2NsZWFyL2RheRAFGAHCPhhkcmF3X2FuaW1hdGlvbl9kaXJlY3RpdmU=",
+                      "type": "client_action"
+                    },
+                    {
+                      "analytics": "divui_show_view",
+                      "is_led_silent": true,
+                      "name": "divui_show_view",
+                      "payload_raw": "Cg9kaXZ1aV9zaG93X3ZpZXcS9XkqCldlYXRoZXJOb3cyznl7ImNhcmQiOnsibG9nX2lkIjoid2VhdGhlcl9ub3ciLCJzdGF0ZXMiOlt7InN0YXRlX2lkIjowLCJkaXYiOnsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoib3ZlcmxhcCIsIndpZHRoIjp7InR5cGUiOiJtYXRjaF9wYXJlbnQifSwiaGVpZ2h0Ijp7InR5cGUiOiJtYXRjaF9wYXJlbnQifSwiYmFja2dyb3VuZCI6W3sidHlwZSI6InNvbGlkIiwiY29sb3IiOiIjMTAxODIwIn1dLCJpdGVtcyI6W3sidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiY29udGVudF9hbGlnbm1lbnRfdmVydGljYWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoibWF0Y2hfcGFyZW50In0sImhlaWdodCI6eyJ0eXBlIjoibWF0Y2hfcGFyZW50In0sInBhZGRpbmdzIjp7InRvcCI6NDgsImJvdHRvbSI6MzIsImxlZnQiOjQ4LCJyaWdodCI6NDh9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0Ijoi0KHQtdC50YfQsNGBIiwiZm9udF9zaXplIjozMiwibGluZV9oZWlnaHQiOjQwLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzEywrAiLCJmb250X3NpemUiOjEyMCwibGluZV9oZWlnaHQiOjE1MCwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9LCJmb250X3dlaWdodCI6ImxpZ2h0IiwibWFyZ2lucyI6eyJ0b3AiOjh9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6ItCe0YnRg9GJ0LDQtdGC0YHRjyDQutCw0LogKzEwwrAsINC+0LHQu9Cw0YfQvdC+IiwiZm9udF9zaXplIjozMCwibGluZV9oZWlnaHQiOjM4LCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6ImdhbGxlcnkiLCJpZCI6IndlYXRoZXJfaG91cnMiLCJvcmllbnRhdGlvbiI6Imhvcml6b250YWwiLCJpdGVtX3NwYWNpbmciOjE2LCJtYXJnaW5zIjp7InRvcCI6NDB9LCJoZWlnaHQiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwid2lkdGgiOnsidHlwZSI6Im1hdGNoX3BhcmVudCJ9LCJwYWRkaW5ncyI6eyJsZWZ0IjoyNCwicmlnaHQiOjI0fSwiaXRlbXMiOlt7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIxMjowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxMMKwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMTM6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTHCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjE0OjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzEywrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfSx7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIxNTowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxM8KwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMTY6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTTCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjE3OjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzEwwrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfSx7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIxODowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxMcKwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMTk6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTLCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjIwOjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzEzwrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfSx7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIyMTowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxNMKwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMjI6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTDCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjIzOjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzExwrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfSx7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIwMDowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxMsKwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMDE6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTPCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjAyOjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzE0wrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfSx7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIwMzowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxMMKwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMDQ6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTHCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjA1OjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzEywrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfSx7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIwNjowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxM8KwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMDc6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTTCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjA4OjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzEwwrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfSx7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIwOTowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxMcKwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMTA6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTLCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjExOjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzEzwrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfV19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJyaWdodCIsImFsaWdubWVudF92ZXJ0aWNhbCI6InRvcCIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo3Mn0sImhlaWdodCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6NzJ9LCJtYXJnaW5zIjp7InRvcCI6MzYsInJpZ2h0IjozNn0sInBhZGRpbmdzIjp7InRvcCI6MTIsInJpZ2h0IjoxMiwiYm90dG9tIjoxMiwibGVmdCI6MTJ9LCJib3JkZXIiOnsiY29ybmVyX3JhZGl1cyI6MzZ9LCJiYWNrZ3JvdW5kIjpbeyJ0eXBlIjoic29saWQiLCJjb2xvciI6IiMxYzI4MzYifV0sImFjdGlvbnMiOlt7ImxvZ19pZCI6IndlYXRoZXJfY2xvc2UiLCJ1cmwiOiJjZW50YXVyOi8vbG9jYWxfY29tbWFuZD9sb2NhbF9jb21tYW5kcz0lNUIlMjJleGVjdXRlX3Rlcm1pbmF0ZV9hY3Rpb25zJTIyJTVEJmlkPSU3QiUyMmNhcmRJZCUyMiUzQSslMjJ3ZWF0aGVyX25vdyUyMiUyQyslMjJjYXJkTmFtZSUyMiUzQSslMjJ3ZWF0aGVyJTIyJTdEIn1dLCJpdGVtcyI6W3sidHlwZSI6ImltYWdlIiwiaW1hZ2VfdXJsIjoiIiwicHJldmlldyI6ImlWQk9SdzBLR2dvQUFBQU5TVWhFVWdBQUFHQUFBQUJnQ0FZQUFBRGltSGM0QUFBQlgwbEVRVlI0MnUzY1FRN0RNQWhFMGR6LzBuVGZWVldwaFlFWGFmYkFiMk1ieG5tcTZxRStLUUlBQUJBQUFCQUFBQkFBQUJBQUFCQUFBQkFBQUJBQUFCQUFBQkFBQUZBZ2dQY25yVGgvaWYrZkNWUnc4ZGNBcU5EaXJ3SlFnY1d2MUVVNENVSkxyR3NUUzRseGZZTFRZenVUNk5TWXppVThMWmJuYU9KamZnZ1gvL3FqWG9YWEZyOXg2OUNsSGNqSW5kaVZQZmpZYmZDRmc5RG9nK0QyVnNENFUvam1ma3hFSDJwclJ6S21DYml4TFJ6VkJrOGNqTlNtR1VUcWRLcVdESUFpWEJHZkZEYXkrRW0ybEc4ZnZxQkdDSXhaalJBWXN4b2hjTVlCNEJVRWdFWFlOdFEyMUVGTUswSXJRak5PTzFvNzJrREdTTkpJMGxDZUxZVXRoVEdMTlpFMWtUbVhQWDBVQkJjMG1pRzRvdFFjaTB0NnpURzVwdG9jbTR2YXl5OXFKM1VtVzJKVi9NVWY2MGlkMDY0RzRJTk5qUURTUFVpTVdSdWxDQUFBUUFBQVFBQUFRQUFBUUFBQVFBQUFRQUFBUUFBQVFBQUFRQUFBUUQvU0N6a01QOHRzY0I3NEFBQUFBRWxGVGtTdVFtQ0MiLCJoaWdoX3ByaW9yaXR5X3ByZXZpZXdfc2hvdyI6dHJ1ZSwidGludF9jb2xvciI6IiNjY2U2ZWVmOSIsIndpZHRoIjp7InR5cGUiOiJtYXRjaF9wYXJlbnQifSwiaGVpZ2h0Ijp7InR5cGUiOiJtYXRjaF9wYXJlbnQifX1dfV19fV19fToWCgd3ZWF0aGVyEgt3ZWF0aGVyX25vdxoCEgAgAkAB",
+                      "type": "client_action"
+                    },
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "<speaker is_whisper=\"true\"> Сейчас +12. Сегодня от +8 до +14. Осадки не ожидаются."
+                }
+              ],
+              "reason": "phrase:contains",
+              "scenario": "informers.weather",
+              "speech": "<speaker is_whisper=\"true\"> Сейчас +12. Сегодня от +8 до +14. Осадки не ожидаются.",
+              "speech_parts": [
+                "Сейчас",
+                "+12.",
+                "Сегодня от",
+                "+8",
+                "до",
+                "+14.",
+                "Осадки не ожидаются."
+              ],
+              "status": "finished",
+              "text": "какая погода"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "сколько градусов"
+          },
+          "name": "weather-degrees",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Сейчас +12. Сегодня от +8 до +14. Осадки не ожидаются.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "draw_animation_directive",
+                      "is_led_silent": true,
+                      "name": "draw_animation_directive",
+                      "payload_raw": "Cj4SPAocaHR0cHM6Ly9xdWFzYXIuczMueWFuZGV4Lm5ldBIcYW5pbWF0aW9ucy93ZWF0aGVyL2NsZWFyL2RheRAFGAHCPhhkcmF3X2FuaW1hdGlvbl9kaXJlY3RpdmU=",
+                      "type": "client_action"
+                    },
+                    {
+                      "analytics": "divui_show_view",
+                      "is_led_silent": true,
+                      "name": "divui_show_view",
+                      "payload_raw": "Cg9kaXZ1aV9zaG93X3ZpZXcS9XkqCldlYXRoZXJOb3cyznl7ImNhcmQiOnsibG9nX2lkIjoid2VhdGhlcl9ub3ciLCJzdGF0ZXMiOlt7InN0YXRlX2lkIjowLCJkaXYiOnsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoib3ZlcmxhcCIsIndpZHRoIjp7InR5cGUiOiJtYXRjaF9wYXJlbnQifSwiaGVpZ2h0Ijp7InR5cGUiOiJtYXRjaF9wYXJlbnQifSwiYmFja2dyb3VuZCI6W3sidHlwZSI6InNvbGlkIiwiY29sb3IiOiIjMTAxODIwIn1dLCJpdGVtcyI6W3sidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiY29udGVudF9hbGlnbm1lbnRfdmVydGljYWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoibWF0Y2hfcGFyZW50In0sImhlaWdodCI6eyJ0eXBlIjoibWF0Y2hfcGFyZW50In0sInBhZGRpbmdzIjp7InRvcCI6NDgsImJvdHRvbSI6MzIsImxlZnQiOjQ4LCJyaWdodCI6NDh9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0Ijoi0KHQtdC50YfQsNGBIiwiZm9udF9zaXplIjozMiwibGluZV9oZWlnaHQiOjQwLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzEywrAiLCJmb250X3NpemUiOjEyMCwibGluZV9oZWlnaHQiOjE1MCwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9LCJmb250X3dlaWdodCI6ImxpZ2h0IiwibWFyZ2lucyI6eyJ0b3AiOjh9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6ItCe0YnRg9GJ0LDQtdGC0YHRjyDQutCw0LogKzEwwrAsINC+0LHQu9Cw0YfQvdC+IiwiZm9udF9zaXplIjozMCwibGluZV9oZWlnaHQiOjM4LCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6ImdhbGxlcnkiLCJpZCI6IndlYXRoZXJfaG91cnMiLCJvcmllbnRhdGlvbiI6Imhvcml6b250YWwiLCJpdGVtX3NwYWNpbmciOjE2LCJtYXJnaW5zIjp7InRvcCI6NDB9LCJoZWlnaHQiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwid2lkdGgiOnsidHlwZSI6Im1hdGNoX3BhcmVudCJ9LCJwYWRkaW5ncyI6eyJsZWZ0IjoyNCwicmlnaHQiOjI0fSwiaXRlbXMiOlt7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIxMjowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxMMKwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMTM6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTHCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjE0OjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzEywrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfSx7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIxNTowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxM8KwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMTY6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTTCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjE3OjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzEwwrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfSx7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIxODowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxMcKwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMTk6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTLCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjIwOjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzEzwrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfSx7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIyMTowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxNMKwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMjI6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTDCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjIzOjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzExwrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfSx7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIwMDowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxMsKwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMDE6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTPCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjAyOjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzE0wrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfSx7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIwMzowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxMMKwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMDQ6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTHCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjA1OjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzEywrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfSx7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIwNjowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxM8KwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMDc6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTTCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjA4OjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzEwwrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfSx7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIwOTowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxMcKwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMTA6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTLCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjExOjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzEzwrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfV19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJyaWdodCIsImFsaWdubWVudF92ZXJ0aWNhbCI6InRvcCIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo3Mn0sImhlaWdodCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6NzJ9LCJtYXJnaW5zIjp7InRvcCI6MzYsInJpZ2h0IjozNn0sInBhZGRpbmdzIjp7InRvcCI6MTIsInJpZ2h0IjoxMiwiYm90dG9tIjoxMiwibGVmdCI6MTJ9LCJib3JkZXIiOnsiY29ybmVyX3JhZGl1cyI6MzZ9LCJiYWNrZ3JvdW5kIjpbeyJ0eXBlIjoic29saWQiLCJjb2xvciI6IiMxYzI4MzYifV0sImFjdGlvbnMiOlt7ImxvZ19pZCI6IndlYXRoZXJfY2xvc2UiLCJ1cmwiOiJjZW50YXVyOi8vbG9jYWxfY29tbWFuZD9sb2NhbF9jb21tYW5kcz0lNUIlMjJleGVjdXRlX3Rlcm1pbmF0ZV9hY3Rpb25zJTIyJTVEJmlkPSU3QiUyMmNhcmRJZCUyMiUzQSslMjJ3ZWF0aGVyX25vdyUyMiUyQyslMjJjYXJkTmFtZSUyMiUzQSslMjJ3ZWF0aGVyJTIyJTdEIn1dLCJpdGVtcyI6W3sidHlwZSI6ImltYWdlIiwiaW1hZ2VfdXJsIjoiIiwicHJldmlldyI6ImlWQk9SdzBLR2dvQUFBQU5TVWhFVWdBQUFHQUFBQUJnQ0FZQUFBRGltSGM0QUFBQlgwbEVRVlI0MnUzY1FRN0RNQWhFMGR6LzBuVGZWVldwaFlFWGFmYkFiMk1ieG5tcTZxRStLUUlBQUJBQUFCQUFBQkFBQUJBQUFCQUFBQkFBQUJBQUFCQUFBQkFBQUZBZ2dQY25yVGgvaWYrZkNWUnc4ZGNBcU5EaXJ3SlFnY1d2MUVVNENVSkxyR3NUUzRseGZZTFRZenVUNk5TWXppVThMWmJuYU9KamZnZ1gvL3FqWG9YWEZyOXg2OUNsSGNqSW5kaVZQZmpZYmZDRmc5RG9nK0QyVnNENFUvam1ma3hFSDJwclJ6S21DYml4TFJ6VkJrOGNqTlNtR1VUcWRLcVdESUFpWEJHZkZEYXkrRW0ybEc4ZnZxQkdDSXhaalJBWXN4b2hjTVlCNEJVRWdFWFlOdFEyMUVGTUswSXJRak5PTzFvNzJrREdTTkpJMGxDZUxZVXRoVEdMTlpFMWtUbVhQWDBVQkJjMG1pRzRvdFFjaTB0NnpURzVwdG9jbTR2YXl5OXFKM1VtVzJKVi9NVWY2MGlkMDY0RzRJTk5qUURTUFVpTVdSdWxDQUFBUUFBQVFBQUFRQUFBUUFBQVFBQUFRQUFBUUFBQVFBQUFRQUFBUUQvU0N6a01QOHRzY0I3NEFBQUFBRWxGVGtTdVFtQ0MiLCJoaWdoX3ByaW9yaXR5X3ByZXZpZXdfc2hvdyI6dHJ1ZSwidGludF9jb2xvciI6IiNjY2U2ZWVmOSIsIndpZHRoIjp7InR5cGUiOiJtYXRjaF9wYXJlbnQifSwiaGVpZ2h0Ijp7InR5cGUiOiJtYXRjaF9wYXJlbnQifX1dfV19fV19fToWCgd3ZWF0aGVyEgt3ZWF0aGVyX25vdxoCEgAgAkAB",
+                      "type": "client_action"
+                    },
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "<speaker is_whisper=\"true\"> Сейчас +12. Сегодня от +8 до +14. Осадки не ожидаются."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "informers.weather",
+              "speech": "<speaker is_whisper=\"true\"> Сейчас +12. Сегодня от +8 до +14. Осадки не ожидаются.",
+              "speech_parts": [
+                "Сейчас",
+                "+12.",
+                "Сегодня от",
+                "+8",
+                "до",
+                "+14.",
+                "Осадки не ожидаются."
+              ],
+              "status": "finished",
+              "text": "сколько градусов"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "event": "@@mm_semantic_frame",
+            "kind": "callback",
+            "purpose": "weather_informer_tap_action"
+          },
+          "name": "weather-tap",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Сейчас +12. Сегодня от +8 до +14. Осадки не ожидаются.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "draw_animation_directive",
+                      "is_led_silent": true,
+                      "name": "draw_animation_directive",
+                      "payload_raw": "Cj4SPAocaHR0cHM6Ly9xdWFzYXIuczMueWFuZGV4Lm5ldBIcYW5pbWF0aW9ucy93ZWF0aGVyL2NsZWFyL2RheRAFGAHCPhhkcmF3X2FuaW1hdGlvbl9kaXJlY3RpdmU=",
+                      "type": "client_action"
+                    },
+                    {
+                      "analytics": "divui_show_view",
+                      "is_led_silent": true,
+                      "name": "divui_show_view",
+                      "payload_raw": "Cg9kaXZ1aV9zaG93X3ZpZXcS9XkqCldlYXRoZXJOb3cyznl7ImNhcmQiOnsibG9nX2lkIjoid2VhdGhlcl9ub3ciLCJzdGF0ZXMiOlt7InN0YXRlX2lkIjowLCJkaXYiOnsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoib3ZlcmxhcCIsIndpZHRoIjp7InR5cGUiOiJtYXRjaF9wYXJlbnQifSwiaGVpZ2h0Ijp7InR5cGUiOiJtYXRjaF9wYXJlbnQifSwiYmFja2dyb3VuZCI6W3sidHlwZSI6InNvbGlkIiwiY29sb3IiOiIjMTAxODIwIn1dLCJpdGVtcyI6W3sidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiY29udGVudF9hbGlnbm1lbnRfdmVydGljYWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoibWF0Y2hfcGFyZW50In0sImhlaWdodCI6eyJ0eXBlIjoibWF0Y2hfcGFyZW50In0sInBhZGRpbmdzIjp7InRvcCI6NDgsImJvdHRvbSI6MzIsImxlZnQiOjQ4LCJyaWdodCI6NDh9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0Ijoi0KHQtdC50YfQsNGBIiwiZm9udF9zaXplIjozMiwibGluZV9oZWlnaHQiOjQwLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzEywrAiLCJmb250X3NpemUiOjEyMCwibGluZV9oZWlnaHQiOjE1MCwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9LCJmb250X3dlaWdodCI6ImxpZ2h0IiwibWFyZ2lucyI6eyJ0b3AiOjh9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6ItCe0YnRg9GJ0LDQtdGC0YHRjyDQutCw0LogKzEwwrAsINC+0LHQu9Cw0YfQvdC+IiwiZm9udF9zaXplIjozMCwibGluZV9oZWlnaHQiOjM4LCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6ImdhbGxlcnkiLCJpZCI6IndlYXRoZXJfaG91cnMiLCJvcmllbnRhdGlvbiI6Imhvcml6b250YWwiLCJpdGVtX3NwYWNpbmciOjE2LCJtYXJnaW5zIjp7InRvcCI6NDB9LCJoZWlnaHQiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwid2lkdGgiOnsidHlwZSI6Im1hdGNoX3BhcmVudCJ9LCJwYWRkaW5ncyI6eyJsZWZ0IjoyNCwicmlnaHQiOjI0fSwiaXRlbXMiOlt7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIxMjowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxMMKwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMTM6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTHCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjE0OjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzEywrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfSx7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIxNTowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxM8KwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMTY6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTTCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjE3OjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzEwwrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfSx7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIxODowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxMcKwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMTk6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTLCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjIwOjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzEzwrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfSx7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIyMTowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxNMKwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMjI6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTDCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjIzOjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzExwrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfSx7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIwMDowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxMsKwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMDE6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTPCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjAyOjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzE0wrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfSx7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIwMzowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxMMKwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMDQ6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTHCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjA1OjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzEywrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfSx7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIwNjowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxM8KwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMDc6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTTCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjA4OjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzEwwrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfSx7InR5cGUiOiJjb250YWluZXIiLCJvcmllbnRhdGlvbiI6InZlcnRpY2FsIiwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo5Nn0sIml0ZW1zIjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiIwOTowMCIsImZvbnRfc2l6ZSI6MjYsImxpbmVfaGVpZ2h0IjozMiwidGV4dF9jb2xvciI6IiNiOGM0ZDIiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IisxMcKwIiwiZm9udF9zaXplIjozNCwibGluZV9oZWlnaHQiOjQyLCJ0ZXh0X2NvbG9yIjoiI2ZmZmZmZiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwib3JpZW50YXRpb24iOiJ2ZXJ0aWNhbCIsImNvbnRlbnRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6OTZ9LCJpdGVtcyI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiMTA6MDAiLCJmb250X3NpemUiOjI2LCJsaW5lX2hlaWdodCI6MzIsInRleHRfY29sb3IiOiIjYjhjNGQyIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX0seyJ0eXBlIjoidGV4dCIsInRleHQiOiIrMTLCsCIsImZvbnRfc2l6ZSI6MzQsImxpbmVfaGVpZ2h0Ijo0MiwidGV4dF9jb2xvciI6IiNmZmZmZmYiLCJ0ZXh0X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJ3aWR0aCI6eyJ0eXBlIjoid3JhcF9jb250ZW50IiwiY29uc3RyYWluZWQiOjF9fV19LHsidHlwZSI6ImNvbnRhaW5lciIsIm9yaWVudGF0aW9uIjoidmVydGljYWwiLCJjb250ZW50X2FsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6ImZpeGVkIiwidmFsdWUiOjk2fSwiaXRlbXMiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjExOjAwIiwiZm9udF9zaXplIjoyNiwibGluZV9oZWlnaHQiOjMyLCJ0ZXh0X2NvbG9yIjoiI2I4YzRkMiIsInRleHRfYWxpZ25tZW50X2hvcml6b250YWwiOiJjZW50ZXIiLCJhbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsIndpZHRoIjp7InR5cGUiOiJ3cmFwX2NvbnRlbnQiLCJjb25zdHJhaW5lZCI6MX19LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiKzEzwrAiLCJmb250X3NpemUiOjM0LCJsaW5lX2hlaWdodCI6NDIsInRleHRfY29sb3IiOiIjZmZmZmZmIiwidGV4dF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoiY2VudGVyIiwid2lkdGgiOnsidHlwZSI6IndyYXBfY29udGVudCIsImNvbnN0cmFpbmVkIjoxfX1dfV19XX0seyJ0eXBlIjoiY29udGFpbmVyIiwiYWxpZ25tZW50X2hvcml6b250YWwiOiJyaWdodCIsImFsaWdubWVudF92ZXJ0aWNhbCI6InRvcCIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjo3Mn0sImhlaWdodCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6NzJ9LCJtYXJnaW5zIjp7InRvcCI6MzYsInJpZ2h0IjozNn0sInBhZGRpbmdzIjp7InRvcCI6MTIsInJpZ2h0IjoxMiwiYm90dG9tIjoxMiwibGVmdCI6MTJ9LCJib3JkZXIiOnsiY29ybmVyX3JhZGl1cyI6MzZ9LCJiYWNrZ3JvdW5kIjpbeyJ0eXBlIjoic29saWQiLCJjb2xvciI6IiMxYzI4MzYifV0sImFjdGlvbnMiOlt7ImxvZ19pZCI6IndlYXRoZXJfY2xvc2UiLCJ1cmwiOiJjZW50YXVyOi8vbG9jYWxfY29tbWFuZD9sb2NhbF9jb21tYW5kcz0lNUIlMjJleGVjdXRlX3Rlcm1pbmF0ZV9hY3Rpb25zJTIyJTVEJmlkPSU3QiUyMmNhcmRJZCUyMiUzQSslMjJ3ZWF0aGVyX25vdyUyMiUyQyslMjJjYXJkTmFtZSUyMiUzQSslMjJ3ZWF0aGVyJTIyJTdEIn1dLCJpdGVtcyI6W3sidHlwZSI6ImltYWdlIiwiaW1hZ2VfdXJsIjoiIiwicHJldmlldyI6ImlWQk9SdzBLR2dvQUFBQU5TVWhFVWdBQUFHQUFBQUJnQ0FZQUFBRGltSGM0QUFBQlgwbEVRVlI0MnUzY1FRN0RNQWhFMGR6LzBuVGZWVldwaFlFWGFmYkFiMk1ieG5tcTZxRStLUUlBQUJBQUFCQUFBQkFBQUJBQUFCQUFBQkFBQUJBQUFCQUFBQkFBQUZBZ2dQY25yVGgvaWYrZkNWUnc4ZGNBcU5EaXJ3SlFnY1d2MUVVNENVSkxyR3NUUzRseGZZTFRZenVUNk5TWXppVThMWmJuYU9KamZnZ1gvL3FqWG9YWEZyOXg2OUNsSGNqSW5kaVZQZmpZYmZDRmc5RG9nK0QyVnNENFUvam1ma3hFSDJwclJ6S21DYml4TFJ6VkJrOGNqTlNtR1VUcWRLcVdESUFpWEJHZkZEYXkrRW0ybEc4ZnZxQkdDSXhaalJBWXN4b2hjTVlCNEJVRWdFWFlOdFEyMUVGTUswSXJRak5PTzFvNzJrREdTTkpJMGxDZUxZVXRoVEdMTlpFMWtUbVhQWDBVQkJjMG1pRzRvdFFjaTB0NnpURzVwdG9jbTR2YXl5OXFKM1VtVzJKVi9NVWY2MGlkMDY0RzRJTk5qUURTUFVpTVdSdWxDQUFBUUFBQVFBQUFRQUFBUUFBQVFBQUFRQUFBUUFBQVFBQUFRQUFBUUQvU0N6a01QOHRzY0I3NEFBQUFBRWxGVGtTdVFtQ0MiLCJoaWdoX3ByaW9yaXR5X3ByZXZpZXdfc2hvdyI6dHJ1ZSwidGludF9jb2xvciI6IiNjY2U2ZWVmOSIsIndpZHRoIjp7InR5cGUiOiJtYXRjaF9wYXJlbnQifSwiaGVpZ2h0Ijp7InR5cGUiOiJtYXRjaF9wYXJlbnQifX1dfV19fV19fToWCgd3ZWF0aGVyEgt3ZWF0aGVyX25vdxoCEgAgAkAB",
+                      "type": "client_action"
+                    },
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "<speaker is_whisper=\"true\"> Сейчас +12. Сегодня от +8 до +14. Осадки не ожидаются."
+                }
+              ],
+              "reason": "event:@@mm_semantic_frame[purpose=weather_informer_tap_action]",
+              "scenario": "informers.weather",
+              "speech": "<speaker is_whisper=\"true\"> Сейчас +12. Сегодня от +8 до +14. Осадки не ожидаются.",
+              "speech_parts": [
+                "Сейчас",
+                "+12.",
+                "Сегодня от",
+                "+8",
+                "до",
+                "+14.",
+                "Осадки не ожидаются."
+              ],
+              "status": "finished"
+            }
+          ]
+        }
+      ],
+      "id": "informers.weather"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "callback",
+            "purpose": "get_informers"
+          },
+          "name": "weather.widget-no-data",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [],
+              "reason": "event:@@mm_typed_callback[purpose=get_informers]",
+              "scenario": "informers.weather.widget",
+              "speech": "",
+              "speech_parts": [],
+              "status": "finished"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "callback",
+            "purpose": "get_informers"
+          },
+          "name": "weather.widget-with-data",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "update_all_informers",
+                      "is_led_silent": true,
+                      "name": "update_all_informers_directive",
+                      "payload_raw": "CgIiABJyEj9odHRwczovL3lhc3RhdGljLm5ldC93ZWF0aGVyL2kvaWNvbnMvZnVua3kvcG5nL2ZsYXQvMTI4L292Yy5wbmcZzczMzMzMKEAqA292YzIhCg7QvtCx0LvQsNGH0L3QvhkAAAAAAADwPzIGYXV0dW1uwj4UdXBkYXRlX2FsbF9pbmZvcm1lcnM=",
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": ""
+                }
+              ],
+              "reason": "event:@@mm_typed_callback[purpose=get_informers]",
+              "scenario": "informers.weather.widget",
+              "speech": "",
+              "speech_parts": [],
+              "status": "finished"
+            }
+          ]
+        }
+      ],
+      "id": "informers.weather.widget"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "включи свет"
+          },
+          "name": "light-no-lights",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Лампы не настроены: добавьте state.light устройству.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Лампы не настроены: добавьте state.light устройству."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "smart_home.light",
+              "speech": "Лампы не настроены: добавьте state.light устройству.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "включи свет"
+            }
+          ]
+        },
+        {
+          "effects": [
+            {
+              "arguments": {
+                "on": "on",
+                "room": "кухня"
+              },
+              "ref": "light.set",
+              "result": {
+                "brightness": 70,
+                "on": true
+              }
+            }
+          ],
+          "input": {
+            "kind": "text",
+            "phrase": "включи свет на кухне"
+          },
+          "name": "light-on-room",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Свет (кухня) включён на 70%.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Свет (кухня) включён на 70%."
+                }
+              ],
+              "reason": "phrase:contains",
+              "scenario": "smart_home.light",
+              "speech": "Свет (кухня) включён на 70%.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "включи свет на кухне"
+            }
+          ]
+        },
+        {
+          "effects": [
+            {
+              "arguments": {
+                "on": "off",
+                "room": "спальня"
+              },
+              "ref": "light.set",
+              "result": {
+                "on": false
+              }
+            }
+          ],
+          "input": {
+            "kind": "text",
+            "phrase": "выключи свет в спальне"
+          },
+          "name": "light-off-room",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Свет (спальня) выключен.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Свет (спальня) выключен."
+                }
+              ],
+              "reason": "phrase:contains",
+              "scenario": "smart_home.light",
+              "speech": "Свет (спальня) выключен.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "выключи свет в спальне"
+            }
+          ]
+        },
+        {
+          "effects": [
+            {
+              "arguments": {
+                "brightness": 50,
+                "on": "on",
+                "room": "кухня"
+              },
+              "ref": "light.set",
+              "result": {
+                "brightness": 50,
+                "on": true
+              }
+            }
+          ],
+          "input": {
+            "kind": "text",
+            "phrase": "включи свет на кухне на 50"
+          },
+          "name": "light-brightness",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Свет (кухня) включён на 50%.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Свет (кухня) включён на 50%."
+                }
+              ],
+              "reason": "phrase:contains",
+              "scenario": "smart_home.light",
+              "speech": "Свет (кухня) включён на 50%.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "включи свет на кухне на 50"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "зажги свет"
+          },
+          "name": "light-ambiguous",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Не понял, какую лампу: доступны [\"кухня\", \"спальня\"].",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Не понял, какую лампу: доступны [\"кухня\", \"спальня\"]."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "smart_home.light",
+              "speech": "Не понял, какую лампу: доступны [\"кухня\", \"спальня\"].",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "зажги свет"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "выключи свет в ванной"
+          },
+          "name": "light-unknown-room",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Лампы «ванная» нет. Доступны: [\"кухня\", \"спальня\"].",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Лампы «ванная» нет. Доступны: [\"кухня\", \"спальня\"]."
+                }
+              ],
+              "reason": "phrase:contains",
+              "scenario": "smart_home.light",
+              "speech": "Лампы «ванная» нет. Доступны: [\"кухня\", \"спальня\"].",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "выключи свет в ванной"
+            }
+          ]
+        }
+      ],
+      "id": "smart_home.light"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "event": "@@agent_say",
+            "fields": {
+              "text": "Напоминание: полить цветы."
+            },
+            "kind": "event"
+          },
+          "name": "agent_say-text",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Напоминание: полить цветы.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Напоминание: полить цветы."
+                }
+              ],
+              "reason": "event:@@agent_say",
+              "scenario": "system.agent_say",
+              "speech": "Напоминание: полить цветы.",
+              "speech_parts": [],
+              "status": "finished"
+            }
+          ]
+        }
+      ],
+      "id": "system.agent_say"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "забудь всё"
+          },
+          "name": "dialog.reset-forget",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Готово, начинаем с чистого листа.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Готово, начинаем с чистого листа."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "system.dialog.reset",
+              "speech": "Готово, начинаем с чистого листа.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "забудь всё"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "начни заново"
+          },
+          "name": "dialog.reset-restart",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Готово, начинаем с чистого листа.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Готово, начинаем с чистого листа."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "system.dialog.reset",
+              "speech": "Готово, начинаем с чистого листа.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "начни заново"
+            }
+          ]
+        }
+      ],
+      "id": "system.dialog.reset"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "callback",
+            "purpose": "collect_upper_shutter"
+          },
+          "name": "service_ack-shutter",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": ""
+                }
+              ],
+              "reason": "event:@@mm_typed_callback",
+              "scenario": "system.service_ack",
+              "speech": "",
+              "speech_parts": [],
+              "status": "finished"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "callback",
+            "purpose": "screensaver_callback_get_config"
+          },
+          "name": "service_ack-screensaver",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": ""
+                }
+              ],
+              "reason": "event:@@mm_typed_callback",
+              "scenario": "system.service_ack",
+              "speech": "",
+              "speech_parts": [],
+              "status": "finished"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "event": "@@mm_stack_engine_get_next",
+            "kind": "callback"
+          },
+          "name": "service_ack-stack-engine",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": ""
+                }
+              ],
+              "reason": "event:@@mm_stack_engine_get_next",
+              "scenario": "system.service_ack",
+              "speech": "",
+              "speech_parts": [],
+              "status": "finished"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "event": "music_thin_client_on_started",
+            "kind": "callback"
+          },
+          "name": "service_ack-music-started",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": ""
+                }
+              ],
+              "reason": "event:music_thin_client_on_started",
+              "scenario": "system.service_ack",
+              "speech": "",
+              "speech_parts": [],
+              "status": "finished"
+            }
+          ]
+        }
+      ],
+      "id": "system.service_ack"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "callback",
+            "purpose": "sync_timezone"
+          },
+          "name": "timesync-sync",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "set_device_timezone_directive",
+                      "is_led_silent": true,
+                      "name": "set_timezone",
+                      "payload_raw": "ChMKDUFzaWEvVGFzaGtlbnQQ0IwBEh1zZXRfZGV2aWNlX3RpbWV6b25lX2RpcmVjdGl2ZQ==",
+                      "type": "client_action"
+                    },
+                    {
+                      "analytics": "set_device_location_directive",
+                      "is_led_silent": true,
+                      "name": "set_location",
+                      "payload_raw": "ChIJtrsH6L7gS0AROXzSiQTPQkASHXNldF9kZXZpY2VfbG9jYXRpb25fZGlyZWN0aXZl",
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": ""
+                }
+              ],
+              "reason": "event:@@mm_typed_callback[purpose=sync_timezone]",
+              "scenario": "system.timesync",
+              "speech": "",
+              "speech_parts": [],
+              "status": "finished"
+            }
+          ]
+        }
+      ],
+      "id": "system.timesync"
+    },
+    {
+      "cases": [
+        {
+          "effects": [
+            {
+              "arguments": {
+                "kind": "alarm"
+              },
+              "ref": "timer.cancel",
+              "result": 0
+            }
+          ],
+          "input": {
+            "kind": "text",
+            "phrase": "отмени будильник"
+          },
+          "name": "alarm.cancel-none",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Активных будильников нет.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Активных будильников нет."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "timers.alarm.cancel",
+              "speech": "Активных будильников нет.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "отмени будильник"
+            }
+          ]
+        },
+        {
+          "effects": [
+            {
+              "arguments": {
+                "kind": "alarm"
+              },
+              "ref": "timer.cancel",
+              "result": 1
+            }
+          ],
+          "input": {
+            "kind": "text",
+            "phrase": "отмени будильник"
+          },
+          "name": "alarm.cancel-here",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Будильник отменён.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Будильник отменён."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "timers.alarm.cancel",
+              "speech": "Будильник отменён.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "отмени будильник"
+            }
+          ]
+        }
+      ],
+      "id": "timers.alarm.cancel"
+    },
+    {
+      "cases": [
+        {
+          "effects": [
+            {
+              "arguments": {
+                "time": "07:30",
+                "timezone": "Europe/Moscow"
+              },
+              "ref": "alarm.start",
+              "result": {
+                "time": "07:30"
+              }
+            }
+          ],
+          "input": {
+            "kind": "text",
+            "phrase": "будильник на 7:30"
+          },
+          "name": "alarm.set-time",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Будильник на 7:30.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Будильник на 7:30."
+                }
+              ],
+              "reason": "phrase:contains",
+              "scenario": "timers.alarm.set",
+              "speech": "Будильник на 7:30.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "будильник на 7:30"
+            }
+          ]
+        },
+        {
+          "effects": [
+            {
+              "arguments": {
+                "time": "07:00",
+                "timezone": "Europe/Moscow"
+              },
+              "ref": "alarm.start",
+              "result": {
+                "time": "07:00"
+              }
+            }
+          ],
+          "input": {
+            "answer": "в 7 утра",
+            "kind": "text",
+            "phrase": "разбуди меня"
+          },
+          "name": "alarm.set-ask",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "На какое время поставить будильник?",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "На какое время поставить будильник?"
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "timers.alarm.set",
+              "speech": "На какое время поставить будильник?",
+              "speech_parts": [],
+              "status": "awaiting",
+              "text": "разбуди меня"
+            },
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Будильник на 7:00.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Будильник на 7:00."
+                }
+              ],
+              "reason": "continuation",
+              "scenario": "timers.alarm.set",
+              "speech": "Будильник на 7:00.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "в 7 утра"
+            }
+          ]
+        },
+        {
+          "effects": [
+            {
+              "arguments": {
+                "sn": "SN-DUO32",
+                "time": "06:30",
+                "timezone": "Europe/Moscow"
+              },
+              "ref": "alarm.start",
+              "result": {
+                "time": "06:30"
+              }
+            }
+          ],
+          "input": {
+            "kind": "text",
+            "phrase": "заведи будильник на дуо 32 на 6:30"
+          },
+          "name": "alarm.set-remote",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Будильник на 6:30 на колонке «Дуо 32».",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Будильник на 6:30 на колонке «Дуо 32»."
+                }
+              ],
+              "reason": "phrase:contains",
+              "scenario": "timers.alarm.set",
+              "speech": "Будильник на 6:30 на колонке «Дуо 32».",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "заведи будильник на дуо 32 на 6:30"
+            }
+          ]
+        }
+      ],
+      "id": "timers.alarm.set"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "event": "@@timer_fired",
+            "fields": {
+              "kind": "timer",
+              "label": "Таймер 5 мин",
+              "timer_id": "golden-timer-1"
+            },
+            "kind": "event"
+          },
+          "name": "fired-timer",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Таймер 5 мин сработал.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Таймер 5 мин сработал."
+                }
+              ],
+              "reason": "event:@@timer_fired",
+              "scenario": "timers.fired",
+              "speech": "Таймер 5 мин сработал.",
+              "speech_parts": [],
+              "status": "finished"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "event": "@@timer_fired",
+            "fields": {
+              "kind": "alarm",
+              "label": "Будильник 7:00",
+              "timer_id": "golden-alarm-1"
+            },
+            "kind": "event"
+          },
+          "name": "fired-alarm",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Будильник 7:00 сработал.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Будильник 7:00 сработал."
+                }
+              ],
+              "reason": "event:@@timer_fired",
+              "scenario": "timers.fired",
+              "speech": "Будильник 7:00 сработал.",
+              "speech_parts": [],
+              "status": "finished"
+            }
+          ]
+        }
+      ],
+      "id": "timers.fired"
+    },
+    {
+      "cases": [
+        {
+          "effects": [
+            {
+              "arguments": {
+                "kind": "timer"
+              },
+              "ref": "timer.cancel",
+              "result": 0
+            }
+          ],
+          "input": {
+            "kind": "text",
+            "phrase": "отмени таймер"
+          },
+          "name": "timer.cancel-none",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Активных таймеров нет.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Активных таймеров нет."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "timers.timer.cancel",
+              "speech": "Активных таймеров нет.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "отмени таймер"
+            }
+          ]
+        },
+        {
+          "effects": [
+            {
+              "arguments": {
+                "kind": "timer"
+              },
+              "ref": "timer.cancel",
+              "result": 1
+            }
+          ],
+          "input": {
+            "kind": "text",
+            "phrase": "отмени таймер"
+          },
+          "name": "timer.cancel-here",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Таймер отменён.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Таймер отменён."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "timers.timer.cancel",
+              "speech": "Таймер отменён.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "отмени таймер"
+            }
+          ]
+        },
+        {
+          "effects": [
+            {
+              "arguments": {
+                "kind": "timer",
+                "sn": "SN-DUO32"
+              },
+              "ref": "timer.cancel",
+              "result": 1
+            }
+          ],
+          "input": {
+            "kind": "text",
+            "phrase": "отмени таймер на дуо 32"
+          },
+          "name": "timer.cancel-remote",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Таймер отменён.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Таймер отменён."
+                }
+              ],
+              "reason": "phrase:contains",
+              "scenario": "timers.timer.cancel",
+              "speech": "Таймер отменён.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "отмени таймер на дуо 32"
+            }
+          ]
+        }
+      ],
+      "id": "timers.timer.cancel"
+    },
+    {
+      "cases": [
+        {
+          "effects": [
+            {
+              "arguments": {
+                "seconds": 300
+              },
+              "ref": "timer.start",
+              "result": {
+                "label": "Таймер 5 мин",
+                "seconds": 300
+              }
+            }
+          ],
+          "input": {
+            "kind": "text",
+            "phrase": "таймер на 5 минут"
+          },
+          "name": "timer.set-duration",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Таймер на 5 минут.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Таймер на 5 минут."
+                }
+              ],
+              "reason": "phrase:contains",
+              "scenario": "timers.timer.set",
+              "speech": "Таймер на 5 минут.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "таймер на 5 минут"
+            }
+          ]
+        },
+        {
+          "effects": [
+            {
+              "arguments": {
+                "seconds": 90
+              },
+              "ref": "timer.start",
+              "result": {
+                "label": "Таймер 1 мин",
+                "seconds": 90
+              }
+            }
+          ],
+          "input": {
+            "answer": "на 90 секунд",
+            "kind": "text",
+            "phrase": "поставь таймер"
+          },
+          "name": "timer.set-ask",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "На сколько поставить таймер?",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "На сколько поставить таймер?"
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "timers.timer.set",
+              "speech": "На сколько поставить таймер?",
+              "speech_parts": [],
+              "status": "awaiting",
+              "text": "поставь таймер"
+            },
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Таймер на 1 минуту 30 секунд.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Таймер на 1 минуту 30 секунд."
+                }
+              ],
+              "reason": "continuation",
+              "scenario": "timers.timer.set",
+              "speech": "Таймер на 1 минуту 30 секунд.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "на 90 секунд"
+            }
+          ]
+        },
+        {
+          "effects": [
+            {
+              "arguments": {
+                "seconds": 300,
+                "sn": "SN-DUO32"
+              },
+              "ref": "timer.start",
+              "result": {
+                "label": "Таймер 5 мин",
+                "seconds": 300
+              }
+            }
+          ],
+          "input": {
+            "kind": "text",
+            "phrase": "поставь таймер на дуо 32 на 5 минут"
+          },
+          "name": "timer.set-remote",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Таймер на 5 минут на колонке «Дуо 32».",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Таймер на 5 минут на колонке «Дуо 32»."
+                }
+              ],
+              "reason": "phrase:contains",
+              "scenario": "timers.timer.set",
+              "speech": "Таймер на 5 минут на колонке «Дуо 32».",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "поставь таймер на дуо 32 на 5 минут"
+            }
+          ]
+        }
+      ],
+      "id": "timers.timer.set"
+    }
+  ]
+}

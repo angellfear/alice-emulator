@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мой дом</title>
+<style>
+:root{color-scheme:dark;--bg:#1f2029;--card:#2c2d37;--card-hover:#353642;--chip:#2c2d37;--text:#f1f1f4;--muted:#a3a4b0;
+  --accent:#8b6cff;--accent-bg:#3b3270;--danger:#ff5c5c;--ok:#55c27a;--line:#3a3b47;
+  --dc-bg:var(--card);--dc-bg-hover:var(--card-hover);--dc-text:var(--text);--dc-muted:var(--muted);--dc-accent:var(--accent);
+  --dc-accent-bg:var(--accent-bg);--dc-danger:var(--danger);--dc-min:250px;--dc-pic:60px}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{font:15px/1.35 "YS Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);margin:0}
+button,input,select{font:inherit;color:inherit}
+.page{max-width:1880px;padding:20px 16px 48px}
+@media(min-width:720px){.page{padding:20px 24px 48px}}
+.top{display:flex;gap:12px;align-items:center}
+.icon-btn{width:44px;height:44px;border-radius:50%;border:0;background:transparent;display:grid;place-items:center;cursor:pointer;color:var(--text)}
+.icon-btn:hover{background:var(--card)}
+.icon-btn svg{width:26px;height:26px}
+.home{position:relative;margin:34px 0 22px;display:inline-block}
+.home-btn{background:none;border:0;padding:0;font-size:32px;font-weight:700;display:flex;align-items:center;gap:6px;cursor:pointer}
+.home-btn svg{width:22px;height:22px;transition:transform .15s}
+.home-btn[aria-expanded=true] svg{transform:rotate(180deg)}
+.menu{position:absolute;top:calc(100% + 8px);left:0;min-width:240px;background:var(--card);border-radius:14px;padding:6px;box-shadow:0 12px 32px #0008;z-index:5}
+.menu button{display:block;width:100%;text-align:left;background:none;border:0;padding:10px 12px;border-radius:10px;cursor:pointer}
+.menu button:hover{background:var(--card-hover)}
+.menu button.current{color:var(--accent)}
+.menu hr{border:0;border-top:1px solid var(--line);margin:6px 4px}
+.chips{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:34px}
+.chip{display:flex;align-items:center;gap:10px;background:var(--chip);border:0;border-radius:18px;padding:10px 18px 10px 14px;cursor:pointer;text-align:left;min-height:68px}
+.chip:hover{background:var(--card-hover)}
+.chip svg{width:28px;height:28px;flex:none}
+.chip b{display:block;font-size:18px;font-weight:600}
+.chip small{display:block;color:var(--muted);font-size:14px}
+.chip.active{background:var(--accent-bg);color:var(--accent)}
+.chip.active small{color:#7d6bd6}
+.section{margin-bottom:30px}
+.section h2{font-size:24px;font-weight:700;margin:0 0 18px;display:flex;align-items:center;gap:6px}
+.section h2 button{background:none;border:0;padding:0;font-weight:inherit;font-size:inherit;display:flex;align-items:center;gap:6px;cursor:pointer}
+.section h2 svg{width:20px;height:20px;transition:transform .15s}
+.section.collapsed h2 svg{transform:rotate(90deg)}
+.section.collapsed .dc-grid{display:none}
+.section .dc-grid{max-width:1800px}
+@media(min-width:1200px){.section .dc-grid{grid-template-columns:repeat(auto-fill,292px)}}
+.section .dc-title{font-size:16px}
+.empty{color:var(--muted);padding:40px 0}
+.state{color:var(--muted);min-height:1.4em}
+.state.err{color:var(--danger)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--card);padding:10px 18px;border-radius:12px;box-shadow:0 8px 24px #0008;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}.toast.err{color:var(--danger)}
+dialog{background:var(--bg);color:var(--text);border:0;border-radius:20px;padding:0;width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 48px);box-shadow:0 20px 60px #000a}
+dialog::backdrop{background:#0009}
+.sheet{padding:22px}
+.sheet-head{display:flex;gap:16px;align-items:center;margin-bottom:18px}
+.sheet-head img{width:96px;height:96px;object-fit:contain}
+.sheet-head h3{margin:0 0 4px;font-size:22px}
+.sheet-head .meta{color:var(--muted);font-size:14px}
+.status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle;background:var(--muted)}
+.status-dot.online{background:var(--ok)}.status-dot.seen{background:#e6b84c}.status-dot.offline{background:var(--danger)}
+.close{position:absolute;top:12px;right:12px}
+.field{display:flex;flex-direction:column;gap:6px;margin:12px 0}
+.field span{color:var(--muted);font-size:13px}
+.field input,.field select{background:var(--card);border:1px solid transparent;border-radius:12px;padding:10px 12px;outline:none}
+.field input:focus,.field select:focus{border-color:var(--accent)}
+.switch{display:flex;align-items:center;justify-content:space-between;margin:12px 0}
+.switch input{width:20px;height:20px;accent-color:var(--accent)}
+.group-title{margin:22px 0 4px;font-size:15px;font-weight:600;color:var(--muted)}
+.btn{background:var(--accent);border:0;border-radius:12px;padding:11px 20px;font-weight:600;cursor:pointer;color:#fff}
+.btn.secondary{background:var(--card);color:var(--text)}
+.actions{display:flex;gap:10px;margin-top:20px}
+.login{max-width:360px;margin:12vh auto 0;display:flex;flex-direction:column;gap:10px}
+.login h1{font-size:28px;margin:0 0 10px}
+.login input{background:var(--card);border:1px solid transparent;border-radius:12px;padding:12px 14px;outline:none}
+.login input:focus{border-color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="page">
+  <form id="login" class="login" hidden>
+    <h1>Мой дом</h1>
+    <input id="name" placeholder="Логин" autocomplete="username">
+    <input id="password" type="password" placeholder="Пароль" autocomplete="current-password">
+    <button class="btn" type="submit">Войти</button>
+    <div id="login-state" class="state"></div>
+  </form>
+  <div id="app" hidden>
+    <div class="top">
+      <button class="icon-btn" id="profile" type="button" title="Мои параметры" aria-label="Мои параметры"></button>
+      <button class="icon-btn" id="reload" type="button" title="Обновить" aria-label="Обновить"></button>
+    </div>
+    <div class="home">
+      <button class="home-btn" id="home-btn" type="button" aria-haspopup="true" aria-expanded="false"><span id="home-title">Мой дом</span></button>
+      <div class="menu" id="menu" hidden></div>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div id="rooms"></div>
+  </div>
+  <div id="state" class="state">Загрузка…</div>
+</div>
+<dialog id="sheet"></dialog>
+<div class="toast" id="toast"></div>
+<script src="/emulator/devices_common.js"></script>
+<script src="/emulator/device_cards.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const svg=(paths,extra='')=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ${extra}>${paths}</svg>`;
+const ICONS={
+  chevronDown:svg('<path d="M6 9l6 6 6-6"/>'),
+  chevronRight:svg('<path d="M9 6l6 6-6 6"/>'),
+  user:svg('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>'),
+  reload:svg('<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4l3 2"/>'),
+  wifiOff:svg('<path d="M3 3l18 18"/><path d="M8.5 16.5a5 5 0 0 1 7 0"/><path d="M5 12.5a10 10 0 0 1 5-2.7"/><path d="M14.5 9.9A10 10 0 0 1 19 12.5"/><path d="M2 8.8a15 15 0 0 1 4.3-2.6"/><path d="M10.7 5.1A15 15 0 0 1 22 8.8"/><circle cx="12" cy="20" r=".6" fill="currentColor"/>'),
+  wifi:svg('<path d="M8.5 16.5a5 5 0 0 1 7 0"/><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M2 8.8a15 15 0 0 1 20 0"/><circle cx="12" cy="20" r=".6" fill="currentColor"/>'),
+  speaker:svg('<rect x="6" y="2.5" width="12" height="19" rx="3"/><circle cx="12" cy="14.5" r="3.2"/><circle cx="12" cy="7" r="1"/>'),
+  room:svg('<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>'),
+  close:svg('<path d="M6 6l12 12M18 6L6 18"/>'),
+};
+const kit=window.DeviceKit,cards=window.DeviceCards;
+const NO_ROOM='';
+let data=null,filter=null,houseUser=null;
+const collapsed=new Set((()=>{try{return JSON.parse(localStorage.getItem('meCollapsed')||'[]')}catch(e){return[]}})());
+const saveCollapsed=()=>{try{localStorage.setItem('meCollapsed',JSON.stringify([...collapsed]))}catch(e){}};
+const query=()=>houseUser?'?user='+encodeURIComponent(houseUser):'';
+
+function toast(text,ok=true){const t=$('toast');t.textContent=text;t.className='toast show'+(ok?'':' err');clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.className='toast',2200)}
+function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
+const picture=(img,device)=>{img.alt='';cards.picture(img,{sn:device.sn,platform:cards.devicePlatform(device)})};
+const modelName=device=>kit.platformInfo(cards.devicePlatform(device)).name;
+const isOffline=d=>d.status==='offline';
+const units=n=>n+' устр';
+
+async function boot(){
+  try{
+    const r=await fetch('/api/auth/whoami');
+    const me=await r.json();
+    if(!me.authenticated){showLogin();return}
+    await load();
+  }catch(e){$('state').textContent='Ошибка: '+e.message;$('state').className='state err'}
+}
+function showLogin(){$('state').textContent='';$('app').hidden=true;$('login').hidden=false;$('name').focus()}
+$('login').onsubmit=async e=>{
+  e.preventDefault();
+  const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:$('name').value,password:$('password').value})});
+  if(!r.ok){$('login-state').textContent='Неверный логин или пароль';$('login-state').className='state err';return}
+  $('login').hidden=true;await load();
+};
+async function load(){
+  const r=await fetch('/api/me/params'+query());
+  if(r.status===401){showLogin();return}
+  const body=await r.json();
+  if(!r.ok){$('state').textContent=body.error==='principal_not_linked'
+    ?'Ваш вход не привязан к пользователю — обратитесь к администратору.':(body.error||r.statusText);$('state').className='state err';return}
+  data=body;houseUser=data.users?data.user:null;
+  $('state').textContent='';$('app').hidden=false;
+  render();
+}
+
+function render(){
+  $('home-title').textContent=data.users?(data.user_name||'Мой дом'):'Мой дом';
+  renderChips();renderRooms();
+}
+function renderChips(){
+  const devices=data.devices,offline=devices.filter(isOffline);
+  const chips=[
+    {id:'offline',icon:ICONS.wifiOff,title:'Не в сети',sub:units(offline.length),show:offline.length>0},
+    {id:'online',icon:ICONS.wifi,title:'В сети',sub:units(devices.length-offline.length),show:devices.length>offline.length},
+    {id:'all',icon:ICONS.speaker,title:'Колонки',sub:units(devices.length),show:devices.length>0},
+  ];
+  const root=$('chips');root.replaceChildren();
+  for(const c of chips.filter(c=>c.show)){
+    const b=el('button','chip'+(filter===c.id?' active':''));b.type='button';
+    b.innerHTML=c.icon;const text=el('span');text.append(el('b',null,c.title),el('small',null,c.sub));b.append(text);
+    b.onclick=()=>{filter=filter===c.id?null:c.id;render()};
+    root.append(b);
+  }
+}
+function renderRooms(){
+  const root=$('rooms');root.replaceChildren();
+  let devices=data.devices;
+  if(filter==='offline')devices=devices.filter(isOffline);
+  if(filter==='online')devices=devices.filter(d=>!isOffline(d));
+  if(!data.devices.length){root.append(el('div','empty','В доме пока нет колонок. Колонка появится здесь, когда администратор привяжет её к вам.'));return}
+  if(!devices.length){root.append(el('div','empty','Нет колонок по выбранному фильтру.'));return}
+  const rooms=new Map();
+  for(const d of devices){const room=d.room||NO_ROOM;if(!rooms.has(room))rooms.set(room,[]);rooms.get(room).push(d)}
+  const order=[...rooms.keys()].sort((a,b)=>a===NO_ROOM?-1:b===NO_ROOM?1:a.localeCompare(b,'ru'));
+  for(const room of order){
+    const key=room||'__none',section=el('section','section'+(collapsed.has(key)?' collapsed':''));
+    const h=el('h2');
+    if(room===NO_ROOM)h.textContent='Без комнаты';
+    else{const b=el('button');b.type='button';b.append(room);b.insertAdjacentHTML('beforeend',ICONS.chevronRight);
+      b.title=collapsed.has(key)?'Развернуть':'Свернуть';
+      b.onclick=()=>{collapsed.has(key)?collapsed.delete(key):collapsed.add(key);saveCollapsed();renderRooms()};h.append(b)}
+    const list=rooms.get(room).sort((a,b)=>a.name.localeCompare(b.name,'ru'));
+    section.append(h,cards.grid(list.map(d=>cards.device(d,{subtitle:d.room?'':'Укажите комнату',onClick:()=>openDevice(d)}))));
+    root.append(section);
+  }
+}
+
+// ── Карточка параметра: тот же контракт типов, что в админке (bool/select/number/text-list/string)
+function paramInput(def,value,owner){
+  let input;
+  if(def.type==='bool'){input=el('input');input.type='checkbox';input.checked=!!value}
+  else if(def.type==='select'){input=el('select');for(const o of def.options||[])input.append(new Option(String(o),String(o)));input.value=value??''}
+  else if(def.type==='text-list'){input=el('input');input.value=Array.isArray(value)?value.join(', '):''}
+  else if(def.type==='number'){input=el('input');input.type='number';input.step='any';input.value=value??''}
+  else{input=el('input');input.value=value??''}
+  input.onchange=async()=>{
+    let v;
+    if(def.type==='bool')v=input.checked;
+    else if(def.type==='number')v=input.value===''?null:Number(input.value);
+    else if(def.type==='text-list')v=input.value.split(',').map(x=>x.trim()).filter(Boolean);
+    else v=input.value;
+    const r=await fetch('/api/me/params'+query(),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:def.key,value:v,owner})});
+    const res=await r.json().catch(()=>({}));
+    toast(r.ok?def.title+': сохранено':def.title+': '+(res.error||'ошибка'),r.ok);
+    if(r.ok)def.value=v;
+  };
+  const wrap=el('label',def.type==='bool'?'switch':'field');wrap.title=def.hint||'';
+  wrap.append(el('span',null,def.title),input);
+  return wrap;
+}
+const CATEGORY_TITLES={profile:'Профиль',info:'О колонке',service:'Служебное',location:'Местоположение'};
+function paramGroups(params,owner,skip=[]){
+  const frag=document.createDocumentFragment(),groups=new Map();
+  for(const p of params.filter(p=>!skip.includes(p.key))){const c=p.category||'';if(!groups.has(c))groups.set(c,[]);groups.get(c).push(p)}
+  for(const [cat,items] of groups){
+    if(groups.size>1||cat)frag.append(el('div','group-title',CATEGORY_TITLES[cat]||cat||'Прочее'));
+    for(const p of items)frag.append(paramInput(p,p.value,owner));
+  }
+  return frag;
+}
+function sheet(build){
+  const dlg=$('sheet');dlg.replaceChildren();
+  const box=el('div','sheet');
+  const close=el('button','icon-btn close');close.type='button';close.innerHTML=ICONS.close;close.setAttribute('aria-label','Закрыть');close.onclick=()=>dlg.close();
+  build(box);dlg.append(close,box);dlg.showModal();
+}
+$('sheet').addEventListener('click',e=>{if(e.target===$('sheet'))$('sheet').close()});
+$('sheet').addEventListener('close',()=>{if(data)render()});
+
+function openDevice(d){
+  sheet(box=>{
+    const head=el('div','sheet-head'),img=el('img');picture(img,d);
+    const info=el('div');info.append(el('h3',null,d.name));
+    const meta=el('div','meta'),dot=el('span','status-dot '+d.status);
+    const statusText={online:'В сети',seen:'Была на связи недавно',offline:'Не в сети'}[d.status]
+      +(d.status!=='online'&&d.last_seen?' · '+new Date(d.last_seen*1000).toLocaleString('ru-RU'):'');
+    meta.append(dot,statusText);
+    info.append(meta,el('div','meta',modelName(d)+' · '+d.sn));head.append(img,info);box.append(head);
+
+    const name=el('input');name.value=d.name;
+    const room=el('input');room.value=d.room;room.placeholder='Например, Кухня';room.setAttribute('list','room-list');
+    const list=el('datalist');list.id='room-list';
+    for(const r of [...new Set(data.devices.map(x=>x.room).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru')))list.append(new Option(r));
+    const fName=el('label','field');fName.append(el('span',null,'Название'),name);
+    const fRoom=el('label','field');fRoom.append(el('span',null,'Комната'),room,list);
+    const save=el('button','btn','Сохранить');save.type='button';
+    save.onclick=async()=>{
+      const r=await fetch('/api/me/devices'+query(),{method:'PUT',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({sn:d.sn,name:name.value,room:room.value})});
+      const res=await r.json().catch(()=>({}));
+      if(!r.ok){toast(res.error||'Не удалось сохранить',false);return}
+      d.name=res.name;d.room=res.room;info.querySelector('h3').textContent=d.name;toast('Сохранено');
+    };
+    const actions=el('div','actions');actions.append(save);
+    box.append(fName,fRoom,actions);
+    box.append(paramGroups(d.params,'device:'+d.sn,['device.name','device.room']));
+  });
+}
+function openProfile(){
+  sheet(box=>{
+    const head=el('div','sheet-head');const info=el('div');
+    info.append(el('h3',null,data.user_name||'Мои параметры'),el('div','meta','Параметры владельца — общие для всех колонок дома'));
+    head.append(info);box.append(head);
+    if(!data.params.length)box.append(el('div','empty','Нет доступных параметров.'));
+    box.append(paramGroups(data.params,'user:'+data.user));
+  });
+}
+
+// ── «Мой дом ⌄»: админ переключает дома пользователей; у всех — выход
+$('home-btn').insertAdjacentHTML('beforeend',ICONS.chevronDown);
+$('profile').innerHTML=ICONS.user;$('reload').innerHTML=ICONS.reload;
+$('profile').onclick=openProfile;
+$('reload').onclick=()=>load().then(()=>toast('Обновлено'));
+$('home-btn').onclick=e=>{
+  e.stopPropagation();
+  const menu=$('menu'),open=menu.hidden;
+  menu.replaceChildren();
+  if(open){
+    for(const u of data.users||[]){
+      const b=el('button',u.id===data.user?'current':'',u.name);b.type='button';
+      b.onclick=()=>{houseUser=u.id;filter=null;closeMenu();load()};menu.append(b);
+    }
+    if(data.users)menu.append(el('hr'));
+    const profile=el('button',null,'Мои параметры');profile.type='button';profile.onclick=()=>{closeMenu();openProfile()};
+    const logout=el('button',null,'Выйти');logout.type='button';
+    logout.onclick=async()=>{await fetch('/api/auth/logout',{method:'POST'});location.reload()};
+    menu.append(profile,logout);
+  }
+  menu.hidden=!open;$('home-btn').setAttribute('aria-expanded',String(open));
+};
+const closeMenu=()=>{$('menu').hidden=true;$('home-btn').setAttribute('aria-expanded','false')};
+document.addEventListener('click',e=>{if(!$('menu').contains(e.target))closeMenu()});
+setInterval(()=>{if(data&&!$('sheet').open&&!document.hidden)fetch('/api/me/params'+query()).then(r=>r.ok?r.json():null).then(b=>{if(b){data=b;render()}}).catch(()=>{})},15000);
+boot();
+</script>
+</body>
+</html>

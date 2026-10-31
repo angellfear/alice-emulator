@@ -1,0 +1,13 @@
+[Unit]
+Description=Alice local CPU ASR
+After=network-online.target
+
+[Service]
+ExecStart=/root/alice-asr-venv/bin/python /root/tts/alice_builder_asr.py
+Restart=on-failure
+RestartSec=3
+MemoryMax=4G
+Environment=OMP_NUM_THREADS=4
+
+[Install]
+WantedBy=multi-user.target

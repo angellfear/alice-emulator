@@ -1,0 +1,13 @@
+[Unit]
+Description=Alice Sherpa streaming TTS
+After=network-online.target
+
+[Service]
+ExecStart=/root/alice-asr-venv/bin/python /root/tts/alice_builder_tts.py
+Restart=on-failure
+RestartSec=3
+MemoryMax=2G
+Environment=OMP_NUM_THREADS=2
+
+[Install]
+WantedBy=multi-user.target

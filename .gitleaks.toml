@@ -1,0 +1,117 @@
+# Проектные правила поверх стандартных правил gitleaks.
+# Запуск: gitleaks dir . --config .gitleaks.toml --redact --no-banner
+title = "alica_emule: приватные данные устройств и пользователей"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "alica-device-serial"
+description = "Серийный номер колонки Яндекса (в фикстурах и примерах — только фиктивные)"
+regex = '''\b[A-Z]\d{2}[A-Z0-9]{9,14}\b'''
+keywords = ["00"]
+  [[rules.allowlists]]
+  description = "Фиктивные серийники проекта (префикс модели + T1/T2, корректная CRC)"
+  regexes = ['''^[CX]00T[12]000[12][0-9A-Z]{4}[A-Z]$''']
+
+[[rules]]
+id = "alica-private-lan-ip"
+description = "Адрес домашней сети (192.168.x.x, 10.x.x.x); в примерах — документационный 192.0.2.x"
+regex = '''\b(?:192\.168|10\.\d{1,3})\.\d{1,3}\.\d{1,3}\b'''
+keywords = ["192.168", "10."]
+
+[[rules]]
+id = "alica-email"
+description = "Адрес e-mail"
+regex = '''\b[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}\b'''
+keywords = ["@"]
+  [[rules.allowlists]]
+  description = "Зарезервированные для документации домены (RFC 2606) и имена файлов стилей умного дома (main@iot-app.css) — не реальные адреса"
+  regexes = ['''@(?:[A-Za-z0-9-]+\.)*example\.(?:com|org|net)$''', '''@[A-Za-z0-9-]+\.(?:test|invalid|localhost)$''', '''@iot-app\.css$''']
+  # main@iot-app.css / chunk-extended@iot-app.css — имена файлов стилей веб-версии умного дома (device_images.py), не адреса
+
+[[rules]]
+id = "alica-yandex-oauth"
+description = "OAuth-токен Яндекса (y0_… / AQAAAA…)"
+regex = '''\b(?:y0_[A-Za-z0-9_-]{20,}|AQAAAA[A-Za-z0-9_-]{16,})'''
+keywords = ["y0_", "aqaaaa"]
+
+[[rules]]
+id = "alica-jwt"
+description = "JWT (в том числе glagol-токены)"
+regex = '''\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{5,}'''
+keywords = ["eyj"]
+
+[[rules]]
+id = "alica-oauth-dotted"
+description = "Токен вида N.N.N.N.<длинный хвост> (формат OAuth-токенов устройств)"
+regex = '''\b\d+\.\d+\.\d+\.\d+\.[0-9A-Za-z_.-]{60,}'''
+keywords = ["."]
+
+[[rules]]
+id = "alica-device-uuid"
+description = "UUID устройств, пользователей и запросов из реального трафика"
+regex = '''\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b'''
+keywords = ["-"]
+  [[rules.allowlists]]
+  description = "Фиктивные UUID проекта (00000000-0000-4000-8000-NNNNNNNNNNNN), пример UUID из RFC 4122"
+  regexes = ['''^00000000-0000-4000-8000-\d{12}$''', '''^(?i:f81d4fae-7dec-11d0-a765-00a0c91e6bf6)$''']
+
+[[rules]]
+id = "alica-session-cookie"
+description = "Значение Session_id / cookie сессии"
+regex = '''(?i)\b(?:session_?id2?|sessionid2?)["']?\s*[:=]\s*["']?([A-Za-z0-9._|%:-]{20,})'''
+secretGroup = 1
+keywords = ["session"]
+
+[[rules]]
+id = "alica-wifi-password-value"
+description = "Значения wifi_hash / wifi / ssid / password в присваиваниях и JSON"
+regex = '''(?i)["']?(?:wifi_hash|wifi_password|wifi|ssid|password)["']?\s*[:=]\s*["']([^"'\s{}<>$]{4,})["']'''
+secretGroup = 1
+keywords = ["wifi", "ssid", "password"]
+  [[rules.allowlists]]
+  description = "Тестовые значения в тестах и примерах (не данные пользователя)"
+  paths = ['''^tests/''', '''^docs/''']
+  regexes = ['''^(?i:pw-\d+|abc\d*|new-hash|service|changeme|secret|test-token|password|x+)$''']
+  [[rules.allowlists]]
+  description = "Карта «ключ параметра → категория» (LEGACY_KEY_CATEGORIES): значение service — имя категории, не пароль"
+  paths = ['''^server_emulator/params\.py$''']
+  regexes = ['''^service$''']
+  [[rules.allowlists]]
+  description = "Код читает значение из переменной/выражения, а не хранит литерал"
+  regexes = ['''^(?i:password|passwd|pwd|value|none|null|true|false|text)$''']
+
+[[rules]]
+id = "alica-private-key"
+description = "Приватный ключ"
+regex = '''-----BEGIN (?:[A-Z]+ )*PRIVATE KEY-----'''
+keywords = ["private key"]
+
+[[rules]]
+id = "alica-puid"
+description = "Числовые Puid/PersId пользователя Яндекса, прописанные литералом"
+regex = '''(?i)\b(?:puid|pers_?id)\b["']?\s*[:=]\s*["']?(\d{7,})\b'''
+secretGroup = 1
+keywords = ["puid", "persid", "pers_id"]
+  [[rules.allowlists]]
+  description = "Фиктивные идентификаторы проекта (1000000001, 1000000002)"
+  regexes = ['''^10000000\d\d$''']
+
+[[rules]]
+id = "alica-geo-coordinates"
+description = "Точные координаты (широта, долгота с 4+ знаками); в тестах и примерах — только центр Москвы"
+regex = '''\b(-?\d{1,2}\.\d{4,})\s*,\s*(-?\d{1,3}\.\d{4,})\b|(?i)\b(?:lat|latitude|lon|lng|longitude)["']?\s*[:=]\s*(-?\d{1,3}\.\d{4,})'''
+  [[rules.allowlists]]
+  description = "фиктивные координаты (центр Москвы)"
+  regexes = ['''55\.75\d+|37\.61\d+''']
+
+[allowlist]
+description = "Глобальные исключения"
+# Заведомо поддельный ключ из теста маскирования секретов агента (tests/test_agent_ops.py) —
+# значение нужно тесту целиком, к реальным сервисам отношения не имеет.
+regexes = ['''sk-abcdefghijklmnopqrstuv1234''']
+paths = [
+  '''^server_emulator/ui/img/''',
+  '''^server_emulator/schemas/''',
+]

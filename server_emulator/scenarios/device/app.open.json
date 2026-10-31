@@ -1,0 +1,44 @@
+{
+ "format_version": 2,
+ "version": "2.0.0",
+ "category": "device",
+ "id": "device.app.open",
+ "title": {
+  "ru": "Открыть приложение",
+  "en": "Open app"
+ },
+ "description": {
+  "ru": "«открой ютуб», «запусти …» → поиск в приложениях колонки (запуск — после восстановления wire)"
+ },
+ "priority": 200,
+ "triggers": [
+  {
+   "kind": "phrase",
+   "phrases": [
+    "открой",
+    "запусти"
+   ],
+   "match": "contains"
+  }
+ ],
+ "executor": {
+  "kind": "script"
+ },
+ "lexicon": {
+  "commands": [
+   "открой приложение",
+   "запусти приложение",
+   "включи приложение",
+   "открой",
+   "запусти"
+  ]
+ },
+ "provenance": {
+  "unsupported": [
+   "TSendAndroidAppIntentDirective не восстановлена — запуск не выполняется"
+  ],
+  "changed": [
+   "триггер «включи» убран: перехватывал «включи музыку»"
+  ]
+ }
+}

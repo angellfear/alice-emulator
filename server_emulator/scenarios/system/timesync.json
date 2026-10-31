@@ -1,0 +1,33 @@
+{
+ "format_version": 2,
+ "version": "2.0.0",
+ "category": "system",
+ "id": "system.timesync",
+ "title": {
+  "ru": "Синхронизация времени",
+  "en": "Time sync"
+ },
+ "description": {
+  "ru": "Служебный колбэк sync_timezone → тихий ответ set_timezone (+ set_location при гео); завершает 75-секундный ретрай станции"
+ },
+ "priority": 10,
+ "triggers": [
+  {
+   "kind": "event",
+   "name": "@@mm_typed_callback",
+   "callback": "NAlice.TDeviceControlTimesyncTypedCallback"
+  },
+  {
+   "kind": "event",
+   "name": "@@mm_typed_callback",
+   "purpose": "sync_timezone"
+  }
+ ],
+ "executor": {
+  "kind": "script"
+ },
+ "provenance": {
+  "source": "capture 2026-10-26 02:15 (прокси): реальный ответ облака на sync_timezone — set_timezone/set_location (TSetTimezoneDirective/TSetLocationDirective), тихий служебный ответ",
+  "data": "часовой пояс: колонка → пользователь → заявленный станцией (Application.Timezone) → сервер; гео — params.effective.location"
+ }
+}

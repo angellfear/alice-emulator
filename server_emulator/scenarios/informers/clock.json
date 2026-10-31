@@ -1,0 +1,39 @@
+{
+ "format_version": 2,
+ "version": "2.0.0",
+ "category": "informers",
+ "id": "informers.clock",
+ "title": {
+  "ru": "Который час",
+  "en": "Current time"
+ },
+ "priority": 100,
+ "triggers": [
+  {
+   "kind": "phrase",
+   "phrases": [
+    "сколько времени",
+    "сколько сейчас времени",
+    "который час",
+    "скажи время",
+    "текущее время",
+    "время сейчас",
+    "время"
+   ],
+   "match": "contains"
+  }
+ ],
+ "flow": [
+  {
+   "id": "reply",
+   "op": "compose",
+   "reply": {
+    "text": "Сейчас {{clock|time_ru}}."
+   }
+  },
+  {
+   "id": "done",
+   "op": "finish"
+  }
+ ]
+}

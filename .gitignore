@@ -1,0 +1,34 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.egg-info/
+*.log
+.playwright-mcp/
+
+# данные и секреты — никогда не коммитить
+server_emulator/state/
+data/
+artifacts/
+certs/
+certs*/
+schemas/extracted/
+.env
+.env.*
+*.pem
+*.key
+*.crt
+*.sqlite3
+quasar-secret.json
+
+# конфиги платформ Quasar (реальные ответы облака) в репозиторий не включаются
+quasar/
+state/quasar/
+
+# протокол и картинки устройств извлекаются из APK пользователя (apk_import.py) — в репозиторий не входят
+server_emulator/schemas/*.pb
+server_emulator/schemas/*.pb.json
+server_emulator/ui/img/devices/
+
+# рабочие задания и инструкции агентов — только локально
+tasks/
+CLAUDE.md

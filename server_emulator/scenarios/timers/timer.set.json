@@ -1,0 +1,28 @@
+{
+ "format_version": 2,
+ "version": "2.0.0",
+ "category": "timers",
+ "id": "timers.timer.set",
+ "title": {
+  "ru": "Поставить таймер",
+  "en": "Set timer"
+ },
+ "description": {
+  "ru": "«таймер на 5 минут», «поставь таймер на дуо 32 на минуту» (на другой колонке владельца)"
+ },
+ "priority": 100,
+ "triggers": [
+  {
+   "kind": "phrase",
+   "phrases": [
+    "поставь таймер",
+    "таймер на",
+    "установи таймер",
+    "заведи таймер"
+   ]
+  }
+ ],
+ "executor": {
+  "kind": "script"
+ }
+}

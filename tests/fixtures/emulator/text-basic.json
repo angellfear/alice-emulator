@@ -1,0 +1,986 @@
+{
+ "format_version": 1,
+ "name": "text-basic",
+ "proves": "Текстовый запрос TextInput (с диалоговой историей) -> Push notify + Ack -> InputStartAck -> AliceResponse.",
+ "source": {
+  "kind": "capture",
+  "database": "data/traffic.sqlite3",
+  "captured_at": "2026-10-21T16:46:26+00:00",
+  "connection": "000000000000000000000000feed046d",
+  "anchor_event": "TextInput",
+  "window": [
+   -2.0,
+   4.0
+  ],
+  "event_ids": [
+   "000000000000000000000000feed0495",
+   "000000000000000000000000feed0496",
+   "000000000000000000000000feed0497",
+   "000000000000000000000000feed0498",
+   "000000000000000000000000feed0499",
+   "000000000000000000000000feed049a",
+   "000000000000000000000000feed049b",
+   "000000000000000000000000feed049c",
+   "000000000000000000000000feed049d"
+  ],
+  "sanitization": "идентификаторы сообщений/запросов/устройств заменены алиасами; аудио заменено синтетическими маркерами; длинные списки/строки усечены (см. truncated)"
+ },
+ "schema": {
+  "file": "server_emulator/schemas/alice-api.pb",
+  "sha256": "fa406a0c58c5d07f72534075a051666d53b675be122cc9c751dabd4b3aaedd87",
+  "types": [
+   "NAlice.NAliceApi.TClientMessage",
+   "NAlice.NAliceApi.TServerMessage"
+  ]
+ },
+ "messages": [
+  {
+   "t_ms": -34,
+   "dir": "lifecycle",
+   "kind": "lifecycle",
+   "event": "open"
+  },
+  {
+   "t_ms": -17,
+   "dir": "c2s",
+   "kind": "control",
+   "label": "SynchronizeStateRequest",
+   "bytes": 6233,
+   "message": {
+    "Event": {
+     "Header": {
+      "MessageId": "id-001",
+      "RtLogId": "id-001"
+     },
+     "SynchronizeStateRequest": {
+      "OAuthToken": "<redacted credential 241 chars>",
+      "ApiKey": "<redacted credential 36 chars>",
+      "Application": {
+       "AppId": "ru.yandex.centaur",
+       "AppVersion": "3.298.146",
+       "OsVersion": "11",
+       "Platform": "android",
+       "Uuid": "000000000000000000000000feed049e",
+       "DeviceId": "dev-001",
+       "ClientTime": "20261021T214629",
+       "Timezone": "",
+       "Epoch": "1792601189",
+       "DeviceModel": "chiron",
+       "DeviceManufacturer": "Yandex",
+       "QuasmodromGroup": "production",
+       "QuasmodromSubgroup": "production",
+       "DeviceFirmware": "0.298.0.146.3128483051.20250605.95",
+       "IntegrationType": "QAL"
+      },
+      "SupportedFeatures": [
+       "video_protocol",
+       "has_synchronized_push",
+       "server_action",
+       "music_recognizer",
+       "change_alarm_sound",
+       "change_alarm_sound_level",
+       "music_player_allow_shots",
+       "audio_client",
+       "show_view",
+       "div2_cards",
+       "directive_sequencer",
+       "tts_play_placeholder",
+       "notifications",
+       "show_timer",
+       "do_not_disturb",
+       "handle_android_app_intent",
+       "audio_client_player_ui",
+       "go_home",
+       "multiroom",
+       "multiroom_cluster",
+       "multiroom_audio_client",
+       "multiroom_audio_client_v2",
+       "muzpult",
+       "thin_fm_radio_client",
+       "supports_streaming_response",
+       "supports_image_suggests",
+       "supports_markdown_response",
+       "supports_favicon_response",
+       "custom_sources_markdown",
+       "bluetooth_player",
+       "print_with_markdown",
+       "stereo_pair"
+      ],
+      "Experiments": {
+       "Storage": {
+        "centaur_enable_music_search": {
+         "String": "1"
+        },
+        "centaur_choice_categories=deep_backgrounds": {
+         "String": "1"
+        },
+        "centaur_add_music_wave_prefix_in_scenario": {
+         "String": "1"
+        },
+        "mm_enable_protocol_scenario=Centaur": {
+         "String": "1"
+        },
+        "frontend_vh_flags=pron=rec_param=planned_to_watch_priority=130": {
+         "String": "1"
+        },
+        "enable_open_settings_with_capability": {
+         "String": "1"
+        },
+        "bg_beggins_music_enable_lyrics": {
+         "String": "1"
+        },
+        "hw_weather_play_led_chiron": {
+         "String": "1"
+        },
+        "centaur_filter_invalid_recent_app": {
+         "String": "1"
+        },
+        "centaur_fast_command_navigation": {
+         "String": "1"
+        },
+        "disable_scheduled_teasers_service": {
+         "String": "1"
+        },
+        "settings_informer_recents_toggle": {
+         "String": "1"
+        },
+        "hw_enable_intonation_stop_word": {
+         "String": "1"
+        },
+        "enable_app_activation_universal_frame": {
+         "String": "1"
+        },
+        "bg_enable_hide_item_from_delayed": {
+         "String": "1"
+        },
+        "tv_main_items_in_gallery=12": {
+         "String": "1"
+        },
+        "centaur_bind_voice_controls_to_carousel": {
+         "String": "1"
+        },
+        "life_teasers_use_full_background": {
+         "String": "1"
+        },
+        "external_apps_play_sound_no_voice": {
+         "String": "1"
+        },
+        "tv_recent_apps_count=10": {
+         "String": "1"
+        },
+        "smart_device_external_app_enable_smart_screen_apps": {
+         "String": "1"
+        },
+        "settings_screen_gesture_managment_tab": {
+         "String": "1"
+        },
+        "call_vertical_remove_tg_login_section": {
+         "String": "1"
+        },
+        "enable_clock_time_div_custom": {
+         "String": "1"
+        },
+        "video_enable_players_by_version_centaur": {
+         "String": "1"
+        },
+        "hw_music_native_player_on_platform_queue": {
+         "String": "1"
+        },
+        "mm_disable_experiment=bg_enable_centaur_open_settings": {
+         "String": "1"
+        },
+        "extended_teaser_clock": {
+         "String": "1"
+        },
+        "tv_main_fill_short_display_name_in_delayed": {
+         "String": "1"
+        },
+        "hw_enable_ats_call": {
+         "String": "1"
+        },
+        "centaur_alice_promo_in_skills": {
+         "String": "1"
+        },
+        "centaur_choice_default_teasers": {
+         "String": "1"
+        },
+        "bg_beggins_disable_karaoke_mode": {
+         "String": "1"
+        },
+        "hw_enable_say_with_emotion": {
+         "String": "1"
+        },
+        "mm_change_search_suggest_on_alice_2_0": {
+         "String": "1"
+        },
+        "app_voice_enrollment_enabled": {
+         "String": "1"
+        },
+        "start_context_load_for_active_user": {
+         "String": "1"
+        },
+        "mm_add_llm_functions_list=click_ui_element": {
+         "String": "1"
+        },
+        "tv_recent_channels_count=3": {
+         "String": "1"
+        },
+        "videoresult_cgi_rearr=scheme_Local/FilterBannedVideo/ForceBanHosts=ctc.ru": {
+         "String": "1"
+        },
+        "hw_enable_ats_extended_directives": {
+         "String": "1"
+        },
+        "disable_default_yabro_teasers_adding": {
+         "String": "1"
+        },
+        "hw_enable_multiaccount_call_to_nanny": {
+         "String": "1"
+        },
+        "div_renderer_use_voice_controls_raw": {
+         "String": "1"
+        },
+        "hw_enable_do_not_check_callee_registration": {
+         "String": "1"
+        },
+        "video_movies_exp_enable_non_vh_in_user_states_carousel": {
+         "String": "1"
+        },
+        "hw_music_play_karaoke_on_demand": {
+         "String": "1"
+        },
+        "enrollment_x_token_enabled": {
+         "String": "1"
+        },
+        "add_available_assets=lotties/speech_vertical.json,lotties/snake_vertical.json,lotties/timer_vertical.json,lotties/alarm_vertical.json,lotties/book_in_vertical.json,lotties/book_loop_vertical.json,lotties/notification_vertical.json": {
+         "String": "1"
+        },
+        "hw_order_notification_enable_centaur": {
+         "String": "1"
+        },
+        "all_flowers_backgrounds_enable": {
+         "String": "1"
+        },
+        "centaur_enable_all_episodes_separate_node": {
+         "String": "1"
+        },
+        "delayed_gallery_add_remove_button": {
+         "String": "1"
+        },
+        "mm_summarizer_scenarios_white_list": {
+         "String": "1"
+        },
+        "centaur_enable_video_details_screen": {
+         "String": "1"
+        },
+        "enable_dependancy_on_capability": {
+         "String": "1"
+        },
+        "bg_beggins_enable_karaoke_mode": {
+         "String": "1"
+        },
+        "deep_teasers_use_full_background": {
+         "String": "1"
+        },
+        "upper_shutter_calls": {
+         "String": "1"
+        },
+        "centaur_enable_show_episodes_screen": {
+         "String": "1"
+        },
+        "hw_enable_ats_call_to_nanny": {
+         "String": "1"
+        },
+        "enable_dont_skip_video_fragment": {
+         "String": "1"
+        },
+        "video_player_set_playback_speed": {
+         "String": "1"
+        },
+        "mm_play_karaoke_prefer_music_over_video": {
+         "String": "1"
+        },
+        "videoresult_cgi_relev=vblackhosts=ctc.ru": {
+         "String": "1"
+        },
+        "enable_teasers_long_tap": {
+         "String": "1"
+        },
+        "hw_voiceprint_enable_enrollment_sharing": {
+         "String": "1"
+        },
+        "centaur_open_card_detail_for_paid_content": {
+         "String": "1"
+        },
+        "enforce_karaoke_support": {
+         "String": "1"
+        },
+        "hw_enable_device_call_platforms=chiron": {
+         "String": "1"
+        },
+        "centaur_audio_player_native_screen_enabled": {
+         "String": "1"
+        },
+        "smart_device_external_app_enable_parental_controls_smart_screen": {
+         "String": "1"
+        },
+        "search_preferable_to_general_conversation_for_alice_2": {
+         "String": "1"
+        },
+        "close_card_without_voice_control": {
+         "String": "1"
+        },
+        "bg_reduce_functions_ban_list": {
+         "String": "1"
+        },
+        "bg_enable_say_with_emotion": {
+         "String": "1"
+        },
+        "select_enrollment_frame_enabled": {
+         "String": "1"
+        },
+        "hw_music_centaur_show_content_native": {
+         "String": "1"
+        },
+        "combinators_disable_force_add_yabro_backgrounds": {
+         "String": "1"
+        },
+        "tv_main_use_new_music_api": {
+         "String": "1"
+        },
+        "enable_change_menu_view": {
+         "String": "1"
+        },
+        "bg_centaur_open_android_settings": {
+         "String": "1"
+        },
+        "tv_main_ufs_use_combined_video_items": {
+         "String": "1"
+        },
+        "streaming_sources_modifier_behaviour=append": {
+         "String": "1"
+        },
+        "bg_beggins_play_karaoke": {
+         "String": "1"
+        },
+        "video_centaur_use_pay_sdk": {
+         "String": "1"
+        },
+        "video_movies_exp_enable_video_user_states_carousel": {
+         "String": "1"
+        },
+        "hw_enable_device_call_platforms=quinglong": {
+         "String": "1"
+        },
+        "hw_music_force_neighbour_tracks_request": {
+         "String": "1"
+        },
+        "enable_accessibility_screen_visualize": {
+         "String": "1"
+        },
+        "mm_subscribe_to_frame=alice.music.enable_lyrics:Music": {
+         "String": "1"
+        },
+        "centaur_enable_tv_launch_frame": {
+         "String": "1"
+        },
+        "hw_notification_enable_centaur": {
+         "String": "1"
+        },
+        "tv_main_allow_recents_in_chunk_tail": {
+         "String": "1"
+        },
+        "hw_enable_device_call_hw2": {
+         "String": "1"
+        },
+        "blocked_app_version_chiron=[1, 13]": {
+         "String": "1"
+        },
+        "tv_use_top10_parallel_call": {
+         "String": "1"
+        },
+        "centaur_kp_only_delayed_for_child": {
+         "String": "1"
+        },
+        "mm_enable_llm_functions_beta_chiron": {
+         "String": "1"
+        },
+        "mm_enable_accessibility_elements_entities": {
+         "String": "1"
+        },
+        "settings_screen_pause_resume_gesture_toggle": {
+         "String": "1"
+        },
+        "centaur_enable_avod": {
+         "String": "1"
+        },
+        "bg_close_card_exact": {
+         "String": "1"
+        },
+        "bg_beggins_music_disable_lyrics": {
+         "String": "1"
+        }
+       }
+      },
+      "SupportedServerEvents": [
+       "AliceResponse",
+       "StreamControl",
+       "DeferredAliceResponse",
+       "GoAway",
+       "Push",
+       "EventException",
+       "SyncPush",
+       "InputStartAck",
+       "LogAck",
+       "AsrResult",
+       "TtsSpeak",
+       "SpotterValidation",
+       "TtsTimings"
+      ],
+      "UsersOptions": [
+       {
+        "OAuthToken": "<redacted credential 241 chars>",
+        "Puid": "1000000002",
+        "PersId": "1000000002",
+        "Tags": {
+         "Owner": {},
+         "Active": {}
+        }
+       }
+      ]
+     }
+    }
+   },
+   "redacted_credentials": [
+    {
+     "path": "msg.Event.SynchronizeStateRequest.OAuthToken",
+     "original_len": 241
+    },
+    {
+     "path": "msg.Event.SynchronizeStateRequest.ApiKey",
+     "original_len": 36
+    },
+    {
+     "path": "msg.Event.SynchronizeStateRequest.UsersOptions[].OAuthToken",
+     "original_len": 241
+    }
+   ]
+  },
+  {
+   "t_ms": 0,
+   "dir": "c2s",
+   "kind": "control",
+   "label": "TextInput",
+   "bytes": 18769,
+   "message": {
+    "Event": {
+     "Header": {
+      "MessageId": "id-002",
+      "RtLogId": "id-003"
+     },
+     "TextInput": {
+      "Header": {
+       "RequestId": "id-003",
+       "SequenceNumber": 1
+      },
+      "Application": {
+       "AppId": "ru.yandex.centaur",
+       "AppVersion": "3.298.146",
+       "OsVersion": "11",
+       "Platform": "android",
+       "Uuid": "000000000000000000000000feed049e",
+       "DeviceId": "dev-001",
+       "Lang": "ru-RU",
+       "ClientTime": "20261021T214628",
+       "Timezone": "",
+       "Epoch": "1792601188",
+       "DeviceModel": "chiron",
+       "DeviceManufacturer": "Yandex",
+       "QuasmodromGroup": "production",
+       "QuasmodromSubgroup": "production",
+       "DeviceFirmware": "0.298.0.146.3128483051.20250605.95",
+       "IntegrationType": "QAL"
+      },
+      "Request": {
+       "Event": {
+        "Type": "server_action",
+        "Payload": {
+         "analytics": {
+          "product_scenario": "iot",
+          "origin_info": "iot",
+          "purpose": "centaur_typed_callback",
+          "origin": "Scenario"
+         },
+         "typed_callback_serialized": "PHJlZGFjdGVkIDkyQiA0MTVhMTEyNT4=",
+         "request_params": {
+          "request_type": "NonDialog"
+         }
+        },
+        "Name": "@@mm_typed_callback"
+       },
+       "Experiments": {
+        "Storage": {
+         "centaur_enable_music_search": {
+          "String": "1"
+         },
+         "mm_enable_accessibility_elements_entities": {
+          "String": "1"
+         },
+         "centaur_add_music_wave_prefix_in_scenario": {
+          "String": "1"
+         },
+         "disable_scheduled_teasers_service": {
+          "String": "1"
+         },
+         "frontend_vh_flags=pron=rec_param=planned_to_watch_priority=130": {
+          "String": "1"
+         },
+         "enable_open_settings_with_capability": {
+          "String": "1"
+         },
+         "mm_enable_protocol_scenario=Centaur": {
+          "String": "1"
+         },
+         "hw_weather_play_led_chiron": {
+          "String": "1"
+         },
+         "centaur_filter_invalid_recent_app": {
+          "String": "1"
+         },
+         "centaur_fast_command_navigation": {
+          "String": "1"
+         },
+         "settings_informer_recents_toggle": {
+          "String": "1"
+         },
+         "bg_beggins_music_enable_lyrics": {
+          "String": "1"
+         },
+         "hw_enable_intonation_stop_word": {
+          "String": "1"
+         },
+         "enable_app_activation_universal_frame": {
+          "String": "1"
+         },
+         "settings_screen_gesture_managment_tab": {
+          "String": "1"
+         },
+         "tv_main_items_in_gallery=12": {
+          "String": "1"
+         },
+         "centaur_bind_voice_controls_to_carousel": {
+          "String": "1"
+         },
+         "life_teasers_use_full_background": {
+          "String": "1"
+         },
+         "external_apps_play_sound_no_voice": {
+          "String": "1"
+         },
+         "tv_recent_apps_count=10": {
+          "String": "1"
+         },
+         "smart_device_external_app_enable_smart_screen_apps": {
+          "String": "1"
+         },
+         "bg_enable_hide_item_from_delayed": {
+          "String": "1"
+         },
+         "call_vertical_remove_tg_login_section": {
+          "String": "1"
+         },
+         "enable_clock_time_div_custom": {
+          "String": "1"
+         },
+         "extended_teaser_clock": {
+          "String": "1"
+         },
+         "hw_enable_ats_call": {
+          "String": "1"
+         },
+         "mm_disable_experiment=bg_enable_centaur_open_settings": {
+          "String": "1"
+         },
+         "hw_music_native_player_on_platform_queue": {
+          "String": "1"
+         },
+         "tv_main_fill_short_display_name_in_delayed": {
+          "String": "1"
+         },
+         "centaur_alice_promo_in_skills": {
+          "String": "1"
+         },
+         "video_enable_players_by_version_centaur": {
+          "String": "1"
+         },
+         "centaur_choice_default_teasers": {
+          "String": "1"
+         },
+         "bg_beggins_disable_karaoke_mode": {
+          "String": "1"
+         },
+         "hw_enable_say_with_emotion": {
+          "String": "1"
+         },
+         "mm_change_search_suggest_on_alice_2_0": {
+          "String": "1"
+         },
+         "app_voice_enrollment_enabled": {
+          "String": "1"
+         },
+         "start_context_load_for_active_user": {
+          "String": "1"
+         },
+         "tv_recent_channels_count=3": {
+          "String": "1"
+         },
+         "mm_add_llm_functions_list=click_ui_element": {
+          "String": "1"
+         },
+         "videoresult_cgi_rearr=scheme_Local/FilterBannedVideo/ForceBanHosts=ctc.ru": {
+          "String": "1"
+         },
+         "hw_enable_ats_extended_directives": {
+          "String": "1"
+         },
+         "disable_default_yabro_teasers_adding": {
+          "String": "1"
+         },
+         "hw_enable_multiaccount_call_to_nanny": {
+          "String": "1"
+         },
+         "div_renderer_use_voice_controls_raw": {
+          "String": "1"
+         },
+         "hw_enable_do_not_check_callee_registration": {
+          "String": "1"
+         },
+         "video_movies_exp_enable_non_vh_in_user_states_carousel": {
+          "String": "1"
+         },
+         "hw_music_play_karaoke_on_demand": {
+          "String": "1"
+         },
+         "search_preferable_to_general_conversation_for_alice_2": {
+          "String": "1"
+         },
+         "add_available_assets=lotties/speech_vertical.json,lotties/snake_vertical.json,lotties/timer_vertical.json,lotties/alarm_vertical.json,lotties/book_in_vertical.json,lotties/book_loop_vertical.json,lotties/notification_vertical.json": {
+          "String": "1"
+         },
+         "hw_order_notification_enable_centaur": {
+          "String": "1"
+         },
+         "all_flowers_backgrounds_enable": {
+          "String": "1"
+         },
+         "centaur_enable_all_episodes_separate_node": {
+          "String": "1"
+         },
+         "bg_beggins_enable_karaoke_mode": {
+          "String": "1"
+         },
+         "enable_dont_skip_video_fragment": {
+          "String": "1"
+         },
+         "centaur_enable_video_details_screen": {
+          "String": "1"
+         },
+         "enable_dependancy_on_capability": {
+          "String": "1"
+         },
+         "delayed_gallery_add_remove_button": {
+          "String": "1"
+         },
+         "deep_teasers_use_full_background": {
+          "String": "1"
+         },
+         "upper_shutter_calls": {
+          "String": "1"
+         },
+         "centaur_enable_show_episodes_screen": {
+          "String": "1"
+         },
+         "hw_enable_ats_call_to_nanny": {
+          "String": "1"
+         },
+         "video_player_set_playback_speed": {
+          "String": "1"
+         },
+         "enrollment_x_token_enabled": {
+          "String": "1"
+         },
+         "smart_device_external_app_enable_parental_controls_smart_screen": {
+          "String": "1"
+         },
+         "videoresult_cgi_relev=vblackhosts=ctc.ru": {
+          "String": "1"
+         },
+         "enable_teasers_long_tap": {
+          "String": "1"
+         },
+         "close_card_without_voice_control": {
+          "String": "1"
+         },
+         "centaur_open_card_detail_for_paid_content": {
+          "String": "1"
+         },
+         "hw_voiceprint_enable_enrollment_sharing": {
+          "String": "1"
+         },
+         "hw_enable_device_call_platforms=chiron": {
+          "String": "1"
+         },
+         "centaur_audio_player_native_screen_enabled": {
+          "String": "1"
+         },
+         "enforce_karaoke_support": {
+          "String": "1"
+         },
+         "mm_play_karaoke_prefer_music_over_video": {
+          "String": "1"
+         },
+         "mm_summarizer_scenarios_white_list": {
+          "String": "1"
+         },
+         "bg_reduce_functions_ban_list": {
+          "String": "1"
+         },
+         "bg_enable_say_with_emotion": {
+          "String": "1"
+         },
+         "select_enrollment_frame_enabled": {
+          "String": "1"
+         },
+         "hw_music_centaur_show_content_native": {
+          "String": "1"
+         },
+         "combinators_disable_force_add_yabro_backgrounds": {
+          "String": "1"
+         },
+         "tv_main_use_new_music_api": {
+          "String": "1"
+         },
+         "enable_change_menu_view": {
+          "String": "1"
+         },
+         "bg_centaur_open_android_settings": {
+          "String": "1"
+         },
+         "tv_main_ufs_use_combined_video_items": {
+          "String": "1"
+         },
+         "streaming_sources_modifier_behaviour=append": {
+          "String": "1"
+         },
+         "bg_beggins_play_karaoke": {
+          "String": "1"
+         },
+         "hw_music_force_neighbour_tracks_request": {
+          "String": "1"
+         },
+         "video_centaur_use_pay_sdk": {
+          "String": "1"
+         },
+         "hw_enable_device_call_platforms=quinglong": {
+          "String": "1"
+         },
+         "video_movies_exp_enable_video_user_states_carousel": {
+          "String": "1"
+         },
+         "enable_accessibility_screen_visualize": {
+          "String": "1"
+         },
+         "mm_subscribe_to_frame=alice.music.enable_lyrics:Music": {
+          "String": "1"
+         },
+         "centaur_enable_tv_launch_frame": {
+          "String": "1"
+         },
+         "hw_notification_enable_centaur": {
+          "String": "1"
+         },
+         "tv_main_allow_recents_in_chunk_tail": {
+          "String": "1"
+         },
+         "hw_enable_device_call_hw2": {
+          "String": "1"
+         },
+         "centaur_kp_only_delayed_for_child": {
+          "String": "1"
+         },
+         "tv_use_top10_parallel_call": {
+          "String": "1"
+         },
+         "blocked_app_version_chiron=[1, 13]": {
+          "String": "1"
+         },
+         "mm_enable_llm_functions_beta_chiron": {
+          "String": "1"
+         },
+         "centaur_choice_categories=deep_backgrounds": {
+          "String": "1"
+         },
+         "settings_screen_pause_resume_gesture_toggle": {
+          "String": "1"
+         },
+         "centaur_enable_avod": {
+          "String": "1"
+         },
+         "bg_close_card_exact": {
+          "String": "1"
+         },
+         "bg_beggins_music_disable_lyrics": {
+          "String": "1"
+         }
+        }
+       },
+       "AdditionalOptions": {
+        "OAuthToken": "<redacted credential 241 chars>",
+        "BassOptions": {
+         "UserAgent": "Mozilla/5.0 (Linux; Android 6.0.1; Station Build/MOB30J; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/61.0.3163.98 Safari/537.36 YandexStation\\/0.298.0.146.3128483051.20250605.95 (YandexIO)"
+        },
+        "SupportedFeatures": [
+         "video_protocol",
+         "has_synchronized_push",
+         "server_action",
+         "go_home",
+         "music_recognizer",
+         "change_alarm_sound",
+         "change_alarm_sound_level",
+         "music_player_allow_shots",
+         "audio_client",
+         "show_view",
+         "div2_cards",
+         "directive_sequencer",
+         "tts_play_placeholder",
+         "multiroom_audio_client",
+         "notifications",
+         "show_timer",
+         "do_not_disturb",
+         "handle_android_app_intent",
+         "audio_client_player_ui",
+         "multiroom",
+         "custom_sources_markdown",
+         "stereo_pair",
+         "multiroom_cluster",
+         "multiroom_audio_client_v2",
+         "muzpult",
+         "thin_fm_radio_client",
+         "supports_streaming_response",
+         "bluetooth_player",
+         "print_with_markdown",
+         "supports_image_suggests",
+         "supports_markdown_response",
+         "supports_favicon_response"
+        ],
+        "UnsupportedFeatures": [
+         "open_link",
+         "outgoing_phone_calls"
+        ],
+        "SpeakersCount": 0,
+        "UsersOptions": [
+         {
+          "OAuthToken": "<redacted credential 241 chars>",
+          "Puid": "1000000002",
+          "PersId": "1000000002",
+          "Tags": {
+           "Owner": {},
+           "Active": {}
+          }
+         }
+        ]
+       },
+       "VoiceSession": true,
+       "ActivationType": "auto_activation",
+       "UniproxyOptions": {
+        "MegamindUrl": "http://vins.alice.yandex.net/speechkit/app/pa/",
+        "OwnerContextLoadOptions": {
+         "UseBlackbox": true,
+         "UseCachalotMMSession": true,
+         "UseContacts": true,
+         "UseDatasync": true,
+         "UseFlagsJson": true,
+         "UseIotUserInfo": true,
+         "UseLaas": true,
+         "UseMemento": true,
+         "UseNotifications": true
+        }
+       },
+       "DeviceStateRaw": "PHJlZGFjdGVkIDExODBCIDlkODRhMDY3Pg==",
+       "EnvironmentStateRaw": "PHJlZGFjdGVkIDE0NDkyQiBiOTQ1MGQwNj4=",
+       "BiometryOptions": {
+        "Scoring": {
+         "Enabled": true
+        },
+        "Classification": {}
+       }
+      },
+      "EventSource": {
+       "Event": "Push",
+       "Source": "Software",
+       "Type": "Text",
+       "Id": "00000000-0000-4000-8000-000000000005"
+      },
+      "EnrollmentHeaders": {},
+      "Firmware": "0.298.0.146.3128483051.20250605.95",
+      "Lang": "ru-RU"
+     }
+    }
+   },
+   "redacted_blobs": [
+    {
+     "path": "msg.Event.TextInput.Request.Event.Payload.typed_callback_serialized",
+     "original_len": 92
+    },
+    {
+     "path": "msg.Event.TextInput.Request.DeviceStateRaw",
+     "original_len": 1180
+    },
+    {
+     "path": "msg.Event.TextInput.Request.EnvironmentStateRaw",
+     "original_len": 14492
+    }
+   ],
+   "redacted_credentials": [
+    {
+     "path": "msg.Event.TextInput.Request.AdditionalOptions.OAuthToken",
+     "original_len": 241
+    },
+    {
+     "path": "msg.Event.TextInput.Request.AdditionalOptions.UsersOptions[].OAuthToken",
+     "original_len": 241
+    }
+   ]
+  },
+  {
+   "t_ms": 54,
+   "dir": "c2s",
+   "kind": "control",
+   "label": "Ack",
+   "bytes": 170,
+   "message": {
+    "Event": {
+     "Header": {
+      "MessageId": "id-005",
+      "RtLogId": "id-005"
+     },
+     "Ack": {
+      "ReceivedHeader": {
+       "MessageId": "id-004",
+       "Ack": "1792601189075",
+       "RtLogId": "id-004"
+      }
+     }
+    }
+   }
+  },
+  {
+   "t_ms": 823,
+   "dir": "c2s",
+   "kind": "opaque",
+   "label": null,
+   "bytes": 884,
+   "sha256": "10ef828907b32bba"
+  }
+ ]
+}

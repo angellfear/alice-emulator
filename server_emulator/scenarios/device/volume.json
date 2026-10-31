@@ -1,0 +1,47 @@
+{
+ "format_version": 2,
+ "version": "2.0.0",
+ "category": "device",
+ "id": "device.volume",
+ "title": {
+  "ru": "Громкость",
+  "en": "Volume"
+ },
+ "description": {
+  "ru": "«громче», «тише», «громкость на 5», «выключи звук», «максимальная громкость» → Push в колонку"
+ },
+ "priority": 100,
+ "triggers": [
+  {
+   "kind": "phrase",
+   "phrases": [
+    "громкость",
+    "громче",
+    "тише",
+    "выключи звук",
+    "максимальная громкость"
+   ]
+  }
+ ],
+ "executor": {
+  "kind": "script"
+ },
+ "lexicon": {
+  "modes": {
+   "выключи звук": "mute",
+   "без звука": "mute",
+   "звук на ноль": "mute",
+   "максимал*": "max",
+   "максимум": "max",
+   "на максимум": "max",
+   "громче": "up",
+   "погромче": "up",
+   "тише": "down",
+   "потише": "down",
+   "тихо": "down"
+  }
+ },
+ "provenance": {
+  "source": "wire Push sound_set_level/sound_louder/sound_quiter (actions.CATALOG, панель «Действия устройства»); шкала колонки 0..10"
+ }
+}

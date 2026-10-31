@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Колонка">
+  <rect x="17" y="10" width="30" height="44" rx="11" fill="#6db0ff" fill-opacity=".22" stroke="#6db0ff" stroke-width="2.5"/>
+  <ellipse cx="32" cy="17" rx="10" ry="3.2" fill="none" stroke="#6db0ff" stroke-width="2.5"/>
+  <circle cx="32" cy="37" r="2.2" fill="#6db0ff"/>
+  <circle cx="32" cy="44" r="2.2" fill="#6db0ff"/>
+  <circle cx="25" cy="40.5" r="2.2" fill="#6db0ff"/>
+  <circle cx="39" cy="40.5" r="2.2" fill="#6db0ff"/>
+</svg>

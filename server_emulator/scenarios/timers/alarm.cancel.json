@@ -1,0 +1,24 @@
+{
+ "format_version": 2,
+ "version": "2.0.0",
+ "category": "timers",
+ "id": "timers.alarm.cancel",
+ "title": {
+  "ru": "Отменить будильник",
+  "en": "Cancel alarm"
+ },
+ "priority": 90,
+ "triggers": [
+  {
+   "kind": "phrase",
+   "phrases": [
+    "отмени будильник",
+    "удали будильник",
+    "выключи будильник"
+   ]
+  }
+ ],
+ "executor": {
+  "kind": "script"
+ }
+}

@@ -1,0 +1,184 @@
+{
+  "id": "piper",
+  "service": "tts",
+  "title": "Piper",
+  "order": 10,
+  "description": "Быстрый потоковый синтез русских голосов Piper на sherpa-onnx, без интернета. Голос ~70 МБ.",
+  "requirements": {
+    "gpu": false,
+    "vram_gb": 0,
+    "disk_gb": 0.2
+  },
+  "adapter": "openai",
+  "config": {
+    "url": "http://127.0.0.1:{port}/v1/audio/speech",
+    "model": "piper-{voice}",
+    "voice": "{voice}",
+    "response_format": "pcm_f32le"
+  },
+  "fields": [
+    {
+      "key": "voice",
+      "label": "Голос",
+      "type": "select",
+      "options": [
+        {
+          "value": "irina",
+          "label": "Ирина"
+        },
+        {
+          "value": "denis",
+          "label": "Денис"
+        },
+        {
+          "value": "dmitri",
+          "label": "Дмитрий"
+        },
+        {
+          "value": "ruslan",
+          "label": "Руслан"
+        }
+      ]
+    },
+    {
+      "key": "device",
+      "label": "Устройство",
+      "type": "select",
+      "options": [
+        {
+          "value": "cpu",
+          "label": "Процессор (CPU)"
+        },
+        {
+          "value": "cuda",
+          "label": "Видеокарта NVIDIA (CUDA)"
+        }
+      ]
+    },
+    {
+      "key": "gpu",
+      "label": "Видеокарта",
+      "type": "select",
+      "options_from": "gpus",
+      "when": {
+        "device": "cuda"
+      }
+    },
+    {
+      "key": "threads",
+      "label": "Потоков на запрос",
+      "type": "number",
+      "step": 1
+    },
+    {
+      "key": "workers",
+      "label": "Параллельных запросов",
+      "type": "number",
+      "step": 1
+    },
+    {
+      "key": "priority",
+      "label": "Приоритет процесса",
+      "type": "select",
+      "options": [
+        {
+          "value": "normal",
+          "label": "Обычный"
+        },
+        {
+          "value": "low",
+          "label": "Низкий (фоновый)"
+        }
+      ]
+    },
+    {
+      "key": "port",
+      "label": "Порт",
+      "type": "number",
+      "step": 1
+    }
+  ],
+  "defaults": {
+    "voice": "irina",
+    "device": "cpu",
+    "threads": 2,
+    "workers": 2,
+    "port": 5014,
+    "gpu": "0",
+    "priority": "normal"
+  },
+  "server": {
+    "script": "tools/builder_tts.py",
+    "health": "/health",
+    "env": {
+      "TTS_MODEL_DIR": "{dir}/vits-piper-ru_RU-{voice}-medium",
+      "TTS_VOICE": "{voice}",
+      "TTS_THREADS": "{threads}",
+      "TTS_WORKERS": "{workers}",
+      "TTS_PROVIDER": "{device}",
+      "CUDA_VISIBLE_DEVICES": "{gpu}"
+    }
+  },
+  "platforms": {
+    "windows": {
+      "cpu": [
+        {
+          "pip": [
+            "sherpa-onnx==1.13.8",
+            "numpy",
+            "aiohttp"
+          ]
+        }
+      ],
+      "cuda": [
+        {
+          "pip": [
+            "sherpa-onnx==1.13.8+cuda",
+            "numpy",
+            "aiohttp"
+          ],
+          "args": [
+            "-f",
+            "https://k2-fsa.github.io/sherpa/onnx/cuda.html"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "cpu": [
+        {
+          "pip": [
+            "sherpa-onnx==1.13.8",
+            "numpy",
+            "aiohttp"
+          ]
+        }
+      ],
+      "cuda": [
+        {
+          "pip": [
+            "sherpa-onnx==1.13.8+cuda",
+            "numpy",
+            "aiohttp"
+          ],
+          "args": [
+            "-f",
+            "https://k2-fsa.github.io/sherpa/onnx/cuda.html"
+          ]
+        }
+      ]
+    }
+  },
+  "notes": {
+    "linux": "CUDA: нужен драйвер NVIDIA с CUDA 12 и cuDNN 9."
+  },
+  "models": [
+    {
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-ru_RU-{voice}-medium.tar.bz2"
+    }
+  ],
+  "reinstall_on": [
+    "device",
+    "voice"
+  ]
+}

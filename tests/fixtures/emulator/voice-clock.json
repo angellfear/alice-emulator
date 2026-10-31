@@ -1,0 +1,2575 @@
+{
+ "format_version": 1,
+ "name": "voice-clock",
+ "proves": "Полный голосовой цикл «сколько времени»: VoiceInput -> partial AsrResult -> Close -> AliceResponse («Сейчас 12 часов дня») -> TtsSpeak + Ogg/Opus -> Close. Основа сценария R10 clock.",
+ "source": {
+  "kind": "capture",
+  "database": "data/traffic.sqlite3",
+  "captured_at": "2026-10-21T07:00:07+00:00",
+  "connection": "000000000000000000000000feed046e",
+  "anchor_event": "000000000000000000000000feed049f",
+  "window": [
+   -1.5,
+   6.0
+  ],
+  "event_ids": [
+   "000000000000000000000000feed04a0",
+   "000000000000000000000000feed04a1",
+   "000000000000000000000000feed04a2",
+   "000000000000000000000000feed04a3",
+   "000000000000000000000000feed049f",
+   "000000000000000000000000feed04a4",
+   "000000000000000000000000feed04a5",
+   "000000000000000000000000feed04a6",
+   "000000000000000000000000feed04a7",
+   "000000000000000000000000feed04a8",
+   "000000000000000000000000feed04a9",
+   "000000000000000000000000feed04aa",
+   "000000000000000000000000feed04ab",
+   "000000000000000000000000feed04ac",
+   "000000000000000000000000feed04ad",
+   "000000000000000000000000feed04ae",
+   "000000000000000000000000feed04af",
+   "000000000000000000000000feed04b0",
+   "000000000000000000000000feed04b1",
+   "000000000000000000000000feed04b2",
+   "000000000000000000000000feed04b3",
+   "000000000000000000000000feed04b4",
+   "000000000000000000000000feed04b5",
+   "000000000000000000000000feed04b6",
+   "000000000000000000000000feed04b7",
+   "000000000000000000000000feed04b8",
+   "000000000000000000000000feed04b9",
+   "000000000000000000000000feed04ba",
+   "000000000000000000000000feed04bb",
+   "000000000000000000000000feed04bc",
+   "000000000000000000000000feed04bd",
+   "000000000000000000000000feed04be",
+   "000000000000000000000000feed04bf",
+   "000000000000000000000000feed04c0",
+   "000000000000000000000000feed04c1",
+   "000000000000000000000000feed04c2",
+   "000000000000000000000000feed04c3",
+   "000000000000000000000000feed04c4",
+   "000000000000000000000000feed04c5",
+   "000000000000000000000000feed04c6",
+   "000000000000000000000000feed04c7",
+   "000000000000000000000000feed04c8",
+   "000000000000000000000000feed04c9",
+   "000000000000000000000000feed04ca",
+   "000000000000000000000000feed04cb",
+   "000000000000000000000000feed04cc",
+   "000000000000000000000000feed04cd",
+   "000000000000000000000000feed04ce",
+   "000000000000000000000000feed04cf",
+   "000000000000000000000000feed04d0",
+   "000000000000000000000000feed04d1",
+   "000000000000000000000000feed04d2",
+   "000000000000000000000000feed04d3",
+   "000000000000000000000000feed04d4",
+   "000000000000000000000000feed04d5",
+   "000000000000000000000000feed04d6",
+   "000000000000000000000000feed04d7",
+   "000000000000000000000000feed04d8",
+   "000000000000000000000000feed04d9",
+   "000000000000000000000000feed04da",
+   "000000000000000000000000feed04db",
+   "000000000000000000000000feed04dc",
+   "000000000000000000000000feed04dd",
+   "000000000000000000000000feed04de",
+   "000000000000000000000000feed04df",
+   "000000000000000000000000feed04e0",
+   "000000000000000000000000feed04e1",
+   "000000000000000000000000feed04e2",
+   "000000000000000000000000feed04e3",
+   "000000000000000000000000feed04e4",
+   "000000000000000000000000feed04e5",
+   "000000000000000000000000feed04e6",
+   "000000000000000000000000feed04e7",
+   "000000000000000000000000feed04e8",
+   "000000000000000000000000feed04e9",
+   "000000000000000000000000feed04ea",
+   "000000000000000000000000feed04eb",
+   "000000000000000000000000feed04ec",
+   "000000000000000000000000feed04ed",
+   "000000000000000000000000feed04ee",
+   "000000000000000000000000feed04ef",
+   "000000000000000000000000feed04f0",
+   "000000000000000000000000feed04f1",
+   "000000000000000000000000feed04f2",
+   "000000000000000000000000feed04f3",
+   "000000000000000000000000feed04f4",
+   "000000000000000000000000feed04f5",
+   "000000000000000000000000feed04f6",
+   "000000000000000000000000feed04f7",
+   "000000000000000000000000feed04f8",
+   "000000000000000000000000feed04f9",
+   "000000000000000000000000feed04fa",
+   "000000000000000000000000feed04fb",
+   "000000000000000000000000feed04fc",
+   "000000000000000000000000feed04fd",
+   "000000000000000000000000feed04fe",
+   "000000000000000000000000feed04ff",
+   "000000000000000000000000feed0500",
+   "000000000000000000000000feed0501",
+   "000000000000000000000000feed0502",
+   "000000000000000000000000feed0503",
+   "000000000000000000000000feed0504",
+   "000000000000000000000000feed0505",
+   "000000000000000000000000feed0506",
+   "000000000000000000000000feed0507",
+   "000000000000000000000000feed0508",
+   "000000000000000000000000feed0509",
+   "000000000000000000000000feed050a",
+   "000000000000000000000000feed050b",
+   "000000000000000000000000feed050c",
+   "000000000000000000000000feed050d",
+   "000000000000000000000000feed050e",
+   "000000000000000000000000feed050f",
+   "000000000000000000000000feed0510",
+   "000000000000000000000000feed0511",
+   "000000000000000000000000feed0512",
+   "000000000000000000000000feed0513",
+   "000000000000000000000000feed0514",
+   "000000000000000000000000feed0515",
+   "000000000000000000000000feed0516",
+   "000000000000000000000000feed0517",
+   "000000000000000000000000feed0518",
+   "000000000000000000000000feed0519",
+   "000000000000000000000000feed051a",
+   "000000000000000000000000feed051b",
+   "000000000000000000000000feed051c",
+   "000000000000000000000000feed051d",
+   "000000000000000000000000feed051e",
+   "000000000000000000000000feed051f",
+   "000000000000000000000000feed0520",
+   "000000000000000000000000feed0521",
+   "000000000000000000000000feed0522",
+   "000000000000000000000000feed0523",
+   "000000000000000000000000feed0524",
+   "000000000000000000000000feed0525",
+   "000000000000000000000000feed0526",
+   "000000000000000000000000feed0527",
+   "000000000000000000000000feed0528",
+   "000000000000000000000000feed0529",
+   "000000000000000000000000feed052a",
+   "000000000000000000000000feed052b",
+   "000000000000000000000000feed052c",
+   "000000000000000000000000feed052d",
+   "000000000000000000000000feed052e",
+   "000000000000000000000000feed052f",
+   "000000000000000000000000feed0530",
+   "000000000000000000000000feed0531",
+   "000000000000000000000000feed0532",
+   "000000000000000000000000feed0533",
+   "000000000000000000000000feed0534",
+   "000000000000000000000000feed0535",
+   "000000000000000000000000feed0536",
+   "000000000000000000000000feed0537",
+   "000000000000000000000000feed0538",
+   "000000000000000000000000feed0539",
+   "000000000000000000000000feed053a",
+   "000000000000000000000000feed053b",
+   "000000000000000000000000feed053c",
+   "000000000000000000000000feed053d",
+   "000000000000000000000000feed053e",
+   "000000000000000000000000feed053f",
+   "000000000000000000000000feed0540",
+   "000000000000000000000000feed0541",
+   "000000000000000000000000feed0542",
+   "000000000000000000000000feed0543",
+   "000000000000000000000000feed0544",
+   "000000000000000000000000feed0545",
+   "000000000000000000000000feed0546",
+   "000000000000000000000000feed0547",
+   "000000000000000000000000feed0548",
+   "000000000000000000000000feed0549",
+   "000000000000000000000000feed054a",
+   "000000000000000000000000feed054b",
+   "000000000000000000000000feed054c",
+   "000000000000000000000000feed054d",
+   "000000000000000000000000feed054e",
+   "000000000000000000000000feed054f",
+   "000000000000000000000000feed0550",
+   "000000000000000000000000feed0551",
+   "000000000000000000000000feed0552",
+   "000000000000000000000000feed0553",
+   "000000000000000000000000feed0554",
+   "000000000000000000000000feed0555",
+   "000000000000000000000000feed0556",
+   "000000000000000000000000feed0557",
+   "000000000000000000000000feed0558",
+   "000000000000000000000000feed0559",
+   "000000000000000000000000feed055a",
+   "000000000000000000000000feed055b",
+   "000000000000000000000000feed055c",
+   "000000000000000000000000feed055d",
+   "000000000000000000000000feed055e",
+   "000000000000000000000000feed055f",
+   "000000000000000000000000feed0560",
+   "000000000000000000000000feed0561",
+   "000000000000000000000000feed0562",
+   "000000000000000000000000feed0563",
+   "000000000000000000000000feed0564",
+   "000000000000000000000000feed0565",
+   "000000000000000000000000feed0566",
+   "000000000000000000000000feed0567",
+   "000000000000000000000000feed0568",
+   "000000000000000000000000feed0569",
+   "000000000000000000000000feed056a",
+   "000000000000000000000000feed056b",
+   "000000000000000000000000feed056c",
+   "000000000000000000000000feed056d",
+   "000000000000000000000000feed056e"
+  ],
+  "sanitization": "идентификаторы сообщений/запросов/устройств заменены алиасами; аудио заменено синтетическими маркерами; длинные списки/строки усечены (см. truncated)"
+ },
+ "schema": {
+  "file": "server_emulator/schemas/alice-api.pb",
+  "sha256": "fa406a0c58c5d07f72534075a051666d53b675be122cc9c751dabd4b3aaedd87",
+  "types": [
+   "NAlice.NAliceApi.TClientMessage",
+   "NAlice.NAliceApi.TServerMessage"
+  ]
+ },
+ "messages": [
+  {
+   "t_ms": -1175,
+   "dir": "c2s",
+   "kind": "control",
+   "label": "RequestStat",
+   "bytes": 203,
+   "message": {
+    "Event": {
+     "Header": {
+      "MessageId": "id-006",
+      "Ack": "1792566009",
+      "RtLogId": "id-006"
+     },
+     "RequestStat": {
+      "Timestamps": {
+       "OnVinsResponseTime": "3580",
+       "OnRecognitionBeginTime": "52",
+       "OnRecognitionEndTime": "2903",
+       "RequestDurationTime": "3556",
+       "SpotterConfirmationTime": "3579",
+       "OnPhraseSpottedTime": "0",
+       "OnStartVoiceInputTime": "26",
+       "StartPlayer": "5",
+       "OnPlayerBegin": "96",
+       "OnPlayerEnd": "627",
+       "OnFirstMessageMergedTime": "287",
+       "OnFirstNonEmptyPartialTime": "1470",
+       "OnLastCompletedPartialTime": "2252"
+      },
+      "RequestMessageId": "id-002"
+     }
+    }
+   }
+  },
+  {
+   "t_ms": 0,
+   "dir": "c2s",
+   "kind": "control",
+   "label": "VoiceInput",
+   "bytes": 45210,
+   "message": {
+    "Event": {
+     "Header": {
+      "MessageId": "id-008",
+      "StreamId": "13",
+      "RtLogId": "id-009"
+     },
+     "VoiceInput": {
+      "Header": {
+       "RequestId": "id-009",
+       "PrevReqId": "id-004",
+       "SequenceNumber": 197,
+       "DialogType": "UNKNOWN"
+      },
+      "Application": {
+       "AppId": "ru.yandex.centaur",
+       "AppVersion": "3.368.53",
+       "OsVersion": "11",
+       "Platform": "android",
+       "Uuid": "000000000000000000000000feed000d",
+       "DeviceId": "dev-001",
+       "Lang": "ru-RU",
+       "ClientTime": "20261021T120010",
+       "Timezone": "Europe/Moscow",
+       "Epoch": "1792566010",
+       "DeviceModel": "chiron",
+       "DeviceManufacturer": "Yandex",
+       "DeviceColor": "undefinedcolor",
+       "QuasmodromGroup": "production",
+       "QuasmodromSubgroup": "percent_test_v2",
+       "DeviceFirmware": "0.368.0.53.5000001289.20261017.165",
+       "IntegrationType": "QUARK",
+       "ClientType": "IOSDK"
+      },
+      "Request": {
+       "Event": {
+        "Type": "voice_input"
+       },
+       "Experiments": {
+        "Storage": {
+         "centaur_enable_music_search": {
+          "String": "1"
+         },
+         "mm_enable_accessibility_elements_entities": {
+          "String": "1"
+         },
+         "centaur_add_music_wave_prefix_in_scenario": {
+          "String": "1"
+         },
+         "disable_scheduled_teasers_service": {
+          "String": "1"
+         },
+         "bg_beggins_music_enable_lyrics": {
+          "String": "1"
+         },
+         "enable_open_settings_with_capability": {
+          "String": "1"
+         },
+         "frontend_vh_flags=pron=rec_param=planned_to_watch_priority=130": {
+          "String": "1"
+         },
+         "hw_weather_play_led_chiron": {
+          "String": "1"
+         },
+         "settings_informer_recents_toggle": {
+          "String": "1"
+         },
+         "centaur_fast_command_navigation": {
+          "String": "1"
+         },
+         "centaur_filter_invalid_recent_app": {
+          "String": "1"
+         },
+         "hw_enable_intonation_stop_word": {
+          "String": "1"
+         },
+         "enable_app_activation_universal_frame": {
+          "String": "1"
+         },
+         "settings_screen_gesture_managment_tab": {
+          "String": "1"
+         },
+         "tv_main_items_in_gallery=12": {
+          "String": "1"
+         },
+         "centaur_bind_voice_controls_to_carousel": {
+          "String": "1"
+         },
+         "life_teasers_use_full_background": {
+          "String": "1"
+         },
+         "external_apps_play_sound_no_voice": {
+          "String": "1"
+         },
+         "tv_recent_apps_count=10": {
+          "String": "1"
+         },
+         "smart_device_external_app_enable_smart_screen_apps": {
+          "String": "1"
+         },
+         "bg_enable_hide_item_from_delayed": {
+          "String": "1"
+         },
+         "call_vertical_remove_tg_login_section": {
+          "String": "1"
+         },
+         "enable_clock_time_div_custom": {
+          "String": "1"
+         },
+         "extended_teaser_clock": {
+          "String": "1"
+         },
+         "hw_music_native_player_on_platform_queue": {
+          "String": "1"
+         },
+         "hw_enable_ats_call": {
+          "String": "1"
+         },
+         "video_enable_players_by_version_centaur": {
+          "String": "1"
+         },
+         "tv_main_fill_short_display_name_in_delayed": {
+          "String": "1"
+         },
+         "centaur_alice_promo_in_skills": {
+          "String": "1"
+         },
+         "mm_disable_experiment=bg_enable_centaur_open_settings": {
+          "String": "1"
+         },
+         "centaur_choice_default_teasers": {
+          "String": "1"
+         },
+         "bg_beggins_disable_karaoke_mode": {
+          "String": "1"
+         },
+         "hw_enable_say_with_emotion": {
+          "String": "1"
+         },
+         "mm_use_directive_payload_raw": {
+          "String": "1"
+         },
+         "app_voice_enrollment_enabled": {
+          "String": "1"
+         },
+         "start_context_load_for_active_user": {
+          "String": "1"
+         },
+         "videoresult_cgi_rearr=scheme_Local/FilterBannedVideo/ForceBanHosts=ctc.ru": {
+          "String": "1"
+         },
+         "tv_recent_channels_count=3": {
+          "String": "1"
+         },
+         "mm_change_search_suggest_on_alice_2_0": {
+          "String": "1"
+         },
+         "mm_add_llm_functions_list=click_ui_element": {
+          "String": "1"
+         },
+         "hw_enable_ats_extended_directives": {
+          "String": "1"
+         },
+         "disable_default_yabro_teasers_adding": {
+          "String": "1"
+         },
+         "hw_enable_multiaccount_call_to_nanny": {
+          "String": "1"
+         },
+         "div_renderer_use_voice_controls_raw": {
+          "String": "1"
+         },
+         "hw_enable_do_not_check_callee_registration": {
+          "String": "1"
+         },
+         "video_movies_exp_enable_non_vh_in_user_states_carousel": {
+          "String": "1"
+         },
+         "search_preferable_to_general_conversation_for_alice_2": {
+          "String": "1"
+         },
+         "hw_music_play_karaoke_on_demand": {
+          "String": "1"
+         },
+         "add_available_assets=lotties/speech_vertical.json,lotties/snake_vertical.json,lotties/timer_vertical.json,lotties/alarm_vertical.json,lotties/book_in_vertical.json,lotties/book_loop_vertical.json,lotties/notification_vertical.json": {
+          "String": "1"
+         },
+         "hw_order_notification_enable_centaur": {
+          "String": "1"
+         },
+         "all_flowers_backgrounds_enable": {
+          "String": "1"
+         },
+         "centaur_enable_all_episodes_separate_node": {
+          "String": "1"
+         },
+         "bg_beggins_enable_karaoke_mode": {
+          "String": "1"
+         },
+         "enable_dont_skip_video_fragment": {
+          "String": "1"
+         },
+         "centaur_enable_video_details_screen": {
+          "String": "1"
+         },
+         "enable_dependancy_on_capability": {
+          "String": "1"
+         },
+         "delayed_gallery_add_remove_button": {
+          "String": "1"
+         },
+         "video_player_set_playback_speed": {
+          "String": "1"
+         },
+         "upper_shutter_calls": {
+          "String": "1"
+         },
+         "centaur_enable_show_episodes_screen": {
+          "String": "1"
+         },
+         "hw_enable_ats_call_to_nanny": {
+          "String": "1"
+         },
+         "enrollment_x_token_enabled": {
+          "String": "1"
+         },
+         "mm_summarizer_scenarios_white_list": {
+          "String": "1"
+         },
+         "enforce_karaoke_support": {
+          "String": "1"
+         },
+         "videoresult_cgi_relev=vblackhosts=ctc.ru": {
+          "String": "1"
+         },
+         "enable_teasers_long_tap": {
+          "String": "1"
+         },
+         "close_card_without_voice_control": {
+          "String": "1"
+         },
+         "centaur_open_card_detail_for_paid_content": {
+          "String": "1"
+         },
+         "hw_voiceprint_enable_enrollment_sharing": {
+          "String": "1"
+         },
+         "hw_enable_device_call_platforms=chiron": {
+          "String": "1"
+         },
+         "centaur_audio_player_native_screen_enabled": {
+          "String": "1"
+         },
+         "mm_play_karaoke_prefer_music_over_video": {
+          "String": "1"
+         },
+         "smart_device_external_app_enable_parental_controls_smart_screen": {
+          "String": "1"
+         },
+         "blocked_app_version_chiron=[1982735225, 1926931523]": {
+          "String": "1"
+         },
+         "deep_teasers_use_full_background": {
+          "String": "1"
+         },
+         "bg_reduce_functions_ban_list": {
+          "String": "1"
+         },
+         "bg_enable_say_with_emotion": {
+          "String": "1"
+         },
+         "select_enrollment_frame_enabled": {
+          "String": "1"
+         },
+         "hw_music_centaur_show_content_native": {
+          "String": "1"
+         },
+         "combinators_disable_force_add_yabro_backgrounds": {
+          "String": "1"
+         },
+         "tv_main_use_new_music_api": {
+          "String": "1"
+         },
+         "bg_centaur_open_android_settings": {
+          "String": "1"
+         },
+         "enable_change_menu_view": {
+          "String": "1"
+         },
+         "tv_main_ufs_use_combined_video_items": {
+          "String": "1"
+         },
+         "streaming_sources_modifier_behaviour=append": {
+          "String": "1"
+         },
+         "bg_beggins_play_karaoke": {
+          "String": "1"
+         },
+         "enable_accessibility_screen_visualize": {
+          "String": "1"
+         },
+         "video_movies_exp_enable_video_user_states_carousel": {
+          "String": "1"
+         },
+         "hw_enable_device_call_platforms=quinglong": {
+          "String": "1"
+         },
+         "hw_music_force_neighbour_tracks_request": {
+          "String": "1"
+         },
+         "video_centaur_use_pay_sdk": {
+          "String": "1"
+         },
+         "mm_subscribe_to_frame=alice.music.enable_lyrics:Music": {
+          "String": "1"
+         },
+         "centaur_enable_tv_launch_frame": {
+          "String": "1"
+         },
+         "hw_notification_enable_centaur": {
+          "String": "1"
+         },
+         "tv_main_allow_recents_in_chunk_tail": {
+          "String": "1"
+         },
+         "hw_enable_device_call_hw2": {
+          "String": "1"
+         },
+         "centaur_kp_only_delayed_for_child": {
+          "String": "1"
+         },
+         "tv_use_top10_parallel_call": {
+          "String": "1"
+         },
+         "blocked_app_version_chiron=[1, 13]": {
+          "String": "1"
+         },
+         "mm_enable_llm_functions_beta_chiron": {
+          "String": "1"
+         },
+         "centaur_choice_categories=deep_backgrounds": {
+          "String": "1"
+         },
+         "settings_screen_pause_resume_gesture_toggle": {
+          "String": "1"
+         },
+         "centaur_enable_avod": {
+          "String": "1"
+         },
+         "bg_close_card_exact": {
+          "String": "1"
+         },
+         "bg_beggins_music_disable_lyrics": {
+          "String": "1"
+         }
+        }
+       },
+       "AdditionalOptions": {
+        "OAuthToken": "<redacted credential 241 chars>",
+        "BassOptions": {
+         "UserAgent": "Mozilla/5.0 (Linux; Android 6.0.1; Station Build/MOB30J; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/61.0.3163.98 Safari/537.36 YandexStation\\/0.368.0.53.5000001289.20261017.165 (YandexIO)"
+        },
+        "SupportedFeatures": [
+         "video_protocol",
+         "has_synchronized_push",
+         "server_action",
+         "go_home",
+         "music_recognizer",
+         "change_alarm_sound",
+         "change_alarm_sound_level",
+         "music_player_allow_shots",
+         "audio_client",
+         "show_view",
+         "div2_cards",
+         "directive_sequencer",
+         "supports_directive_payload_raw",
+         "tts_play_placeholder",
+         "multiroom_audio_client",
+         "notifications",
+         "show_timer",
+         "do_not_disturb",
+         "handle_android_app_intent",
+         "audio_client_player_ui",
+         "multiroom",
+         "custom_sources_markdown",
+         "stereo_pair",
+         "multiroom_cluster",
+         "multiroom_audio_client_v2",
+         "muzpult",
+         "thin_fm_radio_client",
+         "supports_streaming_response",
+         "bluetooth_player",
+         "print_with_markdown",
+         "supports_image_suggests",
+         "supports_markdown_response",
+         "supports_favicon_response",
+         "supports_inner_directive_payload_raw"
+        ],
+        "UnsupportedFeatures": [
+         "open_link",
+         "outgoing_phone_calls"
+        ],
+        "Permissions": [
+         {
+          "Granted": true,
+          "Name": "call_phone"
+         },
+         {
+          "Granted": true,
+          "Name": "internet_connection_info"
+         },
+         {
+          "Granted": true,
+          "Name": "location"
+         },
+         {
+          "Granted": true,
+          "Name": "post_notifications"
+         },
+         {
+          "Granted": true,
+          "Name": "read_calendar"
+         },
+         {
+          "Granted": true,
+          "Name": "read_call_log"
+         },
+         {
+          "Granted": true,
+          "Name": "read_contacts"
+         },
+         {
+          "Granted": true,
+          "Name": "schedule_exact_alarm"
+         },
+         {
+          "Granted": true,
+          "Name": "write_calendar"
+         }
+        ],
+        "SpeakersCount": 19,
+        "UsersOptions": [
+         {
+          "OAuthToken": "<redacted credential 241 chars>",
+          "Puid": "1000000002",
+          "Tags": {
+           "Owner": {}
+          }
+         },
+         {
+          "OAuthToken": "<redacted credential 213 chars>",
+          "Puid": "1000000001",
+          "PersId": "1000000001",
+          "Tags": {
+           "Active": {}
+          }
+         }
+        ]
+       },
+       "VoiceSession": true,
+       "ActivationType": "spotter",
+       "UniproxyOptions": {
+        "MegamindUrl": "http://vins.alice.yandex.net/speechkit/app/pa/",
+        "OwnerContextLoadOptions": {
+         "UseBlackbox": true,
+         "UseCachalotMMSession": true,
+         "UseContacts": true,
+         "UseDatasync": true,
+         "UseFlagsJson": true,
+         "UseIotUserInfo": true,
+         "UseLaas": true,
+         "UseMemento": true,
+         "UseNotifications": true
+        },
+        "CapabilityUpdatesOptions": {
+         "WaitClientCapabilityUpdates": [
+          {
+           "CapabilityType": "AccessibilityVoiceControlType"
+          }
+         ]
+        },
+        "BidirectionalOptions": {}
+       },
+       "DeviceStateRaw": "PHJlZGFjdGVkIDE4NjBCIDNiMDE3OTJlPg==",
+       "EnvironmentStateRaw": "PHJlZGFjdGVkIDQ2NzE2QiA2MWIwN2E2ND4=",
+       "BiometryOptions": {
+        "Scoring": {
+         "Enabled": true
+        },
+        "Classification": {
+         "Enabled": true
+        }
+       }
+      },
+      "EventSource": {
+       "Event": "Spotter",
+       "Source": "Software",
+       "Type": "Voice",
+       "Id": "00000000-0000-4000-8000-000000000007",
+       "EndpointId": "dev-001",
+       "SourceName": "activation"
+      },
+      "EnrollmentHeaders": {
+       "Headers": [
+        {
+         "UserType": "GUEST"
+        },
+        {}
+       ]
+      },
+      "Firmware": "0.368.0.53.5000001289.20261017.165",
+      "EnableSpotterValidation": true,
+      "SpotterPhrase": "алиса",
+      "EmbeddedSpotterInfo": "{\"version\": \"ru-RU-chiron-alisa-17Jul24-bnr-tuned-verifier-no-ca\", \"override_ov_threshold\": null, \"ov_version\": null, \"counteractivation_features\": \"<redacted 1182B e7f98d48>==\"}",
+      "Lang": "ru-RU",
+      "Topic": "quasar-general",
+      "Punctuation": true,
+      "Format": "audio/opus",
+      "RecognizeMusicOnly": false,
+      "Tags": "PASS_AUDIO;",
+      "AdvancedAsrOptions": {
+       "PartialResults": true,
+       "ManualPunctuation": false,
+       "Capitalize": false
+      },
+      "Alice2Settings": {
+       "Mode": "Base"
+      }
+     }
+    }
+   },
+   "redacted_blobs": [
+    {
+     "path": "msg.Event.VoiceInput.Request.DeviceStateRaw",
+     "original_len": 1860
+    },
+    {
+     "path": "msg.Event.VoiceInput.Request.EnvironmentStateRaw",
+     "original_len": 46716
+    },
+    {
+     "path": "msg.Event.VoiceInput.EmbeddedSpotterInfo",
+     "original_len": 1182
+    }
+   ],
+   "redacted_credentials": [
+    {
+     "path": "msg.Event.VoiceInput.Request.AdditionalOptions.OAuthToken",
+     "original_len": 241
+    },
+    {
+     "path": "msg.Event.VoiceInput.Request.AdditionalOptions.UsersOptions[].OAuthToken",
+     "original_len": 241
+    },
+    {
+     "path": "msg.Event.VoiceInput.Request.AdditionalOptions.UsersOptions[].OAuthToken",
+     "original_len": 213
+    }
+   ]
+  },
+  {
+   "t_ms": 0,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg / Opus",
+   "bytes": 845,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 0,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 55,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 62,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 62,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 63,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 62,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 61,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 61,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 64,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 60,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 62,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 61,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 62,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 63,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 2,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 64,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 2,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 63,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 2,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 59,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 2,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 61,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 2,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 64,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 2,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 58,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 2,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 60,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 2,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 64,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 2,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 69,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 2,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 67,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 2,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 61,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 2,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 65,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 2,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 61,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 3,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 59,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 3,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 64,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 3,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 62,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 3,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 64,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 3,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 65,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 3,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 68,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 3,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 73,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 3,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 67,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 3,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 65,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 3,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 69,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 3,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 72,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 3,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 74,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 3,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 72,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 3,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 69,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 4,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 71,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 4,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 74,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 4,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 80,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 4,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 78,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 4,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 74,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 4,
+   "dir": "c2s",
+   "kind": "control",
+   "label": "StreamControl · SpotterEnd",
+   "bytes": 48,
+   "message": {
+    "StreamControl": {
+     "StreamId": "13",
+     "MessageId": "id-010",
+     "SpotterEnd": {}
+    }
+   }
+  },
+  {
+   "t_ms": 4,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg / Opus",
+   "bytes": 845,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 4,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 70,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 5,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 77,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 5,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 71,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 5,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 69,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 5,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 70,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 5,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 67,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 5,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 69,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 5,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 71,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 5,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 66,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 5,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 64,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 5,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 66,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 5,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 62,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 5,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 63,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 6,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 60,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 6,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 60,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 6,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 59,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 11,
+   "dir": "c2s",
+   "kind": "control",
+   "label": "MatchedUser",
+   "bytes": 797,
+   "message": {
+    "Event": {
+     "Header": {
+      "MessageId": "id-011",
+      "RtLogId": "id-012"
+     },
+     "MatchedUser": {
+      "Header": {
+       "RequestId": "id-012",
+       "DialogType": "UNKNOWN"
+      },
+      "Application": {
+       "AppId": "ru.yandex.centaur",
+       "AppVersion": "3.368.53",
+       "OsVersion": "11",
+       "Platform": "android",
+       "Uuid": "000000000000000000000000feed000d",
+       "DeviceId": "dev-001",
+       "Lang": "ru-RU",
+       "ClientTime": "20261021T120010",
+       "Timezone": "Europe/Moscow",
+       "Epoch": "1792566010",
+       "DeviceModel": "chiron",
+       "DeviceManufacturer": "Yandex",
+       "DeviceColor": "undefinedcolor",
+       "QuasmodromGroup": "production",
+       "QuasmodromSubgroup": "percent_test_v2",
+       "DeviceFirmware": "0.368.0.53.5000001289.20261017.165",
+       "IntegrationType": "QUARK",
+       "ClientType": "IOSDK"
+      },
+      "Request": {
+       "Event": {
+        "BiometryClassification": {
+         "Scores": [
+          {
+           "ClassName": "child",
+           "Confidence": 0.26373425126075745,
+           "Tag": "children"
+          },
+          {
+           "ClassName": "adult",
+           "Confidence": 0.7362657785415649,
+           "Tag": "children"
+          },
+          {
+           "ClassName": "female",
+           "Confidence": 0.6586333513259888,
+           "Tag": "gender"
+          },
+          {
+           "ClassName": "male",
+           "Confidence": 0.34136664867401123,
+           "Tag": "gender"
+          }
+         ],
+         "Simple": [
+          {
+           "ClassName": "adult",
+           "Tag": "children",
+           "Confidence": "low"
+          },
+          {
+           "ClassName": "female",
+           "Tag": "gender"
+          }
+         ]
+        }
+       },
+       "AdditionalOptions": {
+        "GuestUserOptions": {
+         "Status": "NoMatch"
+        }
+       },
+       "VoiceSession": true,
+       "ActivationType": "directive",
+       "UniproxyOptions": {
+        "MegamindUrl": "http://vins.alice.yandex.net/speechkit/app/pa/",
+        "OwnerContextLoadOptions": {
+         "UseContacts": true,
+         "UseFlagsJson": true,
+         "UseLaas": true
+        },
+        "BidirectionalOptions": {}
+       },
+       "BiometryOptions": {
+        "Scoring": {
+         "Enabled": true
+        },
+        "Classification": {
+         "Enabled": true
+        }
+       }
+      },
+      "EventSource": {
+       "Event": "Directive",
+       "Source": "Software",
+       "Type": "VoiceprintMatch",
+       "Id": "00000000-0000-4000-8000-000000000008",
+       "EndpointId": "dev-001"
+      },
+      "EnrollmentHeaders": {
+       "Headers": [
+        {
+         "UserType": "GUEST"
+        },
+        {}
+       ]
+      },
+      "Firmware": "0.368.0.53.5000001289.20261017.165",
+      "VoiceInputMessageId": "id-008",
+      "Lang": "ru-RU",
+      "Alice2Settings": {
+       "Mode": "Base"
+      }
+     }
+    }
+   }
+  },
+  {
+   "t_ms": 45,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 60,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 45,
+   "dir": "c2s",
+   "kind": "control",
+   "label": "MatchedUser",
+   "bytes": 797,
+   "message": {
+    "Event": {
+     "Header": {
+      "MessageId": "id-013",
+      "RtLogId": "id-014"
+     },
+     "MatchedUser": {
+      "Header": {
+       "RequestId": "id-014",
+       "DialogType": "UNKNOWN"
+      },
+      "Application": {
+       "AppId": "ru.yandex.centaur",
+       "AppVersion": "3.368.53",
+       "OsVersion": "11",
+       "Platform": "android",
+       "Uuid": "000000000000000000000000feed000d",
+       "DeviceId": "dev-001",
+       "Lang": "ru-RU",
+       "ClientTime": "20261021T120010",
+       "Timezone": "Europe/Moscow",
+       "Epoch": "1792566010",
+       "DeviceModel": "chiron",
+       "DeviceManufacturer": "Yandex",
+       "DeviceColor": "undefinedcolor",
+       "QuasmodromGroup": "production",
+       "QuasmodromSubgroup": "percent_test_v2",
+       "DeviceFirmware": "0.368.0.53.5000001289.20261017.165",
+       "IntegrationType": "QUARK",
+       "ClientType": "IOSDK"
+      },
+      "Request": {
+       "Event": {
+        "BiometryClassification": {
+         "Scores": [
+          {
+           "ClassName": "child",
+           "Confidence": 0.05376538634300232,
+           "Tag": "children"
+          },
+          {
+           "ClassName": "adult",
+           "Confidence": 0.9462345838546753,
+           "Tag": "children"
+          },
+          {
+           "ClassName": "female",
+           "Confidence": 0.9465047121047974,
+           "Tag": "gender"
+          },
+          {
+           "ClassName": "male",
+           "Confidence": 0.05349528789520264,
+           "Tag": "gender"
+          }
+         ],
+         "Simple": [
+          {
+           "ClassName": "adult",
+           "Tag": "children",
+           "Confidence": "high"
+          },
+          {
+           "ClassName": "female",
+           "Tag": "gender"
+          }
+         ]
+        }
+       },
+       "AdditionalOptions": {
+        "GuestUserOptions": {
+         "Status": "NoMatch"
+        }
+       },
+       "VoiceSession": true,
+       "ActivationType": "directive",
+       "UniproxyOptions": {
+        "MegamindUrl": "http://vins.alice.yandex.net/speechkit/app/pa/",
+        "OwnerContextLoadOptions": {
+         "UseContacts": true,
+         "UseFlagsJson": true,
+         "UseLaas": true
+        },
+        "BidirectionalOptions": {}
+       },
+       "BiometryOptions": {
+        "Scoring": {
+         "Enabled": true
+        },
+        "Classification": {
+         "Enabled": true
+        }
+       }
+      },
+      "EventSource": {
+       "Event": "Directive",
+       "Source": "Software",
+       "Type": "VoiceprintMatch",
+       "Id": "00000000-0000-4000-8000-000000000009",
+       "EndpointId": "dev-001"
+      },
+      "EnrollmentHeaders": {
+       "Headers": [
+        {
+         "UserType": "GUEST"
+        },
+        {}
+       ]
+      },
+      "Firmware": "0.368.0.53.5000001289.20261017.165",
+      "VoiceInputMessageId": "id-008",
+      "Lang": "ru-RU",
+      "Alice2Settings": {
+       "Mode": "Base"
+      }
+     }
+    }
+   }
+  },
+  {
+   "t_ms": 45,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 59,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 46,
+   "dir": "c2s",
+   "kind": "control",
+   "label": "CapabilityUpdateState",
+   "bytes": 2353,
+   "message": {
+    "Event": {
+     "Header": {
+      "MessageId": "id-015",
+      "RtLogId": "id-015"
+     },
+     "CapabilityUpdateState": {
+      "RequestMessageId": "id-008",
+      "EndpointId": "dev-001",
+      "CapabilityType": "AccessibilityVoiceControlType",
+      "AnyCapability": {
+       "RawCapability": "PHJlZGFjdGVkIDI5MzZCIDlkNzUyNjE3Pg==",
+       "CapabilityType": "AccessibilityVoiceControlType"
+      }
+     }
+    }
+   },
+   "redacted_blobs": [
+    {
+     "path": "msg.Event.CapabilityUpdateState.AnyCapability.RawCapability",
+     "original_len": 2936
+    }
+   ]
+  },
+  {
+   "t_ms": 57,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 56,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 91,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 59,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 134,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 64,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 134,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 63,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 180,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 64,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 180,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 66,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 227,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 66,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 227,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 68,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 227,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 67,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 275,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 66,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 275,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 69,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 287,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 66,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 298,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 67,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 336,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 60,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 352,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 64,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 362,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 67,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 410,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 70,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 410,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 71,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 464,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 72,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 464,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 73,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 464,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 65,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 475,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 68,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 523,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 63,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 573,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 81,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 573,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 82,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 573,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 66,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 586,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 71,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 632,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 72,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 632,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 69,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 634,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 67,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 666,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 66,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 691,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 66,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 712,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 64,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 716,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 65,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 747,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 70,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 770,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 67,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 805,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 62,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 805,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 74,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 855,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 75,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 855,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 65,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 864,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 63,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 914,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 64,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 914,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 77,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 923,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 73,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 974,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 74,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 974,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 70,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1026,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 70,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1026,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 67,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1026,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 69,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1072,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 70,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1072,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 76,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1085,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 75,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1132,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 71,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1132,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 67,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1182,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 70,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1182,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 67,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1182,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 71,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1196,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 74,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1227,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 74,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1243,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 75,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1291,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 77,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1291,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 68,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1307,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 64,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1322,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 63,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1351,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 63,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1365,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 64,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1415,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 63,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1415,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 60,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1462,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 60,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1462,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 57,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1508,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 57,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1508,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 60,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1508,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 57,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1555,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 60,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1555,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 64,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1571,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 64,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1617,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 70,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1617,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 68,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1626,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 65,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1680,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 64,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1680,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 62,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1680,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 59,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1708,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 59,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1752,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 58,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1752,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 58,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1757,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 58,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1787,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 62,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1828,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 61,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1828,
+   "dir": "c2s",
+   "kind": "audio",
+   "channel": 13,
+   "label": "Ogg · фрагмент",
+   "bytes": 67,
+   "synthetic": "ogg-opus-silence"
+  },
+  {
+   "t_ms": 1832,
+   "dir": "c2s",
+   "kind": "control",
+   "label": "StreamControl · Close",
+   "bytes": 50,
+   "message": {
+    "StreamControl": {
+     "StreamId": "13",
+     "MessageId": "id-047",
+     "Close": {
+      "Reason": "CANCEL"
+     }
+    }
+   }
+  },
+  {
+   "t_ms": 4774,
+   "dir": "c2s",
+   "kind": "control",
+   "label": "RequestStat",
+   "bytes": 235,
+   "message": {
+    "Event": {
+     "Header": {
+      "MessageId": "id-055",
+      "Ack": "1792566015",
+      "RtLogId": "id-055"
+     },
+     "RequestStat": {
+      "Timestamps": {
+       "OnSoundPlayerEndTime": "4805",
+       "OnVinsResponseTime": "2972",
+       "OnFirstSynthesisChunkTime": "2975",
+       "OnRecognitionBeginTime": "25",
+       "OnRecognitionEndTime": "1869",
+       "RequestDurationTime": "4788",
+       "SpotterConfirmationTime": "2924",
+       "OnPhraseSpottedTime": "0",
+       "OnStartVoiceInputTime": "17",
+       "OnFirstSocketActivityTime": "2974",
+       "OnLastSynthesisChunkTime": "2978",
+       "StartPlayer": "1",
+       "OnPlayerBegin": "46",
+       "OnPlayerEnd": "681",
+       "OnSoundPlayerBeginTime": "3025",
+       "OnFirstMessageMergedTime": "322",
+       "OnFirstNonEmptyPartialTime": "1606",
+       "OnLastCompletedPartialTime": "1863"
+      },
+      "RequestMessageId": "id-008"
+     }
+    }
+   }
+  }
+ ],
+ "external_references": [
+  "id-002"
+ ]
+}

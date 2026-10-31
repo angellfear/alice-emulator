@@ -1,0 +1,28 @@
+{
+ "format_version": 2,
+ "version": "2.0.0",
+ "category": "timers",
+ "id": "timers.alarm.set",
+ "title": {
+  "ru": "Поставить будильник",
+  "en": "Set alarm"
+ },
+ "description": {
+  "ru": "«будильник на 7:30», «поставь будильник на дуо 32 на 7 утра» (на другой колонке владельца)"
+ },
+ "priority": 100,
+ "triggers": [
+  {
+   "kind": "phrase",
+   "phrases": [
+    "поставь будильник",
+    "будильник на",
+    "разбуди меня",
+    "заведи будильник"
+   ]
+  }
+ ],
+ "executor": {
+  "kind": "script"
+ }
+}

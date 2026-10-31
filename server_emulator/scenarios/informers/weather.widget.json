@@ -1,0 +1,32 @@
+{
+ "format_version": 2,
+ "id": "informers.weather.widget",
+ "version": "2.0.0",
+ "category": "informers",
+ "title": {
+  "ru": "Виджет погоды на главном экране",
+  "en": "Home screen weather widget"
+ },
+ "description": {
+  "ru": "Служебный get_informers → update_all_informers_directive (тихо): температура, иконка, описание"
+ },
+ "priority": 50,
+ "triggers": [
+  {
+   "kind": "event",
+   "name": "@@mm_typed_callback",
+   "callback": "NAlice.TGetInformersTypedCallback"
+  },
+  {
+   "kind": "event",
+   "name": "@@mm_typed_callback",
+   "purpose": "get_informers"
+  }
+ ],
+ "executor": {
+  "kind": "script"
+ },
+ "provenance": {
+  "source": "capture 2026-10-25 01:01 (192.0.2.85, прокси): ответ облака на TGetInformersTypedCallback — тихий AliceResponse с update_all_informers_directive (TUpdateAllInformersDirective)"
+ }
+}

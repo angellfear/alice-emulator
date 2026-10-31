@@ -1,0 +1,227 @@
+{
+  "id": "omnivoice",
+  "service": "tts",
+  "title": "OmniVoice",
+  "order": 30,
+  "description": "Многоязычный синтез k2-fsa/OmniVoice (Xiaomi, Apache-2.0): клонирование голоса по эталону 3–10 с или голос по текстовому описанию. ~1,3 ГБ видеопамяти; модель скачивается при первом запуске.",
+  "requirements": {
+    "gpu": true,
+    "vram_gb": 2,
+    "disk_gb": 5
+  },
+  "adapter": "openai",
+  "config": {
+    "url": "http://127.0.0.1:{port}/v1/audio/speech",
+    "model": "omnivoice",
+    "voice": "reference",
+    "response_format": "pcm_f32le"
+  },
+  "fields": [
+    {
+      "key": "device",
+      "label": "Устройство",
+      "type": "select",
+      "options": [
+        {
+          "value": "cpu",
+          "label": "Процессор (CPU)"
+        },
+        {
+          "value": "cuda",
+          "label": "Видеокарта NVIDIA (CUDA)"
+        }
+      ]
+    },
+    {
+      "key": "gpu",
+      "label": "Видеокарта",
+      "type": "select",
+      "options_from": "gpus",
+      "when": {
+        "device": "cuda"
+      }
+    },
+    {
+      "key": "threads",
+      "label": "Потоков процессора",
+      "type": "number",
+      "step": 1,
+      "when": {
+        "device": "cpu"
+      }
+    },
+    {
+      "key": "priority",
+      "label": "Приоритет процесса",
+      "type": "select",
+      "options": [
+        {
+          "value": "normal",
+          "label": "Обычный"
+        },
+        {
+          "value": "low",
+          "label": "Низкий (фоновый)"
+        }
+      ]
+    },
+    {
+      "key": "ref_audio",
+      "label": "Эталонная запись голоса (WAV, 3–10 с лучше всего)",
+      "type": "file",
+      "accept": ".wav",
+      "transcribe_to": "ref_text"
+    },
+    {
+      "key": "ref_text",
+      "label": "Текст эталонной записи (пусто — распознаётся при сохранении)",
+      "type": "textarea"
+    },
+    {
+      "key": "instruct",
+      "label": "Описание голоса, если нет эталона (англ.: female, low pitch)",
+      "type": "text"
+    },
+    {
+      "key": "language",
+      "label": "Язык",
+      "type": "text"
+    },
+    {
+      "key": "speed",
+      "label": "Скорость речи",
+      "type": "number",
+      "step": 0.1
+    },
+    {
+      "key": "steps",
+      "label": "Шагов генерации (качество/время)",
+      "type": "number",
+      "step": 1
+    },
+    {
+      "key": "port",
+      "label": "Порт",
+      "type": "number",
+      "step": 1
+    }
+  ],
+  "defaults": {
+    "device": "cuda",
+    "gpu": "0",
+    "threads": 4,
+    "priority": "normal",
+    "ref_audio": "",
+    "ref_text": "",
+    "instruct": "female",
+    "language": "ru",
+    "speed": 1.0,
+    "steps": 32,
+    "port": 8778
+  },
+  "server": {
+    "script": "tools/omnivoice_server.py",
+    "health": "/health",
+    "env": {
+      "OV_DEVICE": "{device}",
+      "OV_THREADS": "{threads}",
+      "OV_REF_AUDIO": "{ref_audio}",
+      "OV_REF_TEXT": "{ref_text}",
+      "OV_INSTRUCT": "{instruct}",
+      "OV_LANGUAGE": "{language}",
+      "OV_SPEED": "{speed}",
+      "OV_STEPS": "{steps}",
+      "CUDA_VISIBLE_DEVICES": "{gpu}"
+    }
+  },
+  "platforms": {
+    "windows": {
+      "cuda": [
+        {
+          "pip": [
+            "torch",
+            "torchaudio"
+          ],
+          "args": [
+            "--index-url",
+            "https://download.pytorch.org/whl/cu126"
+          ]
+        },
+        {
+          "pip": [
+            "omnivoice",
+            "soundfile",
+            "aiohttp"
+          ]
+        }
+      ],
+      "cpu": [
+        {
+          "pip": [
+            "torch",
+            "torchaudio"
+          ],
+          "args": [
+            "--index-url",
+            "https://download.pytorch.org/whl/cpu"
+          ]
+        },
+        {
+          "pip": [
+            "omnivoice",
+            "soundfile",
+            "aiohttp"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "cuda": [
+        {
+          "pip": [
+            "torch",
+            "torchaudio"
+          ],
+          "args": [
+            "--index-url",
+            "https://download.pytorch.org/whl/cu126"
+          ]
+        },
+        {
+          "pip": [
+            "omnivoice",
+            "soundfile",
+            "aiohttp"
+          ]
+        }
+      ],
+      "cpu": [
+        {
+          "pip": [
+            "torch",
+            "torchaudio"
+          ],
+          "args": [
+            "--index-url",
+            "https://download.pytorch.org/whl/cpu"
+          ]
+        },
+        {
+          "pip": [
+            "omnivoice",
+            "soundfile",
+            "aiohttp"
+          ]
+        }
+      ]
+    }
+  },
+  "notes": {
+    "windows": "Нужен драйвер NVIDIA с поддержкой CUDA 12.6.",
+    "linux": "Нужен драйвер NVIDIA с поддержкой CUDA 12.6."
+  },
+  "models": [],
+  "reinstall_on": [
+    "device"
+  ]
+}
