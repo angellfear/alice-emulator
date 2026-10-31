@@ -195,7 +195,9 @@
 обработчиком, ушедший в Яндекс (прокси), в `misses` не пишется; промах эмуляции и промах
 гибрида — пишутся. Запись источников TASK-052 (`quasar_source: direct`, «Получить с
 оригинального сервера») идёт по той же опции; у `get_sync_info` обработчик есть, поэтому
-`misses` её не пишет.
+`misses` её не пишет. В режиме «Напрямую» ответ Яндекса может править список замен regexp устройства
+(`state.quasar_direct_replace`, `quasar_replace.py`, TASK-063); результат, не прошедший как JSON, колонке
+не уходит — отдаётся оригинал; журнал хранит ответ Яндекса.
 
 WS: бинарный кадр без префикса `AAPI` — звук, данные не пишутся (в записи закрытия сессии —
 счётчики кадров и байт по направлениям). AAPI-кадр — отдельная запись: направление, имя
@@ -294,6 +296,7 @@ agent: ответ готов → TTS заранее → async_reply.keep()
 | apscheduler | Задания по расписанию |
 | hassil | Шаблоны фраз сценариев |
 | aiodns | DNS-резолвинг |
+| dulwich | git-операции без git CLI: версия рабочей копии (`version.py`) и самообновление (TASK-039/040). Выбор между pygit2 и dulwich: pygit2 требует нативные бинарники libgit2 под каждую платформу, dulwich — чистый Python, ставится pip везде; для операций тег/checkout/status его возможностей достаточно |
 | ddgs, trafilatura, httpx | web_search / web_fetch |
 | sherpa-onnx (внешний сервис) | Локальный ASR/TTS, см. `tools/builder_*.py` |
 
@@ -312,6 +315,51 @@ Vanilla JS (`server_emulator/ui/`) — UI эмулятора, без сборк�
 пользователю) действует только на `/api/me/*` и `whoami` как сессия `role: user`, во фрагменте адреса — вне
 логов; админ попадает в кабинет без логина, его собственная сессия не затрагивается. Выход админа и
 `AuthStore.revoke_all` гасят токены. Контракт — `docs/contracts/http.md`.
+
+## Версия и релизы (TASK-039)
+
+Версия рабочей копии — `server_emulator/version.py`: git-описание через dulwich (последний
+semver-тег `vX.Y.Z`, коммиты после тега — `X.Y.Z+N.g<sha>`, изменённые отслеживаемые файлы —
+`dirty`); без `.git` (zip-установка) — из `.release-please-manifest.json`. Показывается в API
+статуса и во вкладке «Дополнительно → Сервер». Релизы ведёт release-please (GitHub Action) по
+Conventional Commits: PR релиза, `CHANGELOG.md`, тег `vX.Y.Z`, GitHub Release с заметками.
+Установка — `git clone` скриптами `install.bat`/`install.sh` (editable-установка: после переключения
+тега код подхватывается без переустановки); данные пользователя — только в игнорируемых путях
+(`server_emulator/state*/`), работа сервера оставляет `git status --porcelain` пустым.
+
+## Самообновление (TASK-040)
+
+Обновление только по клику, автоматически ничего не ставится. Проверка — GitHub Releases API
+(`self_update/check.py`: `/releases/latest` для stable, `/releases` для канала beta, ETag/If-None-Match,
+ошибки сети — в статус, не в исключения; приватный репозиторий без токена — 404 и пометка
+«недоступен»). Сравнение версий — `packaging.version.Version` против `version.py`. Цикл проверки
+живёт на Runtime (`runtime.self_update`, старт с задержкой 45 с, затем раз в `interval_hours`).
+
+Возможность обновления (`self_update/repo.py`, dulwich): git-клон с origin, совпадающим с
+настройкой `self_update.repo`, без правок в отслеживаемых файлах (untracked и ignored не мешают),
+не контейнер. Обновление — отдельным процессом `self_update/updater.py` (копируется в
+`state/update/`, чтобы замена файлов рабочей копии не задевала исполняемый код updater'а):
+ждёт выхода сервера (код `UPDATE_CODE` = 76 в `server_config.py`), бэкапит данные `state/` в zip
+с ротацией до 5, fetch тегов и переключение на тег (ветка релизов — fast-forward через
+`reset --hard`, иначе checkout detached), при изменении pyproject между релизами —
+`pip install -e ".[emulator]"`, запуск сервера и ожидание `/__control/status` с новой версией.
+Сбой любого шага — возврат на прежний коммит, повтор шага зависимостей, запуск; итог ok/failed —
+в `state/update/plan.json`, лог — `state/update/update.log`.
+
+Кто поднимает сервер после обновления (`launch` в плане): под треем Windows (`ALICA_LAUNCHER`) —
+трей: код UPDATE_CODE он не перезапускает, ждёт план, затем поднимает сервер и перезапускает себя
+(новый трей стартует с `ALICA_TRAY_TAKEOVER` — ожидание освобождения mutex одного экземпляра);
+под менеджером служб (настройка `restart: manager`, systemd `INVOCATION_ID`) — менеджер; иначе
+updater сам.
+
+API `ui/api/self_update.py`: GET — статус (current/latest, can_update и причины, blocked_files,
+last_check, error, last_update, previous, installed_kind git|zip); POST `{action}` — `check`,
+`update`, `stash_update` (правки → refs/stash по клику), `rollback` (предыдущий тег тем же путём),
+`skip` (пропустить версию), `snooze` («Позже» до следующей проверки). UI — кнопка в навигации при
+новой версии (одна пульсация, `prefers-reduced-motion` её отключает) — ручной режим, от галочки
+автообновления не зависит; окно `<dialog>` с заметками релиза (текстом, без markdown), причинами
+блокировки и кнопками. В форме настроек («Дополнительно → Сервер», блок «Обновление») — только
+галочка автообновления и канал; остальные поля `self_update` не редактируются (дефолты).
 
 ## Исполнитель сценариев: размеры и вывод шагов (TASK-027)
 

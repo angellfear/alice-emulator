@@ -88,6 +88,8 @@ class Runtime:
                                extension_dirs=lambda: self._extension_layers("updates"))
         self.endpoints = EndpointCatalog(self.directory / "endpoints",  # каталог захваченных ответов
                                          extension_dirs=lambda: self._extension_layers("endpoints"))
+        from .self_update import Service  # TASK-040: проверка релизов и статус для кнопки обновления
+        self.self_update = Service(self)
         from .miss_journal import MissJournal, exact  # очередь «Эмулятор → Без ответа»
         self.phrase_misses = MissJournal(self.directory / "phrase_misses.json")  # фразы без сценария
         self.aapi_misses = MissJournal(self.directory / "aapi_misses.json", key=exact)  # AAPI без ответа
@@ -295,6 +297,7 @@ class Runtime:
             self.voice_stack.local.stop_key(variant)
         if self.routines is not None:
             self.routines.shutdown()
+        await self.self_update.close()  # TASK-040: цикл проверки релизов и его клиент
         await self.closer.drain()
         await self.upstream.close()  # TASK-043: доработать очередь журнала, закрыть клиента прохода
         await self.lifecycle.close()
@@ -609,6 +612,8 @@ class Runtime:
         if not getattr(self, "_timer_task", None):
             self._timer_task = self.lifecycle.spawn(self._timer_loop())
             self.lifecycle.spawn(self.voice_stack.autostart())
+            if not self.self_update.task:
+                self.self_update.start()  # TASK-040: проверка релизов с задержкой и по интервалу
             if self.routines is not None:
                 self.routines.start()
             self.warm_sound_cache(delay=20)  # локальный TTS поднимается autostart'ом

@@ -127,8 +127,10 @@ def main(argv=None):
     config, overridden = server_config.effective(server_config.load(args.state), overrides)
     runtime = Runtime(args.state)
     app = create_app(runtime=runtime, control_token=control.write_token(args.state))
+    from .version import current
     app[INFO_KEY] = {"state": str(Path(args.state).resolve()), "config": config, "overridden": overridden,
-                     "url": server_config.local_url(config), "launcher": bool(os.environ.get("ALICA_LAUNCHER"))}
+                     "url": server_config.local_url(config), "launcher": bool(os.environ.get("ALICA_LAUNCHER")),
+                     "version": current()["version"]}  # версию ждёт updater в /__control/status (TASK-040)
     try:
         code = asyncio.run(serve(app, args.state, config))
     except KeyboardInterrupt:
@@ -136,7 +138,7 @@ def main(argv=None):
     if code == RESTART_CODE and not os.environ.get("ALICA_LAUNCHER"):
         # без трея сервер перезапускает себя сам — с прежней командной строкой
         os.execv(sys.executable, [sys.executable, *sys.orig_argv[1:]])
-    sys.exit(code)
+    sys.exit(code)  # UPDATE_CODE (TASK-040) без self-exec: updater запустит сервер после переключения тега
 
 
 if __name__ == "__main__":

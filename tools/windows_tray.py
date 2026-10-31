@@ -115,6 +115,7 @@ class Controller:
         self.commands = queue.Queue()
         self.on_change, self.on_exit, self.opener = on_change, on_exit, opener
         self.desired, self.exiting, self.stopping, self.stop_error, self.ready = True, False, False, False, False
+        self.updating, self.update_deadline = False, 0  # TASK-040: ждём план state/update/plan.json
         self.state_text = "Запуск сервера…"
         self.child, self.pid, self.retry_at, self.stop_deadline, self.value_missing_since = None, None, 0, 0, 0
         self.open_panel = open_panel
@@ -159,6 +160,29 @@ class Controller:
         if self.value_missing_since and now - self.value_missing_since > 45 and self.child is None:
             self.note("Status timeout with pid " + str(self.pid) + "; treating server as dead")
             self.pid, self.value_missing_since = None, 0
+
+    def update_plan(self):
+        """План самообновления state/update/plan.json (TASK-040): None — ещё не готов или битый."""
+        try:
+            return json.loads((self.state / "update" / "plan.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+
+    def after_update(self, status):
+        """Обновление завершилось: сервер — запустить, трей — перезапустить и выйти; mutex
+        освобождается после выхода старого — новый стартует с ожиданием (ALICA_TRAY_TAKEOVER)."""
+        self.note("Update " + status + "; relaunching server and tray")
+        self.updating, self.update_deadline = False, 0
+        self.launch()
+        exe = python_executable()
+        if os.name == "nt":
+            exe = exe.with_name("pythonw.exe")
+        subprocess.Popen([str(exe), str(self.root / "tools" / "start_emulator.pyw")], cwd=str(self.root),
+                         stdin=subprocess.DEVNULL,
+                         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                         env={**os.environ, "ALICA_TRAY_TAKEOVER": "1"})
+        self.exiting = True
+        self.on_exit()
 
     def launch(self):
         log = self.logs / "server.log"
@@ -228,6 +252,10 @@ class Controller:
                 if code == server_config.RESTART_CODE:
                     self.retry_at = 0
                     self.note("Server asked for restart")
+                elif code == server_config.UPDATE_CODE:  # TASK-040: сервер ждёт updater, а не перезапуск
+                    self.updating, self.update_deadline = True, time.monotonic() + 900
+                    self.state_text = "Обновление…"
+                    self.note("Server exited for self-update; waiting for plan")
                 elif not self.stopping:
                     self.retry_at = time.monotonic() + 10
                     self.note("Server exited: " + str(code))
@@ -235,6 +263,13 @@ class Controller:
             self.stopping = False
             if self.exiting:
                 self.on_exit()
+                return
+            if self.updating:  # план пишется updater'ом; таймаут — updater умер, поднимаем сервер
+                plan = self.update_plan()
+                if (plan and plan.get("status") in ("ok", "failed")) or time.monotonic() > self.update_deadline:
+                    self.after_update((plan or {}).get("status") or "timeout")
+                    return
+                self.safe_on_change()
                 return
             if self.desired and time.monotonic() >= self.retry_at:
                 try:
@@ -359,7 +394,12 @@ def run_tray(open_panel=False):
 
 def main(open_panel=True):
     STATE.mkdir(parents=True, exist_ok=True)
+    # TASK-040: перезапуск трея после обновления — старый процесс ещё держит mutex, ждём его выхода
+    deadline = time.monotonic() + 20 if os.environ.get("ALICA_TRAY_TAKEOVER") else 0
     handle = single_instance()
+    while handle is None and time.monotonic() < deadline:
+        time.sleep(0.5)
+        handle = single_instance()
     if handle is None:   # трей уже запущен — только открыть панель
         webbrowser.open(Server(STATE).panel())
         return

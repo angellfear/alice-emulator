@@ -18,6 +18,7 @@ from pathlib import Path
 FILE = "server.json"
 DEFAULTS = {"host": "0.0.0.0", "port": 443, "ssl": True, "cert": "", "key": "", "http_port": 80}
 RESTART_CODE = 75   # код выхода «перезапустить»: лаунчер (TASK-045) запускает сервер сразу
+UPDATE_CODE = 76    # код выхода «идёт самообновление» (TASK-040): updater перезапустит сервер сам
 
 
 def _path(state):

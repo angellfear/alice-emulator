@@ -1,4 +1,5 @@
 """TASK-045: трей-лаунчер — контроллер с подменёнными процессами и сервером, без pystray и окон."""
+import json
 import subprocess
 import sys
 import time
@@ -90,6 +91,52 @@ def test_restart_code_relaunches_immediately(controller):
     controller.child.returncode = server_config.RESTART_CODE
     controller.iterate()
     assert len(controller.launches) == 2
+
+
+def test_update_code_waits_for_plan(controller, tmp_path):
+    """TASK-040: код UPDATE_CODE — трей не перезапускает сервер, ждёт план updater'а."""
+    controller.iterate()
+    controller.child.returncode = server_config.UPDATE_CODE
+    controller.iterate()
+    assert controller.updating and controller.state_text == "Обновление…"
+    controller.iterate()  # плана ещё нет — ждём
+    assert len(controller.launches) == 1
+
+
+def test_update_plan_ok_relaunches_server_and_tray(controller, monkeypatch):
+    controller.iterate()
+    controller.child.returncode = server_config.UPDATE_CODE
+    controller.iterate()
+    spawned = []
+
+    def fake_popen(*args, **kwargs):
+        spawned.append(args[0])
+        return type("P", (), {"pid": 1})()
+
+    monkeypatch.setattr(windows_tray.subprocess, "Popen", fake_popen)
+    plan = controller.state / "update" / "plan.json"
+    plan.parent.mkdir(parents=True, exist_ok=True)
+    plan.write_text(json.dumps({"status": "ok", "target_tag": "v0.2.0"}), encoding="utf-8")
+    exits = []
+    controller.on_exit = lambda: exits.append(True)
+    controller.iterate()
+    assert len(controller.launches) == 2  # сервер запущен updater'ом завершён — трей поднял сервер
+    assert spawned and "start_emulator.pyw" in str(spawned[0])  # и перезапустил себя
+    assert exits == [True]
+    controller.iterate()  # old exiting: no more relaunches
+    assert len(controller.launches) == 2
+
+
+def test_update_plan_failed_also_relaunches(controller, monkeypatch):
+    controller.iterate()
+    controller.child.returncode = server_config.UPDATE_CODE
+    controller.iterate()
+    monkeypatch.setattr(windows_tray.subprocess, "Popen", lambda *a, **k: type("P", (), {"pid": 1})())
+    plan = controller.state / "update" / "plan.json"
+    plan.parent.mkdir(parents=True, exist_ok=True)
+    plan.write_text(json.dumps({"status": "failed"}), encoding="utf-8")
+    controller.iterate()
+    assert len(controller.launches) == 2  # и после неудачного обновления сервер возвращается
 
 
 def test_stop_uses_graceful_api_and_escalates_when_stuck(controller, monkeypatch):

@@ -59,6 +59,11 @@ DEFAULT = {
     # и лимиты журнала трафика. Какие запросы пересылать — режимы маршрута (TASK-044).
     "upstream": {"dns_servers": ["77.88.8.8", "1.1.1.1"], "upstream_ip": {},
                  "journal": {"max_body_kb": 256, "max_size_mb": 100, "max_age_days": 14}},
+    # Самообновление (TASK-040): проверка релизов GitHub и обновление по кнопке,
+    # автоматически ничего не ставится. token — строка или env:ИМЯ (приватный репозиторий
+    # без токена отдаёт 404); restart — кто запускает сервер после обновления.
+    "self_update": {"enabled": True, "repo": "angellfear/alica_emule", "channel": "stable",
+                    "interval_hours": 12, "token": "", "skipped": "", "restart": "self"},
 }
 
 
@@ -195,7 +200,10 @@ class SettingsService:
         if isinstance(embed, dict):
             embed["api_key"] = masked_secret(embed.get("api_key"))
         if (value.get("agent") or {}).get("webhook_token"):
-            value["agent"]["webhook_token"] = masked_secret(value["agent"]["webhook_token"])
+            value["agent"]["webhook_token"] = masked_secret(value["agent"].get("webhook_token"))
+        su = value.get("self_update") or {}
+        if su.get("token"):
+            su["token"] = masked_secret(su["token"])
         return value
 
     def validate(self, value, current):
@@ -235,6 +243,29 @@ class SettingsService:
         agent_cfg = value.get("agent")
         if isinstance(agent_cfg, dict) and agent_cfg.get("webhook_token") == "__KEEP__":
             agent_cfg["webhook_token"] = (current.get("agent") or {}).get("webhook_token", "")
+        # Самообновление (TASK-040): форма без ключа — восстановить из current; присланное — по форме.
+        if "self_update" not in value:
+            value["self_update"] = copy.deepcopy(current.get("self_update") or DEFAULT["self_update"])
+        else:
+            su = value["self_update"]
+            if not isinstance(su, dict):
+                raise ValueError("self_update: нужен объект")
+            if not isinstance(su.setdefault("enabled", True), bool):
+                raise ValueError("self_update.enabled: нужен булев")
+            repo = su.setdefault("repo", DEFAULT["self_update"]["repo"])
+            if not (isinstance(repo, str) and len(repo.split("/")) == 2 and all(repo.split("/"))):
+                raise ValueError("self_update.repo: нужен owner/name")
+            if su.setdefault("channel", "stable") not in ("stable", "beta"):
+                raise ValueError("self_update.channel: stable | beta")
+            su["interval_hours"] = max(1, int(su.get("interval_hours") or 12))
+            if not isinstance(su.setdefault("token", ""), str):
+                raise ValueError("self_update.token: нужна строка или env:ИМЯ")
+            if su.get("token") == "__KEEP__":
+                su["token"] = (current.get("self_update") or {}).get("token", "")
+            if not isinstance(su.setdefault("skipped", ""), str):
+                raise ValueError("self_update.skipped: нужна строка")
+            if su.setdefault("restart", "self") not in ("self", "manager"):
+                raise ValueError("self_update.restart: self | manager")
         # Расширения (TASK-029): устаревшая форма UI присылает настройки без ключа —
         # восстанавливаем из current (состояние расширений UI не редактирует);
         # присланное — проверяем по форме.

@@ -2,6 +2,7 @@
 from aiohttp import web
 
 from . import route
+from ...version import current
 
 
 @route("status", methods=("GET",))
@@ -14,4 +15,5 @@ async def status(request, runtime, app):
     from ...runtime import STANDALONE_KEY
     return web.json_response({"errors": errors, "pending_calls": pending,
                               "standalone": app.get(STANDALONE_KEY, False),
-                              "ui_extensions": list(runtime.ui_extensions)})
+                              "ui_extensions": list(runtime.ui_extensions),
+                              "version": current()})
