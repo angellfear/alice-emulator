@@ -1,12 +1,11 @@
 """Домен identities: реестр идентичностей (пользователи/устройства) (RF-03).
 
 GET — слепок реестра + сводка активных сессий (без служебных ключей
-runtime/send/ws) + activity («виден/последний IP» для таблицы устройств) +
+runtime/send/ws/transport) + activity («виден/последний IP» для таблицы устройств) +
 default_route_mode (TASK-044: эффективный режим устройства без собственного);
-POST — мутация привязки/удаления: затронутым WS-сессиям рвётся соединение
-(1012 «переподключись»), затем мутация под runtime.lock.
+POST — мутация привязки/удаления под runtime.lock, затем затронутым WS-сессиям рвётся
+соединение (1012 «переподключись») в фоне — ответ не ждёт колонку (TASK-057).
 """
-import asyncio
 import copy
 
 from aiohttp import web
@@ -19,7 +18,7 @@ async def identities(request, runtime, app):
     if request.method == 'GET':
         # activity — оперативная сводка «виден/последний IP» для таблицы устройств
         return web.json_response({**runtime.identities.public(),
-                                  'sessions': [{k:v for k,v in s.items() if k not in ('runtime','send','ws')} for s in runtime.sessions.values()],
+                                  'sessions': [{k:v for k,v in s.items() if k not in ('runtime','send','ws','transport')} for s in runtime.sessions.values()],
                                   'activity': copy.deepcopy(runtime.identities.activity),
                                   'default_route_mode': runtime.settings.get('default_route_mode', 'emulate')})
     if request.method != 'POST':
@@ -44,13 +43,14 @@ async def identities(request, runtime, app):
                     if s.get('user_id') == value.get('id') or s.get('device_sn') in sns or s.get('device_id') in sns]
     else:
         affected = []
-    sockets = [s['ws'] for s in affected if s.get('ws')]
-    if sockets:
-        await asyncio.gather(*(w.close(code=1012, message=b'Binding changed, reconnect') for w in sockets))
     async with runtime.lock:
         result=runtime.identities.mutate(value)
         runtime.refresh_profiles()
-        return web.json_response(result)
+    # Закрытие — после мутации и в фоне (TASK-057): ответ не ждёт колонку, а переподключение
+    # уже видит новую идентичность
+    runtime.closer.close([(s['ws'], s.get('transport')) for s in affected if s.get('ws')],
+                         1012, b'Binding changed, reconnect')
+    return web.json_response(result)
 
 
 @route("route_mode", methods=("PUT",))

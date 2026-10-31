@@ -29,6 +29,7 @@ from .quasar import QuasarBackend
 from .actions import push_message
 from .updates import Updates
 from .auth import AuthStore, secret
+from .ws_close import SocketCloser
 
 # AAPI-сообщения, на которые облако не отвечает (или выключенные настройками aapi_model/aapi_voice):
 # в очередь «Без ответа» не попадают.
@@ -70,6 +71,7 @@ class Runtime:
                                         extension_dirs=lambda: self._extension_layers("params"))
         self.quasar_params.seed(self.identities.data)  # каталог+legacy-перенос, идемпотентно
         self.sessions = {}
+        self.closer = SocketCloser()  # TASK-057: закрытие WS колонок в фоне, без ожидания ответа клиента
         self.quasar_sync_headers = {}  # TASK-052: последние заголовки get_sync_info по SN, только память
         self.quasar = QuasarBackend(self)
         self.action_log = []
@@ -293,6 +295,7 @@ class Runtime:
             self.voice_stack.local.stop_key(variant)
         if self.routines is not None:
             self.routines.shutdown()
+        await self.closer.drain()
         await self.upstream.close()  # TASK-043: доработать очередь журнала, закрыть клиента прохода
         await self.lifecycle.close()
         self.store.close()
@@ -646,6 +649,31 @@ class Runtime:
         device = self.identities.resolve(device_id) if device_id else None
         return device.get('sn') if device else None
 
+    def _bridge_sn(self, connection):
+        """SN устройства моста прохода наверх: прямой или через DeviceId."""
+        sn = connection.get('device_sn')
+        if sn:
+            return sn
+        device_id = connection.get('device_id')
+        device = self.identities.resolve(device_id) if device_id else None
+        return device.get('sn') if device else None
+
+    def device_sockets(self, match):
+        """[(ws, transport)] соединений устройств, чей SN подходит под match(sn): WS-сессии
+        эмулятора и мосты прохода наверх (режим «Прокси» — их в sessions нет)."""
+        entries = [(s['ws'], s.get('transport')) for s in self.sessions.values()
+                   if s.get('ws') and match(self._session_sn(s))]
+        upstream = getattr(self, 'upstream', None)
+        if upstream is not None:
+            entries += [(c['ws'], c.get('transport')) for c in list(upstream.forwarder.connections.values())
+                        if match(self._bridge_sn(c))]
+        return entries
+
+    def disconnect_devices(self, match, message):
+        """Закрыть соединения устройств (1012) в фоне — ответ не ждёт колонку (TASK-057).
+        Возвращает число закрываемых соединений; колонка переподключается сама."""
+        return self.closer.close(self.device_sockets(match), 1012, message)
+
     async def set_default_route_mode(self, mode, connections='wait'):
         """Маршрут по умолчанию (TASK-044). При connections=disconnect рвутся
         соединения только устройств без собственного route_mode — у них изменился
@@ -662,9 +690,7 @@ class Runtime:
             closed = 0
             if connections == 'disconnect':
                 explicit = {d['sn'] for d in self.identities.data['devices'] if d.get('route_mode')}
-                sockets = [s['ws'] for s in self.sessions.values() if self._session_sn(s) not in explicit]
-                await asyncio.gather(*(socket.close(code=1012, message=b'Mode changed') for socket in sockets))
-                closed = len(sockets)
+                closed = self.disconnect_devices(lambda sn: sn not in explicit, b'Mode changed')
         return {"mode": mode, 'connections': connections, 'disconnected': closed}
 
     async def set_device_route_mode(self, sn, mode):
@@ -674,9 +700,8 @@ class Runtime:
             raise ValueError("mode: " + " | ".join(ROUTE_MODES) + " или null")
         async with self.lock:
             self.identities.mutate({"operation": "route_mode", "sn": sn, "mode": mode})
-            sockets = [s['ws'] for s in self.sessions.values() if self._session_sn(s) == sn]
-            await asyncio.gather(*(socket.close(code=1012, message=b'Route changed') for socket in sockets))
-        return {"sn": sn, "mode": mode, "disconnected": len(sockets)}
+            closed = self.disconnect_devices(lambda device_sn: device_sn == sn, b'Route changed')
+        return {"sn": sn, "mode": mode, "disconnected": closed}
 
     async def set_device_record_mode(self, sn, mode):
         """Опция «Запись» устройства (TASK-054): off | on | misses. Соединения не закрываются:
@@ -774,7 +799,7 @@ class Runtime:
         scoped_runtime = copy.copy(self)
         scoped_runtime.settings = self.identities.settings_for(self.settings, None)
         scoped_runtime.pending_calls, scoped_runtime.recent = [], []
-        self.sessions[session_id] = {'connection_id':session_id, 'host':request.host.split(':',1)[0].lower(), 'ip':self.client_ip(request), 'device_sn': None, 'user_id': None, 'runtime': scoped_runtime, 'send':send, 'ws':ws}
+        self.sessions[session_id] = {'connection_id':session_id, 'host':request.host.split(':',1)[0].lower(), 'ip':self.client_ip(request), 'device_sn': None, 'user_id': None, 'runtime': scoped_runtime, 'send':send, 'ws':ws, 'transport': request.transport}
         def delivered(message_id):  # Ack колонки: журнал действий корневого runtime (копия его не видит)
             for item in self.action_log:
                 if item['connection_id'] == session_id and item['message_id'] == message_id:

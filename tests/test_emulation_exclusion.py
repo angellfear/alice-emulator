@@ -54,6 +54,7 @@ async def test_set_device_route_mode_closes_only_its_sessions(tmp_path):
     runtime.sessions['c'] = {'device_id': 'real-id', 'ws': FakeWS()}  # handshake без sync: SN через DeviceId
     result = await runtime.set_device_route_mode('SN-REAL', 'hybrid')
     assert result == {'sn': 'SN-REAL', 'mode': 'hybrid', 'disconnected': 2}
+    await runtime.closer.drain()  # закрытие идёт в фоне (TASK-057)
     assert len(closed) == 2 and all(item['code'] == 1012 for item in closed)
     assert runtime.identities.resolve('real-id')['route_mode'] == 'hybrid'
     # сброс в None возвращает устройство на default_route_mode

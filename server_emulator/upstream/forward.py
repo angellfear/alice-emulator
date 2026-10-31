@@ -79,6 +79,8 @@ class Forwarder:
         self.resolver = resolver
         self.journal = journal
         self._session = None
+        # Открытые мосты WS: смена маршрута устройства закрывает и их (TASK-057)
+        self.connections = {}
 
     def session(self):
         if self._session is None or self._session.closed:
@@ -174,6 +176,9 @@ class Forwarder:
             tap = WsTap(self.journal, "upstream", mode=lambda: "off", handled=lambda trigger: False,
                         host=context.get("host"), path=context.get("path"))
         tap.start()
+        connection = {"ws": local, "transport": request.transport,
+                      "device_sn": context.get("device_sn"), "device_id": context.get("device_id")}
+        self.connections[id(local)] = connection
 
         async def pump(source, destination, direction):
             async for msg in source:
@@ -201,6 +206,7 @@ class Forwarder:
             for task in tasks:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
+            self.connections.pop(id(local), None)
             await remote.close()
             await local.close()
             tap.close(remote.close_code)

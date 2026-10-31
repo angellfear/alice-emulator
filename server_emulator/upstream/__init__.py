@@ -108,7 +108,7 @@ class Upstream:
             mode = journal if callable(journal) else (lambda: "on" if journal else "off")
             tap = self.ws_tap("upstream", context["host"], context["path"], list(request.headers.items()),
                               sn=device_sn, device_id=device_id, mode=mode)
-            return await self.forwarder.bridge_ws(request, target, tap=tap)
+            return await self.forwarder.bridge_ws(request, target, tap=tap, **context)
         return await self.forwarder.serve(request, target, journal=bool(journal), unhandled=unhandled, **context)
 
     async def close(self):

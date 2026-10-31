@@ -6,9 +6,11 @@
 """
 import asyncio
 import json
+import time
 
 from aiohttp import ClientSession, WSMsgType, web
 
+from server_emulator import voice, ws_close
 from server_emulator.runtime import Runtime
 from server_emulator.server import create_app
 from tests.conftest import listen
@@ -211,6 +213,7 @@ async def test_device_route_mode_overrides_default(tmp_path):
                                   json={"sn": "SN-R", "mode": "proxy"}, headers={"X-Emulator": "1"}) as response:
                 result = await response.json()
             assert result == {"sn": "SN-R", "mode": "proxy", "disconnected": 1}
+            await runtime.closer.drain()  # закрытие идёт в фоне
             assert len(closed) == 1 and closed[0]["code"] == 1012
             async with client.get(url + "/no/handler", headers=headers) as response:
                 assert (await response.json())["from"] == "upstream"
@@ -219,6 +222,79 @@ async def test_device_route_mode_overrides_default(tmp_path):
                                   json={"sn": "SN-R", "mode": "record"}, headers={"X-Emulator": "1"}) as response:
                 assert response.status == 400
             assert runtime.identities.resolve("r-id")["route_mode"] == "proxy"
+    finally:
+        await upstream_runner.cleanup()
+        await runner.cleanup()
+        await runtime.close()
+
+
+async def test_route_change_does_not_wait_for_busy_ws(tmp_path, monkeypatch):
+    """TASK-057: обработчик занят, клиент не подтверждает close — PUT route_mode отвечает сразу
+    (aiohttp ждал бы ответный close до 10 с), а соединение всё равно закрывается."""
+    release = asyncio.Event()
+
+    async def busy(self, data):
+        await release.wait()
+
+    monkeypatch.setattr(voice.Conversation, "receive_audio", busy)
+    monkeypatch.setattr(ws_close, "CLOSE_TIMEOUT_S", 0.3)
+    runtime = Runtime(tmp_path)
+    registry(runtime, "SN-B", "b-id")
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        async with ClientSession() as client:
+            ws = await client.ws_connect(url + "/uni.ws", headers={"Host": "uniproxy.local", "x-uprx-device-id": "b-id"})
+            await ws.send_bytes(b"audio-frame")  # дальше клиент сокет не читает
+            await asyncio.sleep(0.3)
+            (session,) = runtime.sessions.values()
+            started = time.monotonic()
+            async with client.put(url + "/emulator/api/route_mode",
+                                  json={"sn": "SN-B", "mode": "hybrid"}, headers={"X-Emulator": "1"}) as response:
+                assert response.status == 200
+                assert (await response.json())["disconnected"] == 1
+            assert time.monotonic() - started < 1.0
+            for _ in range(60):  # close без ответа клиента → по таймауту закрывается транспорт
+                if session["transport"].is_closing():
+                    break
+                await asyncio.sleep(0.05)
+            assert session["ws"].closed and session["transport"].is_closing()
+            release.set()
+            await ws.close()
+    finally:
+        release.set()
+        await runner.cleanup()
+        await runtime.close()
+
+
+async def test_route_change_closes_proxy_bridge(tmp_path):
+    """TASK-057: мост прохода наверх (режим «Прокси») не в runtime.sessions — смена маршрута
+    устройства закрывает и его (1012); соединения другого устройства не затрагиваются."""
+    runtime = Runtime(tmp_path)
+    registry(runtime, "SN-P", "p-id")
+    runtime.identities.mutate({"operation": "device", "sn": "SN-O", "user_id": "u", "device_ids": ["o-id"]})
+    for sn in ("SN-P", "SN-O"):
+        runtime.identities.mutate({"operation": "route_mode", "sn": sn, "mode": "proxy"})
+    calls = []
+    upstream_runner, port = await start_upstream(calls)
+    alias_upstream(runtime, port)
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        async with ClientSession() as client:
+            mine = await client.ws_connect(url + "/uni.ws", headers={"Host": "uniproxy.local", "x-uprx-device-id": "p-id"})
+            other = await client.ws_connect(url + "/uni.ws", headers={"Host": "uniproxy.local", "x-uprx-device-id": "o-id"})
+            await mine.send_str("a")
+            assert (await mine.receive()).data == "up:a"
+            assert not runtime.sessions and len(runtime.upstream.forwarder.connections) == 2
+            started = time.monotonic()
+            async with client.put(url + "/emulator/api/route_mode",
+                                  json={"sn": "SN-P", "mode": "hybrid"}, headers={"X-Emulator": "1"}) as response:
+                assert (await response.json())["disconnected"] == 1
+            assert time.monotonic() - started < 1.0
+            message = await asyncio.wait_for(mine.receive(), 5)
+            assert message.type == WSMsgType.CLOSE and message.data == 1012
+            await other.send_str("b")  # соединение другого устройства живо
+            assert (await other.receive()).data == "up:b"
+            await other.close()
     finally:
         await upstream_runner.cleanup()
         await runner.cleanup()
