@@ -70,9 +70,10 @@ async def test_generated_default_matches_compose(tmp_path):
 
 async def test_direct_forwards_and_saves_last(tmp_path):
     """direct: ответ заглушки доходит до колонки без изменений, quasar_direct_last
-    сохранён, запись журнала с source=upstream."""
+    сохранён, запись журнала с source=upstream — по опции «Запись» устройства (TASK-054)."""
     runtime = Runtime(tmp_path)
     registry(runtime)
+    runtime.identities.mutate({"operation": "record", "sn": "SN-Q", "mode": "on"})
     state = dict(state_of(runtime))
     state["quasar_source"] = "direct"
     runtime.identities.mutate({"operation": "state", "sn": "SN-Q", "state": state})

@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS devices(sn TEXT PRIMARY KEY,
                                    user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
                                    name TEXT NOT NULL, profile TEXT NOT NULL, state TEXT NOT NULL,
                                    room TEXT NOT NULL DEFAULT '', model TEXT NOT NULL DEFAULT '',
-                                   fields TEXT NOT NULL DEFAULT '{}', route_mode TEXT);
+                                   fields TEXT NOT NULL DEFAULT '{}', route_mode TEXT, record TEXT);
 CREATE TABLE IF NOT EXISTS aliases(device_id TEXT PRIMARY KEY,
                                    sn TEXT NOT NULL REFERENCES devices(sn) ON DELETE CASCADE);
 CREATE TABLE IF NOT EXISTS unassigned(device_id TEXT PRIMARY KEY,
@@ -105,6 +105,8 @@ class StateStore:
                     self.db.execute(f"ALTER TABLE devices ADD COLUMN {column} TEXT NOT NULL DEFAULT {default}")
             if "route_mode" not in device_columns:  # TASK-044: режим маршрута устройства
                 self.db.execute("ALTER TABLE devices ADD COLUMN route_mode TEXT")
+            if "record" not in device_columns:  # TASK-054: опция записи устройства (off | on | misses)
+                self.db.execute("ALTER TABLE devices ADD COLUMN record TEXT")
             # M08-будильники: абсолютное время/дни недели/таймзона/следующее срабатывание
             timer_columns = {row[1] for row in self.db.execute("PRAGMA table_info(timers)")}
             for column in ("time_hhmm", "weekdays", "tz", "next_ts"):
@@ -223,7 +225,7 @@ class StateStore:
                             "device_ids": aliases, "profile": json.loads(r["profile"]),
                             "state": json.loads(r["state"]), "room": r["room"] or "", "model": r["model"] or "",
                             "fields": json.loads(r["fields"] or "{}"),
-                            "route_mode": r["route_mode"] or None})
+                            "route_mode": r["route_mode"] or None, "record": r["record"] or "off"})
         unassigned = [{"device_id": r["device_id"], "first_seen": r["first_seen"],
                        "last_seen": r["last_seen"], "source": r["source"], "ip": r["ip"]}
                       for r in db.execute("SELECT * FROM unassigned ORDER BY device_id")]
@@ -257,14 +259,14 @@ class StateStore:
                             json.dumps(user.get("location", {}), ensure_ascii=False),
                             json.dumps(user.get("fields", {}), ensure_ascii=False)))
             for device in devices:
-                db.execute("INSERT INTO devices(sn,user_id,name,profile,state,room,model,fields,route_mode) "
-                           "VALUES(?,?,?,?,?,?,?,?,?)",
+                db.execute("INSERT INTO devices(sn,user_id,name,profile,state,room,model,fields,route_mode,record) "
+                           "VALUES(?,?,?,?,?,?,?,?,?,?)",
                            (device["sn"], device.get("user_id"), device.get("name", device["sn"]),
                             json.dumps(device.get("profile", {}), ensure_ascii=False),
                             json.dumps(device.get("state", {}), ensure_ascii=False),
                             device.get("room", ""), device.get("model", ""),
                             json.dumps(device.get("fields", {}), ensure_ascii=False),
-                            device.get("route_mode")))
+                            device.get("route_mode"), device.get("record") or "off"))
                 for alias in device.get("device_ids", []):
                     db.execute("INSERT INTO aliases VALUES(?,?)", (alias, device["sn"]))
             for item in unassigned:

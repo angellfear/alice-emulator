@@ -118,6 +118,7 @@ async def test_serve_journals_device_via_request(tmp_path):
 
 async def test_ws_bridge_forwards_frames_both_ways_and_closes(tmp_path):
     runtime = Runtime(tmp_path)
+    runtime.identities.mutate({"operation": "device", "sn": "SN-WS", "device_ids": ["ws-id"]})
     received = []
 
     async def ws_handler(request):
@@ -146,12 +147,12 @@ async def test_ws_bridge_forwards_frames_both_ways_and_closes(tmp_path):
     runner, url = await listen(app)
     try:
         async with ClientSession() as client:
-            async with client.ws_connect(url + "/uni.ws") as ws:
+            async with client.ws_connect(url + "/uni.ws", headers={"x-uprx-device-id": "ws-id"}) as ws:
                 await ws.send_str("привет")
                 assert (await asyncio.wait_for(ws.receive(), 3)).data == "echo:привет"
-                await ws.send_bytes(b"\x01\x02")
-                assert (await asyncio.wait_for(ws.receive(), 3)).data == b"\x01\x02"
-        assert "привет" in received and b"\x01\x02" in received  # кадры дошли наверх
+                await ws.send_bytes(b"")
+                assert (await asyncio.wait_for(ws.receive(), 3)).data == b""
+        assert "привет" in received and b"" in received  # кадры дошли наверх
         items = []
         for _ in range(50):  # close-запись пишется при завершении обработчика моста
             await runtime.upstream.journal.flush()
@@ -160,11 +161,15 @@ async def test_ws_bridge_forwards_frames_both_ways_and_closes(tmp_path):
                 break
             await asyncio.sleep(0.05)
         assert {"open", "close"} <= {item["event"] for item in items}
-        open_record = next(item for item in items if item["event"] == "open")
-        detail = runtime.upstream.journal.item(open_record["id"])
-        assert {frame["direction"] for frame in detail["frames"]} == {"client_to_server", "server_to_client"}
-        texts = [frame["data"] for frame in detail["frames"] if not frame["binary"] and frame["data"]]
-        assert any("привет" in data.decode() for data in texts)
+        unknown = [item for item in items if item["event"] == "unknown"]
+        assert {item["direction"] for item in unknown} == {"client_to_server", "server_to_client"}
+        # текстовый кадр — запись «неизвестный» как есть; звук (бинарный без AAPI) данными не пишется
+        cards = [runtime.upstream.journal.item(item["id"]) for item in unknown]
+        assert any(card["request_body"] == "привет".encode() for card in cards)
+        assert not any(b"" in (card["request_body"] or b"") + (card["response_body"] or b"") for card in cards)
+        close = runtime.upstream.journal.item(next(i["id"] for i in items if i["event"] == "close"))
+        assert (close["audio_in_frames"], close["audio_in_bytes"]) == (1, 2)
+        assert (close["audio_out_frames"], close["audio_out_bytes"]) == (1, 2)
     finally:
         await upstream_runner.cleanup()
         await runner.cleanup()
@@ -244,26 +249,6 @@ async def test_journal_scrubs_headers_written_before_masking(tmp_path):
         await journal.close()
 
 
-async def test_journal_ws_frame_limit(tmp_path):
-    journal = TrafficJournal(Path(tmp_path) / "traffic.sqlite3", config={"ws_frames": 2, "max_body_kb": 1})
-    try:
-        journal.write(kind="ws", direction="lifecycle", event="open", status=101, session="s1",
-                      host="u.test", path="/uni.ws", source="upstream")
-        for sequence in range(4):
-            journal.frame("s1", "client_to_server", True, bytes([sequence]) * 4096, sequence)
-        journal.write(kind="ws", direction="lifecycle", event="close", status=0, session="s1",
-                      close_code=1000, source="upstream")
-        await journal.flush()
-        items = journal.list()["items"]
-        open_record = next(item for item in items if item["event"] == "open")
-        record = journal.item(open_record["id"])
-        assert len(record["frames"]) == 2  # лимит кадров на сессию
-        assert record["frames_truncated"] == 1
-        assert len(record["frames"][0]["data"]) == 1024  # тело кадра усечено лимитом
-    finally:
-        await journal.close()
-
-
 async def test_journal_rotation_by_age_and_size(tmp_path):
     age = TrafficJournal(Path(tmp_path) / "age.sqlite3", config={"max_age_days": 14})
     size = TrafficJournal(Path(tmp_path) / "size.sqlite3", config={"max_size_mb": 0.3, "max_age_days": 0})
@@ -278,7 +263,7 @@ async def test_journal_rotation_by_age_and_size(tmp_path):
         assert age.list()["total"] == 0  # ротация по сроку
 
         for _index in range(12):
-            size.write(kind="http", direction="exchange", host="s.test", method="GET", path="/x",
+            size.write(kind="http", direction="exchange", host="s.test", method="GET", path=f"/x{_index}",
                        status=200, source="upstream",
                        request_body=os.urandom(48 * 1024), response_body=os.urandom(48 * 1024))
         await size.flush()
@@ -286,7 +271,7 @@ async def test_journal_rotation_by_age_and_size(tmp_path):
         size.rotate()
         rotated = size.list()
         assert 0 < rotated["total"] < 12  # старые удалены, новые остались
-        assert rotated["items"][0]["path"] == "/x"
+        assert rotated["items"][0]["path"].startswith("/x")
     finally:
         await age.close()
         await size.close()

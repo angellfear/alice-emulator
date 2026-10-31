@@ -347,11 +347,11 @@
     try{source=await api('quasar_source?sn='+encodeURIComponent(device.sn))}
     catch(e){const pe=make('p','Ошибка загрузки: '+e.message);pe.className='hint';root.append(pe);return}
     const routed=device.route_mode||registry.default_route_mode||'emulate';
-    const locked=routed==='proxy'||routed==='record';
+    const locked=routed==='proxy';
     const headRow=make('div');headRow.className='src-head';
     headRow.append(make('h3','Переопределения · '+device.sn));
     if(locked){
-      const badge=make('span','маршрут: '+(routed==='proxy'?'Прокси':'Запись'),'chip');
+      const badge=make('span','маршрут: Прокси','chip');
       headRow.append(badge);
     }else{
       const seg=make('div');seg.className='segmented';

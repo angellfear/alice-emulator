@@ -176,7 +176,8 @@ async def quasar_source(request, runtime, app):
             status, headers, payload = await runtime.upstream.forwarder.http(
                 'GET', runtime.upstream.target_for_host('quasar.yandex.net', '/get_sync_info',
                                                         query=saved['query']),
-                saved['headers'], b'', journal=True, host='quasar.yandex.net',
+                saved['headers'], b'', journal=runtime.upstream.recording(sn, handled=True),  # обработчик get_sync_info у эмулятора есть
+                host='quasar.yandex.net',
                 path='/get_sync_info', device_sn=sn)
         except UpstreamError as exc:
             return web.json_response({'error': 'upstream_unavailable', 'detail': str(exc)[:200]}, status=502)

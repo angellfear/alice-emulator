@@ -29,8 +29,8 @@ async def test_route_mode_from_headers_and_query(tmp_path):
     _registry(runtime)
     assert runtime.route_mode_for(FakeRequest(headers={'x-uprx-device-id': 'real-id'})) \
         == ('SN-REAL', 'real-id', 'emulate')  # без своего маршрута — default
-    runtime.identities.mutate({'operation': 'route_mode', 'sn': 'SN-REAL', 'mode': 'record'})
-    assert runtime.route_mode_for(FakeRequest(headers={'x-uprx-device-id': 'real-id'}))[2] == 'record'
+    runtime.identities.mutate({'operation': 'route_mode', 'sn': 'SN-REAL', 'mode': 'hybrid'})
+    assert runtime.route_mode_for(FakeRequest(headers={'x-uprx-device-id': 'real-id'}))[2] == 'hybrid'
     assert runtime.route_mode_for(FakeRequest(query={'device_id': 'emu-id'})) \
         == ('SN-EMU', 'emu-id', 'emulate')
     # неизвестное устройство и запрос без маркеров — default_route_mode

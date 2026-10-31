@@ -17,9 +17,12 @@ from urllib.parse import urlsplit
 log = logging.getLogger(__name__)
 
 # Режимы маршрута (TASK-044, решение вместо двух режимов 2026-10-24): у каждого
-# устройства свой route_mode, неизвестные получают default_route_mode.
-ROUTE_MODES = ("emulate", "hybrid", "proxy", "record")
+# устройства свой route_mode, неизвестные получают default_route_mode. «Запись» — не маршрут,
+# а опция устройства record (TASK-054): off | on | misses, пишется поверх любого маршрута.
+ROUTE_MODES = ("emulate", "hybrid", "proxy")
+RECORD_MODES = ("off", "on", "misses")
 ROUTE_MIGRATION_KEY = "route_migration"  # meta StateStore: {"excluded": [sn]} — очередь миграции
+RECORD_MIGRATION_KEY = "record_migration"  # meta: маршрут record → proxy + опция record (TASK-054), однократно
 DEFAULT = {
     "default_route_mode": "emulate",  # маршрут устройств без собственного route_mode
     "intelligence": "agent",  # режим «Интеллект»: scenarios | model | agent (intelligence.py)
@@ -55,7 +58,7 @@ DEFAULT = {
     # Проход наверх (TASK-043): внешние DNS-серверы, закреплённые адреса хостов
     # и лимиты журнала трафика. Какие запросы пересылать — режимы маршрута (TASK-044).
     "upstream": {"dns_servers": ["77.88.8.8", "1.1.1.1"], "upstream_ip": {},
-                 "journal": {"max_body_kb": 256, "ws_frames": 200, "max_size_mb": 100, "max_age_days": 14}},
+                 "journal": {"max_body_kb": 256, "max_size_mb": 100, "max_age_days": 14}},
 }
 
 
@@ -113,6 +116,7 @@ class SettingsService:
             settings.update(missing)
             self.store.save_settings(settings)
         self._migrate_route_modes(settings)
+        self._migrate_record_route(settings)
         self.load_scenario_files(settings)
         return settings
 
@@ -140,6 +144,39 @@ class SettingsService:
             self.store.set_meta(ROUTE_MIGRATION_KEY, json.dumps({"excluded": merged}))
             log.info("Миграция маршрутов: %d SN из emulation_excluded переведены на proxy", len(merged))
         self.store.save_settings(settings)
+        return True
+
+    def _migrate_record_route(self, settings):
+        """TASK-054: «Запись» перестала быть маршрутом. Однократно (отметка в meta):
+        устройство с route_mode=record → proxy + record=on; default_route_mode=record →
+        proxy, и устройства без своего маршрута получают record=on (прежнее поведение).
+        SN из очереди миграции TASK-044 (emulation_excluded) — «прокси без журнала» —
+        запись не получают."""
+        default_record = settings.get("default_route_mode") == "record"
+        if self.store.meta(RECORD_MIGRATION_KEY) and not default_record:
+            return False  # остаток прежнего default (режимная миграция TASK-044 после отметки) — переносим снова
+        data = self.store.load_identity_data()
+        changed = 0
+        pending = self.store.meta(ROUTE_MIGRATION_KEY)
+        try:
+            excluded = set(json.loads(pending).get("excluded", [])) if pending else set()
+        except ValueError:
+            excluded = set()
+        for device in data["devices"]:
+            if device.get("route_mode") == "record":
+                device["route_mode"], device["record"] = "proxy", "on"
+                changed += 1
+            elif default_record and not device.get("route_mode") and device["sn"] not in excluded:
+                device["record"] = "on"
+                changed += 1
+        if changed:
+            self.store.save_identity_data(data)
+        if default_record:
+            settings["default_route_mode"] = "proxy"
+            self.store.save_settings(settings)
+        self.store.set_meta(RECORD_MIGRATION_KEY, "1")
+        if changed or default_record:
+            log.info("Миграция записи: маршрут record → proxy + опция record (устройств: %d)", changed)
         return True
 
     def persist(self, settings):

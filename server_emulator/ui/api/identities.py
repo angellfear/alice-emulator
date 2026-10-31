@@ -61,6 +61,14 @@ async def route_mode(request, runtime, app):
     return web.json_response(await runtime.set_device_route_mode(value.get('sn'), value.get('mode')))
 
 
+@route("record_mode", methods=("PUT",))
+async def record_mode(request, runtime, app):
+    """Опция «Запись» одного устройства (TASK-054): PUT {sn, mode: off|on|misses}.
+    Соединение не закрывается — опция читается на каждом обмене и действует сразу."""
+    value = await request.json()
+    return web.json_response(await runtime.set_device_record_mode(value.get('sn'), value.get('mode')))
+
+
 @route("user_login", methods=("GET", "PUT"))
 async def user_login(request, runtime, app):
     # Вход пользователя реестра в кабинет /me: GET ?user=<id> → логин (без хэша);

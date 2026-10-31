@@ -66,16 +66,18 @@ Query `device_id` — ЦЕЛЕВОЕ устройство (токен «для �
 Ось «кто отвечает» — у каждого устройства своя: `route_mode` в реестре (identities), устройства
 без своего маршрута наследуют `settings.default_route_mode`. Глобального `settings.mode` больше
 нет (запрет режимов для standalone снят — проход наверх свой, TASK-043). Миграция: `mode: emulate`
-→ default `emulate`, `mode: proxy` → default `record`, SN из `emulation_excluded` → `route_mode:
-proxy` (очередь в meta `route_migration`, применяется и устройствам, подключившимся позже);
-ключи `mode`/`emulation_excluded` удалены.
+→ default `emulate`, `mode: proxy` → default `proxy` и опция `record: on` устройствам без своего
+маршрута, SN из `emulation_excluded` → `route_mode: proxy` (очередь в meta `route_migration`,
+применяется и устройствам, подключившимся позже); ключи `mode`/`emulation_excluded` удалены.
+Прежний маршрут `record` (TASK-054): `route_mode: record` → `proxy` + `record: on`,
+`default_route_mode: record` → `proxy` + `record: on` устройствам без своего маршрута (однократно,
+meta `record_migration`); `record` как значение `route_mode` / `default_route_mode` — 400.
 
 | Режим | HTTP | WS |
 |---|---|---|
 | `emulate` (Эмуляция) | эмулятор | эмулятор |
-| `hybrid` (Гибрид) | эмулятор, где есть обработчик; промах — upstream с журналом, промах остаётся в «Без ответа» с отметкой «ушёл в Яндекс» | эмулятор (фаза 1); пересылка отдельных необработанных сообщений — фаза 2 |
-| `proxy` (Прокси) | upstream без журнала | мост upstream без журнала |
-| `record` (Запись) | upstream с журналом | мост upstream с журналом |
+| `hybrid` (Гибрид) | эмулятор, где есть обработчик; промах — upstream, промах остаётся в «Без ответа» с отметкой «ушёл в Яндекс» | эмулятор (фаза 1); пересылка отдельных необработанных сообщений — фаза 2 |
+| `proxy` (Прокси) | upstream | мост upstream |
 
 Решение — `dispatcher.route_mode_for(request) → (sn, device_id, mode)`: заголовки
 uprx/quasar → query device_id → реестр (resolve-only); цель строит `upstream.target_for`
@@ -83,8 +85,36 @@ uprx/quasar → query device_id → реестр (resolve-only); цель стр
 тесты). API: `PUT /api/route_mode {sn, mode}` — смена маршрута устройства (его WS-соединения
 закрываются, 1012); `PUT /api/mode {mode, connections}` — маршрут по умолчанию (при
 `connections: disconnect` закрываются соединения только устройств без собственного маршрута);
-`GET /api/identities` отдаёт `default_route_mode`. В proxy/record устройство регистрируется
-в реестре при представлении — маршрут виден и сменяем в UI (колонка «Маршрут» таблицы устройств).
+`GET /api/identities` отдаёт `default_route_mode` и у каждого устройства `route_mode`, `record`. В proxy
+устройство регистрируется в реестре при представлении — маршрут виден и сменяем в UI (колонка
+«Маршрут» таблицы устройств).
+
+#### Опция устройства «Запись» и журнал трафика (TASK-054)
+
+Журнал (`state/traffic.sqlite3`, `GET /api/traffic`) пишется по опции устройства `record`:
+`off` (по умолчанию) | `on` | `misses`. `PUT /api/record_mode {sn, mode}` → `{sn, mode}` (400 —
+неизвестный режим или SN); соединения не закрываются, опция читается на каждом обмене и кадре.
+Устройство без SN не пишется.
+
+| `record` | HTTP | WS |
+|---|---|---|
+| `off` | ничего | ничего |
+| `on` | каждый обмен: ответ эмулятора (`source=emulator`) или Яндекса (`source=upstream`) | `open`/`close`, AAPI-кадры обеих сторон, неизвестные кадры |
+| `misses` | запросы без локального обработчика | AAPI-события колонки без обработчика и ответы на них (по `RefMessageId`) |
+
+Локальный обработчик — `Dispatcher.local_handler(host, method, path)` (без побочных эффектов): OTA-эндпоинт,
+builtin Quasar (`QuasarBackend.ROUTES`), включённый не-скриптовый эндпоинт, `get_app_catalog`. Запрос с
+обработчиком, ушедший в Яндекс в прокси, в `misses` не пишется; промах эмуляции и гибрида — пишется
+(`unhandled=1`). WS: `aapi_handlers.has_handler(trigger, settings)` — реестр обработчиков `@aapi_handler`. Звук (бинарный кадр без префикса `AAPI`)
+не пишется: в записи `close` — `audio_in_frames`/`audio_in_bytes`/`audio_out_frames`/`audio_out_bytes`.
+
+`GET /api/traffic`: плоский список (`device`, `host`, `source`, `unhandled=1`, `key`, `limit`, `offset`);
+`?groups=1[&device_sn=&source=&unhandled=1]` → `{devices: [{device_sn, name, record, groups: [{key,
+count, first_ts, last_ts}]}]}`; `?device_sn=&key=[&source=&unhandled=1]` → `{items}` (≤ 10 записей группы);
+`?item=<id>` — карточка (тела AAPI — `text_format`); `?export=<id>`; `DELETE [?item=<id>]`. Ключ события:
+HTTP — `METHOD host path` без query; WS — `ws → Event.<имя>` (колонка) / `ws ← Event.<имя>` (сервер),
+`ws open`, `ws close`, `ws unknown →|←`. На пару (устройство, ключ) хранятся последние 10 записей, `count` —
+все случаи.
 
 ### H11: HTTP-маршруты эмуляции — три состояния
 

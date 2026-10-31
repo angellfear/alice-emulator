@@ -42,6 +42,11 @@ class QuasarBackend:
 
     ROUTES = {('GET','/check_updates'),('GET','/get_sync_info'),('GET','/glagol/device_list'),('GET','/glagol/token'),('POST','/glagol/check_token'),('POST','/glagol/v2.0/check_token'),('POST','/update_device_state'),('POST','/set_device_capability')}
 
+    @classmethod
+    def handles(cls, method, path):
+        """Есть ли builtin-маршрут (без выполнения): для опции «Запись» устройства (TASK-054)."""
+        return (method, path) in cls.ROUTES
+
     def list_caller(self, client_ip):
         """Вызывающий /glagol/device_list без маркера устройства: устройство по IP
         клиента (может оказаться непривязанным) либо {'user_id'} единственного владельца

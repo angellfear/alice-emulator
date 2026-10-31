@@ -12,13 +12,13 @@ from __future__ import annotations
 
 import asyncio
 import time
-import uuid
 
 from aiohttp import ClientSession, ClientTimeout, TCPConnector, WSMsgType, web
 from multidict import CIMultiDict
 from yarl import URL
 
 from .journal import TrafficJournal
+from .record import WsTap
 
 HOP_BY_HOP = frozenset((
     "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
@@ -95,7 +95,7 @@ class Forwarder:
 
     async def serve(self, request, target, journal=True, **context):
         """Выполнить решение маршрута: WS — мост, HTTP — пересылка. Ответ — колонке.
-        journal=False (режим proxy) — обмен в журнал трафика не пишется."""
+        journal=False — обмен в журнал трафика не пишется (решает опция «Запись» устройства)."""
         if request.headers.get("Upgrade", "").lower() == "websocket":
             return await self.bridge_ws(request, target, journal=journal, **context)
         body = await request.read()
@@ -142,11 +142,14 @@ class Forwarder:
                                source="upstream", **context)
         return status, forward_headers(response_headers), bytes(payload)
 
-    async def bridge_ws(self, request, target, journal=True, **context):
+    async def bridge_ws(self, request, target, journal=True, tap=None, **context):
         """Мост WS: соединение колонки ↔ настоящий uniproxy.
 
         Двунаправленная пересылка текстовых и бинарных кадров, ping/pong, закрытие
         с обеих сторон (одна из задач завершилась — обе стороны закрываются).
+        Запись в журнал — через tap (WsTap): опция «Запись» устройства читается на каждом
+        кадре; без tap журнал не пишется. journal/context принимаются ради общей подписи
+        с serve().
         """
         headers = forward_headers(request.headers, websocket=True)
         protocols = tuple(token.strip() for token in
@@ -167,24 +170,21 @@ class Forwarder:
         except BaseException:
             await remote.close()
             raise
-        session = uuid.uuid4().hex
-        if journal:
-            self.journal.write(kind="ws", direction="lifecycle", event="open", status=101, session=session,
-                               request_headers=list(request.headers.items()), source="upstream", **context)
+        if tap is None:
+            tap = WsTap(self.journal, "upstream", mode=lambda: "off", handled=lambda trigger: False,
+                        host=context.get("host"), path=context.get("path"))
+        tap.start()
 
         async def pump(source, destination, direction):
-            sequence = 0
             async for msg in source:
                 if msg.type in (WSMsgType.TEXT, WSMsgType.BINARY):
                     binary = msg.type == WSMsgType.BINARY
                     raw = msg.data if binary else str(msg.data).encode()
-                    if journal:
-                        self.journal.frame(session, direction, binary, raw, sequence)
+                    tap.frame(direction, binary, raw)
                     if binary:
                         await destination.send_bytes(msg.data)
                     else:
                         await destination.send_str(msg.data)
-                    sequence += 1
                 elif msg.type == WSMsgType.PING:
                     await destination.ping(msg.data)
                 elif msg.type == WSMsgType.PONG:
@@ -203,7 +203,5 @@ class Forwarder:
             await asyncio.gather(*tasks, return_exceptions=True)
             await remote.close()
             await local.close()
-            if journal:
-                self.journal.write(kind="ws", direction="lifecycle", event="close", status=0, session=session,
-                                   close_code=remote.close_code, source="upstream", **context)
+            tap.close(remote.close_code)
         return local

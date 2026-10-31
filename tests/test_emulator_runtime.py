@@ -109,17 +109,17 @@ async def test_mode_toggle_preserves_settings_and_stale_form_cannot_reset_mode(t
     runner, url = await listen(create_app(runtime=runtime))
     try:
         async with ClientSession(headers={'X-Emulator': '1'}) as client:
-            async with client.put(url+'/emulator/api/mode', json={'mode': 'record'}) as response:
-                assert await response.json() == {'mode': 'record', 'connections': 'wait', 'disconnected': 0}
+            async with client.put(url+'/emulator/api/mode', json={'mode': 'hybrid'}) as response:
+                assert await response.json() == {'mode': 'hybrid', 'connections': 'wait', 'disconnected': 0}
             assert runtime.settings['model']['api_key'] == 'keep-secret'
             stale_form['system_prompt'] = 'edited prompt'
             async with client.put(url+'/emulator/api/settings', json=stale_form) as response:
                 assert response.status == 200
-                assert (await response.json())['default_route_mode'] == 'record'
+                assert (await response.json())['default_route_mode'] == 'hybrid'
             assert runtime.settings['system_prompt'] == 'edited prompt'
             async with client.put(url+'/emulator/api/mode', json={'mode': 'invalid'}) as response:
                 assert response.status == 400
-            assert Runtime(tmp_path).settings['default_route_mode'] == 'record'
+            assert Runtime(tmp_path).settings['default_route_mode'] == 'hybrid'
     finally:
         await runner.cleanup()
 

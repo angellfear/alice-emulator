@@ -14,15 +14,15 @@ from google.protobuf import text_format
 
 from .dispatcher import Dispatcher
 from .provider_manager import ProviderManager
-from .legacy_replay import control_response
 from .lifecycle import Lifecycle, RequestContext
-from .settings_service import DEFAULT, ROUTE_MODES, SettingsService, masked_secret, validate_url
+from .settings_service import DEFAULT, RECORD_MODES, ROUTE_MODES, SettingsService, masked_secret, validate_url
 from .schema import SetupRequired, load_type, schemas_ready
 from .device_images import DeviceImages, images_dir
 from .state_store import StateStore, migrate_legacy
 from .endpoints import EndpointCatalog
 from .params import ParamStore
 from .quasar_config import PlatformStore
+from .aapi_handlers import has_handler as aapi_has_handler
 from .voice import Conversation
 from .identity import IdentityRegistry, collect_device_id
 from .quasar import QuasarBackend
@@ -678,6 +678,15 @@ class Runtime:
             await asyncio.gather(*(socket.close(code=1012, message=b'Route changed') for socket in sockets))
         return {"sn": sn, "mode": mode, "disconnected": len(sockets)}
 
+    async def set_device_record_mode(self, sn, mode):
+        """Опция «Запись» устройства (TASK-054): off | on | misses. Соединения не закрываются:
+        опция читается на каждом обмене и кадре, действует сразу."""
+        if mode not in RECORD_MODES:
+            raise ValueError("mode: " + " | ".join(RECORD_MODES))
+        async with self.lock:
+            self.identities.mutate({"operation": "record", "sn": sn, "mode": mode})
+        return {"sn": sn, "mode": mode}
+
     @staticmethod
     def validate_url(value):
         validate_url(value)  # http(s) без credentials — реализация в settings_service
@@ -747,12 +756,17 @@ class Runtime:
             return ws
         context = RequestContext(recorder=record)  # идентичность достраивается ниже
         context.record({}, kind="ws", direction="lifecycle", status=101, event="open", size=0, emulated=True)
+        # Журнал трафика (TASK-054): опция «Запись» устройства читается на каждом кадре; звук не пишется
+        tap = self.upstream.ws_tap("emulator", request.host.split(':', 1)[0].lower(), request.path,
+                                   list(request.headers.items()),
+                                   handled=lambda trigger: aapi_has_handler(trigger, scoped_runtime.settings))
         client_type = load_type(ROOT / "schemas", "alice-api.pb", "NAlice.NAliceApi.TClientMessage")
         server_type = load_type(ROOT / "schemas", "alice-api.pb", "NAlice.NAliceApi.TServerMessage")
         send_lock = asyncio.Lock()
         async def send(data):
             async with send_lock:
                 await ws.send_bytes(data)
+            tap.frame("server_to_client", True, data)
             context.record({"original": data, "sent": data}, kind="ws", direction="server_to_client", binary=True, size=len(data), emulated=True,
                            device_sn=context.device_sn, user_id=context.user_id)
         session_id = uuid.uuid4().hex
@@ -761,7 +775,12 @@ class Runtime:
         scoped_runtime.settings = self.identities.settings_for(self.settings, None)
         scoped_runtime.pending_calls, scoped_runtime.recent = [], []
         self.sessions[session_id] = {'connection_id':session_id, 'host':request.host.split(':',1)[0].lower(), 'ip':self.client_ip(request), 'device_sn': None, 'user_id': None, 'runtime': scoped_runtime, 'send':send, 'ws':ws}
-        conversation = Conversation(scoped_runtime, server_type, send, trace_context=trace_context)
+        def delivered(message_id):  # Ack колонки: журнал действий корневого runtime (копия его не видит)
+            for item in self.action_log:
+                if item['connection_id'] == session_id and item['message_id'] == message_id:
+                    item['delivery'] = 'acknowledged'
+        conversation = Conversation(scoped_runtime, server_type, send, trace_context=trace_context,
+                                    delivered=delivered)
         device = None
 
         def adopt(device_id, observed):
@@ -773,6 +792,7 @@ class Runtime:
             self.sessions[session_id].update(device_id=device_id, device_sn=context.device_sn, user_id=context.user_id)
             trace_context.update(sn=context.device_sn, device_id=device_id)  # трасса видит актуальную идентичность
             scoped_runtime.settings = self.identities.settings_for(self.settings, observed)
+            tap.identify(context.device_sn, device_id)
 
         if header_device_id:
             # Заголовок WS-хендшейка — представление устройства: неизвестный
@@ -780,11 +800,13 @@ class Runtime:
             device = self.identities.observe(header_device_id, source='header.x-uprx-device-id', ip=self.client_ip(request),
                                              register=True)
             adopt(header_device_id, device)
+        tap.start()
         try:
             async for packet in ws:
                 if packet.type not in (WSMsgType.BINARY, WSMsgType.TEXT):
                     continue
                 data = packet.data if packet.type == WSMsgType.BINARY else packet.data.encode()
+                tap.frame("client_to_server", packet.type == WSMsgType.BINARY, data)
                 context.record({"original": data, "sent": data}, kind="ws", direction="client_to_server", binary=packet.type == WSMsgType.BINARY, size=len(data), emulated=True,
                            device_sn=device['sn'] if device else None, user_id=device.get('user_id') if device else None)
                 try:
@@ -793,11 +815,6 @@ class Runtime:
                         continue
                     incoming = client_type.FromString(data[4:])
                     trigger = incoming.Event.WhichOneof("Event") if incoming.WhichOneof("Message") == "Event" else "StreamControl"
-                    if trigger=='Ack':
-                        received=incoming.Event.Ack.ReceivedHeader.MessageId
-                        for item in self.action_log:
-                            if item['connection_id']==session_id and item['message_id']==received:
-                                item['delivery']='acknowledged'
                     if trigger == 'SynchronizeStateRequest':
                         # Re-identification requires a new connection: don't mix histories or channels.
                         # B03: sync — авторитетный источник, header — транспортная подсказка;
@@ -815,17 +832,9 @@ class Runtime:
                         device = self.identities.observe(resolved, source=id_report['resolved_from'],
                                                          ip=self.client_ip(request), register=True) if resolved else None
                         adopt(resolved, device)
-                    if trigger=='LogSpotter':
-                        reply=server_type()
-                        reply.Event.Header.MessageId=uuid.uuid4().hex
-                        reply.Event.Header.RefMessageId=incoming.Event.Header.MessageId
-                        reply.Event.LogAck.SetInParent()
-                        await send(b'AAPI'+reply.SerializeToString())
-                    elif not await conversation.receive(incoming, trigger):
-                        reply = control_response(data)
-                        if reply:
-                            await send(reply)
-                        elif trigger not in AAPI_NO_REPLY:  # «Эмулятор → Без ответа»: сообщение без обработчика
+                    # Обработчики событий — реестр aapi_handlers (Conversation и служебные ответы)
+                    if not await conversation.receive(incoming, trigger):
+                        if trigger not in AAPI_NO_REPLY:  # «Эмулятор → Без ответа»: сообщение без обработчика
                             self.aapi_misses.note(trigger, sn=(self.sessions.get(session_id) or {}).get('device_sn') or '',
                                                   example=text_format.MessageToString(incoming, as_one_line=True))
                 except Exception as exc:
@@ -834,6 +843,7 @@ class Runtime:
         finally:
             await conversation.shutdown()
             self.sessions.pop(session_id, None)
+            tap.close(ws.close_code)
             context.record({}, kind="ws", direction="lifecycle", event="close", close_code=ws.close_code, size=0, emulated=True)
         return ws
 

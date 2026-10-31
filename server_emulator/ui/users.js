@@ -363,9 +363,21 @@
   }
 
   // Маршрут устройства (TASK-044): сегментированный переключатель «Эмуляция · Гибрид ·
-  // Прокси · Запись» (стиль .segmented), на узкой ширине — выпадающий список (CSS).
+  // Прокси» (стиль .segmented), на узкой ширине — выпадающий список (CSS).
   // Смена — с подтверждением в <dialog>: соединение устройства закрывается.
-  const ROUTE_LABEL = { emulate: 'Эмуляция', hybrid: 'Гибрид', proxy: 'Прокси', record: 'Запись' };
+  const ROUTE_LABEL = { emulate: 'Эмуляция', hybrid: 'Гибрид', proxy: 'Прокси' };
+  // Опция «Запись» устройства (TASK-054): пишет журнал трафика поверх любого маршрута.
+  // Смена — сразу, без диалога: соединение не закрывается, опция действует на следующем обмене.
+  const RECORD_LABEL = { off: 'Выключено', on: 'Включено', misses: 'Нет обработчиков' };
+  const recordOf = device => device.record || 'off';
+  function changeRecord(device, mode) {
+    if (mode === recordOf(device)) return;
+    work(async () => {
+      await api('record_mode', 'PUT', { sn: device.sn, mode });
+      await afterChange();
+      message('Запись «' + device.name + '»: ' + RECORD_LABEL[mode] + '.');
+    });
+  }
   const effectiveRoute = device => device.route_mode || registry.default_route_mode || 'emulate';
   function changeRoute(device, mode) {
     if (mode === effectiveRoute(device)) return;
@@ -406,6 +418,27 @@
     return cell;
   }
 
+  function recordCell(device) {
+    const cell = node('td'); cell.className = 'route-cell';
+    const current = recordOf(device);
+    const segmented = node('div'); segmented.className = 'segmented';
+    for (const [value, label] of Object.entries(RECORD_LABEL)) {
+      const b = node('button', label); b.type = 'button';
+      if (value === current) { b.classList.add('active'); b.disabled = true; }
+      b.title = 'Запись: ' + label;
+      b.onclick = () => changeRecord(device, value);
+      segmented.append(b);
+    }
+    const select = node('select'); select.setAttribute('aria-label', 'Запись');
+    for (const [value, label] of Object.entries(RECORD_LABEL)) select.append(new Option(label, value));
+    select.value = current;
+    select.onchange = () => changeRecord(device, select.value);
+    const box = node('div'); box.className = 'route-switch';
+    box.append(segmented, select);
+    cell.append(box);
+    return cell;
+  }
+
   function renderDevices() {
     devicesRoot.replaceChildren();
     // Пояснение маршрутов (TASK-044): построчно, названия режимов — жирным.
@@ -415,10 +448,10 @@
     routeNote.append(node('br'));
     routeLine('Гибрид', 'эмулятор, где есть обработчик; остальное — в Яндекс.');
     routeNote.append(node('br'));
-    routeLine('Прокси', 'всё в Яндекс, без журнала.');
-    routeNote.append(node('br'));
-    routeLine('Запись', 'всё в Яндекс, с журналом.');
+    routeLine('Прокси', 'всё в Яндекс.');
     routeNote.append(node('br'), node('b', 'Без своего маршрута'), document.createTextNode(' устройство наследует режим по умолчанию из шапки.'));
+    routeNote.append(node('br'));
+    routeLine('Запись', 'журнал трафика устройства, в любом маршруте: «Включено» — каждый обмен (ответ эмулятора или Яндекса) и AAPI-сообщения; «Нет обработчиков» — только то, чего эмулятор не умеет обработать. Звук не пишется. Смена действует сразу. Журнал — «Эмулятор → Журнал».');
     devicesRoot.append(routeNote);
     const bound = registry.devices.filter(d => d.user_id).length;
     const toolbar = node('div'); toolbar.className = 'sc-toolbar';
@@ -432,7 +465,7 @@
 
     const table = node('table'); table.className = 'dev-table';
     const head = node('tr');
-    head.append(node('th', 'Статус'), node('th', 'Модель / SN'), node('th', 'Привязка'), node('th', 'Действия'), node('th', 'Маршрут'));
+    head.append(node('th', 'Статус'), node('th', 'Модель / SN'), node('th', 'Привязка'), node('th', 'Действия'), node('th', 'Маршрут'), node('th', 'Запись'));
     const thead = node('thead'); thead.append(head); table.append(thead);
     const tbody = node('tbody');
     for (const device of registry.devices) {
@@ -480,11 +513,11 @@
         await afterChange(); message('Устройство удалено; вернётся в список с первым /get_sync_info от него.');
       });
       actions.append(del); row.append(actions);
-      row.append(routeCell(device));
+      row.append(routeCell(device), recordCell(device));
       tbody.append(row);
     }
     if (!registry.devices.length) {
-      const empty = node('tr'); const cell = node('td', 'Устройств пока нет: колонка попадёт в таблицу сама — при WS-подключении или первом запросе /get_sync_info.'); cell.colSpan = 5;
+      const empty = node('tr'); const cell = node('td', 'Устройств пока нет: колонка попадёт в таблицу сама — при WS-подключении или первом запросе /get_sync_info.'); cell.colSpan = 6;
       empty.append(cell); tbody.append(empty);
     }
     table.append(tbody); devicesRoot.append(table);

@@ -9,9 +9,10 @@ WS-сессия остаётся у runtime (sessions — его состоян�
 resolve DeviceId (B03), IP клиента через client_peer и журнал recent — здесь;
 маршрут запроса — route_mode_for (TASK-044): (sn, device_id, mode) по заголовкам/
 query и реестру, неизвестные устройства получают settings.default_route_mode.
-Режимы: emulate — локально; proxy/record — upstream (журнал только для record);
-hybrid — локально, где есть обработчик, промах — наверх с записью в журнал
-и отметкой в «Без ответа».
+Режимы: emulate — локально; proxy — upstream; hybrid — локально, где есть обработчик,
+промах — наверх с отметкой в «Без ответа». Что писать в журнал, решает не маршрут, а опция
+устройства «Запись» (TASK-054): local_handler определяет «есть ли обработчик» одной функцией
+для всех режимов.
 """
 import asyncio
 import json
@@ -73,6 +74,39 @@ class Dispatcher:
             return device.get('sn'), device_id or None, (device.get('route_mode') or default)
         return None, device_id or None, default
 
+    def canonical_host(self, request, host=None):
+        """Канонический хост запроса: алиасы settings.aliases приводят Host к настоящему."""
+        host = host or request.host.split(':', 1)[0]
+        alias = str(self.runtime.settings.get('aliases', {}).get(host.lower()) or '')
+        if alias.lower().startswith(('http://', 'https://')):
+            return host.lower()  # полный upstream (тесты, кастомные сервера): хост устройства каноничен
+        return (alias or host).lower()
+
+    def local_handler(self, host, method, path):
+        """Есть ли у эмулятора обработчик HTTP-запроса (host — канонический, path — без query).
+        Без побочных эффектов: ничего не выполняет, только сверяет маршруты. Сомнение
+        (скриптовый эндпоинт, ответ builtin может зависеть от устройства) — builtin считается
+        обработчиком, скрипт — нет: запрос пишется в режиме «Нет обработчиков»."""
+        runtime = self.runtime
+        host = (host or '').lower()
+        if host == 'rpc.alice.yandex.net' and path == '/gproxy/get_app_catalog':
+            return True  # каталог приложений: ответ собирает эмулятор или отдаёт наблюдённый
+        if runtime.updates.match(host, path, method):
+            return True
+        if host == 'quasar.yandex.net' and runtime.quasar.handles(method, path):
+            return True
+        endpoint = runtime.endpoints.find(host, method, path)
+        return bool(endpoint and endpoint.get('enabled') and endpoint.get('mode') != 'script')
+
+    def journal_emulated(self, request, host, path, started, sn, device_id, body, status, headers, output):
+        """Запись ответа эмулятора в журнал — по опции «Запись» устройства (source=emulator)."""
+        upstream = getattr(self.runtime, 'upstream', None)
+        if upstream is None or upstream.record_mode(sn) == 'off':
+            return
+        handled = self.local_handler(host, request.method, path)
+        upstream.record_emulated(sn, device_id, handled, host, request.method, str(request.rel_url), status,
+                                 list(request.headers.items()), list(headers.items()), body, output, started)
+
     async def direct_sync_info(self, request, device, device_id, sn, body, upstream):
         """TASK-052, «Напрямую»: get_sync_info пересылается настоящему quasar.yandex.net,
         ответ колонке без изменений; успешный JSON сохраняется в state.quasar_direct_last.
@@ -82,7 +116,8 @@ class Dispatcher:
         target = upstream.target_for(request, host='quasar.yandex.net')
         try:
             status, headers, payload = await upstream.forwarder.http(
-                request.method, target, request.headers, body, journal=True,
+                request.method, target, request.headers, body,
+                journal=upstream.recording(sn, handled=True),  # у эмулятора для get_sync_info обработчик есть
                 host='quasar.yandex.net', path=str(request.rel_url),
                 device_sn=sn, device_id=device_id)
         except UpstreamError as exc:
@@ -107,6 +142,7 @@ class Dispatcher:
             return None
         if request.headers.get('X-Alice-Update-Probe') == '1':
             return web.json_response({'error': 'update_probe_loop'}, status=508)
+        started = time.monotonic()
         body = await request.read()
         # B03: единый resolver транспортных DeviceId (приоритет query > quasar > uprx);
         # расхождение независимых источников журналируется, не разрешается молча
@@ -128,6 +164,8 @@ class Dispatcher:
                                                       'response_original': list(headers.items())},
                    update_attempt=attempt['id'], update_policy=attempt['policy'],
                    device_sn=attempt['device_sn'], user_id=attempt['user_id'])
+        self.journal_emulated(request, host, path, started, device['sn'] if device else None, device_id,
+                              body, status, headers, output)
         return web.Response(status=status, body=output, headers=headers)
 
     async def _endpoint_script(self, endpoint, request, host, path, body, device, device_id):
@@ -152,21 +190,31 @@ class Dispatcher:
     async def handle(self, request, host=None, path=None, record=None):
         """Единая точка HTTP-маршрутизации эмуляции (прежний Runtime.dispatch)."""
         runtime = self.runtime
+        started = time.monotonic()
         if request.path.startswith('/__catalog/'):
             request.match_info['hash'] = request.path.rsplit('/', 1)[-1]
             return await (runtime.catalog.icon(request) if '/icon/' in request.path else runtime.catalog.download(request))
         upstream = getattr(runtime, "upstream", None)
         sn, device_id, route_mode = self.route_mode_for(request)
         is_ws = request.headers.get("Upgrade", "").lower() == "websocket"
-        if upstream is not None and route_mode in ("proxy", "record"):
-            # TASK-044: прямой проход — WS мостом, HTTP пересылкой; журнал только для record.
+        if upstream is not None and route_mode == "proxy":
+            # TASK-044: прямой проход — WS мостом, HTTP пересылкой. Запись в журнал — по опции
+            # «Запись» устройства (TASK-054): HTTP решается здесь, WS — на каждом кадре.
             # Устройство наблюдается: колонка остаётся в реестре, маршрут виден и сменяем в UI.
             if device_id:
-                runtime.identities.observe(device_id, source='header.x-uprx-device-id',
-                                           ip=self.client_ip(request), register=True)
+                observed = runtime.identities.observe(device_id, source='header.x-uprx-device-id',
+                                                      ip=self.client_ip(request), register=True)
+                sn = observed['sn'] if observed else sn
             target = upstream.target_for(request, host=host, path=path, websocket=is_ws)
+            if is_ws:
+                return await upstream.serve(request, target, host=host, path=path,
+                                            journal=lambda: upstream.record_mode(sn),
+                                            device_sn=sn, device_id=device_id)
+            canonical = self.canonical_host(request, host)
+            handled = upstream.record_mode(sn) == 'off' or self.local_handler(canonical, request.method, path or request.path)
             return await upstream.serve(request, target, host=host, path=path,
-                                        journal=route_mode == "record", device_sn=sn, device_id=device_id)
+                                        journal=upstream.recording(sn, handled), unhandled=not handled,
+                                        device_sn=sn, device_id=device_id)
         if is_ws:
             # emulate/hybrid (фаза 1): WS целиком эмулируется — необработанные AAPI-сообщения
             # попадают в «Без ответа», как сейчас; пересылка отдельных сообщений наверх —
@@ -174,11 +222,7 @@ class Dispatcher:
             return await runtime.websocket(request, record)
         body = await request.read()
         host = host or request.host.split(':', 1)[0]
-        alias = str(runtime.settings.get('aliases', {}).get(host.lower()) or '')
-        if alias.lower().startswith(('http://', 'https://')):
-            canonical_host = host.lower()  # полный upstream (тесты, кастомные сервера): хост устройства каноничен
-        else:
-            canonical_host = (alias or host).lower()
+        canonical_host = self.canonical_host(request, host)
         # v9 §8: в /glagol/token query device_id — ЦЕЛЬ (токен другого устройства),
         # вызывающий определяется заголовками; цель resolve-only (не регистрируется
         # как наблюдение вызывающего). Вызывающий с заголовками — представление
@@ -216,7 +260,7 @@ class Dispatcher:
                     'headers': [[k, v] for k, v in request.headers.items()
                                 if k.lower() not in ('host', 'content-length')]}
             if upstream is not None and (device or {}).get('state', {}).get('quasar_source') == 'direct':
-                return await self.direct_sync_info(request, device, device_id, sn, body, upstream)
+                return await self.direct_sync_info(request, device, device_id, device['sn'], body, upstream)
         update = await self.handle_update(request, canonical_host, path or request.path, record)
         if update is not None:
             return update
@@ -263,8 +307,10 @@ class Dispatcher:
                 try:
                     miss_path = path or request.path
                     target = upstream.target_for(request, host=canonical_host, path=miss_path)
-                    forwarded = await upstream.serve(request, target, host=canonical_host, path=miss_path,
-                                                     journal=True, device_sn=sn, device_id=device_id)
+                    forwarded = await upstream.serve(
+                        request, target, host=canonical_host, path=miss_path,
+                        journal=upstream.recording(device['sn'] if device else sn, handled=False),
+                        unhandled=True, device_sn=device['sn'] if device else sn, device_id=device_id)
                 except Exception as exc:  # noqa: BLE001 — петля/недоступен: честная ошибка колонке
                     runtime.endpoints.note_miss(*miss_args,
                                                 forwarded=f"error: {type(exc).__name__}: {exc}"[:200])
@@ -297,4 +343,10 @@ class Dispatcher:
                    kind="http", direction="exchange", status=status, size=len(body) + len(output), request_size=len(body), response_size=len(output),
                    headers={"request_original": list(request.headers.items()), "response_original": list(headers.items())}, emulated=True,
                    device_sn=device['sn'] if device else None, user_id=device.get('user_id') if device else None)
+        if quasar_token_route:  # вызывающий — по заголовкам; device — цель токена
+            journal_sn, journal_id = (caller['sn'] if caller else None), caller_id or None
+        else:
+            journal_sn, journal_id = (device['sn'] if device else sn), device_id
+        self.journal_emulated(request, canonical_host, path or request.path, started, journal_sn, journal_id,
+                              body, status, headers, output)
         return web.Response(status=status, body=output, headers=headers)

@@ -16,6 +16,10 @@ ROOT = Path(__file__).resolve().parent
 LOG = logging.getLogger("alice-emulator")
 
 
+# Служебные события с каркасным ответом облака: событие колонки → ответ сервера
+CONTROL_REPLIES = {"SynchronizeStateRequest": "SynchronizeStateResponse", "RequestStat": "RequestStatAck"}
+
+
 def control_response(data):
     """Only protocol scaffolding; no ASR, TTS or assistant simulation."""
     if not data.startswith(b"AAPI"):
@@ -24,11 +28,10 @@ def control_response(data):
     if client.WhichOneof("Message") != "Event":
         return None
     kind = client.Event.WhichOneof("Event")
-    replies = {"SynchronizeStateRequest": "SynchronizeStateResponse", "RequestStat": "RequestStatAck"}
-    if kind not in replies:
+    if kind not in CONTROL_REPLIES:
         return None
     server = load_type(ROOT / "schemas", "alice-api.pb", "NAlice.NAliceApi.TServerMessage")()
-    reply = getattr(server.Event, replies[kind])
+    reply = getattr(server.Event, CONTROL_REPLIES[kind])
     reply.SetInParent()
     if kind == "SynchronizeStateRequest":
         # Каркас реального ответа облака (архив 10-20..10-23, прокси-эра):

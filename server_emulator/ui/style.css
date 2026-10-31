@@ -49,14 +49,23 @@ nav .active{background:rgba(109,176,255,.22);color:#eaf4ff;border-color:#6db0ff;
 .src-head h3{margin:0}
 .src-head .segmented{margin-left:auto}
 @media (max-width:600px){.src-head .segmented{margin-left:0}}
-/* Маршрут устройства (TASK-044): сегменты на широкой ширине, select на узкой */
+/* Маршрут и запись устройства (TASK-044/054): сегменты на широкой ширине, select на узкой —
+   два переключателя в строке таблицы помещаются в страницу только от ~1240px */
 .route-cell .route-switch{display:flex;align-items:center}
 .route-cell .route-switch .segmented{display:inline-flex;margin-left:0}
-.route-cell .route-switch select{display:none;max-width:120px}
-@media (max-width:900px){
+.route-cell .route-switch select{display:none;max-width:160px}
+@media (max-width:1240px){
   .route-cell .route-switch .segmented{display:none}
   .route-cell .route-switch select{display:block}
 }
+/* Текущий сегмент переключателей маршрута и записи устройства (кнопка неактивна, но выделена) */
+.segmented button.active,.segmented button.active:disabled{background:var(--accent-bg);color:var(--text);font-weight:600;opacity:1}
+/* Журнал (TASK-054): группы событий внутри блока устройства — без вложенных карточек */
+.traffic-group{border:0;border-top:1px solid var(--border);border-radius:0;background:none;padding:8px 0;margin:0}
+.traffic-group summary{overflow-wrap:anywhere}
+.traffic-items{padding:4px 0 0 12px}
+.tr-item{all:unset;cursor:pointer;flex:1;min-width:0;font-size:13px}
+.tr-item small{display:block;color:var(--faint);font-size:11.5px}
 /* Режим «Интеллект» — сегментный переключатель справа в полосе групп */
 .segmented{display:inline-flex;margin-left:auto;flex:0 0 auto;border:1px solid var(--accent-border);border-radius:999px;background:var(--surface-2);overflow:hidden}
 .segmented button{background:transparent;border:0;border-left:1px solid var(--border-strong);color:var(--muted);

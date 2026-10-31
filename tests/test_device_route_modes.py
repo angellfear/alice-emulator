@@ -1,4 +1,5 @@
-"""TASK-044: режимы маршрута устройств — кто отвечает и что попадает в журнал.
+"""TASK-044, TASK-054: режимы маршрута устройств (emulate | hybrid | proxy) — кто отвечает.
+Журнал пишется по опции «Запись» устройства (подробно — tests/test_device_record.py).
 
 Только локальные серверы: «настоящий Яндекс» — локальная aiohttp-заглушка, цель
 подменяется значением алиаса со схемой (settings.aliases[host] = http://127.0.0.1:порт).
@@ -67,14 +68,14 @@ async def test_http_modes_answer_and_journal(tmp_path):
                 assert (await response.json())["error"] == "emulator_handler_not_found"
             assert calls == [] and runtime.upstream.journal.list()["total"] == 0
 
-            # proxy: ответ upstream, журнала нет
+            # proxy: ответ upstream, запись выключена — журнала нет
             runtime.settings["default_route_mode"] = "proxy"
             async with client.get(url + "/unknown/path", headers=DEVICE) as response:
                 assert (await response.json())["from"] == "upstream"
             assert len(calls) == 1 and runtime.upstream.journal.list()["total"] == 0
 
-            # record: ответ upstream + запись журнала с устройством
-            runtime.settings["default_route_mode"] = "record"
+            # proxy + запись «Включено»: ответ upstream + запись журнала с устройством
+            runtime.identities.mutate({"operation": "record", "sn": "SN-UP", "mode": "on"})
             async with client.get(url + "/unknown/path?q=1", headers=DEVICE) as response:
                 assert (await response.json())["from"] == "upstream"
             await runtime.upstream.journal.flush()
@@ -83,12 +84,11 @@ async def test_http_modes_answer_and_journal(tmp_path):
             assert items[0]["source"] == "upstream" and items[0]["status"] == 200
             assert items[0]["path"] == "/unknown/path?q=1"
 
-            # неопознанный запрос тоже уходит по default и не регистрирует SN
+            # неопознанный запрос тоже уходит по default, не регистрирует SN и не пишется (нет SN)
             async with client.get(url + "/unknown/path", headers={"Host": "quasar.yandex.net"}) as response:
                 assert (await response.json())["from"] == "upstream"
             await runtime.upstream.journal.flush()
-            items = runtime.upstream.journal.list()["items"]
-            assert items[0]["device_sn"] is None
+            assert runtime.upstream.journal.list()["total"] == 1
     finally:
         await upstream_runner.cleanup()
         await runner.cleanup()
@@ -111,7 +111,13 @@ async def test_hybrid_handled_stays_local_miss_goes_upstream(tmp_path):
                 assert await response.json() == {"hasUpdate": False}
             assert calls == []
 
-            # промах — наверх с журналом и отметкой в «Без ответа»
+            # промах — наверх с отметкой в «Без ответа»; запись выключена — журнала нет
+            async with client.get(url + "/no/handler", headers=headers) as response:
+                assert (await response.json())["from"] == "upstream"
+            await runtime.upstream.journal.flush()
+            assert runtime.upstream.journal.list()["total"] == 0
+            # «Нет обработчиков»: промах, ушедший наверх, пишется
+            runtime.identities.mutate({"operation": "record", "sn": "SN-H", "mode": "misses"})
             async with client.get(url + "/no/handler", headers=headers) as response:
                 assert (await response.json())["from"] == "upstream"
             await runtime.upstream.journal.flush()
@@ -144,7 +150,7 @@ async def test_ws_modes_bridge_or_local(tmp_path):
     runner, url = await listen(create_app(runtime=runtime))
     try:
         async with ClientSession() as client:
-            # emulate/hybrid: WS целиком эмулятор — upstream соединения не видит
+            # emulate/hybrid: WS целиком эмулятор — upstream соединения не видит; запись выключена
             for mode in ("emulate", "hybrid"):
                 runtime.settings["default_route_mode"] = mode
                 async with client.ws_connect(url + "/uni.ws", headers=headers) as ws:
@@ -153,18 +159,25 @@ async def test_ws_modes_bridge_or_local(tmp_path):
             assert not [kind for kind, _ in calls if kind == "ws-open"]
             assert runtime.upstream.journal.list()["total"] == 0
 
-            # proxy: мост без журнала; record: мост с журналом (open + close)
-            for mode in ("proxy", "record"):
-                runtime.settings["default_route_mode"] = mode
+            # proxy: мост; запись выключена — журнала нет, «Включено» — open + close + неизвестный кадр
+            runtime.settings["default_route_mode"] = "proxy"
+            for record in ("off", "on"):
+                runtime.identities.mutate({"operation": "record", "sn": "SN-W", "mode": record})
                 async with client.ws_connect(url + "/uni.ws", headers=headers) as ws:
                     await ws.send_str("привет")
                     assert (await ws.receive()).data == "up:привет"
-                await runtime.upstream.journal.flush()
-                items = [i for i in runtime.upstream.journal.list()["items"] if i["kind"] == "ws"]
-                if mode == "proxy":
+                items = []
+                for _ in range(50):  # close-запись пишется при завершении обработчика моста
+                    await runtime.upstream.journal.flush()
+                    items = [i for i in runtime.upstream.journal.list()["items"] if i["kind"] == "ws"]
+                    if record == "off" or {"open", "close"} <= {i["event"] for i in items}:
+                        break
+                    await asyncio.sleep(0.05)
+                if record == "off":
                     assert items == []
                 else:
-                    assert items and all(i["device_sn"] == "SN-W" for i in items)
+                    assert {"open", "close", "unknown"} <= {i["event"] for i in items}
+                    assert all(i["device_sn"] == "SN-W" for i in items)
     finally:
         await upstream_runner.cleanup()
         await runner.cleanup()
@@ -178,13 +191,13 @@ async def test_device_route_mode_overrides_default(tmp_path):
     calls = []
     upstream_runner, port = await start_upstream(calls)
     alias_upstream(runtime, port)
-    runtime.settings["default_route_mode"] = "record"
+    runtime.settings["default_route_mode"] = "proxy"
     runner, url = await listen(create_app(runtime=runtime))
     try:
         async with ClientSession() as client:
             headers = {"Host": "quasar.yandex.net", "X-YaQuasarDeviceId": "r-id"}
             async with client.get(url + "/no/handler", headers=headers) as response:
-                assert response.status == 404  # свой emulate сильнее default record
+                assert response.status == 404  # свой emulate сильнее default proxy
             assert calls == []
             # смена маршрута через API закрывает соединение только этого устройства
             closed = []
@@ -195,12 +208,17 @@ async def test_device_route_mode_overrides_default(tmp_path):
             runtime.sessions["a"] = {"device_sn": "SN-R", "ws": FakeWS()}
             runtime.sessions["b"] = {"device_id": "up-id", "ws": FakeWS()}
             async with client.put(url + "/emulator/api/route_mode",
-                                  json={"sn": "SN-R", "mode": "record"}, headers={"X-Emulator": "1"}) as response:
+                                  json={"sn": "SN-R", "mode": "proxy"}, headers={"X-Emulator": "1"}) as response:
                 result = await response.json()
-            assert result == {"sn": "SN-R", "mode": "record", "disconnected": 1}
+            assert result == {"sn": "SN-R", "mode": "proxy", "disconnected": 1}
             assert len(closed) == 1 and closed[0]["code"] == 1012
             async with client.get(url + "/no/handler", headers=headers) as response:
                 assert (await response.json())["from"] == "upstream"
+            # «Запись» — не маршрут: PUT route_mode record → 400, прежний маршрут не меняется
+            async with client.put(url + "/emulator/api/route_mode",
+                                  json={"sn": "SN-R", "mode": "record"}, headers={"X-Emulator": "1"}) as response:
+                assert response.status == 400
+            assert runtime.identities.resolve("r-id")["route_mode"] == "proxy"
     finally:
         await upstream_runner.cleanup()
         await runner.cleanup()

@@ -6,7 +6,7 @@ import time
 import uuid
 from pathlib import Path
 
-from .settings_service import ROUTE_MIGRATION_KEY, ROUTE_MODES
+from .settings_service import RECORD_MODES, ROUTE_MIGRATION_KEY, ROUTE_MODES
 from .state_store import StateStore
 
 
@@ -162,6 +162,23 @@ class IdentityRegistry:
         if value not in ROUTE_MODES:
             raise ValueError('Маршрут: ' + ' | '.join(ROUTE_MODES))
         return value
+
+    @staticmethod
+    def record_option(value):
+        """Опция «Запись» устройства (TASK-054): off | on | misses; пусто — off."""
+        if value in (None, ''):
+            return 'off'
+        if value not in RECORD_MODES:
+            raise ValueError('Запись: ' + ' | '.join(RECORD_MODES))
+        return value
+
+    def record_mode(self, sn):
+        """Опция записи устройства по SN; неопознанное устройство (нет SN) — off.
+        Читается на каждом обмене и кадре: смена действует сразу."""
+        if not sn:
+            return 'off'
+        device = next((d for d in self.data['devices'] if d['sn'] == sn), None)
+        return (device or {}).get('record') or 'off'
 
     def pending_route_migration(self):
         """Очередь миграции emulation_excluded → route_mode=proxy (meta StateStore)."""
@@ -325,7 +342,8 @@ class IdentityRegistry:
                       'room': self.room(request.get('room', old.get('room', ''))),
                       'model': (request.get('model', old.get('model', '')) or '').strip().lower()[:32],
                       'fields': self.fields(request.get('fields', old.get('fields', {}))),
-                      'route_mode': self.route_mode(request.get('route_mode', old.get('route_mode')))}
+                      'route_mode': self.route_mode(request.get('route_mode', old.get('route_mode'))),
+                      'record': self.record_option(request.get('record', old.get('record')))}
             if not old and self._take_pending_route(sn):  # TASK-044: SN из emulation_excluded
                 device['route_mode'] = 'proxy'
             value['devices'] = [d for d in value['devices'] if d['sn'] != sn] + [device]
@@ -341,6 +359,13 @@ class IdentityRegistry:
                 device['route_mode'] = mode
             else:
                 device.pop('route_mode', None)
+        elif operation == 'record':
+            # TASK-054: опция записи одного устройства (off | on | misses)
+            sn = self.text(request.get('sn'), 'SN')
+            device = next((d for d in value['devices'] if d['sn'] == sn), None)
+            if device is None:
+                raise ValueError('SN не найден')
+            device['record'] = self.record_option(request.get('mode'))
         elif operation == 'device_delete':
             # Удаление = отвязка (если была) + строка уходит из списка. Без игноров:
             # как только устройство снова даст о себе знать (/get_sync_info), оно тут же
@@ -374,7 +399,8 @@ class IdentityRegistry:
             old = next((d for d in value['devices'] if d['sn'] == sn), {})
             device = {'sn': sn, 'name': self.text(request.get('name') or sn, 'Название'),
                       'user_id': user_id, 'device_ids': list(dict.fromkeys([device_id] + old.get('device_ids', []))),
-                      'profile': old.get('profile', {}), 'state': old.get('state', {})}
+                      'profile': old.get('profile', {}), 'state': old.get('state', {}),
+                      'record': old.get('record') or 'off'}
             if not old and self._take_pending_route(sn):  # TASK-044: SN из emulation_excluded
                 device['route_mode'] = 'proxy'
             value['devices'] = [d for d in value['devices'] if d['sn'] != sn] + [device]

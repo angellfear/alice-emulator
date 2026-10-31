@@ -27,6 +27,12 @@ from .voice_response import failure_phrases, failure_speech, failure_text
 
 from .speech_trace import SpeechTrace, reason_name
 
+from . import aapi_handlers
+
+from .aapi_handlers import aapi_handler
+
+from .legacy_replay import CONTROL_REPLIES, control_response
+
 
 
 
@@ -178,11 +184,22 @@ def is_service_text_input(incoming):
 
 
 
+def _unclaimed_reply(settings):
+
+    """Условие обработчика стандартной реплики «не привязано»: включена и задан текст."""
+
+    from .behavior import standard_for
+
+    return bool(settings.get('unclaimed') and standard_for(settings.get('standard_replies'), 'unclaimed'))
+
+
 class Conversation:
 
-    def __init__(self, runtime, server_type, send, trace_context=None):
+    def __init__(self, runtime, server_type, send, trace_context=None, delivered=None):
 
         self.runtime, self.server_type, self.send = runtime, server_type, send
+
+        self.delivered = delivered  # delivered(message_id): колонка подтвердила доставку (Ack)
 
         self.audio = AudioBuffer()  # входные аудиоканалы: буферы и лимиты (audio_buffer.py)
 
@@ -383,53 +400,33 @@ class Conversation:
 
     async def receive(self, incoming, trigger):
 
+        """AAPI-событие колонки: обработчики реестра aapi_handlers в порядке объявления,
+        первый вернувший True его обработал. False — обработчика нет («Без ответа»)."""
+
+        for handler in aapi_handlers.handlers(trigger, self.runtime.settings):
+
+            if await handler(self, incoming, trigger):
+
+                return True
+
+        return False
+
+
+
+    # Стандартные ответы обслуживаются даже при выключенных AI-флагах:
+    # непривязанное устройство получает реплику вместо тишины и Vins-таймаута.
+    @aapi_handler('TextInput', 'VoiceInput', enabled=_unclaimed_reply)
+
+    async def _on_unclaimed(self, incoming, trigger):
+
         cfg = self.runtime.settings
 
-        # Стандартные ответы обслуживаются даже при выключенных AI-флагах:
 
-        # непривязанное устройство получает реплику вместо тишины и Vins-таймаута.
+        from .behavior import standard_for
 
-        if trigger in ('TextInput', 'VoiceInput') and cfg.get('unclaimed'):
+        canned = standard_for(cfg.get('standard_replies'), 'unclaimed')
 
-            from .behavior import standard_for
-
-            canned = standard_for(cfg.get('standard_replies'), 'unclaimed')
-
-            if canned:
-
-                await self.cancel()
-
-                for channel in list(self.channels):
-
-                    await self.close_stream(channel, 4)
-
-                self.channels.clear()
-
-                await self.message(self.event(incoming, 'InputStartAck'))
-
-                trace = self.new_trace()
-
-                request_id = getattr(getattr(incoming.Event, trigger).Header, 'RequestId', '') or ''
-
-                if trace:
-
-                    trace.event('standard_reply', 'server', case='unclaimed', request_id=request_id)
-
-                self.task = self.runtime.lifecycle.spawn(self.spoken_reply(
-
-                    incoming, canned['text'], trace=trace, request_id=request_id,
-
-                    force_tts=True, event_name='standard_reply'))
-
-                return True
-
-        if trigger == 'CancelRequest':
-
-            trace = self.new_trace()
-
-            if trace:
-
-                trace.event('cancel', 'c2s', cause='CancelRequest')
+        if canned:
 
             await self.cancel()
 
@@ -439,257 +436,368 @@ class Conversation:
 
             self.channels.clear()
 
-            return True
-
-        if trigger == 'TextInput' and cfg.get('aapi_model'):
-
-            await self.cancel()
-
-            for channel in list(self.channels):
-
-                await self.close_stream(channel, 4)
-
-            self.channels.clear()
-
-            # InputStartAck обязателен и для служебного server_action: без него
-
-            # станция не принимает ответ (ретрай-цикл колбэка не завершается).
-
-            # Реальное облако шлёт его так же (архив 2026-10-21 c2809aa8…).
-
             await self.message(self.event(incoming, 'InputStartAck'))
 
             trace = self.new_trace()
 
-            if trace:
-
-                trace.event('run_start', 'server', kind='TextInput', request_id=incoming.Event.TextInput.Header.RequestId)
-
-            self.task = self.runtime.lifecycle.spawn(self.run(incoming, 'TextInput', trace=trace))
-
-            return True
-
-        if trigger == 'VoiceInput' and cfg.get('aapi_voice'):
-
-            await self.cancel()
-
-            request_id = incoming.Event.VoiceInput.Header.RequestId
-
-            for old_channel, state in list(self.channels.items()):
-
-                if state['incoming'].Event.VoiceInput.Header.RequestId != request_id:
-
-                    await self.close_stream(old_channel, 4)
-
-                    self.channels.pop(old_channel, None)
-
-            channel = incoming.Event.Header.StreamId
-
-            if not incoming.Event.Header.HasField('StreamId') or channel == 0:
-
-                raise ValueError('VoiceInput не объявляет аудиоканал')
-
-            if len(self.channels) >= MAX_INPUT_STREAMS and channel not in self.channels:
-
-                raise ValueError('Слишком много входных аудиоканалов')
-
-            if channel in self.channels:
-
-                await self.close_stream(channel, 4)
-
-            trace = self.new_trace()
-
-            state = self.audio.open(channel)
-
-            state.update(incoming=incoming, trace=trace,
-
-                         await_spotter=bool(incoming.Event.VoiceInput.EnableSpotterValidation))
+            request_id = getattr(getattr(incoming.Event, trigger).Header, 'RequestId', '') or ''
 
             if trace:
 
-                self.trace_by_channel[channel] = trace
+                trace.event('standard_reply', 'server', case='unclaimed', request_id=request_id)
 
-                trace.event('voice_input_start', 'c2s', channel=channel, request_id=request_id or incoming.Event.Header.MessageId,
+            self.task = self.runtime.lifecycle.spawn(self.spoken_reply(
 
-                            format=incoming.Event.VoiceInput.Format,
+                incoming, canned['text'], trace=trace, request_id=request_id,
 
-                            spotter_validation=bool(incoming.Event.VoiceInput.EnableSpotterValidation))
-
-            if self.runtime.asr_streaming():
-
-                queue, chunks = streaming_source()
-
-                state = self.channels[channel]
-
-                state['queue'] = queue
-
-                async def partial(text, request=incoming):
-
-                    if trace:
-
-                        trace.asr_partial(text)
-
-                    await self.recognition(request, text, final=False)
-
-                async def recognize():
-
-                    result = await self.runtime.recognize_stream(chunks(), incoming.Event.VoiceInput.Format, partial)
-
-                    if self.channels.get(channel) is state:
-
-                        # Real devices wait for server endpoint/STOP_RECORDING, not client Close.
-
-                        if trace:
-
-                            trace.event('endpoint', 'server', decision='STOP_RECORDING')
-
-                        self.channels.pop(channel, None)
-
-                        await self.close_stream(channel, 2)
-
-                        key = incoming.Event.VoiceInput.Header.RequestId or incoming.Event.Header.MessageId
-
-                        if key not in self.completed:
-
-                            self.completed.add(key)
-
-                            self.task = self.runtime.lifecycle.spawn(self.run(incoming,'VoiceInput',b'\0',state['asr_task'],trace=trace))
-
-                    return result
-
-                state['asr_task'] = self.runtime.lifecycle.spawn(recognize())
-
-            await self.message(self.event(incoming, 'InputStartAck'))
-
-            return True
-
-        if trigger == 'StreamControl' and incoming.StreamControl.WhichOneof('Action') == 'SpotterEnd':
-
-            channel = incoming.StreamControl.StreamId
-
-            state = self.channels.get(channel)
-
-            if state:
-
-                if state['incoming'].Event.VoiceInput.EnableSpotterValidation:
-
-                    reply = self.event(state['incoming'],'SpotterValidation')
-
-                    reply.Event.SpotterValidation.Result = 1
-
-                    reply.Event.SpotterValidation.CanceledCauseOfMultiactivation = False
-
-                    await self.message(reply)
-
-                state['await_spotter'] = False
-
-                if state.get('trace'):
-
-                    state['trace'].event('spotter_end', 'c2s', channel=channel)
-
-            return True
-
-        if trigger == 'StreamControl' and incoming.StreamControl.WhichOneof('Action') == 'Close':
-
-            channel = incoming.StreamControl.StreamId
-
-            state = self.channels.pop(channel, None)
-
-            if state is None:
-
-                return False
-
-            trace = state.get('trace')
-
-            if trace:
-
-                trace.event('client_close', 'c2s', channel=channel,
-
-                            reason=reason_name(incoming.StreamControl.Close.Reason), **trace.snapshot())
-
-            if self.audio.too_long(state):
-
-                if state.get('asr_task'):
-
-                    state['asr_task'].cancel()
-
-                    await asyncio.gather(state['asr_task'], return_exceptions=True)
-
-                await self.close_stream(channel, 1)
-
-                return True
-
-            reason_code = incoming.StreamControl.Close.Reason
-
-            if reason_code == 5 or not state['size']:
-
-                # Реальный wire (capture): колонка закрыла микрофон NO_SPEECH → сервер
-
-                # досылает финальный пустой AsrResult, закрывает канал OK и отвечает репликой.
-
-                cause = reason_name(reason_code) if reason_code else 'no_audio'
-
-                if trace:
-
-                    trace.event('asr_abandoned', 'server', cause=cause)
-
-                if state.get('asr_task'):
-
-                    state['asr_task'].cancel()
-
-                    await asyncio.gather(state['asr_task'], return_exceptions=True)
-
-                await self.recognition(state['incoming'], '', final=True)
-
-                await self.close_stream(channel, 0, trace)
-
-                self.task = self.runtime.lifecycle.spawn(self.retry_prompt(state['incoming'], trace))
-
-                return True
-
-            if reason_code in (1, 4):
-
-                if trace:
-
-                    trace.event('asr_abandoned', 'server', cause=reason_name(reason_code))
-
-                if state.get('asr_task'):
-
-                    state['asr_task'].cancel()
-
-                    await asyncio.gather(state['asr_task'], return_exceptions=True)
-
-                return True
-
-            request_id = state['incoming'].Event.VoiceInput.Header.RequestId or state['incoming'].Event.Header.MessageId
-
-            if request_id in self.completed:
-
-                if state.get('asr_task'):
-
-                    state['asr_task'].cancel()
-
-                    await asyncio.gather(state['asr_task'], return_exceptions=True)
-
-                return True
-
-            self.completed.add(request_id)
-
-            if len(self.completed) > 128:
-
-                self.completed = {request_id}
-
-            await self.cancel()
-
-            if state.get('queue'):
-
-                await asyncio.wait_for(state['queue'].put(None), timeout=5)
-
-            self.task = self.runtime.lifecycle.spawn(self.run(state['incoming'], 'VoiceInput', b'\0' if state.get('asr_task') else bytes(state['audio']), state.get('asr_task'), trace=trace))
+                force_tts=True, event_name='standard_reply'))
 
             return True
 
         return False
+
+
+
+    @aapi_handler('CancelRequest')
+
+    async def _on_cancel(self, incoming, trigger):
+
+
+        trace = self.new_trace()
+
+        if trace:
+
+            trace.event('cancel', 'c2s', cause='CancelRequest')
+
+        await self.cancel()
+
+        for channel in list(self.channels):
+
+            await self.close_stream(channel, 4)
+
+        self.channels.clear()
+
+        return True
+
+
+
+    @aapi_handler('TextInput', enabled=lambda settings: bool(settings.get('aapi_model')))
+
+    async def _on_text_input(self, incoming, trigger):
+
+
+        await self.cancel()
+
+        for channel in list(self.channels):
+
+            await self.close_stream(channel, 4)
+
+        self.channels.clear()
+
+        # InputStartAck обязателен и для служебного server_action: без него
+
+        # станция не принимает ответ (ретрай-цикл колбэка не завершается).
+
+        # Реальное облако шлёт его так же (архив 2026-10-21 c2809aa8…).
+
+        await self.message(self.event(incoming, 'InputStartAck'))
+
+        trace = self.new_trace()
+
+        if trace:
+
+            trace.event('run_start', 'server', kind='TextInput', request_id=incoming.Event.TextInput.Header.RequestId)
+
+        self.task = self.runtime.lifecycle.spawn(self.run(incoming, 'TextInput', trace=trace))
+
+        return True
+
+
+
+    @aapi_handler('VoiceInput', enabled=lambda settings: bool(settings.get('aapi_voice')))
+
+    async def _on_voice_input(self, incoming, trigger):
+
+
+        await self.cancel()
+
+        request_id = incoming.Event.VoiceInput.Header.RequestId
+
+        for old_channel, state in list(self.channels.items()):
+
+            if state['incoming'].Event.VoiceInput.Header.RequestId != request_id:
+
+                await self.close_stream(old_channel, 4)
+
+                self.channels.pop(old_channel, None)
+
+        channel = incoming.Event.Header.StreamId
+
+        if not incoming.Event.Header.HasField('StreamId') or channel == 0:
+
+            raise ValueError('VoiceInput не объявляет аудиоканал')
+
+        if len(self.channels) >= MAX_INPUT_STREAMS and channel not in self.channels:
+
+            raise ValueError('Слишком много входных аудиоканалов')
+
+        if channel in self.channels:
+
+            await self.close_stream(channel, 4)
+
+        trace = self.new_trace()
+
+        state = self.audio.open(channel)
+
+        state.update(incoming=incoming, trace=trace,
+
+                     await_spotter=bool(incoming.Event.VoiceInput.EnableSpotterValidation))
+
+        if trace:
+
+            self.trace_by_channel[channel] = trace
+
+            trace.event('voice_input_start', 'c2s', channel=channel, request_id=request_id or incoming.Event.Header.MessageId,
+
+                        format=incoming.Event.VoiceInput.Format,
+
+                        spotter_validation=bool(incoming.Event.VoiceInput.EnableSpotterValidation))
+
+        if self.runtime.asr_streaming():
+
+            queue, chunks = streaming_source()
+
+            state = self.channels[channel]
+
+            state['queue'] = queue
+
+            async def partial(text, request=incoming):
+
+                if trace:
+
+                    trace.asr_partial(text)
+
+                await self.recognition(request, text, final=False)
+
+            async def recognize():
+
+                result = await self.runtime.recognize_stream(chunks(), incoming.Event.VoiceInput.Format, partial)
+
+                if self.channels.get(channel) is state:
+
+                    # Real devices wait for server endpoint/STOP_RECORDING, not client Close.
+
+                    if trace:
+
+                        trace.event('endpoint', 'server', decision='STOP_RECORDING')
+
+                    self.channels.pop(channel, None)
+
+                    await self.close_stream(channel, 2)
+
+                    key = incoming.Event.VoiceInput.Header.RequestId or incoming.Event.Header.MessageId
+
+                    if key not in self.completed:
+
+                        self.completed.add(key)
+
+                        self.task = self.runtime.lifecycle.spawn(self.run(incoming,'VoiceInput',b'\0',state['asr_task'],trace=trace))
+
+                return result
+
+            state['asr_task'] = self.runtime.lifecycle.spawn(recognize())
+
+        await self.message(self.event(incoming, 'InputStartAck'))
+
+        return True
+
+
+
+    @aapi_handler('StreamControl')
+
+    async def _on_spotter_end(self, incoming, trigger):
+
+        if incoming.StreamControl.WhichOneof('Action') != 'SpotterEnd':
+
+            return False
+
+
+        channel = incoming.StreamControl.StreamId
+
+        state = self.channels.get(channel)
+
+        if state:
+
+            if state['incoming'].Event.VoiceInput.EnableSpotterValidation:
+
+                reply = self.event(state['incoming'],'SpotterValidation')
+
+                reply.Event.SpotterValidation.Result = 1
+
+                reply.Event.SpotterValidation.CanceledCauseOfMultiactivation = False
+
+                await self.message(reply)
+
+            state['await_spotter'] = False
+
+            if state.get('trace'):
+
+                state['trace'].event('spotter_end', 'c2s', channel=channel)
+
+        return True
+
+
+
+    @aapi_handler('StreamControl')
+
+    async def _on_stream_close(self, incoming, trigger):
+
+        if incoming.StreamControl.WhichOneof('Action') != 'Close':
+
+            return False
+
+
+        channel = incoming.StreamControl.StreamId
+
+        state = self.channels.pop(channel, None)
+
+        if state is None:
+
+            return False
+
+        trace = state.get('trace')
+
+        if trace:
+
+            trace.event('client_close', 'c2s', channel=channel,
+
+                        reason=reason_name(incoming.StreamControl.Close.Reason), **trace.snapshot())
+
+        if self.audio.too_long(state):
+
+            if state.get('asr_task'):
+
+                state['asr_task'].cancel()
+
+                await asyncio.gather(state['asr_task'], return_exceptions=True)
+
+            await self.close_stream(channel, 1)
+
+            return True
+
+        reason_code = incoming.StreamControl.Close.Reason
+
+        if reason_code == 5 or not state['size']:
+
+            # Реальный wire (capture): колонка закрыла микрофон NO_SPEECH → сервер
+
+            # досылает финальный пустой AsrResult, закрывает канал OK и отвечает репликой.
+
+            cause = reason_name(reason_code) if reason_code else 'no_audio'
+
+            if trace:
+
+                trace.event('asr_abandoned', 'server', cause=cause)
+
+            if state.get('asr_task'):
+
+                state['asr_task'].cancel()
+
+                await asyncio.gather(state['asr_task'], return_exceptions=True)
+
+            await self.recognition(state['incoming'], '', final=True)
+
+            await self.close_stream(channel, 0, trace)
+
+            self.task = self.runtime.lifecycle.spawn(self.retry_prompt(state['incoming'], trace))
+
+            return True
+
+        if reason_code in (1, 4):
+
+            if trace:
+
+                trace.event('asr_abandoned', 'server', cause=reason_name(reason_code))
+
+            if state.get('asr_task'):
+
+                state['asr_task'].cancel()
+
+                await asyncio.gather(state['asr_task'], return_exceptions=True)
+
+            return True
+
+        request_id = state['incoming'].Event.VoiceInput.Header.RequestId or state['incoming'].Event.Header.MessageId
+
+        if request_id in self.completed:
+
+            if state.get('asr_task'):
+
+                state['asr_task'].cancel()
+
+                await asyncio.gather(state['asr_task'], return_exceptions=True)
+
+            return True
+
+        self.completed.add(request_id)
+
+        if len(self.completed) > 128:
+
+            self.completed = {request_id}
+
+        await self.cancel()
+
+        if state.get('queue'):
+
+            await asyncio.wait_for(state['queue'].put(None), timeout=5)
+
+        self.task = self.runtime.lifecycle.spawn(self.run(state['incoming'], 'VoiceInput', b'\0' if state.get('asr_task') else bytes(state['audio']), state.get('asr_task'), trace=trace))
+
+        return True
+
+
+
+    @aapi_handler('Ack')
+
+    async def _on_ack(self, incoming, trigger):
+
+        """Подтверждение доставки сообщения сервера: отметка в журнале действий (delivered)."""
+
+        if self.delivered is not None:
+
+            self.delivered(incoming.Event.Ack.ReceivedHeader.MessageId)
+
+        return True
+
+
+
+    @aapi_handler('LogSpotter')
+
+    async def _on_log_spotter(self, incoming, trigger):
+
+        """Лог споттера колонки: ответ LogAck."""
+
+        await self.message(self.event(incoming, 'LogAck'))
+
+        return True
+
+
+
+    @aapi_handler(*CONTROL_REPLIES)
+
+    async def _on_control(self, incoming, trigger):
+
+        """Служебные события с каркасным ответом облака (legacy_replay.control_response)."""
+
+        reply = control_response(b'AAPI' + incoming.SerializeToString())
+
+        if reply is None:
+
+            return False
+
+        await self.send(reply)
+
+        return True
 
 
 

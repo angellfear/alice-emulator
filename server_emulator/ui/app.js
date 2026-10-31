@@ -28,7 +28,7 @@ const levelValue=()=>settings&&typeof settings.intelligence==='string'?settings.
 const extMode=()=>levelValue().startsWith('ext:')?extModes.find(m=>'ext:'+m.id===levelValue()):null;
 const GROUPS=[
   {title:'Устройства',tabs:[['devices','Устройства'],['accounts','Пользователи'],['device-actions','Действия'],['updates','Обновления']]},
-  {title:'Эмулятор',tabs:[['scenarios','Сценарии'],['endpoints','HTTP'],['quasar-http','Quasar'],['params','Параметры'],['app-catalog','Каталог приложений'],['misses','Без ответа']]},
+  {title:'Эмулятор',tabs:[['scenarios','Сценарии'],['endpoints','HTTP'],['quasar-http','Quasar'],['params','Параметры'],['app-catalog','Каталог приложений'],['misses','Без ответа'],['traffic','Журнал']]},
   {title:'Голос',tabs:[['voice-stack','Голосовой стек'],['replies','Звуковой кеш'],['animations','Анимации']]},
   {title:'Интеллект',tabs:[['intelligence','Режим',null,'hidden'],['llm','Модель','model'],['agent','Агент','agent'],['mcp','MCP','agent'],['memory','Память','agent'],['routines','Задания','agent']]},
   {title:'Дополнительно',tabs:[['extensions','Расширения'],['server','Сервер'],['setup','Настройка'],['studio','Проверка']]}];
