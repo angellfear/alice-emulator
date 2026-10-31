@@ -173,10 +173,17 @@ async def brew(arguments, execution):
 
 ```python
 # voice/adapters/speak.py — адаптер: extension добавлен к прежней сигнатуре
+from server_emulator.sdk import secret
+
 async def speech(runtime, config, payload, extension=None):
-    token = extension.get("token", "") if extension else ""   # в конвейере контекст придёт
+    # api_key пресета может быть ссылкой env:ИМЯ — раскрывает sdk.secret; пусто — токен расширения
+    token = secret(config.get("api_key")) or (extension.get("token", "") if extension else "")
     ...  # прежний адаптер (без параметра extension) работает как раньше
 ```
+
+Секреты — только через SDK: `server_emulator.sdk.secret(value)` раскрывает ссылку `env:ИМЯ`
+(значения настроек расширения `ExtensionContext` уже раскрыл). Импорт внутренних модулей
+эмулятора (`server_emulator.auth` и др.) в коде расширения не поддерживается.
 
 Общий код нескольких файлов расширения подключайте обычным модулём в корне расширения,
 загружаемым относительно `__file__` (пути внутри расширения не зависят от того, откуда оно

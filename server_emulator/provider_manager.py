@@ -30,16 +30,20 @@ class ProviderManager:
         from .voice_stack.adapters import resolve
         return resolve(kind, runtime.settings[kind])
 
+    # Все вызовы функций адаптера — через call_adapter (TASK-053): адаптер расширения получает
+    # extension=ExtensionContext, если его функция принимает этот аргумент.
+
     async def call(self, runtime, kind, payload=None, audio=None, filename="input.wav"):
         """Вызов сервиса через адаптер: stt → JSON {text}, tts → (аудио, тип), model → JSON ответа чата."""
+        from .voice_stack import call_adapter
         cfg = copy.deepcopy(runtime.settings[kind])
         adapter = self.adapter(runtime, kind)
         if kind == "stt":
-            text = await adapter.transcribe(runtime, cfg, audio, filename)
+            text = await call_adapter(adapter.transcribe, runtime, cfg, audio, filename)
             return json.dumps({"text": text}, ensure_ascii=False).encode(), "application/json"
         if kind == "tts":
-            return await adapter.speech(runtime, cfg, payload)
-        return json.dumps(await adapter.complete(runtime, cfg, payload), ensure_ascii=False).encode(), "application/json"
+            return await call_adapter(adapter.speech, runtime, cfg, payload)
+        return json.dumps(await call_adapter(adapter.complete, runtime, cfg, payload), ensure_ascii=False).encode(), "application/json"
 
     def asr_streaming(self, runtime):
         """Распознавание потоком (частичные результаты) — если адаптер ASR это умеет."""
@@ -49,7 +53,9 @@ class ProviderManager:
             return False
 
     async def recognize_stream(self, runtime, chunks, fmt, on_partial=None):
-        return await self.adapter(runtime, "stt").recognize_stream(runtime, runtime.settings["stt"], chunks, fmt, on_partial)
+        from .voice_stack import call_adapter
+        return await call_adapter(self.adapter(runtime, "stt").recognize_stream, runtime, runtime.settings["stt"],
+                                  chunks, fmt, on_partial)
 
     def tts_streaming(self, runtime):
         """Синтез потоком Ogg-страниц — если адаптер TTS умеет это для текущей конфигурации."""
@@ -60,7 +66,8 @@ class ProviderManager:
         return hasattr(adapter, "speech_stream") and adapter.streams(runtime.settings["tts"])
 
     def speech_stream(self, runtime, text):
-        return self.adapter(runtime, "tts").speech_stream(runtime, runtime.settings["tts"], text)
+        from .voice_stack import call_adapter
+        return call_adapter(self.adapter(runtime, "tts").speech_stream, runtime, runtime.settings["tts"], text)
 
     def pcm_tts(self, runtime):
         """PCM-движок синтеза из settings["tts"] для звукового кеша (synth_pcm) или None —

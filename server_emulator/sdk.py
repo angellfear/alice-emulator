@@ -4,7 +4,8 @@
 
 Принцип: SDK НЕ дублирует логику — только обёртки и dataclass'ы над тем, что уже
 есть в движке (1.1.0: парсеры scenario_engine/parsers.py, форматтеры фильтров шаблонов, обновление
-датасета Executor; 1.2.0: ExtensionContext — настройки расширения для его кода, TASK-053).
+датасета Executor; 1.2.0: ExtensionContext — настройки расширения для его кода, TASK-053; secret — раскрытие
+ссылок env:ИМЯ, как у провайдеров).
 Построители (say/card/directive/silent) возвращают ровно ту структуру
 dict'ов, которую принимает compose-шаг (scenario_engine/reply_compose.compose_reply) —
 никакой новой сборки ответа. Сервисы контекста (action/fetch_json/dataset/lexicon) —
@@ -29,6 +30,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from .auth import secret as _secret
 from .extensions.context import ExtensionContext, action_context  # ExtensionContext — для аннотаций кода расширений
 from .scenario_engine import bindings as _bindings
 from .scenario_engine import parsers as _parsers
@@ -39,6 +41,14 @@ DATASET_REFRESH_TIMEOUT_S = 10.0  # как у шага refresh без timeout
 
 class SDKError(Exception):
     """Честная ошибка SDK (нет действия/плагина/сервиса) — сценарий видит её как исключение."""
+
+
+def secret(value):
+    """Значение секрета: ссылка `env:ИМЯ` → переменная окружения процесса (нет — пусто),
+    иначе строка как есть, не строка — пусто. Те же правила, что у провайдеров эмулятора:
+    адаптер расширения раскрывает так `api_key` своего пресета (настройки расширения
+    ExtensionContext раскрывает сам)."""
+    return _secret(value)
 
 
 # --- построители ответа: return-значение handle() -------------------------------

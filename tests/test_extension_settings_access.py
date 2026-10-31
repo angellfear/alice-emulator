@@ -283,6 +283,68 @@ async def test_legacy_adapter_without_extension_param_works(tmp_path):
         adapters.configure(tmp_path / "none")
 
 
+ADAPTER_PIPELINE_SRC = '''"""Адаптер расширения для всех трёх сервисов: отвечает настройкой расширения."""
+SERVICES = {
+    "asr": {"fields": [], "defaults": {}},
+    "tts": {"fields": [], "defaults": {}},
+    "llm": {"fields": [], "defaults": {}},
+}
+
+
+def mark(extension):
+    return (extension.get("greeting") if extension else "без-контекста") + "/" + (
+        extension.get("token", "нет") if extension else "нет")
+
+
+def streams(config):
+    return True
+
+
+async def transcribe(runtime, config, audio, filename, extension=None):
+    return mark(extension)
+
+
+async def speech(runtime, config, payload, extension=None):
+    return mark(extension).encode(), "text/plain"
+
+
+async def complete(runtime, config, payload, extension=None):
+    return {"choices": [{"message": {"content": mark(extension)}}]}
+
+
+async def recognize_stream(runtime, config, chunks, fmt, on_partial=None, extension=None):
+    return mark(extension)
+
+
+async def speech_stream(runtime, config, text, extension=None):
+    yield mark(extension).encode()
+'''
+
+
+async def test_pipeline_calls_pass_extension(tmp_path, monkeypatch):
+    """Конвейер (ProviderManager): распознавание, синтез, модель и потоковые режимы —
+    адаптер расширения получает свой ExtensionContext (TASK-053, все пути вызова)."""
+    monkeypatch.setenv(TOKEN_ENV, SECRET)
+    runtime = Runtime(tmp_path)
+    make_extension(runtime, extra={"voice/adapters/pipeline.py": ADAPTER_PIPELINE_SRC})
+    runtime.extensions.load_enabled()
+    for kind in ("stt", "tts", "model"):
+        runtime.settings[kind] = {"adapter": "coffee.pipeline"}
+    expected = "Привет/" + SECRET
+    manager = runtime.provider_manager
+    try:
+        body, _ = await manager.call(runtime, "stt", audio=b"RIFF")
+        assert json.loads(body)["text"] == expected
+        assert await manager.call(runtime, "tts", payload={"input": "текст"}) == (expected.encode(), "text/plain")
+        body, _ = await manager.call(runtime, "model", payload={"messages": []})
+        assert json.loads(body)["choices"][0]["message"]["content"] == expected
+        assert await manager.recognize_stream(runtime, [], "pcm") == expected
+        assert [chunk async for chunk in manager.speech_stream(runtime, "текст")] == [expected.encode()]
+    finally:
+        await runtime.close()
+        adapters.configure(tmp_path / "none")
+
+
 # --- ExtensionContext: только чтение, маскирование, границы ---------------------------
 
 
@@ -310,3 +372,12 @@ async def test_context_readonly_and_repr_masks_secret(tmp_path, monkeypatch):
         assert runtime.extensions.action_context("coffee.brew") is not None
     finally:
         await runtime.close()
+
+
+def test_sdk_secret_expands_env_reference(monkeypatch):
+    """sdk.secret — публичное раскрытие env:ИМЯ для api_key пресета адаптера расширения."""
+    monkeypatch.setenv(TOKEN_ENV, SECRET)
+    assert sdk_module.secret(f"env:{TOKEN_ENV}") == SECRET
+    assert sdk_module.secret("env:TEST_EXTENSION_SETTINGS_NO_SUCH_VAR") == ""
+    assert sdk_module.secret("plain-token") == "plain-token"
+    assert sdk_module.secret(None) == ""

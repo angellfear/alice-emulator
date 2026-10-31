@@ -151,13 +151,13 @@ async def voice_stack_test(request, runtime, app):
 
     import numpy as np
 
-    from ...voice_stack import adapters
+    from ...voice_stack import adapters, call_adapter
     body = await _body(request)
     config, _ = runtime.voice_stack.config("tts", str(body.get("ref", "")))
     adapter = adapters.resolve("tts", config)
     if not hasattr(adapter, "synth_pcm"):
         raise ValueError("Адаптер синтеза не отдаёт PCM — проба недоступна")
-    pcm, rate = await adapter.synth_pcm(runtime, config, TEST_PHRASE)
+    pcm, rate = await call_adapter(adapter.synth_pcm, runtime, config, TEST_PHRASE)
     buffer = io.BytesIO()
     with wave.open(buffer, "wb") as handle:
         handle.setnchannels(1)
