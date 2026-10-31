@@ -56,7 +56,7 @@
 | `server_emulator/state_store.py` | `state/store.db` | users, devices, aliases, settings, scenarios, timers, params, executions |
 | `server_emulator/agent/service.py` | `state/agent.sqlite3` | LangGraph checkpoints (история диалогов), langmem store (память) |
 | `server_emulator/agent/ops.py` | `state/agent_ops.sqlite3` | Журнал прогонов (30 дней), дневной бюджет, промахи |
-| `server_emulator/miss_journal.py` | `state/{phrase,callback,aapi}_misses.json` | Очередь «Без ответа»: фразы без сценария, колбэки @@mm_* без сценария, WS AAPI без ответа; лимит 300 на журнал |
+| `server_emulator/miss_journal.py` | `state/{phrase,callback,aapi}_misses.json` | Промахи (без отдельной вкладки, TASK-061): фразы — в «Сценариях», HTTP-запросы — в «HTTP», AAPI и колбэки — в «WS» (свёрнутые блоки, `ui/misses.js`); лимит 300 на журнал |
 | `server_emulator/upstream/journal.py` | `state/traffic.sqlite3` | Журнал трафика устройств по опции «Запись»: обмены HTTP (ответы эмулятора и Яндекса) и WS (lifecycle, AAPI-кадры, неизвестные кадры) с телами (zstd); группы по устройству и ключу события, ≤ 10 записей на пару |
 | `server_emulator/tts_cache.py` | `state/tts_cache/` | Ogg-файлы фраз + index.json. Ключ: движок+URL+модель+голос+текст |
 

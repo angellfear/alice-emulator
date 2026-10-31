@@ -29,7 +29,7 @@ const levelValue=()=>settings&&typeof settings.intelligence==='string'?settings.
 const extMode=()=>levelValue().startsWith('ext:')?extModes.find(m=>'ext:'+m.id===levelValue()):null;
 const GROUPS=[
   {title:'Устройства',tabs:[['devices','Устройства'],['accounts','Пользователи'],['updates','Обновления']]},
-  {title:'Эмулятор',tabs:[['scenarios','Сценарии'],['endpoints','HTTP'],['ws','WS'],['quasar-http','Quasar'],['params','Параметры'],['app-catalog','Каталог приложений'],['misses','Без ответа'],['traffic','Журнал']]},
+  {title:'Эмулятор',tabs:[['scenarios','Сценарии'],['endpoints','HTTP'],['ws','WS'],['quasar-http','Quasar'],['params','Параметры'],['app-catalog','Каталог приложений'],['traffic','Журнал']]},
   {title:'Голос',tabs:[['voice-stack','Голосовой стек'],['replies','Звуковой кеш'],['animations','Анимации']]},
   {title:'Интеллект',tabs:[['intelligence','Режим',null,'hidden'],['llm','Модель','model'],['agent','Агент','agent'],['mcp','MCP','agent'],['memory','Память','agent'],['routines','Задания','agent']]},
   {title:'Дополнительно',tabs:[['extensions','Расширения'],['server','Сервер'],['setup','Настройка'],['studio','Проверка']]}];
@@ -40,7 +40,7 @@ const listed=t=>allowed(t)&&t[3]!=='hidden';  // в подвкладках; ск
 const groupTabs=g=>g.title==='Интеллект'&&extMode()?g.tabs.concat(extMode().tabs.map(t=>['ext-mode',t.title])):g.tabs;
 window.goTab=id=>{if(location.hash==='#'+id)return showTab();history.pushState(null,'','#'+id);window.dispatchEvent(new HashChangeEvent('hashchange'))};
 const tabButton=(id,title,active)=>{const b=document.createElement('button');b.type='button';b.textContent=title;b.classList.toggle('active',active);b.onclick=()=>goTab(id);return b};
-function showTab(){let tab=location.hash.slice(1)||'devices';if(tab==='users')tab='devices';
+function showTab(){let tab=location.hash.slice(1)||'devices';if(tab==='users')tab='devices';if(tab==='misses')tab='endpoints';  // старый хеш «Без ответа» — в HTTP (TASK-061)
   let group=GROUPS.find(g=>groupTabs(g).some(t=>t[0]===tab));
   if(group&&!allowed(groupTabs(group).find(t=>t[0]===tab)))tab=(groupTabs(group).find(allowed)||['devices'])[0],group=GROUPS.find(g=>groupTabs(g).some(t=>t[0]===tab));
   if(group&&!listed(groupTabs(group).find(t=>t[0]===tab))&&groupTabs(group).some(listed))tab=groupTabs(group).find(listed)[0];
@@ -259,7 +259,8 @@ async function focusPhrase({id,text}){
 	const lh=parseFloat(getComputedStyle(ta).lineHeight)||18;
 	ta.focus({preventScroll:true});ta.setSelectionRange(at,at+len);
 	ta.scrollTop=Math.max(0,(v.slice(0,at).split('\n').length-4)*lh)}
-async function loadScenarios(){const result=await api('scenarios');scenarioItems=result.scenarios||[];scenarioBuiltins=result.builtin||[];scenarioExtensions=(result.extensions||[]).filter(e=>!scenarioItems.some(s=>s.id===e.id));scenarioBuiltinEnabled=!!result.builtin_enabled;scenarioCategories=Object.fromEntries((Array.isArray(result.categories)?result.categories:[]).map(c=>[c.id,c]));if((result.library_errors||[]).length)message('Библиотека сценариев: '+result.library_errors.join('; '));if(!scenarioItems.some(s=>s.id===scenarioSelected))scenarioSelected=null;renderScenarios();if(scenarioFocus){const f=scenarioFocus;scenarioFocus=null;await focusPhrase(f)}}
+async function loadScenarios(){const result=await api('scenarios');scenarioItems=result.scenarios||[];scenarioBuiltins=result.builtin||[];scenarioExtensions=(result.extensions||[]).filter(e=>!scenarioItems.some(s=>s.id===e.id));scenarioBuiltinEnabled=!!result.builtin_enabled;scenarioCategories=Object.fromEntries((Array.isArray(result.categories)?result.categories:[]).map(c=>[c.id,c]));if((result.library_errors||[]).length)message('Библиотека сценариев: '+result.library_errors.join('; '));if(!scenarioItems.some(s=>s.id===scenarioSelected))scenarioSelected=null;renderScenarios();if(scenarioFocus){const f=scenarioFocus;scenarioFocus=null;await focusPhrase(f)}
+if($('scenario-misses'))window.renderMisses($('scenario-misses'),['phrase']).catch(()=>{})}
 $('scenario-expand').onclick=()=>{scenarioCollapsed.clear();saveCollapsed();renderScenarios()};
 $('scenario-collapse').onclick=()=>{for(const path of treePaths())scenarioCollapsed.add(path);saveCollapsed();renderScenarios()};
 $('new-scenario').onclick=()=>work(()=>openScenarioEditor({scenario:quickScenario('hello','фраза',''),quick:{trigger:'фраза',reply:'',id:'hello'},title:'Новый сценарий',hint:'Шаблон: title/description ru/en, executor — в JSON. Заполните поля — JSON обновится сам.'}));

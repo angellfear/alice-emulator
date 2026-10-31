@@ -75,6 +75,9 @@ async def test_unanswered_aapi_message_queued_and_api(tmp_path):
                 data = await response.json()
             assert [m['key'] for m in data['aapi']] == ['Ping']
             assert [m['key'] for m in data['callbacks']] == ['@@mm_typed_callback']
+            # TASK-061: один маршрут на все виды — разделы берут своё (фразы в «Сценариях»,
+            # HTTP в «HTTP», AAPI и колбэки в «WS»); состав ответа фиксируется здесь
+            assert set(data) == {'http', 'phrases', 'callbacks', 'aapi'}
             async with client.delete(url + '/emulator/api/misses?kind=aapi&key=*', headers=headers) as response:
                 assert response.status == 200
             assert runtime.aapi_misses.public() == []

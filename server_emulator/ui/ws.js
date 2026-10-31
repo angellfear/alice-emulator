@@ -31,28 +31,6 @@
     return bar;
   }
 
-  // Свёрнутый блок «AAPI без ответа»: те же записи, что были во вкладке «Без ответа»
-  // (обработчика из UI не создать — нужен код; образец запроса — в подсказке строки)
-  function aapiMisses(data) {
-    const box = make('details');
-    const summary = make('summary');
-    const count = (data.aapi || []).length;
-    summary.append(make('b', 'AAPI без ответа'), make('span', count ? ' · ' + count : '', 'count'));
-    if (count) summary.lastChild.className = 'chip warn';
-    box.append(summary);
-    const body = make('div', null, 'sc-list');
-    if (!count) body.append(make('p', 'Все сообщения колонок обработаны.', 'hint'));
-    for (const m of data.aapi || []) {
-      const row = make('div', null, 'misses-row');
-      const name = make('span', m.key, 'ep-url');
-      name.title = m.examples[0] || '';
-      row.append(name, make('span', '×' + m.count, 'count'));
-      body.append(row);
-    }
-    box.append(body);
-    return box;
-  }
-
   const counters = c => `пришло ${c.seen} · обработано ${c.handled} · последний ${when(c.last)}`;
 
   function handlers(list) {
@@ -137,13 +115,16 @@
   }
 
   async function load() {
-    const [ws, misses] = await Promise.all([api('ws_handlers'), api('misses')]);
+    const ws = await api('ws_handlers');
     const root = $('ws');
     if (!root || location.hash !== '#ws') return;
     root.replaceChildren(head('WS'),
-      make('p', 'Всё, что приходит и уходит по протоколу колонки: обработчики входящих сообщений, служебные колбэки (ответ собирает сценарий-поставщик, его можно переопределить своим) и ручная отправка директив. Колбэки без обработчика видны в свёрнутом блоке сверху.', 'hint'),
-      aapiMisses(misses),
-      make('h3', 'Входящие'), handlers(ws.handlers),
+      make('p', 'Всё, что приходит и уходит по протоколу колонки: обработчики входящих сообщений, служебные колбэки (ответ собирает сценарий-поставщик, его можно переопределить своим) и ручная отправка директив.', 'hint'),
+      make('h3', 'Промахи'));
+    const missesMount = make('div');
+    root.append(missesMount);
+    await window.renderMisses(missesMount, ['aapi', 'callback']);
+    root.append(make('h3', 'Входящие'), handlers(ws.handlers),
       make('h3', 'Колбэки'), callbacks(ws.callbacks),
       make('h3', 'Отправка'));
     const target = make('div');

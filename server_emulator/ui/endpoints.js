@@ -25,6 +25,8 @@
 
   async function load() {
     catalog = await api('endpoints');
+    if (document.getElementById('http-misses'))
+      window.renderMisses(document.getElementById('http-misses'), ['http']).catch(() => {});
     render();
   }
 

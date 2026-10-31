@@ -649,6 +649,12 @@ label.ui-switch{position:relative;display:inline-flex;flex-direction:row;margin:
 .setup-state .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .setup-state .row span{flex:1 1 200px}
 @media (max-width:600px){.setup-dialog{width:100vw;max-width:100vw;margin:0;border-radius:0;border-width:0}}
+/* Свёрнутые блоки промахов в разделах (TASK-061, misses.js): заголовок-счётчик, список внутри */
+.misses-block{border:1px solid var(--border);border-radius:var(--radius-s);padding:8px 12px;margin:0 0 14px}
+.misses-block>summary{cursor:pointer;list-style:none;align-items:center}
+.misses-block>summary::-webkit-details-marker{display:none}
+.misses-block[open]>summary{margin-bottom:8px}
+
 /* Окно «Замены» (TASK-063): строка правила — вкл, pattern, replace, удалить; на узкой ширине pattern и replace друг под другом */
 .replace-dialog{width:min(900px,calc(100vw - 40px))}
 .replace-dialog h3{margin:0;overflow-wrap:anywhere}
