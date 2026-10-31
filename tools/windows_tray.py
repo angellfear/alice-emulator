@@ -25,6 +25,7 @@ if str(ROOT) not in sys.path:
 from server_emulator import control, server_config  # noqa: E402  (лёгкие модули, без aiohttp-приложения)
 
 STATE = ROOT / "server_emulator" / "state"
+ICON = ROOT / "tools" / "assets" / "alica.ico"  # логотип трея и ярлыков
 LOG_LIMIT = 5 * 1024 ** 2
 LOG_KEEP = 3
 STOP_TIMEOUT = 45
@@ -274,16 +275,11 @@ def single_instance(root=ROOT):
 
 
 def picture(color):
-    """Иконка: круг цвета состояния с буквой «A» (своя, рисуется Pillow)."""
-    from PIL import Image, ImageDraw, ImageFont
-    image = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+    """Иконка трея: логотип (tools/assets/alica.ico) с точкой цвета состояния в правом нижнем углу."""
+    from PIL import Image, ImageDraw
+    image = Image.open(ICON).convert("RGBA").resize((64, 64), Image.LANCZOS)
     draw = ImageDraw.Draw(image)
-    draw.ellipse((2, 2, 62, 62), fill=color)
-    try:
-        font = ImageFont.truetype("segoeuib.ttf", 38)
-    except OSError:
-        font = ImageFont.load_default()
-    draw.text((32, 33), "A", fill="white", font=font, anchor="mm")
+    draw.ellipse((40, 40, 63, 63), fill=color, outline="#0b0f14", width=3)
     return image
 
 
@@ -291,7 +287,9 @@ COLORS = {"Сервер работает": "#2f9e44"}
 
 
 def write_icon(path):
-    picture("#7048e8").save(path, sizes=[(16, 16), (32, 32), (48, 48), (64, 64)])
+    """Иконка ярлыков (автозапуск, рабочий стол) — логотип без точки состояния."""
+    import shutil
+    shutil.copyfile(ICON, path)
     return path
 
 
