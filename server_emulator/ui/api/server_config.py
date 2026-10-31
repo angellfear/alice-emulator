@@ -7,6 +7,8 @@ launcher}. PUT api/server — проверка и сохранение в state/
 from aiohttp import web
 
 from ... import control, server_config
+from ...version import current
+
 from . import route
 
 
@@ -25,7 +27,7 @@ async def server(request, runtime, app):
     if request.method == "GET":
         return web.json_response({"config": server_config.load(state), "effective": info.get("config"),
                                   "overridden": info.get("overridden", []), "listeners": info.get("listeners", []),
-                                  "errors": info.get("errors", []), "launcher": info.get("launcher", False)})
+                                  "errors": info.get("errors", []), "launcher": info.get("launcher", False), "version": current()})
     body = await request.json()
     if request.method == "PUT":
         config = server_config.validate(state, body)
