@@ -14,6 +14,12 @@
     if (!r.ok) throw Error(v.error || r.statusText);
     return v;
   };
+  const apiSettings = async (method, body) => {
+    const r = await fetch('api/settings', { method: method || 'GET', headers: { 'X-Emulator': '1', 'Content-Type': 'application/json' }, body: body && JSON.stringify(body) });
+    const v = await r.json().catch(() => ({}));
+    if (!r.ok) throw Error(v.error || r.statusText);
+    return v;
+  };
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
   function field(label, input, chooser) {
@@ -47,6 +53,7 @@
     const error = make('p', { className: 'sc-err', hidden: true, role: 'alert' });
     const save = make('button', { type: 'submit' }, 'Сохранить и перезапустить');
     const listeners = (state.listeners || []).map(l => (l.ok ? '' : '✕ ') + l.scheme + '://' + l.host + ':' + l.port + (l.ok ? '' : ' — ' + l.error)).join(' · ');
+    const version = state.version ? 'Версия: ' + state.version.version + (state.version.commit ? ' · ' + state.version.commit : '') + (state.version.dirty ? ' (есть правки)' : '') : '';
     const form = make('form', { className: 'panel srv-form' },
       field('Адрес', inputs.host), field('Порт', inputs.port), sslRow, certBox, field('HTTP-порт (0 — выключен)', inputs.http_port),
       error, make('div', { className: 'actions' }, save));
@@ -72,8 +79,42 @@
     if ((state.errors || []).length) notes.push('Ошибки запуска: ' + state.errors.join('; ') + '.');
     section.replaceChildren(make('h2', {}, 'Сервер'),
       make('p', { className: 'hint' }, 'Колонки подключаются к основному порту 443 по TLS и к HTTP-порту 80 (quasar.local); сертификат должен быть тем, которому доверяют колонки. Изменения применяются перезапуском сервера; если с новыми настройками он не поднимется, вернутся прежние.'),
-      make('p', { className: 'hint' }, 'Сейчас: ' + (listeners || '—') + (notes.length ? ' ' + notes.join(' ') : '')),
-      form);
+      make('p', { className: 'hint' }, [version, 'Сейчас: ' + (listeners || '—') + (notes.length ? ' ' + notes.join(' ') : '')].filter(Boolean).join(' · ')),
+      form, selfUpdatePanel());
+  }
+
+  // Обновление (TASK-040): настройки проверки релизов — настройки эмулятора, а не server.json,
+  // поэтому сохранение отдельно: GET api/settings, правка блока, PUT. В форме — только галочка
+  // автообновления и канал, остальные поля остаются как сохранены (в дефолтах); кнопка-индикатор
+  // обновления от галочки не зависит — она всегда ручная.
+  function selfUpdatePanel() {
+    const su = state.self_update || {};
+    const inputs = {
+      enabled: make('input', { type: 'checkbox', checked: su.enabled !== false }),
+      channel: make('select', {}, make('option', { value: 'stable' }, 'стабильные'), make('option', { value: 'beta' }, 'бета (пререлизы)')),
+    };
+    inputs.channel.value = su.channel || 'stable';
+    const error = make('p', { className: 'sc-err', hidden: true, role: 'alert' });
+    const save = make('button', { type: 'submit' }, 'Сохранить');
+    const form = make('form', { className: 'panel' },
+      make('h3', {}, 'Обновление'),
+      make('label', { className: 'srv-check' }, inputs.enabled, make('span', {}, 'Включить автообновление')),
+      make('label', {}, 'Канал', inputs.channel),
+      error, make('div', { className: 'actions' }, save));
+    form.onsubmit = async event => {
+      event.preventDefault();
+      if (busy) return;
+      error.hidden = true;
+      busy = true; save.disabled = true;
+      try {
+        const settings = await apiSettings();
+        settings.self_update = { ...settings.self_update, enabled: inputs.enabled.checked, channel: inputs.channel.value };
+        await apiSettings('PUT', settings);
+        notify('Настройки обновления сохранены');
+      } catch (e) { error.textContent = e.message; error.hidden = false; }
+      finally { busy = false; save.disabled = false; }
+    };
+    return form;
   }
 
   // ждём сервер на новом адресе: тот же адрес — опрос и перезагрузка, другой — переход (CORS не даёт опросить)
@@ -90,7 +131,11 @@
   }
 
   async function load() {
-    try { state = await call('GET'); render(); } catch (e) { section.replaceChildren(make('h2', {}, 'Сервер'), make('p', { className: 'sc-err' }, e.message)); }
+    try {
+      state = await call('GET');
+      try { state.self_update = (await apiSettings()).self_update; } catch (e) { /* блок просто не покажется */ }
+      render();
+    } catch (e) { section.replaceChildren(make('h2', {}, 'Сервер'), make('p', { className: 'sc-err' }, e.message)); }
   }
   load();
 })();

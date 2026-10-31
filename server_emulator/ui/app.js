@@ -72,7 +72,7 @@ async function chat(){const result=await api('chat','POST',{text:$('chat-input')
 async function transcribe(){const file=$('audio-file').files[0];if(!file)throw Error('Выберите аудиофайл');const r=await fetch('api/stt',{method:'POST',headers:{'X-Emulator':'1','X-Filename':encodeURIComponent(file.name)},body:file});const result=await r.json();if(!r.ok)throw Error(result.error);$('chat-input').value=result.text||'';message('Распознавание завершено');return result}
 async function speak(){const r=await fetch('api/tts',{method:'POST',headers:{'X-Emulator':'1','Content-Type':'application/json'},body:JSON.stringify({text:$('answer').value||$('chat-input').value})});if(!r.ok){const e=await r.json();throw Error(e.error)}if(objectUrl)URL.revokeObjectURL(objectUrl);objectUrl=URL.createObjectURL(await r.blob());$('audio-output').src=objectUrl;$('audio-output').hidden=false;message('Аудио готово к прослушиванию')}
 $('chat').onclick=()=>work(chat);$('transcribe').onclick=()=>work(transcribe);$('speak').onclick=()=>work(speak);$('pipeline').onclick=()=>work(async()=>{await transcribe();await chat();await speak()});
-work(async()=>{settings=await api('settings');renderSettings();try{extModes=(await api('intelligence')).modes||[]}catch(e){extModes=[]}renderExtSegments();showTab();const status=await api('status');standalone=status.standalone;for(const src of status.ui_extensions||[]){const s=document.createElement('script');s.src=src;document.body.append(s)}});
+work(async()=>{settings=await api('settings');renderSettings();try{extModes=(await api('intelligence')).modes||[]}catch(e){extModes=[]}renderExtSegments();showTab();const status=await api('status');standalone=status.standalone;for(const src of status.ui_extensions||[]){const s=document.createElement('script');s.src=src;document.body.append(s)}refreshUpdate()});
 
 $('device-status').onclick=()=>work(async()=>{const status=await api('status');$('pipeline-errors').textContent=JSON.stringify(status.errors,null,2);const root=$('device-calls');root.replaceChildren();for(const call of status.pending_calls||[]){const card=document.createElement('div');card.className='tool-call';const pre=document.createElement('pre');pre.textContent=call.function.name+'\n'+call.function.arguments;const button=document.createElement('button');button.textContent=(call.thread_id?'Подтвердить ':'Выполнить ')+call.function.name;button.onclick=()=>work(async()=>{const result=await api('tool-call','POST',{name:call.function.name,arguments:JSON.parse(call.function.arguments),call_id:call.id});$('studio-result').textContent=JSON.stringify(result,null,2);card.remove()});card.append(pre,button);if(call.thread_id){const reject=document.createElement('button');reject.className='secondary';reject.textContent='Отклонить';reject.onclick=()=>work(async()=>{const result=await api('tool-call','POST',{name:call.function.name,arguments:{},call_id:call.id,reject:true});$('studio-result').textContent=JSON.stringify(result,null,2);card.remove()});card.append(reject)}root.append(card)}});
 
@@ -282,3 +282,45 @@ $('scenario-test').onclick=()=>work(async()=>{const report=await api('scenarios'
 $('scenarios-install').onclick=()=>goTab('extensions');
 const syncScenarios=()=>{if(location.hash==='#scenarios')work(loadScenarios)};
 window.addEventListener('hashchange',syncScenarios);syncScenarios();
+
+// Самообновление (TASK-040): кнопка в навигации видна при новой версии, клик — окно с заметками
+// релиза. Обновление перезапускает сервер (updater) — окно опрашивает статус, пока тот не вернётся.
+const updateState={shown:false,status:null};
+async function refreshUpdate(){try{const s=await api('self_update');updateState.status=s;const btn=$('update-btn');
+  btn.hidden=!s.available;if(!s.available)return;
+  btn.textContent='Обновление '+s.latest.version;btn.title='Доступна версия '+s.latest.version+' (сейчас '+s.current.version+')';
+  if(!updateState.shown){btn.classList.add('pulse');updateState.shown=true;setTimeout(()=>btn.classList.remove('pulse'),1600)}}catch(e){}}
+window.refreshUpdate=refreshUpdate;
+const ubtn=(label,cls,onclick)=>{const b=document.createElement('button');b.type='button';b.textContent=label;if(cls)b.className=cls;b.onclick=()=>work(onclick);return b};
+function renderUpdateDialog(){const s=updateState.status||{},d=$('update-dialog');
+  $('update-title').textContent=s.available?'Обновление '+s.latest.version:'Обновление';
+  const parts=['Сейчас: '+s.current.version+(s.current.commit?' · '+s.current.commit:'')+(s.current.dirty?' (есть правки)':'')];
+  if(s.latest)parts.push('Релиз: '+s.latest.version+(s.latest.published_at?' · '+s.latest.published_at.slice(0,10):''));
+  $('update-versions').textContent=parts.join(' · ');
+  const notes=$('update-notes');notes.textContent=s.latest&&s.latest.notes?s.latest.notes:'';notes.hidden=!notes.textContent;
+  const reasons=$('update-reasons');reasons.replaceChildren();
+  if(s.available&&!s.can_update){for(const text of s.reasons){const p=document.createElement('p');p.className='hint';p.textContent=text;reasons.append(p)}
+    for(const file of s.blocked_files){const p=document.createElement('p');p.className='hint';p.textContent='· '+file;reasons.append(p)}}
+  const last=s.last_update;
+  const result=$('update-result');result.hidden=!(last&&last.status);result.className=last&&last.status==='ok'?'hint':'sc-err';
+  result.textContent=last&&last.status?('Последнее обновление: '+(last.status==='ok'?'успешно':'не удалось')+' ('+last.from+' → '+last.to+').'+(last.log?' Лог: '+last.log:'')):'';
+  const actions=$('update-actions');actions.replaceChildren();
+  if(s.available&&s.can_update)actions.append(ubtn('Обновить и перезапустить','',()=>runUpdate('update')));
+  if(s.available&&!s.can_update&&s.blocked_files.length)actions.append(ubtn('Отложить правки и обновить','secondary',()=>runUpdate('stash_update')));
+  if(s.last_update&&s.last_update.status==='failed'&&s.previous)actions.append(ubtn('Откатить на '+s.previous,'secondary',()=>runUpdate('rollback')));
+  actions.append(ubtn('Проверить сейчас','secondary',async()=>{updateState.status=await api('self_update','POST',{action:'check'});renderUpdateDialog();refreshUpdate()}));
+  actions.append(ubtn('Позже','secondary',async()=>{await api('self_update','POST',{action:'snooze'});d.close();refreshUpdate()}));
+  actions.append(ubtn('Пропустить версию','secondary',async()=>{await api('self_update','POST',{action:'skip'});d.close();refreshUpdate()}));
+  if(!d.open)d.showModal()}
+async function runUpdate(action){const result=$('update-result');
+  const started=await api('self_update','POST',{action});
+  result.className='hint';result.hidden=false;result.textContent='Обновление до '+started.target+'… сервер перезапустится сам.';
+  $('update-actions').replaceChildren();
+  const deadline=Date.now()+300000;let final=null;
+  while(Date.now()<deadline){await new Promise(r=>setTimeout(r,2000));
+    try{const s=await api('self_update');if(s.last_update&&['ok','failed'].includes(s.last_update.status)){final=s;break}}catch(e){}}
+  if(!final){result.className='sc-err';result.textContent='Сервер не вернулся за 5 минут — смотрите state/update/update.log';return}
+  updateState.status=final;
+  if(final.last_update.status==='ok'){result.className='hint';result.textContent='Обновлено до '+final.current.version+'. Перезагрузка страницы…';setTimeout(()=>location.reload(),2000)}
+  else{result.className='sc-err';result.textContent='Обновление не удалось, возвращена версия '+final.current.version+'. Лог: '+final.last_update.log;renderUpdateDialog()}}
+$('update-btn').onclick=()=>renderUpdateDialog();
