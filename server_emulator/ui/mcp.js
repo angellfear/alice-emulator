@@ -7,7 +7,7 @@
   const root = document.getElementById('mcp');
   let data = null, filter = '';
   const el = (tag, text, cls) => { const n = document.createElement(tag); if (text !== undefined && text !== null) n.textContent = text; if (cls) n.className = cls; return n; };
-  const notice = text => { document.getElementById('notice').textContent = text; };
+  const notice = (text, error = false) => { notify(text, { error }); };
   // Класс риска (agent/policy.py): внешнее, настройки и удаление агент выполняет после подтверждения
   const RISKS = [['read', 'Чтение'], ['device', 'Устройство'], ['external', 'Внешнее · подтверждение'],
     ['config', 'Настройки · подтверждение'], ['destructive', 'Удаление · подтверждение']];
@@ -15,7 +15,7 @@
     const r = await fetch('api/mcp', { method: value ? 'POST' : 'GET', headers: { 'X-Emulator': '1', 'Content-Type': 'application/json' }, body: value ? JSON.stringify(value) : undefined });
     const v = await r.json(); if (!r.ok) throw Error(v.error || r.statusText); return v;
   }
-  async function work(fn) { try { await fn(); } catch (e) { notice(e.message); } }
+  async function work(fn) { try { await fn(); } catch (e) { notice(e.message, true); } }
   async function load() {
     data = await api(); render();
     // app.js держит копию настроек и сохраняет её целиком — обновляем, чтобы она не вернула старые tools

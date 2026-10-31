@@ -18,7 +18,7 @@
   const CHECK_DOT = { ok: 'running', warning: 'stopped', skipped: '' };
 
   const make = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
-  const say = (text, error = false) => { const n = document.getElementById('notice'); if (n) { n.textContent = text; n.className = error ? 'error' : ''; } };
+  const say = (text, error = false) => { notify(text, { error }); };
   const call = async (op, value = {}) => {
     const r = await fetch('api/extensions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Emulator': '1' }, body: JSON.stringify({ op, ...value }) });
     const v = await r.json().catch(() => ({}));

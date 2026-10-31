@@ -6,12 +6,12 @@
   const root = document.getElementById('memory');
   let data = null, user = null;
   const el = (tag, text, cls) => { const n = document.createElement(tag); if (text !== undefined && text !== null) n.textContent = text; if (cls) n.className = cls; return n; };
-  const notice = text => { document.getElementById('notice').textContent = text; };
+  const notice = (text, error = false) => { notify(text, { error }); };
   async function api(value, query = '') {
     const r = await fetch('api/memory' + query, { method: value ? 'POST' : 'GET', headers: { 'X-Emulator': '1', 'Content-Type': 'application/json' }, body: value ? JSON.stringify(value) : undefined });
     const v = await r.json(); if (!r.ok) throw Error(v.error || r.statusText); return v;
   }
-  async function work(fn) { try { await fn(); } catch (e) { notice(e.message); } }
+  async function work(fn) { try { await fn(); } catch (e) { notice(e.message, true); } }
   async function load() {
     data = await api(null, user ? '?user=' + encodeURIComponent(user) : '');
     user = data.user; render();

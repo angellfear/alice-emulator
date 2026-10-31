@@ -9,8 +9,8 @@
   const POLICY_BADGES={allow:{text:'Разрешено',tone:'ok'},deny:{text:'Запрет',tone:'danger'},custom:{text:'Свой',tone:'accent'}};
   const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined&&text!==null)n.textContent=text;if(cls)n.className=cls;return n};
   async function api(action,value){const r=await fetch('api/'+action,{method:value?'POST':'GET',headers:{'X-Emulator':'1','Content-Type':'application/json'},body:value?JSON.stringify(value):undefined});const v=await r.json();if(!r.ok)throw Error(v.error||r.statusText);return v}
-  const notice=text=>{document.getElementById('notice').textContent=text};
-  async function work(fn){try{await fn()}catch(e){notice(e.message)}}
+  const notice=(text,error)=>{notify(text,{error})};
+  async function work(fn){try{await fn()}catch(e){notice(e.message,true)}}
   function field(parent,title,value){const label=el('label',title),input=el('input');input.value=value||'';label.append(input);parent.append(label);return input}
   function choice(parent,title,options,value){const label=el('label',title),s=el('select');s.setAttribute('aria-label',title);for(const [v,t] of options){const o=el('option',t);o.value=v;s.append(o)}s.value=value;label.append(s);parent.append(label);return s}
 

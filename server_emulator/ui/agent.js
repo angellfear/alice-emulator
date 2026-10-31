@@ -5,12 +5,12 @@
   const root = document.getElementById('agent');
   let data = null;
   const el = (tag, text, cls) => { const n = document.createElement(tag); if (text !== undefined && text !== null) n.textContent = text; if (cls) n.className = cls; return n; };
-  const notice = text => { document.getElementById('notice').textContent = text; };
+  const notice = (text, error = false) => { notify(text, { error }); };
   async function api(value) {
     const r = await fetch('api/agent-ops', { method: value ? 'POST' : 'GET', headers: { 'X-Emulator': '1', 'Content-Type': 'application/json' }, body: value ? JSON.stringify(value) : undefined });
     const v = await r.json(); if (!r.ok) throw Error(v.error || r.statusText); return v;
   }
-  async function work(fn) { try { await fn(); } catch (e) { notice(e.message); } }
+  async function work(fn) { try { await fn(); } catch (e) { notice(e.message, true); } }
   async function load() { data = await api(); render(); }
   const when = ts => new Date(ts * 1000).toLocaleString('ru-RU');
   const field = (label, input) => { const box = el('label', null, 'mem-field'); box.append(el('span', label), input); return box; };

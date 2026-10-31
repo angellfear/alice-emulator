@@ -13,7 +13,7 @@
   const STATE = { absent: 'Не установлен', installing: 'Установка', running: 'Работает', starting: 'Запускается…', stopped: 'Остановлен', error: 'Ошибка установки', unsupported: 'Не поддерживается на этой ОС' };
   const KEEP = '__KEEP__';
   const make = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n };
-  const say = (text, error = false) => { const n = document.getElementById('notice'); if (n) { n.textContent = text; n.className = error ? 'error' : '' } };
+  const say = (text, error = false) => { notify(text, { error }); };
   const api = async (action, method = 'GET', value) => {
     const r = await fetch('api/' + action, { method, headers: { 'Content-Type': 'application/json', 'X-Emulator': '1' }, body: value === undefined ? undefined : JSON.stringify(value) });
     const v = await r.json().catch(() => ({}));

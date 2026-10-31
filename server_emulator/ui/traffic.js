@@ -10,13 +10,13 @@
   const node = (tag, text, cls) => { const n = document.createElement(tag); if (text != null) n.textContent = text; if (cls) n.className = cls; return n; };
   const button = (text, onclick, cls = 'secondary') => { const b = node('button', text, cls); b.type = 'button'; b.onclick = onclick; return b; };
   const when = ts => ts ? new Date(ts * 1000).toLocaleString('ru-RU') : '';
-  const notice = text => { document.getElementById('notice').textContent = text; };
+  const notice = (text, error = false) => { notify(text, { error }); };
   const pre = (text, cap) => { const p = node('pre', text, 'hint'); p.style.whiteSpace = 'pre-wrap'; p.style.overflowWrap = 'anywhere'; if (cap) { p.style.maxHeight = cap; p.style.overflow = 'auto'; } return p; };
   async function api(path, method = 'GET') {
     const r = await fetch('api/' + path, { method, headers: { 'X-Emulator': '1' } });
     const v = await r.json().catch(() => ({})); if (!r.ok) throw Error(v.error || `${r.status} ${r.statusText}`); return v;
   }
-  async function work(fn) { try { await fn(); } catch (e) { notice(e.message); } }
+  async function work(fn) { try { await fn(); } catch (e) { notice(e.message, true); } }
 
   const SOURCE_NAME = { emulator: 'эмулятор', upstream: 'Яндекс' };
   const RECORD_NAME = { off: 'выключена', on: 'включена', misses: 'нет обработчиков' };

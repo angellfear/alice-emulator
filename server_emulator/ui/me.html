@@ -119,10 +119,30 @@ const ICONS={
 };
 const kit=window.DeviceKit,cards=window.DeviceCards;
 const NO_ROOM='';
-let data=null,filter=null,houseUser=null;
+let data=null,filter=null,houseUser=new URLSearchParams(location.search).get('user'); // ?user=<id> — дом для админа и открытого режима
 const collapsed=new Set((()=>{try{return JSON.parse(localStorage.getItem('meCollapsed')||'[]')}catch(e){return[]}})());
 const saveCollapsed=()=>{try{localStorage.setItem('meCollapsed',JSON.stringify([...collapsed]))}catch(e){}};
 const query=()=>houseUser?'?user='+encodeURIComponent(houseUser):'';
+
+// Вход по ссылке от админа («Кабинет» в панели): токен во фрагменте #t=…, не уходит в логи сервера.
+// Кладётся в sessionStorage, из адреса убирается и шлётся заголовком X-Me-Token на /api/me/* и whoami.
+let linkToken='',viaLink=false;
+{
+  const m=/[#&]t=([^&]+)/.exec(location.hash);
+  if(m){
+    try{linkToken=decodeURIComponent(m[1])}catch(e){linkToken=m[1]}
+    try{sessionStorage.setItem('meToken',linkToken)}catch(e){}
+    try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}
+  }else if(!new URLSearchParams(location.search).has('user')){try{linkToken=sessionStorage.getItem('meToken')||''}catch(e){}} // явный ?user= — вход админа, старый токен не нужен
+}
+const forgetLink=()=>{linkToken='';viaLink=false;try{sessionStorage.removeItem('meToken')}catch(e){}};
+// Запросы кабинета: токен ссылки (если есть) и маркер записи X-Emulator
+const call=(url,opts={})=>{
+  const headers={...(opts.headers||{})};
+  if(linkToken)headers['X-Me-Token']=linkToken;
+  if(opts.method&&opts.method!=='GET')headers['X-Emulator']='1';
+  return fetch(url,{...opts,headers});
+};
 
 function toast(text,ok=true){const t=$('toast');t.textContent=text;t.className='toast show'+(ok?'':' err');clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.className='toast',2200)}
 function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
@@ -133,8 +153,10 @@ const units=n=>n+' устр';
 
 async function boot(){
   try{
-    const r=await fetch('/api/auth/whoami');
+    const r=await call('/api/auth/whoami');
     const me=await r.json();
+    viaLink=me.via==='link';
+    if(!viaLink&&linkToken)forgetLink(); // токен истёк или не нужен — работаем по входу
     if(!me.authenticated){showLogin();return}
     await load();
   }catch(e){$('state').textContent='Ошибка: '+e.message;$('state').className='state err'}
@@ -148,8 +170,8 @@ $('login').onsubmit=async e=>{
   $('login').hidden=true;await load();
 };
 async function load(){
-  const r=await fetch('/api/me/params'+query());
-  if(r.status===401){showLogin();return}
+  const r=await call('/api/me/params'+query());
+  if(r.status===401){forgetLink();showLogin();return}
   const body=await r.json();
   if(!r.ok){$('state').textContent=body.error==='principal_not_linked'
     ?'Ваш вход не привязан к пользователю — обратитесь к администратору.':(body.error||r.statusText);$('state').className='state err';return}
@@ -214,7 +236,7 @@ function paramInput(def,value,owner){
     else if(def.type==='number')v=input.value===''?null:Number(input.value);
     else if(def.type==='text-list')v=input.value.split(',').map(x=>x.trim()).filter(Boolean);
     else v=input.value;
-    const r=await fetch('/api/me/params'+query(),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:def.key,value:v,owner})});
+    const r=await call('/api/me/params'+query(),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:def.key,value:v,owner})});
     const res=await r.json().catch(()=>({}));
     toast(r.ok?def.title+': сохранено':def.title+': '+(res.error||'ошибка'),r.ok);
     if(r.ok)def.value=v;
@@ -260,7 +282,7 @@ function openDevice(d){
     const fRoom=el('label','field');fRoom.append(el('span',null,'Комната'),room,list);
     const save=el('button','btn','Сохранить');save.type='button';
     save.onclick=async()=>{
-      const r=await fetch('/api/me/devices'+query(),{method:'PUT',headers:{'Content-Type':'application/json'},
+      const r=await call('/api/me/devices'+query(),{method:'PUT',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({sn:d.sn,name:name.value,room:room.value})});
       const res=await r.json().catch(()=>({}));
       if(!r.ok){toast(res.error||'Не удалось сохранить',false);return}
@@ -298,14 +320,18 @@ $('home-btn').onclick=e=>{
     if(data.users)menu.append(el('hr'));
     const profile=el('button',null,'Мои параметры');profile.type='button';profile.onclick=()=>{closeMenu();openProfile()};
     const logout=el('button',null,'Выйти');logout.type='button';
-    logout.onclick=async()=>{await fetch('/api/auth/logout',{method:'POST'});location.reload()};
+    logout.onclick=async()=>{
+      // вход по ссылке: выхода на сервере нет — токен просто забывается, вход админа не затрагивается
+      if(viaLink)forgetLink();else await fetch('/api/auth/logout',{method:'POST'});
+      location.reload();
+    };
     menu.append(profile,logout);
   }
   menu.hidden=!open;$('home-btn').setAttribute('aria-expanded',String(open));
 };
 const closeMenu=()=>{$('menu').hidden=true;$('home-btn').setAttribute('aria-expanded','false')};
 document.addEventListener('click',e=>{if(!$('menu').contains(e.target))closeMenu()});
-setInterval(()=>{if(data&&!$('sheet').open&&!document.hidden)fetch('/api/me/params'+query()).then(r=>r.ok?r.json():null).then(b=>{if(b){data=b;render()}}).catch(()=>{})},15000);
+setInterval(()=>{if(data&&!$('sheet').open&&!document.hidden)call('/api/me/params'+query()).then(r=>r.ok?r.json():null).then(b=>{if(b){data=b;render()}}).catch(()=>{})},15000);
 boot();
 </script>
 </body>

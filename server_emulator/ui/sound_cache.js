@@ -11,7 +11,7 @@
   const GROUPS = [['reply', 'Стандартные ответы'], ['scenario', 'Сценарии'], ['agent', 'AI агент'], ['cache', 'Другие озвученные фразы']];
   const TITLE = { cached: 'В кеше текущей модели', missing: 'Нет в кеше', pending: 'В очереди', running: 'Синтез…', error: 'Ошибка синтеза' };
   const make = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n };
-  const say = (text, error = false) => { const n = document.getElementById('notice'); if (n) { n.textContent = text; n.className = error ? 'error' : '' } };
+  const say = (text, error = false) => { notify(text, { error }); };
   const call = async (action, method = 'GET', value) => {
     const r = await fetch('api/' + action, { method, headers: { 'X-Emulator': '1', 'Content-Type': 'application/json' }, body: value === undefined ? undefined : JSON.stringify(value) });
     const v = await r.json().catch(() => ({}));

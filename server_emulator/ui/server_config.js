@@ -79,8 +79,7 @@
   // ждём сервер на новом адресе: тот же адрес — опрос и перезагрузка, другой — переход (CORS не даёт опросить)
   async function waitFor(target, warnings) {
     const same = new URL(target).origin === location.origin;
-    const note = document.getElementById('notice');
-    if (note) note.textContent = 'Перезапуск сервера…' + (warnings.length ? ' ' + warnings.join('; ') : '');
+    notify('Перезапуск сервера…' + (warnings.length ? ' ' + warnings.join('; ') : ''), { timeout: 15000 });  // рестарт дольше обычного тоста
     await sleep(1500);
     if (!same) { location.href = target; return; }
     for (let i = 0; i < 40; i++) {

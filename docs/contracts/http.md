@@ -125,3 +125,19 @@ HTTP — `METHOD host path` без query; WS — `ws → Event.<имя>` (кол
 - **disabled** — локальный 404 `emulator_route_disabled`.
 
 Реестр действует только в режиме эмуляции; каталог приложений (`/gproxy/get_app_catalog` при включённом каталоге), OTA-эндпоинты и `/glagol/token` — известные маршруты, гейтом не перехватываются. API: GET/PUT/DELETE `/emulator/api/http_routes`; UI — вкладка «HTTP · Quasar». Тесты: tests/test_http_routes.py, tests/test_mode_enum.py.
+
+## Обновление 2026-11-01: кабинет пользователя `/me` (TASK-062)
+
+Реализация: `server_emulator/ui/api/me.py`, страница `server_emulator/ui/me.html`, вход — `server_emulator/auth.py`. Тесты: `tests/test_me_cabinet.py`.
+
+| Маршрут | Запрос | Ответ | Доступ |
+|---|---|---|---|
+| GET /me | — | страница кабинета (`me.html`; также `<prefix>/me`) | без входа |
+| GET /api/me/params[?user=<id>] | — | `{user, user_name, params, devices, users?}`: `params` — определения области `user` с `user_editable` и значением владельца; `devices` — устройства пользователя `{sn, name, room, model, platform, status (online/seen/offline), last_seen, params}` (определения области `device`); `users` — только админу | сессия; пользователь — свой дом (`identities_user`), `?user=` игнорируется; админ и открытый режим — дом из `?user=` (иначе свой/первый) |
+| PUT /api/me/params | `{key, value, owner?}` (`owner` — `user:<id>` или `device:<sn>`, по умолчанию свой) | `{owner, key, value}` | только `user_editable` своих владельцев; 403 `not_editable` / `bad_owner` / `not_your_device`, 400 — ошибка значения; нужен `X-Emulator: 1` |
+| PUT /api/me/devices | `{sn, name?, room?}` | `{sn, name, room}` | своё устройство (иначе 403 `not_your_device`): реестр и параметры `device.name` / `device.room` |
+| POST /emulator/api/me_link | `{user}` | `{url}` | только админ |
+
+Ошибки доступа: нет сессии при включённом входе — 401; вход не привязан к пользователю реестра (или в реестре нет пользователей) — 409 `{"error":"principal_not_linked"}`.
+
+Вход админа в кабинет без логина. Вход включён (`auth.json`) — `me_link` создаёт токен (в памяти, 12 ч, привязан к пользователю) и возвращает `{"url":"/me#t=<токен>"}`; открытый режим — `{"url":"/me?user=<id>"}`. Токен во фрагменте адреса, поэтому не попадает в логи сервера и прокси; страница кладёт его в `sessionStorage`, убирает из адреса и шлёт заголовком `X-Me-Token`. Заголовок действует только на `/api/me/*` и `/api/auth/whoami` (запрос идёт как сессия `role: user` этого пользователя); на остальных путях он игнорируется (401/403 как без сессии). `whoami` с токеном — `{authenticated, name, role: "user", via: "link"}`. Cookie админа не затрагивается. Выход админа (его токены) и `revoke_all` (смена пароля и т. п.) гасят токены кабинета.

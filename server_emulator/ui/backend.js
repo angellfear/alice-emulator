@@ -15,7 +15,7 @@
   async function api(action,value){const response=await fetch('api/'+action,{method:value?'POST':'GET',headers:{'X-Emulator':'1','Content-Type':'application/json'},body:value?JSON.stringify(value):undefined});const result=await response.json();if(!response.ok)throw Error(result.error||response.statusText);return result}
   async function put(action,value){const response=await fetch('api/'+action,{method:'PUT',headers:{'X-Emulator':'1','Content-Type':'application/json'},body:JSON.stringify(value)});const result=await response.json();if(!response.ok)throw Error(result.error||response.statusText);return result}
   async function del(action){const response=await fetch('api/'+action,{method:'DELETE',headers:{'X-Emulator':'1'}});const result=await response.json();if(!response.ok)throw Error(result.error||response.statusText);return result}
-  async function work(fn){try{await fn()}catch(e){$('notice').textContent=e.message}}
+  async function work(fn){try{await fn()}catch(e){notify(e.message,{error:true})}}
 
   // ── редактор кода: готовая библиотека CodeMirror (vendor/), запас — textarea
   function makeCM(container,{value='',readOnly=false,height='520px',onDirty=null}={}){
@@ -184,7 +184,7 @@
     for(const {node,kind,path} of found){
       const row=make('div');row.className='tree-leaf';row.style.flexWrap='wrap';
       row.append(make('span',node.$name||path));row.title=(node.$hint||'')+' · '+path;
-      const apply=async fn=>{fn();await save();$('notice').textContent='Применено: '+path;await render()};
+      const apply=async fn=>{fn();await save();notify('Применено: '+path);await render()};
       if(kind==='$select'){
         const select=make('select');
         for(const key of Object.keys(node)){
@@ -251,7 +251,7 @@
         const last=parts[parts.length-1];
         if(Array.isArray(node))node[Number(last)]=value;else node[last]=value;
       }
-      await save();$('notice').textContent='Ветвь сохранена: '+(selectedBranch||'файл')});
+      await save();notify('Ветвь сохранена: '+(selectedBranch||'файл'))});
     editor.append(branchLabel,edHolder,applyB,chips);
     const rows={};
     const select=(node,path)=>{
@@ -409,7 +409,7 @@
       if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw Error('Ответ: JSON-объект с объектом config');
       if(!parsed.config||typeof parsed.config!=='object')throw Error('Ответ: нужен объект config (пока его нет, колонка ответит 409 quasar_custom_not_set)');
       await put('quasar_source',{sn:device.sn,custom:parsed});
-      dirty=false;$('notice').textContent='Свой ответ сохранён — колонка получит его при следующем опросе.';
+      dirty=false;notify('Свой ответ сохранён — колонка получит его при следующем опросе.');
     };
     save.onclick=act(()=>saveJSON(ed.getValue()));
     gen.onclick=act(async()=>{const r=await api('quasar_source',{sn:device.sn,action:'generate'});
@@ -442,7 +442,7 @@
       delB.onclick=()=>work(async()=>{const state=JSON.parse(JSON.stringify(device.state));
         state.quasar_overrides=overrides.filter((_,j)=>j!==i);
         await api('identities',{operation:'state',sn:device.sn,state});
-        $('notice').textContent='Переопределение удалено';await render()});
+        notify('Переопределение удалено');await render()});
       row.append(edit,delB);box.append(row);
     }
     root.append(box);
@@ -579,7 +579,7 @@
       if(index!==null&&index!==undefined)state.quasar_overrides[index]=item;else state.quasar_overrides.push(item);
       await api('identities',{operation:'state',sn:device.sn,state});
       dlg.close();dlg.remove();
-      $('notice').textContent='Переопределение сохранено: '+path;await render()})};
+      notify('Переопределение сохранено: '+path);await render()})};
     const pathLabel=make('label','Путь (инлайн-узлы или вручную)');pathLabel.append(fromList,pathInput);
     const typeLabel=make('label','Источник');typeLabel.append(sourceType);
     const valueLabel=make('label','Значение');valueLabel.append(sourceValue,templatePick);
@@ -597,7 +597,7 @@
     for(const s of registry.sessions.filter(s=>s.device_sn&&s.user_id)){const o=make('option',`${s.device_sn} · ${s.connection_id.slice(0,8)}`);o.value=s.connection_id;o.dataset.sn=s.device_sn;sessions.append(o)}
     const al=make('label','Команда'),action=make('select');al.append(action);form.append(al);for(const a of inventory.catalog){const o=make('option',a.name+' · '+a.id);o.value=a.id;action.append(o)}
     const label=make('label','Громкость (0–10)'),level=make('input');level.type='number';level.min=0;level.max=10;level.step=0.1;level.value=5;label.append(level);form.append(label);action.onchange=()=>label.hidden=action.value!=='sound_set_level';action.onchange();
-    const send=make('button','Отправить на выбранное устройство');send.type='submit';send.disabled=!sessions.options.length;form.append(send);form.onsubmit=e=>{e.preventDefault();work(async()=>{send.disabled=true;try{await api('actions',{connection_id:sessions.value,device_sn:sessions.selectedOptions[0].dataset.sn,action:action.value,arguments:action.value==='sound_set_level'?{level:Number(level.value)}:{}});$('notice').textContent='Команда отправлена. Выполнение ещё не подтверждено.';await render()}finally{send.disabled=!sessions.options.length}})};
+    const send=make('button','Отправить на выбранное устройство');send.type='submit';send.disabled=!sessions.options.length;form.append(send);form.onsubmit=e=>{e.preventDefault();work(async()=>{send.disabled=true;try{await api('actions',{connection_id:sessions.value,device_sn:sessions.selectedOptions[0].dataset.sn,action:action.value,arguments:action.value==='sound_set_level'?{level:Number(level.value)}:{}});notify('Команда отправлена. Выполнение ещё не подтверждено.');await render()}finally{send.disabled=!sessions.options.length}})};
     if(!sessions.options.length)root.append(make('p','Нет активных привязанных WS-соединений эмулятора. В режиме проксирования команды через этот адаптер не отправляются.'));
     const refresh=make('button','Обновить сессии и доставку');refresh.onclick=()=>work(render);root.append(refresh);for(const h of inventory.history.slice(-15).reverse()){const line=make('p',`${h.device_sn} · ${h.action} · доставка: ${h.delivery} · выполнение: ${h.execution}`);root.append(line)}
   }

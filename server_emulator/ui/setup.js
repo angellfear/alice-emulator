@@ -13,7 +13,7 @@
   let state = null, busy = false;
 
   const make = (tag, text, cls) => { const n = document.createElement(tag); if (text != null) n.textContent = text; if (cls) n.className = cls; return n; };
-  const say = (text, error = false) => { const n = $('notice'); if (n) { n.textContent = text; n.className = error ? 'error' : ''; } };
+  const say = (text, error = false) => { notify(text, { error }); };
   const stored = key => { try { return localStorage.getItem(key); } catch (e) { return null; } };
   const store = (key, value) => { try { if (value == null) localStorage.removeItem(key); else localStorage.setItem(key, value); } catch (e) { /* нет хранилища */ } };
   const json = async r => {

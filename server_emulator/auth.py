@@ -7,8 +7,9 @@
 паролей нет; хэш PBKDF2-SHA256. Сессии — в памяти (рестарт → повторный вход),
 cookie HttpOnly + SameSite=Strict (CSRF), отзыв logout/ревоком всех.
 
-Роли: admin — всё; user — только auth-эндпоинты (пользовательский кабинет
-/F01 — будущая работа; старые admin-маршруты для user закрыты 403).
+Роли: admin — всё; user — auth-эндпоинты и кабинет /api/me/* (старые
+admin-маршруты для user закрыты 403). Админ открывает кабинет пользователя по
+ссылке-токену (X-Me-Token, TASK-062): токен действует только на /api/me/* и whoami.
 Трафик УСТРОЙСТВ (прокси-порты, standalone device-маршруты) входа не требует.
 """
 from __future__ import annotations
@@ -27,6 +28,8 @@ from aiohttp import web
 
 COOKIE = "alica_session"
 SESSION_TTL = 12 * 3600
+LINK_TTL = 12 * 3600  # токен кабинета для админа (TASK-062)
+LINK_HEADER = "X-Me-Token"
 PBKDF2_ITERATIONS = 120_000
 # Локальные управляющие вызовы трея/лаунчера: без сессии, но с маркером
 LOCAL_CONTROL_HEADER = "X-Local-Control"
@@ -59,6 +62,7 @@ class AuthStore:
         self.path = directory / "auth.json"
         self.data = None  # None — файла нет: открытый режим
         self.sessions = {}
+        self.links = {}  # токен кабинета → {user, name, by (токен сессии админа), expires}; только в памяти
         self._load()
 
     def _load(self):
@@ -152,10 +156,32 @@ class AuthStore:
         return None
 
     def logout(self, token):
-        self.sessions.pop(token, None)
+        session = self.sessions.pop(token, None)
+        if session is not None and session["role"] == "admin":
+            # выход админа гасит выданные им ссылки в кабинет
+            for link in [t for t, v in self.links.items() if v["by"] == token]:
+                self.links.pop(link)
 
     def revoke_all(self):
         self.sessions.clear()
+        self.links.clear()
+
+    def create_link(self, user_id, name, by=None):
+        """Токен входа в кабинет пользователя реестра для админа (без логина пользователя)."""
+        token = secrets.token_urlsafe(32)
+        self.links[token] = {"user": user_id, "name": name, "by": by, "expires": time.time() + LINK_TTL}
+        return token
+
+    def link_session(self, token):
+        """Сессия role=user по токену кабинета; None — токена нет или истёк."""
+        link = self.links.get(token)
+        if link is None:
+            return None
+        if link["expires"] < time.time():
+            self.links.pop(token, None)
+            return None
+        return {"id": "link:" + token[:8], "name": link["name"], "role": "user",
+                "identities_user": link["user"], "via": "link", "expires": link["expires"]}
 
     def session(self, token):
         session = self.sessions.get(token)
@@ -195,6 +221,13 @@ def auth_middleware(store):
             return await handler(request)
         if path.endswith("/api/agent-event") and request.headers.get("X-Agent-Token"):
             return await handler(request)  # вебхук: токен проверяет сам обработчик (ui/api/agent_ops.py)
+        if path.startswith("/api/me/") or path == "/api/auth/whoami":
+            # ссылка в кабинет от админа: только эти пути, cookie админа не затрагивается
+            link_token = request.headers.get(LINK_HEADER)
+            linked = store.link_session(link_token) if link_token else None
+            if linked is not None:
+                request["auth"] = linked
+                return await handler(request)
         token = request.cookies.get(COOKIE)
         session = store.session(token) if token else None
         if session is not None:
@@ -242,12 +275,16 @@ def mount_auth(app, store):
         if not store.enabled:
             # открытый режим локальной лаборатории: вход не требуется
             return web.json_response({"authenticated": True, "role": "admin", "open": True})
-        token = request.cookies.get(COOKIE)
-        session = store.session(token) if token else None
+        session = request.get("auth")  # ссылка в кабинет проставляется мидлварью
+        if session is None:
+            token = request.cookies.get(COOKIE)
+            session = store.session(token) if token else None
         if session is None:
             return web.json_response({"authenticated": False}, status=401)
-        return web.json_response({"authenticated": True, "name": session["name"],
-                                  "role": session["role"]})
+        result = {"authenticated": True, "name": session["name"], "role": session["role"]}
+        if session.get("via"):
+            result["via"] = session["via"]
+        return web.json_response(result)
 
     app.router.add_post("/api/auth/login", login)
     app.router.add_post("/api/auth/logout", logout)

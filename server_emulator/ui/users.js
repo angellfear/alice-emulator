@@ -59,7 +59,13 @@
       });
       const paramsBtn = node('button', 'Параметры'); paramsBtn.type = 'button'; paramsBtn.className = 'secondary';
       paramsBtn.onclick = () => work(() => paramsDialog(user));
-      actions.append(paramsBtn, remove); row.append(actions);
+      // Кабинет пользователя (/me) в новой вкладке; с включённым входом — по токену, без логина
+      const cabinet = node('button', 'Кабинет'); cabinet.type = 'button'; cabinet.className = 'secondary';
+      cabinet.onclick = () => work(async () => {
+        const link = await api('me_link', 'POST', { user: user.id });
+        window.open(link.url, '_blank', 'noopener');
+      });
+      actions.append(cabinet, paramsBtn, remove); row.append(actions);
       tbody.append(row);
     }
     if (!registry.users.length) {
@@ -397,6 +403,29 @@
     });
     dialog.showModal();
   }
+  // Маршрут по умолчанию — для устройств без своего; соединения закрываются только у них
+  function changeDefaultRoute(mode) {
+    if (mode === registry.default_route_mode) return;
+    const { dialog, form } = dialogFrame('Маршрут по умолчанию');
+    const text = node('p', 'Сменить «' + ROUTE_LABEL[registry.default_route_mode] + '» на «' + ROUTE_LABEL[mode] + '»? Открытые соединения устройств без своего маршрута можно закрыть — колонки переподключатся сами.');
+    text.className = 'hint';
+    let connections = 'disconnect';
+    const now = node('button', 'Сменить и закрыть соединения'); now.type = 'submit';
+    now.onclick = () => { connections = 'disconnect'; };
+    const wait = node('button', 'Сменить, ждать переподключения'); wait.type = 'submit'; wait.className = 'secondary';
+    wait.onclick = () => { connections = 'wait'; };
+    const cancel = node('button', 'Отмена'); cancel.type = 'button'; cancel.className = 'secondary';
+    cancel.onclick = () => { dialog.close(); dialog.remove(); };
+    const row = node('div'); row.className = 'row'; row.append(cancel, wait, now);
+    form.append(text, row);
+    const errLine = errorLine(form);
+    submitForm(form, errLine, async () => {
+      const result = await api('mode', 'PUT', { mode, connections });
+      dialog.close(); dialog.remove(); await afterChange();
+      message('Маршрут по умолчанию: ' + ROUTE_LABEL[result.mode] + (connections === 'disconnect' ? '; соединения закрыты.' : '; ждём переподключения.'));
+    });
+    dialog.showModal();
+  }
   function routeCell(device) {
     const cell = node('td'); cell.className = 'route-cell';
     const current = effectiveRoute(device);
@@ -449,7 +478,7 @@
     routeLine('Гибрид', 'эмулятор, где есть обработчик; остальное — в Яндекс.');
     routeNote.append(node('br'));
     routeLine('Прокси', 'всё в Яндекс.');
-    routeNote.append(node('br'), node('b', 'Без своего маршрута'), document.createTextNode(' устройство наследует режим по умолчанию из шапки.'));
+    routeNote.append(node('br'), node('b', 'Без своего маршрута'), document.createTextNode(' устройство наследует маршрут по умолчанию (над таблицей).'));
     routeNote.append(node('br'));
     routeLine('Запись', 'журнал трафика устройства, в любом маршруте: «Включено» — каждый обмен (ответ эмулятора или Яндекса) и AAPI-сообщения; «Нет обработчиков» — только то, чего эмулятор не умеет обработать. Звук не пишется. Смена действует сразу. Журнал — «Эмулятор → Журнал».');
     devicesRoot.append(routeNote);
@@ -461,7 +490,13 @@
     reload.onclick = refresh;
     const add = node('button', 'Добавить устройство'); add.type = 'button';
     add.onclick = () => deviceDialog(null);
-    toolbar.append(counts, reload, add); devicesRoot.append(toolbar);
+    const defaultLabel = node('label', 'Маршрут по умолчанию'); defaultLabel.className = 'default-route';
+    const defaultSelect = node('select');
+    for (const [value, label] of Object.entries(ROUTE_LABEL)) defaultSelect.append(new Option(label, value));
+    defaultSelect.value = registry.default_route_mode;
+    defaultSelect.onchange = () => { const target = defaultSelect.value; defaultSelect.value = registry.default_route_mode; changeDefaultRoute(target); };
+    defaultLabel.append(defaultSelect);
+    toolbar.append(counts, defaultLabel, reload, add); devicesRoot.append(toolbar);
 
     const table = node('table'); table.className = 'dev-table';
     const head = node('tr');

@@ -2,8 +2,7 @@
 (() => {
   const root = document.getElementById('app-catalog');
   if (!root) return;
-  const notice = document.getElementById('notice');
-  const say = (text, error) => { notice.textContent = text; notice.className = error ? 'error' : ''; };
+  const say = (text, error = false) => { notify(text, { error }); };
   const node = (tag, text) => { const n = document.createElement(tag); if (text != null) n.textContent = text; return n; };
   const sizeText = (v = 0) => v >= 1048576 ? (v / 1048576).toFixed(1) + ' MiB' : v >= 1024 ? (v / 1024).toFixed(1) + ' KiB' : v + ' B';
   let data = null, busy = false, pending = false, drag = false, fileInput = null;
@@ -152,7 +151,7 @@
   function sync() {
     if (location.hash !== '#app-catalog') return;
     if (!data && !busy) shell(node('p', 'Загрузка…'));
-    run(async () => { await load(); say('Готово'); });
+    run(async () => { await load(); });
   }
   window.addEventListener('hashchange', sync);
   sync();

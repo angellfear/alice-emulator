@@ -19,12 +19,8 @@ body{margin:0;padding:0 28px 60px;max-width:1480px;margin-inline:auto}
 /* ── Шапка и навигация ─────────────────────────────────────────── */
 header{display:flex;justify-content:space-between;gap:24px;align-items:flex-end;
   padding:20px 0 16px;border-bottom:1px solid var(--border)}
-.eyebrow{font-size:10.5px;letter-spacing:.22em;color:var(--faint);font-weight:600}
 h1{font-size:24px;margin:3px 0 2px;letter-spacing:-.01em}
 header p{margin:0;color:var(--muted);font-size:13.5px}
-.header-side{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
-.header-side label{margin:0;display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
-.header-side select{min-height:34px;padding:6px 10px;width:auto}
 .badge{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);
   background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:3px 10px}
 .badge::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px rgba(143,224,168,.7)}
@@ -51,6 +47,8 @@ nav .active{background:rgba(109,176,255,.22);color:#eaf4ff;border-color:#6db0ff;
 @media (max-width:600px){.src-head .segmented{margin-left:0}}
 /* Маршрут и запись устройства (TASK-044/054): сегменты на широкой ширине, select на узкой —
    два переключателя в строке таблицы помещаются в страницу только от ~1240px */
+.default-route{display:flex;flex-direction:row;align-items:center;gap:8px;margin:0;font-size:12.5px;color:var(--muted)}
+.default-route select{width:auto;min-height:34px;padding:6px 10px}
 .route-cell .route-switch{display:flex;align-items:center}
 .route-cell .route-switch .segmented{display:inline-flex;margin-left:0}
 .route-cell .route-switch select{display:none;max-width:160px}
@@ -75,8 +73,21 @@ nav .active{background:rgba(109,176,255,.22);color:#eaf4ff;border-color:#6db0ff;
 .segmented [aria-checked=true]{background:var(--accent-bg);color:var(--text);font-weight:600}
 @media (max-width:760px){nav{flex-wrap:wrap}.groups{min-width:0;max-width:100%;overflow-x:auto;scrollbar-width:none}.segmented{margin-left:0}}
 
-#notice{min-height:22px;margin:14px 2px 4px;color:var(--muted);font-size:13px}
-#notice.error{color:var(--danger)}
+/* Тосты (toast.js): фиксированный стек справа сверху поверх содержимого, страницу не сдвигает;
+   сообщения — результат действия пользователя или ошибка, автоскрытие в toast.js */
+.toasts{position:fixed;top:14px;right:14px;z-index:50;display:flex;flex-direction:column;gap:8px;
+  width:min(360px,calc(100vw - 28px));pointer-events:none}
+.toast{pointer-events:auto;display:flex;align-items:baseline;gap:8px;background:var(--surface-2);
+  border:1px solid var(--border-strong);border-radius:var(--radius-s);padding:10px 12px;
+  color:var(--muted);font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.toast.error{border-color:var(--danger-border);background:var(--danger-bg);color:var(--danger)}
+.toast-text{overflow-wrap:anywhere}
+.toast-count{flex:0 0 auto;font-size:11.5px;color:var(--faint)}
+.toast-close{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;
+  min-height:0;margin-left:auto;padding:0;border-radius:50%;background:transparent;border:0;
+  color:var(--faint);font-size:14px;font-weight:400;line-height:1;cursor:pointer}
+.toast-close:hover{color:var(--text);background:var(--surface-3)}
+@media(max-width:600px){.toasts{left:16px;right:16px;top:10px;width:auto}}
 
 /* ── Секции-карточки ───────────────────────────────────────────── */
 main{margin-top:10px}
@@ -168,7 +179,6 @@ details .fields{padding:12px 0 2px;border-bottom:1px solid var(--border)}
 @media(max-width:860px){
   body{padding:0 14px 40px}
   header{flex-direction:column;align-items:flex-start;gap:12px}
-  .header-side{align-items:flex-start}
   .split,.fields{grid-template-columns:1fr}
   section{padding:18px 16px}
 }
@@ -177,7 +187,6 @@ details .fields{padding:12px 0 2px;border-bottom:1px solid var(--border)}
 /* Полный UI «как есть»: шапка и навигация разделов остаются видимыми,
    чтобы из админки были доступны все разделы, включая «Сценарии». */
 body.embedded{padding:0 20px 32px;max-width:none;background:transparent}
-body.embedded #notice:empty{min-height:0;margin:0}
 body.embedded section{border-radius:10px;background:transparent;border:none;padding:8px 0}
 
 /* ── OTA ────────────────────────────────────────────────────────── */
