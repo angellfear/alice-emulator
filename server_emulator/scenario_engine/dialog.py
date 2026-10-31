@@ -212,6 +212,25 @@ class DialogManager:
             return await self._finish(outcome, ctx, send, True, reason, scenario.get("id"))
         return {"handled": False, "verdict": "unsupported", "reason": "no_match", "status": None}
 
+    async def quiet_ack(self, ctx):
+        """Умолчание колбэка без поставщика (TASK-058): тот же тихий пустой ответ,
+        что собирает compose сценария system.service_ack."""
+        from .reply_compose import compose_reply
+        message = compose_reply({"text": "", "card": False}, ctx, self.executor.schemas_root)
+        _finalize(message, ctx)
+        return message
+
+    def provider(self, event):
+        """Поставщик данных внутреннего события (вкладка «WS», TASK-058): первый сценарий
+        с provide-триггером этого события в порядке каталога (его переопределяет пользовательский
+        с той же ролью) или None — отвечает умолчание колбэка."""
+        for scenario in self.scenarios():
+            for trigger in scenario.get("triggers", []):
+                if trigger.get("kind") == "provide" and \
+                        (trigger.get("event") or "").lower() == (event or "").lower():
+                    return scenario
+        return None
+
     async def run_scenario(self, scenario, ctx, dialog_id):
         """Запуск выбранного сценария без роутера (инструмент агента scenario_run):
         сообщения не отправляются, а возвращаются в report['messages']."""

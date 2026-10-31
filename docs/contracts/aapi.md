@@ -81,6 +81,24 @@ module: "server_emulator/voice.py"
 
 WS heartbeat 30 с; max_msg_size 16 MiB; провайдеры model/stt/tts — HTTP total 90 с; MCP 30 с; лимиты аудио из §1. Firmware/capability-гейт ещё не реализован (B05/E01) — статус в coverage.md.
 
+## Обновление 2026-11-01: реестр обработчиков и колбэки (TASK-058)
+
+Реестр — `aapi_handlers.py`: `@aapi_handler(trigger, enabled=…)` объявляет обработчик рядом
+с кодом; у записи есть источник (`builtin`, у расширений через SDK — `extension:<id>`),
+имя/описание (docstring) и счётчики в памяти (пришло / обработано / время последнего).
+`Conversation.receive` перебирает обработчики события; `has_handler` отвечает без выполнения
+(опция «Запись» → «Нет обработчиков»). API — `GET /emulator/api/ws_handlers` (реестр + колбэки),
+вкладка «Эмулятор → WS → Входящие».
+
+Служебные колбэки (`@@mm_typed_callback`, `@@mm_semantic_frame`, `@@timer_fired`, …) не
+исполняют сценарий по `kind: event` напрямую: маршрут (`aapi_handlers.route` — имя события
+и фильтры `callback`/`purpose`/`frame`) отображает их во внутреннее событие-запрос данных
+(`informers.requested`, `timesync.requested`, `weather.opened`, `agent_say.requested`,
+`timer_fired.requested`, прочие — `callbacks.ack`). Ответ колонке собирает сценарий-поставщик
+(триггер `kind: provide`, см. scenario-json-v2.md); пользовательский поставщик перекрывает
+встроенный, поставщика нет — умолчание колбэка (тихое подтверждение, `Dialog.quiet_ack`).
+Колбэк без маршрута и сценария — в `callback_misses` (блок «AAPI без ответа» во вкладке WS).
+
 ## Обновление 2026-10-24: карточка и NO_SPEECH
 
 - Карточка диалога рендерится колонкой при заполненном каркасе (см. docs/contracts/scenarios.md §6): CardId (новый идентификатор на карточку), Header.SequenceNumber, DialogId="", директива tts_play_placeholder{channel:"Dialog"} — восстановлено из реальных ответов (fixtures voice-clock/volume-set).

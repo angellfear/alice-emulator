@@ -125,8 +125,6 @@
     const content=make('div');content.className='quasar-content';content.id='quasar-content';
     layout.append(side,content);root.append(layout);
     if(section==='platforms')await renderPlatforms(content);else await renderDevices(content);
-    const actionsRoot=$('device-actions');
-    if(actionsRoot)await actions(actionsRoot);
   }
 
   // ── Общие конфиги: общий конфиг (не удаляемый) + платформы-патчи ──────
@@ -339,7 +337,7 @@
   const SOURCE_LABEL={generated:'Генерируемый',direct:'Напрямую',custom:'Свой'};
   const SOURCE_HINT={
     generated:'Колонка получает конфиг, собранный эмулятором: платформа → переопределения → инлайн-узлы. Ниже — переопределения и итоговая сборка.',
-    direct:'Колонка получает ответ настоящего quasar.yandex.net. Ниже — последний полученный ответ, только чтение. Переопределения сохраняются, но не применяются.',
+    direct:'Колонка получает ответ настоящего сервера. Ниже — последний полученный ответ, только чтение. Переопределения сохраняются, но не применяются.',
     custom:'Колонка получает сохранённый ответ как есть: без слоёв и инлайн-узлов. Заполните редактор вручную, генерацией или загрузкой с оригинального сервера и сохраните.'};
   async function renderOverrides(root,device){
     root.replaceChildren();
@@ -366,7 +364,7 @@
     root.append(headRow);
     const hint=make('p');hint.className='hint';
     hint.textContent=locked
-      ?'Маршрут устройства «'+(routed==='proxy'?'Прокси':'Запись')+'»: все запросы и так уходят в Яндекс, источник конфига не применяется.'
+      ?'Маршрут устройства «'+(routed==='proxy'?'Прокси':'Запись')+'»: все запросы и так уходят на настоящий сервер, источник конфига не применяется.'
       :SOURCE_HINT[source.mode];
     root.append(hint);
     if(locked)return;
@@ -375,7 +373,7 @@
     return renderGenerated(root,device);
   }
 
-  // «Напрямую»: кнопка «Замены» (regexp в ответе Яндекса) и последний ответ, только чтение
+  // «Напрямую»: кнопка «Замены» (regexp в ответе upstream) и последний ответ, только чтение
   function renderDirect(root,device,source){
     const rules=source.replace||[];
     const enabled=rules.filter(r=>r.enabled).length;
@@ -383,10 +381,10 @@
     const replaceB=make('button','Замены'+(enabled?' · '+enabled:''));replaceB.type='button';replaceB.className='secondary';
     replaceB.onclick=()=>replaceDialog(device,rules);
     bar.append(replaceB);root.append(bar);
-    root.append(make('h3','Последний ответ Яндекса'));
+    root.append(make('h3','Последний ответ'));
     const last=source.direct_last;
     if(!last||!last.body){
-      const p=make('p','Ответов от Яндекса ещё не было: колонка опросит конфиг сама, ответ появится здесь.');
+      const p=make('p','Ответов ещё не было: колонка опросит конфиг сама, ответ появится здесь.');
       p.className='hint';root.append(p);return;
     }
     const info=make('p','Получен: '+new Date(last.ts*1000).toLocaleString('ru-RU')+' · статус '+last.status
@@ -396,7 +394,7 @@
     const ed=makeCM(holder,{value:JSON.stringify(last.body_sent||last.body,null,2),readOnly:true,height:'520px'});
     if(last.body_sent){
       const seg=make('div');seg.className='segmented';seg.style.margin='0 0 8px';
-      for(const [label,value] of [['Отправлено колонке',last.body_sent],['Получено от Яндекса',last.body]]){
+      for(const [label,value] of [['После замен',last.body_sent],['До замен',last.body]]){
         const b=make('button',label);b.type='button';
         if(value===last.body_sent)b.classList.add('active');
         b.onclick=()=>{seg.querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b));
@@ -414,8 +412,8 @@
   function replaceDialog(device,rules){
     const dlg=document.createElement('dialog');dlg.className='catalog-dialog replace-dialog';
     const form=document.createElement('form');dlg.append(form);document.body.append(dlg);
-    const head=make('h3','Замены в ответе Яндекса · '+device.sn);
-    const hint=make('p','Python regex, правила применяются сверху вниз к тексту ответа Яндекса перед отправкой колонке; группы — \\1, \\g<name>. Обычные символы . ? [ ( экранируются обратной косой чертой.');
+    const head=make('h3','Замены в ответе · '+device.sn);
+    const hint=make('p','Python regex, правила применяются сверху вниз к тексту ответа перед отправкой колонке; группы — \\1, \\g<name>. Обычные символы . ? [ ( экранируются обратной косой чертой. Ответ — компактный JSON, без пробелов: «subscription» матчится, «subscription»: — нет.');
     hint.className='hint';
     const list=make('div');list.className='rp-list';
     const generalErr=make('p');generalErr.className='sc-err';generalErr.hidden=true;
@@ -474,7 +472,7 @@
     gen.title='Заполнить редактор ответом, который собрал бы эмулятор (не сохраняется)';
     const fetchB=make('button','Получить с оригинального сервера');fetchB.type='button';fetchB.className='secondary';
     fetchB.disabled=!source.can_fetch;
-    fetchB.title=source.can_fetch?'Заполнить редактор ответом Яндекса на последний опрос этой колонки':'Колонка ещё не запрашивала конфиг после запуска сервера';
+    fetchB.title=source.can_fetch?'Заполнить редактор ответом оригинального сервера на последний опрос этой колонки':'Колонка ещё не запрашивала конфиг после запуска сервера';
     const errLine=make('p');errLine.className='sc-err';errLine.hidden=true;
     const act=fn=>async()=>{errLine.hidden=true;try{await fn()}catch(e){errLine.textContent=e.message;errLine.hidden=false}};
     const saveJSON=async value=>{
@@ -665,15 +663,6 @@
     setTimeout(()=>literal.refresh(),60);
   }
 
-  async function actions(root){root.replaceChildren(make('h2','Действия устройства · WS Push'),make('p','Выберите конкретное активное соединение. ACK подтверждает доставку; выполнение показывается как неподтверждённое.'));
-    const inventory=await api('actions'),form=make('form');root.append(form);const sl=make('label','Сессия устройства'),sessions=make('select');sl.append(sessions);form.append(sl);
-    for(const s of registry.sessions.filter(s=>s.device_sn&&s.user_id)){const o=make('option',`${s.device_sn} · ${s.connection_id.slice(0,8)}`);o.value=s.connection_id;o.dataset.sn=s.device_sn;sessions.append(o)}
-    const al=make('label','Команда'),action=make('select');al.append(action);form.append(al);for(const a of inventory.catalog){const o=make('option',a.name+' · '+a.id);o.value=a.id;action.append(o)}
-    const label=make('label','Громкость (0–10)'),level=make('input');level.type='number';level.min=0;level.max=10;level.step=0.1;level.value=5;label.append(level);form.append(label);action.onchange=()=>label.hidden=action.value!=='sound_set_level';action.onchange();
-    const send=make('button','Отправить на выбранное устройство');send.type='submit';send.disabled=!sessions.options.length;form.append(send);form.onsubmit=e=>{e.preventDefault();work(async()=>{send.disabled=true;try{await api('actions',{connection_id:sessions.value,device_sn:sessions.selectedOptions[0].dataset.sn,action:action.value,arguments:action.value==='sound_set_level'?{level:Number(level.value)}:{}});notify('Команда отправлена. Выполнение ещё не подтверждено.');await render()}finally{send.disabled=!sessions.options.length}})};
-    if(!sessions.options.length)root.append(make('p','Нет активных привязанных WS-соединений эмулятора. В режиме проксирования команды через этот адаптер не отправляются.'));
-    const refresh=make('button','Обновить сессии и доставку');refresh.onclick=()=>work(render);root.append(refresh);for(const h of inventory.history.slice(-15).reverse()){const line=make('p',`${h.device_sn} · ${h.action} · доставка: ${h.delivery} · выполнение: ${h.execution}`);root.append(line)}
-  }
-  window.addEventListener('hashchange',()=>{if(['#quasar-http','#device-actions'].includes(location.hash))work(render)});
+  window.addEventListener('hashchange',()=>{if(['#quasar-http'].includes(location.hash))work(render)});
   work(render);
 })();

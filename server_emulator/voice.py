@@ -403,9 +403,13 @@ class Conversation:
         """AAPI-событие колонки: обработчики реестра aapi_handlers в порядке объявления,
         первый вернувший True его обработал. False — обработчика нет («Без ответа»)."""
 
+        aapi_handlers.count(trigger)
+
         for handler in aapi_handlers.handlers(trigger, self.runtime.settings):
 
             if await handler(self, incoming, trigger):
+
+                aapi_handlers.count(trigger, handled=True)
 
                 return True
 
@@ -1114,9 +1118,34 @@ class Conversation:
 
                 dialog_id = getattr(request.Header, 'DialogId', '') or incoming.Event.Header.MessageId
 
-                report = await dialog.handle_event(event_name, ctx, dialog_id, self.send)
+                # TASK-058: колбэк — обработчик WS. Маршрут колбэка → внутреннее событие-запрос
+                # данных (informers.requested и пр.), ответ колонке собирает сценарий-поставщик
+                # (триггер kind: provide); поставщика нет — умолчание колбэка (тихое подтверждение).
+                # Без маршрута — прежний путь event-сценариев (совместимость расширений),
+                # дальше «Без ответа».
+                fields = {key: ctx['input'].get(key) for key in ('callback', 'purpose', 'frame')}
 
-                if report.get('handled'):
+                provide = aapi_handlers.route(event_name, fields)
+
+                aapi_handlers.count(event_name)
+
+                handled = False
+
+                if provide:
+
+                    report = await dialog.handle_event(provide, ctx, dialog_id, self.send)
+
+                    handled = bool(report.get('handled'))
+
+                if not handled:
+
+                    report = await dialog.handle_event(event_name, ctx, dialog_id, self.send)
+
+                    handled = bool(report.get('handled'))
+
+                if handled:
+
+                    aapi_handlers.count(event_name, handled=True)
 
                     if trace:
 
@@ -1126,9 +1155,23 @@ class Conversation:
 
                     return
 
-                # Not handled by scenario — fall through to default handling
+                if provide:
 
-                # «Эмулятор → Без ответа»: колбэк без protocol_event-сценария (образец — поля запроса)
+                    # умолчание колбэка без поставщика — тихое подтверждение (как system.service_ack)
+
+                    message = await dialog.quiet_ack(ctx)
+
+                    await self.send(b"AAPI" + message.SerializeToString())
+
+                    aapi_handlers.count(event_name, handled=True)
+
+                    if trace:
+
+                        trace.event('callback_default_ack', 'server', event=event_name, provide=provide)
+
+                    return
+
+                # «Эмулятор → Без ответа»: колбэк без маршрута и сценария (образец — поля запроса)
 
                 self.runtime.callback_misses.note(event_name, sn=ctx['input']['sn'],
 

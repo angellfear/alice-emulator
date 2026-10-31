@@ -43,7 +43,11 @@ def match_trigger(trigger, event_name, text, event=None):
 
     event-триггер: имя служебного события + необязательные фильтры callback
     (тип typed-колбэка), purpose (цель колбэка), frame (семантический фрейм) —
-    сверка с полями запроса (input.callback/purpose/frame)."""
+    сверка с полями запроса (input.callback/purpose/frame).
+
+    provide-триггер (TASK-058): сценарий-поставщик данных для внутреннего события
+    (колбэк-обработчик публикует «нужны данные», поставщик отдаёт ответ). Совпадение —
+    по имени внутреннего события (trigger.event), без фильтров — их проверил обработчик."""
     kind = trigger.get("kind")
     if kind in ("event", "protocol_event") and event_name:
         name = (trigger.get("name") or "").strip()
@@ -55,6 +59,11 @@ def match_trigger(trigger, event_name, text, event=None):
             if str(fields.get(key) or "") != str(trigger[key]):
                 return False, None
         return True, "event:" + name + "".join(f"[{key}={trigger[key]}]" for key in used)
+    if kind == "provide" and event_name:
+        name = (trigger.get("event") or "").strip()
+        if name.lower() != event_name.lower():
+            return False, None
+        return True, "provide:" + name
     if kind == "intent" and event_name:
         name = (trigger.get("name") or "").strip()
         return name.lower() == event_name.lower(), f"intent:{name}"

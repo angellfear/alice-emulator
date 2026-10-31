@@ -48,11 +48,6 @@
     return [add, name];
   }
 
-  function aapiLine(m) {  // обработчика из UI не создать — нужен код (voice.py / legacy_replay); образец — в подсказке
-    const name = node('span', m.key, 'ep-url'); name.title = m.examples[0] || '';
-    return [node('span', null, 'ep-add'), name];
-  }
-
   function httpLine(m) {
     const add = button('+', () => window.openEndpointFromMiss?.(m), 'ep-add'); add.title = 'Создать эндпоинт';
     const url = node('span', null, 'ep-url'); url.append(node('b', m.method), document.createTextNode(' ' + m.host + m.path));
@@ -72,7 +67,6 @@
     root.replaceChildren(head,
       section('Фразы без сценария', 'phrase', data.phrases, 'Все фразы взяли сценарии.', phraseLine),
       section('Колбэки без сценария', 'callback', data.callbacks, 'Все служебные колбэки взяли сценарии.', callbackLine),
-      section('WS AAPI без ответа', 'aapi', data.aapi, 'Все сообщения колонок обработаны.', aapiLine),
       section('HTTP без эндпоинта', 'http', data.http, 'Запросов без обработчика пока не было.', httpLine));
   }
 

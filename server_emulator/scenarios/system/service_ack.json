@@ -14,24 +14,8 @@
  "fallback": true,
  "triggers": [
   {
-   "kind": "event",
-   "name": "@@mm_typed_callback"
-  },
-  {
-   "kind": "event",
-   "name": "@@mm_semantic_frame"
-  },
-  {
-   "kind": "event",
-   "name": "@@mm_stack_engine_get_next"
-  },
-  {
-   "kind": "event",
-   "name": "music_thin_client_on_started"
-  },
-  {
-   "kind": "event",
-   "name": "music_thin_client_on_stopped"
+   "kind": "provide",
+   "event": "callbacks.ack"
   }
  ],
  "flow": [

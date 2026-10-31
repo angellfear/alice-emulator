@@ -289,7 +289,16 @@ async def run_case(runtime, effects, case):
         else:  # событие без TextInput: @@timer_fired, @@agent_say
             event_name = case["event"]
             ctx = event_ctx(runtime, dialog_id, event_name, case.get("fields"))
-        report = await runtime.dialog.handle_event(event_name, ctx, dialog_id, send)
+        # TASK-058: колбэк/событие → внутреннее событие-запрос (та же таблица маршрутов,
+        # что у voice.py); provider-сценарий отвечает как раньше — эталоны не меняются.
+        # reason в эталоне — событие, каким его видела реплика сценария: для маршрутизированного
+        # колбэка восстанавливается форма исходного event-причины.
+        from server_emulator.aapi_handlers import route as callback_route, route_reason
+        fields = {key: (ctx.get("input") or {}).get(key) for key in ("callback", "purpose", "frame")}
+        routed = callback_route(event_name, fields)
+        report = await runtime.dialog.handle_event(routed or event_name, ctx, dialog_id, send)
+        if routed and str(report.get("reason") or "").startswith("provide:"):
+            report = {**report, "reason": route_reason(event_name, fields)}
         runs.append(report_view(report, sent))
     return {"name": case["name"],
             "input": {key: value for key, value in case.items()

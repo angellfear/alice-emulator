@@ -594,8 +594,9 @@ class Runtime:
                              "kind": timer.get("kind") or "timer", "timer_id": timer.get("id")},
                    "clock": {"now": datetime.datetime.now()}, "sequence": next(self.sequence)}
             ctx.update(self._scenario_context(sn=timer.get("sn") or ""))
-            self.lifecycle.spawn(self.dialog.handle_event("@@timer_fired", ctx, uuid.uuid4().hex,
-                                                          session["send"]))
+            from .aapi_handlers import route as callback_route  # TASK-058: событие → запрос данных
+            self.lifecycle.spawn(self.dialog.handle_event(callback_route("@@timer_fired", None), ctx,
+                                                          uuid.uuid4().hex, session["send"]))
             return True
         return False  # сессии нет — факт срабатывания остаётся в инвентаре таймеров
 
@@ -891,7 +892,7 @@ def mount_ui(app, runtime, prefix="/emulator"):
 
     # Каталог картинок устройств (модель по SN): только существующие
     # PNG/WebP из каталога картинок (device_images.images_dir) — путь проверяется на выход за пределы папки.
-    ASSETS = ("index.html", "toast.js", "app.js", "style.css", "users.js", "backend.js", "updates.js", "catalog.js", "replies.js", "animations.js", "endpoints.js", "misses.js", "endpoints.css", "devices_common.js", "device_cards.js", "mcp.js", "agent.js", "memory.js", "routines.js", "scenario_drafts.js", "params.js", "voice_stack.js", "sound_cache.js", "extensions.js", "setup.js", "server_config.js", "traffic.js")
+    ASSETS = ("index.html", "toast.js", "ws.js", "app.js", "style.css", "users.js", "backend.js", "updates.js", "catalog.js", "replies.js", "animations.js", "endpoints.js", "misses.js", "endpoints.css", "devices_common.js", "device_cards.js", "mcp.js", "agent.js", "memory.js", "routines.js", "scenario_drafts.js", "params.js", "voice_stack.js", "sound_cache.js", "extensions.js", "setup.js", "server_config.js", "traffic.js")
     GENERIC_IMAGES = ROOT / "ui" / "img" / "generic"
     VENDOR = ROOT / "ui" / "vendor"
 

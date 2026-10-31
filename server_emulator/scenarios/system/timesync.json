@@ -13,14 +13,8 @@
  "priority": 10,
  "triggers": [
   {
-   "kind": "event",
-   "name": "@@mm_typed_callback",
-   "callback": "NAlice.TDeviceControlTimesyncTypedCallback"
-  },
-  {
-   "kind": "event",
-   "name": "@@mm_typed_callback",
-   "purpose": "sync_timezone"
+   "kind": "provide",
+   "event": "timesync.requested"
   }
  ],
  "executor": {

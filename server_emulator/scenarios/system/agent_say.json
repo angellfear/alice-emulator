@@ -13,8 +13,8 @@
  "priority": 10,
  "triggers": [
   {
-   "kind": "event",
-   "name": "@@agent_say"
+   "kind": "provide",
+   "event": "agent_say.requested"
   }
  ],
  "flow": [

@@ -13,8 +13,8 @@
  "priority": 10,
  "triggers": [
   {
-   "kind": "event",
-   "name": "@@timer_fired"
+   "kind": "provide",
+   "event": "timer_fired.requested"
   }
  ],
  "flow": [

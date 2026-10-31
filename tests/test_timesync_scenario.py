@@ -16,6 +16,7 @@ from google.protobuf import json_format
 from server_emulator.runtime import ROOT, Runtime
 from server_emulator.scenario_engine.bindings import BindingError, _tz_offset_seconds
 from server_emulator.schema import load_type, schema_file
+from server_emulator.aapi_handlers import route as callback_route
 from server_emulator.voice import is_service_text_input, service_event_fields
 
 CLIENT = load_type(ROOT / 'schemas', 'alice-api.pb', 'NAlice.NAliceApi.TClientMessage')
@@ -58,6 +59,13 @@ def make_runtime(tmp_path, geo=True):
 
     runtime.scenario_plugins["weather"] = offline
     return runtime
+
+
+async def dispatch_handle(runtime, name, ctx, dialog_id, send):
+    """handle_event с маршрутом колбэка, как в voice.py (TASK-058): событие колонки →
+    внутреннее событие-запрос данных, сценарий-поставщик отвечает как раньше."""
+    fields = {k: (ctx.get('input') or {}).get(k) for k in ('callback', 'purpose', 'frame')}
+    return await runtime.dialog.handle_event(callback_route(name, fields) or name, ctx, dialog_id, send)
 
 
 def ctx_for(runtime, purpose='sync_timezone', timezone='Asia/Tashkent', name='@@mm_typed_callback'):
@@ -112,7 +120,7 @@ async def test_timesync_gets_silent_cloud_reply(tmp_path):
     runtime.settings['model']['stub_text'] = 'Проверка связи. Я вас слышу.'  # заглушка не должна прозвучать
     try:
         sent = []
-        report = await runtime.dialog.handle_event('@@mm_typed_callback', ctx_for(runtime), 'dlg-1',
+        report = await dispatch_handle(runtime, '@@mm_typed_callback', ctx_for(runtime), 'dlg-1',
                                                    lambda data: collect(sent, data))
         assert report['handled'] and report['scenario'] == 'system.timesync'
         assert len(sent) == 1 and sent[0].startswith(b'AAPI')
@@ -151,7 +159,7 @@ async def test_timesync_without_owner_geo_sends_timezone_only(tmp_path):
     runtime = make_runtime(tmp_path, geo=False)
     try:
         sent = []
-        report = await runtime.dialog.handle_event('@@mm_typed_callback', ctx_for(runtime), 'dlg-1',
+        report = await dispatch_handle(runtime, '@@mm_typed_callback', ctx_for(runtime), 'dlg-1',
                                                    lambda data: collect(sent, data))
         assert report['handled'] and report['scenario'] == 'system.timesync'
         response = SERVER.FromString(sent[0][4:]).Event.AliceResponse
@@ -167,7 +175,7 @@ async def test_timesync_timezone_from_params_overrides_station(tmp_path):
     runtime.quasar_params.set_value(f"device:{SN}", "device.timezone", "Europe/Moscow")
     try:
         sent = []
-        await runtime.dialog.handle_event('@@mm_typed_callback', ctx_for(runtime), 'dlg-1',
+        await dispatch_handle(runtime, '@@mm_typed_callback', ctx_for(runtime), 'dlg-1',
                                           lambda data: collect(sent, data))
         payload = SERVER.FromString(sent[0][4:]).Event.AliceResponse.Response.Directives[0].PayloadRaw
         assert b'Europe/Moscow' in payload and b'Asia/Tashkent' not in payload
@@ -181,7 +189,7 @@ async def test_other_service_purposes_get_silent_ack(tmp_path):
     try:
         for purpose in ('collect_upper_shutter', 'screensaver_callback_get_config', ''):
             sent = []
-            report = await runtime.dialog.handle_event('@@mm_typed_callback', ctx_for(runtime, purpose=purpose),
+            report = await dispatch_handle(runtime, '@@mm_typed_callback', ctx_for(runtime, purpose=purpose),
                                                        'dlg-1', lambda data: collect(sent, data))
             assert report['handled'] and report['scenario'] == 'system.service_ack', purpose
             response = SERVER.FromString(sent[0][4:]).Event.AliceResponse
@@ -190,7 +198,7 @@ async def test_other_service_purposes_get_silent_ack(tmp_path):
             assert len(response.Response.Cards) == 0
             assert not [d for d in response.Response.Directives if d.Name == 'set_timezone']
         for name in ('@@mm_semantic_frame', 'music_thin_client_on_started'):
-            report = await runtime.dialog.handle_event(name, ctx_for(runtime, name=name, purpose='x'), 'dlg-1',
+            report = await dispatch_handle(runtime, name, ctx_for(runtime, name=name, purpose='x'), 'dlg-1',
                                                        lambda data: collect([], data))
             assert report['handled'] and report['scenario'] == 'system.service_ack', name
     finally:
@@ -207,7 +215,7 @@ async def test_get_informers_sends_weather_informer(tmp_path):
         sent = []
         ctx = ctx_for(runtime, purpose='get_informers')
         ctx['clock'] = {'now': datetime.datetime(2026, 10, 25, 1, 1)}
-        report = await runtime.dialog.handle_event('@@mm_typed_callback', ctx, 'dlg-1',
+        report = await dispatch_handle(runtime, '@@mm_typed_callback', ctx, 'dlg-1',
                                                    lambda data: collect(sent, data))
         assert report['handled'] and report['scenario'] == 'informers.weather.widget'
         message = SERVER.FromString(sent[0][4:])
@@ -233,7 +241,7 @@ async def test_get_informers_without_data_is_silent(tmp_path):
     runtime = make_runtime(tmp_path)
     try:
         sent = []
-        report = await runtime.dialog.handle_event('@@mm_typed_callback', ctx_for(runtime, purpose='get_informers'),
+        report = await dispatch_handle(runtime, '@@mm_typed_callback', ctx_for(runtime, purpose='get_informers'),
                                                    'dlg-1', lambda data: collect(sent, data))
         assert report['handled'] and report['scenario'] == 'informers.weather.widget'
         assert not [m for m in sent if b'update_all_informers' in m]
@@ -248,7 +256,7 @@ async def test_weather_informer_tap_shows_weather_card(tmp_path):
     try:
         sent = []
         ctx = ctx_for(runtime, purpose='weather_informer_tap_action', name='@@mm_semantic_frame')
-        report = await runtime.dialog.handle_event('@@mm_semantic_frame', ctx, 'dlg-1',
+        report = await dispatch_handle(runtime, '@@mm_semantic_frame', ctx, 'dlg-1',
                                                    lambda data: collect(sent, data))
         assert report['handled'] and report['scenario'] == 'informers.weather'
         response = SERVER.FromString(sent[0][4:]).Event.AliceResponse
@@ -262,7 +270,7 @@ async def test_weather_informer_tap_shows_weather_card(tmp_path):
 async def test_unknown_service_name_and_user_phrases_unaffected(tmp_path):
     runtime = make_runtime(tmp_path)
     try:
-        report = await runtime.dialog.handle_event('future_callback', ctx_for(runtime, name='future_callback'),
+        report = await dispatch_handle(runtime, 'future_callback', ctx_for(runtime, name='future_callback'),
                                                    'dlg-1', lambda data: None)
         assert not report['handled'] and report['reason'] == 'no_match'
         sent = []

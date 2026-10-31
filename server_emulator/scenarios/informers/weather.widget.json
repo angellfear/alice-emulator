@@ -13,14 +13,8 @@
  "priority": 50,
  "triggers": [
   {
-   "kind": "event",
-   "name": "@@mm_typed_callback",
-   "callback": "NAlice.TGetInformersTypedCallback"
-  },
-  {
-   "kind": "event",
-   "name": "@@mm_typed_callback",
-   "purpose": "get_informers"
+   "kind": "provide",
+   "event": "informers.requested"
   }
  ],
  "executor": {

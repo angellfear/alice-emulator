@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 
 CATEGORIES = {"system", "informers", "device", "smart_home", "timers", "custom"}
-TRIGGER_KINDS = {"phrase", "event", "protocol_event", "intent", "schedule", "state_change", "template"}
+TRIGGER_KINDS = {"phrase", "event", "protocol_event", "provide", "intent", "schedule", "state_change", "template"}
 EVENT_FILTER_KEYS = {"callback", "purpose", "frame"}
 BINDING_SOURCES = {"constant", "input", "generated", "slot", "clock", "computed", "state", "media",
                    "user", "device", "animation", "template", "path"}
@@ -137,6 +137,14 @@ def validate_scenario(scenario):
             raise PackageError(f"trigger.kind ∈ {sorted(TRIGGER_KINDS)}")
         if kind == "template":
             _validate_template_trigger(trigger)
+        elif kind == "provide":
+            # TASK-058: сценарий-поставщик данных внутреннего события (колбэк-обработчик
+            # публикует «нужны данные», поставщик отдаёт ответ)
+            if not isinstance(trigger.get("event"), str) or not trigger["event"]:
+                raise PackageError("provide-триггер: event (внутреннее событие) обязателен")
+            extra = set(trigger) - {"kind", "event"}
+            if extra:
+                raise PackageError(f"trigger: неизвестные ключи {sorted(extra)}")
         elif kind == "phrase":
             if not trigger_phrases(trigger):
                 raise PackageError("phrase-триггер: name (слово/предложение) и/или phrases[] (список)")

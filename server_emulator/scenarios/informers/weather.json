@@ -22,9 +22,8 @@
    ]
   },
   {
-   "kind": "event",
-   "name": "@@mm_semantic_frame",
-   "purpose": "weather_informer_tap_action"
+   "kind": "provide",
+   "event": "weather.opened"
   }
  ],
  "executor": {

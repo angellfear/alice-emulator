@@ -164,7 +164,7 @@ textarea{resize:vertical}
 .dot.seen{background:#e8d06a;box-shadow:0 0 6px rgba(232,208,106,.6)}
 .dev-table .thumb{width:72px;height:72px;border-radius:12px;background:var(--surface-3);border:1px solid var(--border);
   vertical-align:middle;object-fit:contain;padding:6px;flex-shrink:0}
-.chip{display:inline-flex;align-items:center;gap:6px;background:var(--accent-bg);border:1px solid var(--accent-border);
+.chip{display:inline-flex;align-items:center;gap:6px;overflow-wrap:anywhere;max-width:100%;background:var(--accent-bg);border:1px solid var(--accent-border);
   color:var(--accent-strong);border-radius:999px;padding:3px 12px;font-size:13px;font-weight:500}
 .chip.warn{background:rgba(232,208,106,.13);border-color:rgba(232,208,106,.45);color:#e8d06a}
 .icon-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;min-height:28px;padding:0;
