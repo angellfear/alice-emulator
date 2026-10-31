@@ -44,6 +44,19 @@ nav .active{background:rgba(109,176,255,.22);color:#eaf4ff;border-color:#6db0ff;
   border-radius:0;min-height:30px;padding:4px 12px;font-size:13px;cursor:pointer;white-space:nowrap}
 .subnav button:hover{color:var(--text)}
 .subnav .active{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
+/* Источник конфига (TASK-052): заголовок + переключатель справа, на 400px — под заголовком */
+.src-head{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap}
+.src-head h3{margin:0}
+.src-head .segmented{margin-left:auto}
+@media (max-width:600px){.src-head .segmented{margin-left:0}}
+/* Маршрут устройства (TASK-044): сегменты на широкой ширине, select на узкой */
+.route-cell .route-switch{display:flex;align-items:center}
+.route-cell .route-switch .segmented{display:inline-flex;margin-left:0}
+.route-cell .route-switch select{display:none;max-width:120px}
+@media (max-width:900px){
+  .route-cell .route-switch .segmented{display:none}
+  .route-cell .route-switch select{display:block}
+}
 /* Режим «Интеллект» — сегментный переключатель справа в полосе групп */
 .segmented{display:inline-flex;margin-left:auto;flex:0 0 auto;border:1px solid var(--accent-border);border-radius:999px;background:var(--surface-2);overflow:hidden}
 .segmented button{background:transparent;border:0;border-left:1px solid var(--border-strong);color:var(--muted);

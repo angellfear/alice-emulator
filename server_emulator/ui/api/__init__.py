@@ -4,7 +4,8 @@
 реестр ДО legacy-цепочки, поэтому домены переезжают по одному без смены
 поверхности (tests/test_admin_api_surface.py фиксирует контракт). Единые
 гарантии домена: список методов, write-guard (X-Emulator + same-origin),
-маппинг ошибок (плохое значение → 400, недоступность провайдера → 502).
+маппинг ошибок (плохое значение → 400, недоступность провайдера → 502,
+нет протокола станции → 503 setup_required).
 """
 import asyncio
 
@@ -67,4 +68,5 @@ def guarded(handler):
 
 from . import (actions, agent_ops, animations, catalog, endpoints, extensions, identities,  # noqa: E402,F401  (регистрация доменов)
                misses, mcp, memory, params_api, quasar_config_api, routines, scenario_drafts,
-               scenarios, settings, setup, sound_cache, speech, status, updates, voice_stack, voice_test)
+               scenarios, server_config, settings, setup, sound_cache, speech, status, traffic, updates,
+               voice_stack, voice_test)

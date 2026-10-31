@@ -23,6 +23,7 @@ import inspect
 import time
 from types import SimpleNamespace
 
+from ..extensions.context import action_context as extension_for_action
 from ..scripting import ScriptRunner, failure
 from ..sdk import Ask, ScenarioContext
 from .bindings import BindingError, expand
@@ -82,6 +83,7 @@ class Execution:
         self.script_ask = None  # py-уточнение (TASK-020): {path, mtime_ns, expect} пока ждём
         self.error = None
         self.effects = []  # [{kind, name, arguments}] — dry-run эффекты py-сценария (TASK-019)
+        self.extension = None  # ExtensionContext владельца действия (TASK-053), на время вызова
         self.dry_run = False  # прогон-проверка: действия не выполняются, журнал ошибок молчит
         self.started = time.monotonic()
         self.deadline = self.started + deadline_s
@@ -134,7 +136,8 @@ class Executor:
     """Примитивы закрыты кодом, логика — в JSON сценария.
 
     actions: ref → callable(arguments: dict, execution) → Any (эффекты: таймер,
-      push, свет — без текстов и выбора веток)
+      push, свет — без текстов и выбора веток). На время вызова execution.extension —
+      ExtensionContext расширения-владельца действия (TASK-053), встроенному — None.
     resolvers: ref → callable(execution) → значение слота
     fetcher: async (url, query, ttl) → JSON (ctx.fetch_json SDK; кеш — забота fetcher)
     data_store: хранилище данных сценариев (scenario_data: user/device/system)
@@ -460,6 +463,7 @@ class Executor:
         if action_id in execution.action_results:
             execution.note(step["id"], "action", "ok", f"idempotent:{action_id}")
             return
+        execution.extension = extension_for_action(ref)  # TASK-053: настройки владельца, встроенному — None
         try:
             result = handler(arguments, execution)
             if inspect.isawaitable(result):
@@ -473,6 +477,8 @@ class Executor:
             execution.error = f"action_failed:{ref}:{type(exc).__name__}"
             execution.note(step["id"], "action", "error", execution.error)
             raise ExecutorTerminal("errored")
+        finally:
+            execution.extension = None  # контекст действия не живёт дольше вызова
         execution.action_results[action_id] = True
         if step.get("slot"):
             execution.slots[step["slot"]] = result  # результат эффекта — данные для веток JSON

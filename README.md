@@ -12,8 +12,9 @@ python -m pip install -e ".[test]"
 python -m server_emulator.server
 ```
 
-UI: **http://127.0.0.1:8877/emulator/**. Каталог данных — `--state <папка>`
-(по умолчанию `server_emulator/state/`, не попадает в Git).
+На Windows — с иконкой в трее: `pythonw tools/start_emulator.pyw`. UI: **http://127.0.0.1/emulator/**. Порты по
+умолчанию — 443 (TLS) и 80, настраиваются в «Дополнительно → Сервер» (`state/server.json`). Каталог данных —
+`--state <папка>` (по умолчанию `server_emulator/state/`, не попадает в Git).
 
 ### Первый запуск
 

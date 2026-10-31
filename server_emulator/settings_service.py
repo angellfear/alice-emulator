@@ -16,11 +16,12 @@ from urllib.parse import urlsplit
 
 log = logging.getLogger(__name__)
 
-# Режимная модель (решение пользователя, 2026-10-24): ровно 2 режима — проксирование
-# и эмуляция (в общем сервере с exclusion-фильтром по SN, либо standalone).
-MODES = ("proxy", "emulate")
+# Режимы маршрута (TASK-044, решение вместо двух режимов 2026-10-24): у каждого
+# устройства свой route_mode, неизвестные получают default_route_mode.
+ROUTE_MODES = ("emulate", "hybrid", "proxy", "record")
+ROUTE_MIGRATION_KEY = "route_migration"  # meta StateStore: {"excluded": [sn]} — очередь миграции
 DEFAULT = {
-    "mode": "proxy",
+    "default_route_mode": "emulate",  # маршрут устройств без собственного route_mode
     "intelligence": "agent",  # режим «Интеллект»: scenarios | model | agent (intelligence.py)
     "system_prompt": "Ты домашний голосовой помощник. Отвечай кратко по-русски.",
     "model": {"url": "", "model": "", "api_key": "", "temperature": 0.3},
@@ -30,7 +31,6 @@ DEFAULT = {
     "aapi_voice": False, "aapi_tts": False,
     "builtin_scenarios": True,  # простые команды (время/таймер/будильник/свет/громкость) без AI
     "builtin_disabled": [],  # id встроенных сценариев, выключенных по одному (каталог builtin)
-    "emulation_excluded": [],  # SN устройств, остающихся на реальном сервере даже в эмуляции
     # Стандартные голосовые ответы: реплики на особые состояния (вне модели). Первый случай —
     # непривязанное устройство: вместо Vins-таймаута колонка озвучит подсказку о привязке.
     "standard_replies": [
@@ -52,6 +52,10 @@ DEFAULT = {
     # установленное (версия/предыдущая/источник/самопроверка) и значения настроек.
     # Файлы живут в state/extensions/<id>/<version>/; детали — extensions/manager.py.
     "extensions": {"sources": []},
+    # Проход наверх (TASK-043): внешние DNS-серверы, закреплённые адреса хостов
+    # и лимиты журнала трафика. Какие запросы пересылать — режимы маршрута (TASK-044).
+    "upstream": {"dns_servers": ["77.88.8.8", "1.1.1.1"], "upstream_ip": {},
+                 "journal": {"max_body_kb": 256, "ws_frames": 200, "max_size_mb": 100, "max_age_days": 14}},
 }
 
 
@@ -90,10 +94,12 @@ class SettingsService:
         существует), аддитивная миграция дефолтов, файлы сценариев как источник правды."""
         stored = self.store.load_settings()
         settings = stored or copy.deepcopy(DEFAULT)
-        # Миграция режимной модели 2026-10-24: partial больше не существует —
-        # стоявшие в нём переводятся в эмуляцию; список emulation_ws_local (H05) упразднён.
-        legacy_mode = settings.get("mode") not in MODES or "emulation_ws_local" in settings
-        if settings.get("mode") not in MODES:
+        # Миграция режимной модели: partial больше не существует — стоявшие в нём
+        # переводятся в эмуляцию; список emulation_ws_local (H05) упразднён. Блок
+        # касается только настроек, где legacy-ключ ещё есть (TASK-044: без этого
+        # каждая загрузка добавляла mode обратно и перезатирала default_route_mode).
+        legacy_mode = ("mode" in settings and settings["mode"] not in ("proxy", "emulate"))             or "emulation_ws_local" in settings
+        if "mode" in settings and settings["mode"] not in ("proxy", "emulate"):
             settings["mode"] = "emulate"
         settings.pop("emulation_ws_local", None)
         from .intelligence import migrate
@@ -106,8 +112,35 @@ class SettingsService:
         if missing or legacy_mode or stored is None:
             settings.update(missing)
             self.store.save_settings(settings)
+        self._migrate_route_modes(settings)
         self.load_scenario_files(settings)
         return settings
+
+    def _migrate_route_modes(self, settings):
+        """TASK-044: старая режимная модель (settings.mode + emulation_excluded) →
+        маршруты по устройствам. mode: emulate → default emulate; mode: proxy →
+        default record. Каждый SN из emulation_excluded попадает в очередь миграции
+        (meta route_migration): известным устройствам реестра сразу ставится
+        route_mode=proxy (Runtime), подключившиеся позже — при регистрации
+        (IdentityRegistry). Сами ключи из настроек удаляются."""
+        if "mode" not in settings and "emulation_excluded" not in settings:
+            return False
+        default = "record" if settings.get("mode") == "proxy" else "emulate"
+        excluded = [sn for sn in (settings.pop("emulation_excluded", None) or [])
+                    if isinstance(sn, str) and sn.strip()]
+        settings.pop("mode", None)
+        settings["default_route_mode"] = default  # legacy-режим определяет default, аддитивную миграцию перекрывает
+        if excluded:
+            pending = self.store.meta(ROUTE_MIGRATION_KEY)
+            try:
+                known = json.loads(pending).get("excluded", []) if pending else []
+            except ValueError:
+                known = []
+            merged = list(dict.fromkeys([*known, *excluded]))
+            self.store.set_meta(ROUTE_MIGRATION_KEY, json.dumps({"excluded": merged}))
+            log.info("Миграция маршрутов: %d SN из emulation_excluded переведены на proxy", len(merged))
+        self.store.save_settings(settings)
+        return True
 
     def persist(self, settings):
         """Сохранение: ревизия в БД (RF-08) + сверка каталога файлов сценариев."""
@@ -132,8 +165,11 @@ class SettingsService:
         """Проверка присланных UI настроек → копия, готовая к persist.
         current — прежние настройки для восстановления секретов __KEEP__.
         preserve_mode (режим берётся из current) применяет вызывающий Runtime."""
-        if value.get("mode") not in MODES:
-            raise ValueError("mode: proxy или emulate")
+        if value.get("default_route_mode", current.get("default_route_mode", "emulate")) not in ROUTE_MODES:
+            raise ValueError("default_route_mode: " + " | ".join(ROUTE_MODES))
+        # TASK-044: устаревшая форма UI присылает старые ключи режимов — не сохраняем их
+        value.pop("mode", None)
+        value.pop("emulation_excluded", None)
         from .intelligence import LEVELS, ext_id
         # Встроенный уровень или "ext:<id>" (режим расширения, TASK-034). Валидатор
         # проверяет только формат: включённость расширения с modes/ знает менеджер

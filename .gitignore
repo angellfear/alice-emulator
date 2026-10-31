@@ -6,7 +6,7 @@ __pycache__/
 .playwright-mcp/
 
 # данные и секреты — никогда не коммитить
-server_emulator/state/
+server_emulator/state*/
 data/
 artifacts/
 certs/
@@ -32,3 +32,4 @@ server_emulator/ui/img/devices/
 # рабочие задания и инструкции агентов — только локально
 tasks/
 CLAUDE.md
+AGENTS.md

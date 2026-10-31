@@ -16,7 +16,7 @@ from .dispatcher import Dispatcher
 from .provider_manager import ProviderManager
 from .legacy_replay import control_response
 from .lifecycle import Lifecycle, RequestContext
-from .settings_service import DEFAULT, MODES, SettingsService, masked_secret, validate_url
+from .settings_service import DEFAULT, ROUTE_MODES, SettingsService, masked_secret, validate_url
 from .schema import SetupRequired, load_type, schemas_ready
 from .device_images import DeviceImages, images_dir
 from .state_store import StateStore, migrate_legacy
@@ -61,10 +61,16 @@ class Runtime:
         self.sequence = itertools.count(1)  # SequenceNumber ответов (реальный счётчик сервера)
         self.lock = asyncio.Lock()
         self.identities = IdentityRegistry(self.directory, self.store)
+        # TASK-044: очередь миграции emulation_excluded — известным устройствам сразу
+        # route_mode=proxy, подключившиеся позже получают его при регистрации.
+        for sn in list(self.identities.pending_route_migration()):
+            if any(d['sn'] == sn for d in self.identities.data['devices']):
+                self.identities.apply_pending_route(sn)
         self.quasar_params = ParamStore(self.store.db,  # TASK-032: params/ расширений поверх БД
                                         extension_dirs=lambda: self._extension_layers("params"))
         self.quasar_params.seed(self.identities.data)  # каталог+legacy-перенос, идемпотентно
         self.sessions = {}
+        self.quasar_sync_headers = {}  # TASK-052: последние заголовки get_sync_info по SN, только память
         self.quasar = QuasarBackend(self)
         self.action_log = []
         self.tool_log = []  # вызовы инструментов моделью (MCP-хаб), последние 100
@@ -275,6 +281,11 @@ class Runtime:
         # TASK-004 (DEBT-01): HTTP-маршрутизация (dispatch) вынесена в Dispatcher;
         # runtime остаётся владельцем WS-сессий и состояния, к которому dispatcher обращается.
         self.dispatcher = Dispatcher(self)
+        # TASK-043: проход наверх — резолвер внешнего DNS, пересылка HTTP и мост WS
+        # + журнал трафика state/traffic.sqlite3. Правило пересылки — режимы маршрута
+        # устройств (TASK-044): dispatcher.route_mode_for + upstream.target_for.
+        from .upstream import Upstream
+        self.upstream = Upstream(self)
 
     async def close(self):
         """B01: идемпотентная остановка общих ресурсов (клиент, фоновые задачи)."""
@@ -282,6 +293,7 @@ class Runtime:
             self.voice_stack.local.stop_key(variant)
         if self.routines is not None:
             self.routines.shutdown()
+        await self.upstream.close()  # TASK-043: доработать очередь журнала, закрыть клиента прохода
         await self.lifecycle.close()
         self.store.close()
 
@@ -614,8 +626,8 @@ class Runtime:
         value = self.settings_service.validate(value, self.settings)
         tts_changed = value.get("tts") != self.settings.get("tts")
         async with self.lock:
-            if preserve_mode:
-                value["mode"] = self.settings["mode"]
+            if preserve_mode:  # форма настроек не меняет маршрут по умолчанию
+                value["default_route_mode"] = self.settings["default_route_mode"]
             self.write("settings.json", value)
             self.settings = value
             self.refresh_profiles()
@@ -625,28 +637,46 @@ class Runtime:
             self.tts_cache.drop_dynamic()
         return self.public()
 
-    async def set_mode(self, mode, connections='wait'):
-        if mode not in MODES:
-            raise ValueError("mode: proxy или emulate")
-        if connections not in ('wait','disconnect'):
+    def _session_sn(self, session):
+        """SN устройства WS-сессии: прямой (после sync) или через DeviceId handshake."""
+        sn = session.get('device_sn')
+        if sn:
+            return sn
+        device_id = session.get('device_id')
+        device = self.identities.resolve(device_id) if device_id else None
+        return device.get('sn') if device else None
+
+    async def set_default_route_mode(self, mode, connections='wait'):
+        """Маршрут по умолчанию (TASK-044). При connections=disconnect рвутся
+        соединения только устройств без собственного route_mode — у них изменился
+        эффективный режим; устройства с явным маршрутом не трогаются."""
+        if mode not in ROUTE_MODES:
+            raise ValueError("mode: " + " | ".join(ROUTE_MODES))
+        if connections not in ('wait', 'disconnect'):
             raise ValueError('connections: wait или disconnect')
         async with self.lock:
-            excluded = set(self.settings.get('emulation_excluded') or [])
-            # Смена режима не рвёт WS исключённых устройств: их эмуляция и так отключена
-            sockets = [s['ws'] for s in self.sessions.values()
-                       if connections == 'disconnect' and s.get('device_sn') not in excluded] if connections=='disconnect' else []
             value = copy.deepcopy(self.settings)
-            value["mode"] = mode
+            value["default_route_mode"] = mode
             self.write("settings.json", value)
             self.settings = value
             closed = 0
-            if connections=='disconnect':
-                tasks = [socket.close(code=1012,message=b'Mode changed') for socket in sockets]
-                if self.disconnect_proxy:
-                    tasks.append(self.disconnect_proxy())
-                results = await asyncio.gather(*tasks)
-                closed = len(sockets) + (results[-1] if self.disconnect_proxy else 0)
-        return {"mode": mode, 'connections':connections, 'disconnected':closed}
+            if connections == 'disconnect':
+                explicit = {d['sn'] for d in self.identities.data['devices'] if d.get('route_mode')}
+                sockets = [s['ws'] for s in self.sessions.values() if self._session_sn(s) not in explicit]
+                await asyncio.gather(*(socket.close(code=1012, message=b'Mode changed') for socket in sockets))
+                closed = len(sockets)
+        return {"mode": mode, 'connections': connections, 'disconnected': closed}
+
+    async def set_device_route_mode(self, sn, mode):
+        """Маршрут одного устройства (TASK-044); mode=None — снова default.
+        Открытые соединения устройства закрываются — колонка переподключается сама."""
+        if mode not in (None, *ROUTE_MODES):
+            raise ValueError("mode: " + " | ".join(ROUTE_MODES) + " или null")
+        async with self.lock:
+            self.identities.mutate({"operation": "route_mode", "sn": sn, "mode": mode})
+            sockets = [s['ws'] for s in self.sessions.values() if self._session_sn(s) == sn]
+            await asyncio.gather(*(socket.close(code=1012, message=b'Route changed') for socket in sockets))
+        return {"sn": sn, "mode": mode, "disconnected": len(sockets)}
 
     @staticmethod
     def validate_url(value):
@@ -686,12 +716,13 @@ class Runtime:
         return await mcp_hub.request(self, server, method, params)
 
     # TASK-004 (DEBT-01): маршрутизация HTTP — в dispatcher.Dispatcher; публичные
-    # имена сохранены как делегации (их зовут встраивающий прокси, server.py, тесты).
+    # имена сохранены как делегации (их зовут server.py и тесты).
     async def handle_update(self, request, host, path, record=None):
         return await self.dispatcher.handle_update(request, host, path, record)
 
-    def emulation_excluded_sn(self, request):
-        return self.dispatcher.emulation_excluded_sn(request)
+    def route_mode_for(self, request):
+        """(sn, device_id, mode) маршрута запроса — TASK-044 (делегация в dispatcher)."""
+        return self.dispatcher.route_mode_for(request)
 
     def client_ip(self, request):
         return self.dispatcher.client_ip(request)
@@ -820,7 +851,7 @@ def mount_ui(app, runtime, prefix="/emulator"):
 
     # Каталог картинок устройств (модель по SN): только существующие
     # PNG/WebP из каталога картинок (device_images.images_dir) — путь проверяется на выход за пределы папки.
-    ASSETS = ("index.html", "app.js", "style.css", "users.js", "backend.js", "updates.js", "catalog.js", "replies.js", "animations.js", "endpoints.js", "misses.js", "endpoints.css", "devices_common.js", "device_cards.js", "mcp.js", "agent.js", "memory.js", "routines.js", "scenario_drafts.js", "params.js", "voice_stack.js", "sound_cache.js", "extensions.js", "setup.js")
+    ASSETS = ("index.html", "app.js", "style.css", "users.js", "backend.js", "updates.js", "catalog.js", "replies.js", "animations.js", "endpoints.js", "misses.js", "endpoints.css", "devices_common.js", "device_cards.js", "mcp.js", "agent.js", "memory.js", "routines.js", "scenario_drafts.js", "params.js", "voice_stack.js", "sound_cache.js", "extensions.js", "setup.js", "server_config.js", "traffic.js")
     GENERIC_IMAGES = ROOT / "ui" / "img" / "generic"
     VENDOR = ROOT / "ui" / "vendor"
 

@@ -102,7 +102,6 @@ async def test_unclaimed_text_input_gets_standard_reply_not_model(tmp_path):
 
 async def test_unclaimed_websocket_session_gets_spoken_reply(tmp_path):
     runtime = Runtime(tmp_path)
-    runtime.settings['mode'] = 'emulate'
 
     async def provider(kind, payload=None, **_):
         return ogg(), 'audio/ogg'

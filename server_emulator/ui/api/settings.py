@@ -1,8 +1,6 @@
-"""Домены settings и mode: чтение/сохранение настроек эмулятора и переключение режима (RF-03).
-
-Код перенесён из runtime.py (функция legacy_api) дословно; guard
-(X-Emulator + same-origin) и маппинг ошибок обеспечивает диспетчер
-реестра ui/api/__init__.py.
+"""Домены settings и mode: чтение/сохранение настроек эмулятора и выбор маршрута
+по умолчанию (TASK-044). Guard (X-Emulator + same-origin) и маппинг ошибок
+обеспечивает диспетчер реестра ui/api/__init__.py.
 """
 from aiohttp import web
 
@@ -16,14 +14,15 @@ async def settings(request, runtime, app):
 
 @route("mode", methods=("GET", "POST", "PUT"))
 async def mode(request, runtime, app):
-    from ...runtime import MODES, STANDALONE_KEY  # внутри обработчика: избегаем цикла импортов
-    if request.method=='GET':
-        return web.json_response({'mode':runtime.settings['mode'],'modes':list(MODES),
-                                  'excluded':runtime.settings.get('emulation_excluded') or []})
+    """Маршрут по умолчанию (TASK-044): emulate|hybrid|proxy|record для устройств без
+    собственного route_mode. PUT {connections: 'disconnect'} рвёт соединения только
+    устройств, чей эффективный режим изменился."""
+    from ...settings_service import ROUTE_MODES
+    if request.method == 'GET':
+        return web.json_response({'mode': runtime.settings.get('default_route_mode', 'emulate'),
+                                  'modes': list(ROUTE_MODES)})
     value = await request.json()
-    if app.get(STANDALONE_KEY) and value.get('mode') != 'emulate':
-        raise ValueError('Standalone работает только в эмуляции; для проксирования нужен компонент прокси')
-    return web.json_response(await runtime.set_mode(value['mode'],value.get('connections','wait')))
+    return web.json_response(await runtime.set_default_route_mode(value['mode'], value.get('connections', 'wait')))
 
 
 @route("intelligence", methods=("GET",))

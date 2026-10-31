@@ -4,7 +4,8 @@
 
 Принцип: SDK НЕ дублирует логику — только обёртки и dataclass'ы над тем, что уже
 есть в движке (1.1.0: парсеры scenario_engine/parsers.py, форматтеры фильтров шаблонов, обновление
-датасета Executor). Построители (say/card/directive/silent) возвращают ровно ту структуру
+датасета Executor; 1.2.0: ExtensionContext — настройки расширения для его кода, TASK-053).
+Построители (say/card/directive/silent) возвращают ровно ту структуру
 dict'ов, которую принимает compose-шаг (scenario_engine/reply_compose.compose_reply) —
 никакой новой сборки ответа. Сервисы контекста (action/fetch_json/dataset/lexicon) —
 тонкие обёртки над реестром Executor (runtime.scenario_executor): действия, fetch_json
@@ -28,10 +29,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from .extensions.context import ExtensionContext, action_context  # ExtensionContext — для аннотаций кода расширений
 from .scenario_engine import bindings as _bindings
 from .scenario_engine import parsers as _parsers
 
-SDK_VERSION = "1.1.0"
+SDK_VERSION = "1.2.0"
 DATASET_REFRESH_TIMEOUT_S = 10.0  # как у шага refresh без timeout
 
 
@@ -150,12 +152,14 @@ class Event:
 
 class _ActionExecution:
     """Минимальный объект execution, который видит обработчик действия: контекст
-    запроса (input/clock/user/device…), как у шага action в Executor."""
+    запроса (input/clock/user/device…), как у шага action в Executor, и extension —
+    ExtensionContext расширения-владельца действия (TASK-053), встроенному — None."""
 
-    __slots__ = ("ctx",)
+    __slots__ = ("ctx", "extension")
 
-    def __init__(self, ctx):
+    def __init__(self, ctx, extension=None):
         self.ctx = ctx
+        self.extension = extension
 
 
 class ScenarioContext:
@@ -166,6 +170,9 @@ class ScenarioContext:
     запроса в формате шагов движка (input/clock/user/device/params/slots/state…);
     slots и state — ТЕ ЖЕ dict'ы, что у исполнения: правки переживают шаги диалога.
     dry_run=True (проверка сценария) — действия не выполняются, а пишутся в effects.
+    extension — ExtensionContext настроек расширения (TASK-053): его ставит
+    intelligence.answer для режимов расширений (ctx.extension); у обычных
+    py-сценариев и вне режимов он None.
     """
 
     def __init__(self, runtime, ctx=None, dry_run=False, assets_dir=None):
@@ -173,6 +180,7 @@ class ScenarioContext:
         self._ctx = ctx if isinstance(ctx, dict) else {}
         self._assets_dir = Path(assets_dir) if assets_dir else None  # <id>.assets рядом со скриптом
         self.dry_run = bool(dry_run)
+        self.extension = None  # ExtensionContext режима расширения (TASK-053), ставит intelligence.answer
         self.effects = []  # [{kind, name, arguments}] — что dry_run сделал бы (показывает проверка)
         self.slots = self._ctx.get("slots") if isinstance(self._ctx.get("slots"), dict) else {}
         self.state = self._ctx.get("state") if isinstance(self._ctx.get("state"), dict) else {}
@@ -275,14 +283,17 @@ class ScenarioContext:
     async def action(self, name, **arguments):
         """Действие из реестра Executor (timer.start, alarm.start, timer.cancel,
         device.push, light.set — см. docs/contracts/scenario-json-v2.md). В dry_run
-        действие НЕ выполняется: запись {kind, name, arguments} в ctx.effects, вернётся None."""
+        действие НЕ выполняется: запись {kind, name, arguments} в ctx.effects, вернётся None.
+        Обработчик получает execution.extension — ExtensionContext расширения-владельца
+        действия (TASK-053), встроенному — None."""
         if self.dry_run:
             self.effects.append({"kind": "action", "name": str(name), "arguments": dict(arguments)})
             return None
         handler = (getattr(self._executor(), "actions", None) or {}).get(str(name))
         if handler is None:
             raise SDKError(f"нет действия {name!r}")
-        result = handler(dict(arguments), _ActionExecution(self._ctx))
+        result = handler(dict(arguments),
+                         _ActionExecution(self._ctx, extension=action_context(str(name))))
         if inspect.isawaitable(result):
             result = await result
         return result

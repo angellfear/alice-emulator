@@ -35,6 +35,7 @@ voice/packages/*.json — пакеты с id «<ext-id>.<pkg>», voice/adapters/
 """
 import asyncio
 import copy
+import inspect
 import json
 import logging
 import os
@@ -75,6 +76,37 @@ def fill(value, options):
     if isinstance(value, str):
         return re.sub(r"\{(\w+)\}", lambda m: str(options.get(m.group(1), m.group(0))), value)
     return value
+
+
+def extension_for_adapter(runtime, config):
+    """ExtensionContext расширения-владельца адаптера (TASK-053) или None —
+    встроенный/свой адаптер. Идентификатор — config["adapter"] («<ext-id>.<файл>»);
+    владелец — включённое расширение с самым длинным совпавшим префиксом (id
+    расширений могут содержать точки). Новый объект на каждый вызов адаптера."""
+    identifier = str((config or {}).get("adapter") or "")
+    manager = getattr(runtime, "extensions", None)
+    if not identifier or manager is None:
+        return None
+    best = None
+    for ext_id in getattr(manager, "loaded", {}) or {}:
+        ext_id = str(ext_id)
+        if identifier.startswith(ext_id + ".") and (best is None or len(ext_id) > len(best)):
+            best = ext_id
+    build = getattr(manager, "context", None)
+    return build(best) if best and callable(build) else None
+
+
+def call_adapter(function, runtime, config, *args):
+    """Вызов функции адаптера из конвейера (TASK-053): адаптерам расширений, чья
+    функция принимает extension (проверка сигнатуры), передаётся kwarg
+    extension=ExtensionContext; встроенные и прежние адаптеры вызываются как раньше."""
+    try:
+        accepts = "extension" in inspect.signature(function).parameters
+    except (TypeError, ValueError):  # не функция или сигнатура недоступна — как раньше
+        accepts = False
+    if accepts:
+        return function(runtime, config, *args, extension=extension_for_adapter(runtime, config))
+    return function(runtime, config, *args)
 
 
 def coerce(fields, values):
@@ -206,7 +238,8 @@ class PcmTTS:
         self.voice, self.response_format = config.get("voice", ""), config.get("response_format", "")
 
     async def synth_pcm(self, text):
-        return await self._adapter.synth_pcm(self._runtime, self._config, text)
+        # адаптер расширения получает extension=ExtensionContext (TASK-053), если принимает
+        return await call_adapter(self._adapter.synth_pcm, self._runtime, self._config, text)
 
     def label(self):
         return " · ".join(x for x in (self.model or self.adapter, self.voice) if x)

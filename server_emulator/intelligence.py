@@ -13,7 +13,8 @@
 один режим; модуль объявляет MODE = {id, title, needs?, tabs?, preset?} и async answer(ctx, text, history),
 возвращающую ответ в форме ProviderManager.chat ({text, tool_calls, usage, source…}). Загрузка —
 общий ScriptRunner (mtime-кеш: правка файла подхватывается без рестарта), ctx — SDK ScenarioContext
-(TASK-018), собранный так же, как для сценария (agent/scenarios.py). Полный id режима —
+(TASK-018), собранный так же, как для сценария (agent/scenarios.py); настройки расширения режим
+читает из ctx.extension (TASK-053, extensions/context.py). Полный id режима —
 "<ext-id>.<MODE.id>" (префикс имён элементов расширения), settings.intelligence = "ext:<полный id>".
 """
 import datetime
@@ -144,9 +145,13 @@ def mode_context(runtime, text, context):
 
 async def answer(runtime, mode, text, history, context):
     """Ответ режима расширения: ScenarioContext (TASK-018) + answer(ctx, text, history)
-    через ScriptRunner. Сбой режима — ответ «Простого» и запись в recent, диалог не роняется."""
+    через ScriptRunner. Сбой режима — ответ «Простого» и запись в recent, диалог не роняется.
+    Режим видит настройки своего расширения как ctx.extension (TASK-053): новый
+    ExtensionContext на каждый вызов — правка настроек действует без рестарта."""
     from .sdk import ScenarioContext
     scenario = ScenarioContext(runtime, mode_context(runtime, text, context))
+    build = getattr(getattr(runtime, "extensions", None), "context", None)
+    scenario.extension = build(mode["ext"]) if callable(build) else None
     try:
         result = await mode_runner().run(mode["file"], scenario, text, list(history or []), function="answer")
     except Exception as exc:  # noqa: BLE001 — сбой режима не должен ронять диалог

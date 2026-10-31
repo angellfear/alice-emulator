@@ -342,8 +342,10 @@ class EndpointCatalog:
     SKIP_HEADERS = {"host", "content-length", "connection", "transfer-encoding", "keep-alive",
                     "upgrade", "accept-encoding"}
 
-    def note_miss(self, host, method, path, query="", body=b"", content_type="", headers=()):
-        """Запомнить запрос без обработчика: из него UI создаёт эндпоинт (+)."""
+    def note_miss(self, host, method, path, query="", body=b"", content_type="", headers=(), forwarded=None):
+        """Запомнить запрос без обработчика: из него UI создаёт эндпоинт (+).
+        forwarded (TASK-044, гибрид): 'upstream' — промах ушёл в Яндекс, 'error: …' —
+        попытка не удалась; отметка показывается в «Без ответа»."""
         import base64
         misses = self.misses()
         key = method + " " + host.lower() + path
@@ -354,6 +356,8 @@ class EndpointCatalog:
                     request_base64=base64.b64encode((body or b"")[:self.MISS_SAMPLE]).decode(),
                     request_size=len(body or b""), content_type=content_type or "",
                     headers=[[k, v] for k, v in headers if k.lower() not in self.SKIP_HEADERS])
+        if forwarded:
+            item["forwarded"] = forwarded
         misses[key] = item
         if len(misses) > self.MISS_LIMIT:  # вытесняем самые старые
             for old in sorted(misses, key=lambda k: misses[k]["last_ts"])[:len(misses) - self.MISS_LIMIT]:

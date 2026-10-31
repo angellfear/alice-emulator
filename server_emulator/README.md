@@ -11,15 +11,19 @@ python -m pip install -e ".[test]"   # из корня репозитория
 python -m server_emulator.server
 ```
 
+Адрес, порты и сертификат — state/server.json («Дополнительно → Сервер»), аргументы `--host`, `--port`,
+`--ssl/--no-ssl`, `--cert`, `--key`, `--http-port` перекрывают файл.
+Собственный каталог данных: `python -m server_emulator.server --state D:/my-emulator-state`.
+Тестовый экземпляр без портов колонок: `python -m server_emulator.server --host 127.0.0.1 --port 18090 --no-ssl --http-port 0`.
+
 UI: http://127.0.0.1:8877/emulator/
 HTTP/WS устройства обслуживаются на том же порту; для UniProxy используется /uni.ws.
 Чтобы принимать подключения по сети: `python -m server_emulator.server --host 0.0.0.0 --port 8877`.
-Собственный каталог данных: `python -m server_emulator.server --state D:/my-emulator-state`.
 Для HTTPS/WSS: `python -m server_emulator.server --port 8878 --cert cert.pem --key key.pem`.
 
 ## Встраивание в прокси (временно)
 
-Код встраивания сохранён до заданий TASK-043/044. Код встраивания сохранён до заданий TASK-043/044. Раздел «Эмулятор» открывает тот же UI и тот же Runtime. Переключатель
+Код встраивания сохранён до задания TASK-044 (режимы устройств); проход к настоящим серверам у эмулятора теперь собственный — `server_emulator/upstream/` (TASK-043). Раздел «Эмулятор» открывает тот же UI и тот же Runtime. Переключатель
 «Проксирование / Эмуляция» применяется к новым HTTP-запросам и WS-соединениям.
 Существующие WS-соединения сохраняют прежний обработчик до переподключения.
 По умолчанию сохраняется проксирование. В эмуляции неизвестный endpoint возвращает

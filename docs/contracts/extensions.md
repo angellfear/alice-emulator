@@ -62,7 +62,7 @@ docs/contracts/scripts-sdk.md).
 | `author` | string, обязателен | |
 | `license` | string, обязателен | SPDX-идентификатор |
 | `homepage` | string | |
-| `requires` | object, обязателен | `emulator` — диапазон semver версий эмулятора; `sdk` — диапазон `SDK_VERSION` из `server_emulator/sdk.py` (сейчас `"1.0.0"`); `python_packages` — список pip-требований |
+| `requires` | object, обязателен | `emulator` — диапазон semver версий эмулятора; `sdk` — диапазон `SDK_VERSION` из `server_emulator/sdk.py` (сейчас `"1.2.0"`); `python_packages` — список pip-требований |
 | `permissions` | object, обязателен | см. «Разрешения»; `{}` для data-расширения |
 | `settings` | object | схема настроек расширения: `fields` + `defaults` — формат как `fields`/`defaults` в `voice_stack/packages/*.json` |
 | `contributes` | object | переопределяет поиск по папкам (ниже) |
@@ -130,6 +130,73 @@ docs/contracts/scripts-sdk.md).
 - Имена элементов (сценарии, эндпоинты, списки, действия, датасеты, пакеты, режимы)
   получают префикс `<ext-id>.`; принадлежность записи расширению определяется по `origin`,
   не по разбору имени (id может содержать точки).
+
+## Настройки в коде расширения
+
+Значения `settings` (вкладка «Расширений») код расширения получает объектом `ExtensionContext`
+(`server_emulator/extensions/context.py`; тип также экспортирует `server_emulator.sdk`) —
+**только чтение**: `id`, `settings` (все значения, `MappingProxyType`) и `get(key, default=None)`.
+Строки вида `env:ИМЯ` уже раскрыты через `auth.secret`, как секреты провайдеров: в настройке
+храните ссылку (`env:COFFEE_TOKEN`), само значение живёт в переменной окружения процесса и не
+попадает в настройки и экспорты. Контекст создаётся заново на каждый вызов кода расширения —
+правка настроек действует без рестарта сервера. `repr`/`str` контекста маскируют строковые
+значения (`***`), чтобы секреты не утекали в журналы и трассы.
+
+| Код расширения | Откуда контекст |
+|---|---|
+| `modes/*.py` — `answer(ctx, text, history)` | `ctx.extension` |
+| `actions/*.py` — `fn(arguments, execution)` | `execution.extension` — контекст расширения, объявившего действие (имя под префиксом `contributes.actions.prefix`/`id` или в `permissions.actions`); у встроенных действий `None` |
+| `voice/adapters/*.py` — `complete/transcribe/speech/…` | аргумент `extension=ExtensionContext` — если функция адаптера его принимает (проверка сигнатуры); встроенные и прежние адаптеры расширений вызываются как раньше |
+
+Контекст всегда относится к тому расширению, из которого загружен код: чужие настройки код
+расширения получить не может.
+
+Примеры (расширение `coffee` с полями `url` и `token`):
+
+```python
+# modes/answer.py — режим
+async def answer(ctx, text, history):
+    ext = ctx.extension                       # ExtensionContext расширения coffee
+    url = ext.get("url")                      # значение или None (get(key, default=None))
+    token = ext.get("token", "")              # env:COFFEE_TOKEN уже раскрыт
+    ...
+```
+
+```python
+# actions/brew.py — действие
+async def brew(arguments, execution):
+    ext = execution.extension                 # контекст расширения-владельца
+    if ext is None:                           # у встроенных действий контекста нет
+        raise RuntimeError("действию coffee нужны его настройки")
+    ...  # POST {ext.get("url")} с Authorization: Bearer {ext.get("token")}
+```
+
+```python
+# voice/adapters/speak.py — адаптер: extension добавлен к прежней сигнатуре
+async def speech(runtime, config, payload, extension=None):
+    token = extension.get("token", "") if extension else ""   # в конвейере контекст придёт
+    ...  # прежний адаптер (без параметра extension) работает как раньше
+```
+
+Общий код нескольких файлов расширения подключайте обычным модулём в корне расширения,
+загружаемым относительно `__file__` (пути внутри расширения не зависят от того, откуда оно
+запущено):
+
+```python
+# actions/brew.py — общий модуль core.py в корне расширения
+import importlib.util
+from pathlib import Path
+
+_core = Path(__file__).resolve().parent.parent / "core.py"
+_spec = importlib.util.spec_from_file_location("coffee_core", _core)
+core = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(core)
+```
+
+**Запрещённые обходы** — не поддерживаются, код расширения так не пишет: приватные атрибуты
+эмулятора (`ctx._runtime`, `manager._state` и подобные), поиск объектов через `gc`, правка
+`sys.path`. Штатный доступ к настройкам — только `ExtensionContext`; поведение эмулятора при
+обходах не гарантируется.
 
 ## Пример 1: data-расширение — один JSON-сценарий
 

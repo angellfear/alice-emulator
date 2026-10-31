@@ -34,6 +34,7 @@ from ..scripting import ScriptRunner, failure
 from ..sdk import SDK_VERSION
 from . import EMULATOR_VERSION
 from . import legacy_registry
+from .context import ExtensionContext, bind_manager
 from .sources import (MAX_PACKAGE_BYTES, CatalogSource, GithubSource, LocalSource, catalog_entries,
                       download_bytes, extract_zip, github_zip_url, network_url_allowed,
                       parse_source)
@@ -205,6 +206,7 @@ class ExtensionManager:
         self.loaded = {}  # id → {dir, manifest} — включённые, после load_enabled()
         self.warnings = []  # проблемы включённых при старте (сервер не падает)
         self.source_cache = {}  # url каталога → {ts, entries}: список доступных без сети
+        bind_manager(self)  # TASK-053: Executor/SDK находят владельца действия (context.action_context)
 
     # --- состояние ----------------------------------------------------------------
     def _state(self):
@@ -315,6 +317,26 @@ class ExtensionManager:
         defaults = (manifest.get("settings") or {}).get("defaults") or {}
         stored = self._state()["settings"].get(ext_id) or {}
         return {**defaults, **stored}
+
+    def context(self, ext_id):
+        """ExtensionContext расширения (TASK-053): значения values(ext_id), строки
+        вида env:ИМЯ раскрыты через auth.secret (context.py). Новый объект на каждый
+        вызов — правка настроек видна коду расширения без рестарта."""
+        item = self.loaded.get(ext_id) or {}
+        return ExtensionContext(ext_id, self.values(ext_id, item.get("manifest")))
+
+    def action_context(self, name):
+        """ExtensionContext расширения-владельца действия name (TASK-053): имя под
+        префиксом (contributes.actions.prefix или id) или объявлено в
+        permissions.actions — правило регистрации TASK-033; префикс сильнее объявления
+        (владеет тот, кто регистрировал). Встроенное/неизвестное — None."""
+        for ext_id in sorted(self.loaded):  # префиксные имена
+            if name.startswith(str(self.action_prefix(ext_id)).rstrip(".") + "."):
+                return self.context(ext_id)
+        for ext_id in sorted(self.loaded):  # имена вне префикса, объявленные явно
+            if name in (self.loaded[ext_id]["manifest"]["permissions"].get("actions") or []):
+                return self.context(ext_id)
+        return None
 
     # --- источники -------------------------------------------------------------------
     async def add_source(self, url):

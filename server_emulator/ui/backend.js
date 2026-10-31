@@ -333,11 +333,99 @@
   }
 
   let selectedPlatformBody=null;
+  // Источник конфига устройства (TASK-052): Генерируемый · Напрямую · Свой.
+  // Переключатель в строке заголовка (на 400px переносится под него), смена
+  // сохраняется сразу; при маршруте устройства Прокси/Запись неактивен.
+  const SOURCE_LABEL={generated:'Генерируемый',direct:'Напрямую',custom:'Свой'};
+  const SOURCE_HINT={
+    generated:'Колонка получает конфиг, собранный эмулятором: платформа → переопределения → инлайн-узлы. Ниже — переопределения и итоговая сборка.',
+    direct:'Колонка получает ответ настоящего quasar.yandex.net. Ниже — последний полученный ответ, только чтение. Переопределения сохраняются, но не применяются.',
+    custom:'Колонка получает сохранённый ответ как есть: без слоёв и инлайн-узлов. Заполните редактор вручную, генерацией или загрузкой с оригинального сервера и сохраните.'};
   async function renderOverrides(root,device){
     root.replaceChildren();
-    const head=make('h3','Переопределения · '+device.sn);
+    let source;
+    try{source=await api('quasar_source?sn='+encodeURIComponent(device.sn))}
+    catch(e){const pe=make('p','Ошибка загрузки: '+e.message);pe.className='hint';root.append(pe);return}
+    const routed=device.route_mode||registry.default_route_mode||'emulate';
+    const locked=routed==='proxy'||routed==='record';
+    const headRow=make('div');headRow.className='src-head';
+    headRow.append(make('h3','Переопределения · '+device.sn));
+    if(locked){
+      const badge=make('span','маршрут: '+(routed==='proxy'?'Прокси':'Запись'),'chip');
+      headRow.append(badge);
+    }else{
+      const seg=make('div');seg.className='segmented';
+      for(const [value,label] of Object.entries(SOURCE_LABEL)){
+        const b=make('button',label);b.type='button';
+        if(source.mode===value)b.classList.add('active');
+        b.onclick=()=>work(async()=>{await put('quasar_source',{sn:device.sn,mode:value});await render()});
+        seg.append(b);
+      }
+      headRow.append(seg);
+    }
+    root.append(headRow);
+    const hint=make('p');hint.className='hint';
+    hint.textContent=locked
+      ?'Маршрут устройства «'+(routed==='proxy'?'Прокси':'Запись')+'»: все запросы и так уходят в Яндекс, источник конфига не применяется.'
+      :SOURCE_HINT[source.mode];
+    root.append(hint);
+    if(locked)return;
+    if(source.mode==='direct')return renderDirect(root,source);
+    if(source.mode==='custom')return renderCustom(root,device,source);
+    return renderGenerated(root,device);
+  }
+
+  // «Напрямую»: последний ответ Яндекса, только чтение
+  function renderDirect(root,source){
+    root.append(make('h3','Последний ответ Яндекса'));
+    const last=source.direct_last;
+    if(!last||!last.body){
+      const p=make('p','Ответов от Яндекса ещё не было: колонка опросит конфиг сама, ответ появится здесь.');
+      p.className='hint';root.append(p);return;
+    }
+    root.append(make('p','Получен: '+new Date(last.ts*1000).toLocaleString('ru-RU')+' · статус '+last.status,'hint'));
+    const holder=make('div');holder.className='panel';
+    makeCM(holder,{value:JSON.stringify(last.body,null,2),readOnly:true,height:'520px'});
+    root.append(holder);
+    setTimeout(()=>[...holder.querySelectorAll('.CodeMirror')].forEach(el=>el.CodeMirror.refresh()),50);
+  }
+
+  // «Свой»: редактор ответа + генерация эмулятором и загрузка с оригинального сервера
+  function renderCustom(root,device,source){
+    root.append(make('h3','Свой ответ'));
+    const holder=make('div');holder.className='panel';
+    const ed=makeCM(holder,{value:source.custom?JSON.stringify(source.custom,null,2):'',height:'460px',onDirty:()=>{dirty=true}});
+    const row=make('div');row.className='sc-toolbar';row.style.margin='8px 0';
+    const save=make('button','Сохранить');save.type='button';
+    const gen=make('button','Сгенерировать эмулятором');gen.type='button';gen.className='secondary';
+    gen.title='Заполнить редактор ответом, который собрал бы эмулятор (не сохраняется)';
+    const fetchB=make('button','Получить с оригинального сервера');fetchB.type='button';fetchB.className='secondary';
+    fetchB.disabled=!source.can_fetch;
+    fetchB.title=source.can_fetch?'Заполнить редактор ответом Яндекса на последний опрос этой колонки':'Колонка ещё не запрашивала конфиг после запуска сервера';
+    const errLine=make('p');errLine.className='sc-err';errLine.hidden=true;
+    const act=fn=>async()=>{errLine.hidden=true;try{await fn()}catch(e){errLine.textContent=e.message;errLine.hidden=false}};
+    const saveJSON=async value=>{
+      let parsed;try{parsed=JSON.parse(value||'null')}catch{throw Error('Ответ: корректный JSON')}
+      if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw Error('Ответ: JSON-объект с объектом config');
+      if(!parsed.config||typeof parsed.config!=='object')throw Error('Ответ: нужен объект config (пока его нет, колонка ответит 409 quasar_custom_not_set)');
+      await put('quasar_source',{sn:device.sn,custom:parsed});
+      dirty=false;$('notice').textContent='Свой ответ сохранён — колонка получит его при следующем опросе.';
+    };
+    save.onclick=act(()=>saveJSON(ed.getValue()));
+    gen.onclick=act(async()=>{const r=await api('quasar_source',{sn:device.sn,action:'generate'});
+      ed.setValue(JSON.stringify(r,null,2));dirty=true;setTimeout(()=>ed.refresh(),0)});
+    fetchB.onclick=act(async()=>{const r=await api('quasar_source',{sn:device.sn,action:'fetch'});
+      if(r.body==null)throw Error('Ответ сервера не JSON (статус '+r.status+')');
+      ed.setValue(JSON.stringify(r.body,null,2));dirty=true;setTimeout(()=>ed.refresh(),0)});
+    row.append(save,gen,fetchB);
+    root.append(holder,row,errLine);
+    setTimeout(()=>ed.refresh(),50);
+  }
+
+  // «Генерируемый»: прежнее содержимое панели — переопределения и итоговая сборка
+  async function renderGenerated(root,device){
     const intro=make('p','Берётся файл платформы устройства, применяются только эти значения. Источник: вариант селектора либо своё значение/шаблон/база/скрипт.');
-    intro.className='hint';root.append(head,intro);
+    intro.className='hint';root.append(intro);
     const platformName=(device.profile||{}).platform;
     selectedPlatformBody=platformName?await api('quasar_platforms?platform='+encodeURIComponent(platformName)):null;
     const overrides=(device.state||{}).quasar_overrides||[];

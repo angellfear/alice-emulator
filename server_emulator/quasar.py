@@ -153,6 +153,13 @@ class QuasarBackend:
             return 403, {'error':'device_not_assigned','hint':'Bind DeviceId to SN and owner in emulator UI'}
         state = copy.deepcopy(device['state'])
         if path=='/get_sync_info':
+            # «Свой» источник (TASK-052): сохранённый ответ как есть — без слоёв,
+            # инлайн-узлов и подстановки стереопары.
+            if state.get('quasar_source')=='custom':
+                custom=state.get('quasar_custom')
+                if not isinstance(custom,dict) or not isinstance(custom.get('config'),dict):
+                    return 409, {'error':'quasar_custom_not_set','hint':'Сохраните свой ответ во вкладке «Quasar → Переопределение под устройство»'}
+                return 200, copy.deepcopy(custom)
             # Слоёная модель: common → merge-patch платформы → переопределения
             # аккаунта владельца → переопределения устройства → инлайн-узлы → динамика.
             common, platform_patch = self.runtime.quasar_platforms.resolve_files(device)

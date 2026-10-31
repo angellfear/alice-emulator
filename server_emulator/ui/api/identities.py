@@ -1,10 +1,10 @@
 """Домен identities: реестр идентичностей (пользователи/устройства) (RF-03).
 
 GET — слепок реестра + сводка активных сессий (без служебных ключей
-runtime/send/ws) + activity («виден/последний IP» для таблицы устройств);
+runtime/send/ws) + activity («виден/последний IP» для таблицы устройств) +
+default_route_mode (TASK-044: эффективный режим устройства без собственного);
 POST — мутация привязки/удаления: затронутым WS-сессиям рвётся соединение
-(1012 «переподключись»), затем мутация под runtime.lock. Ветка перенесена
-дословно из legacy-замыкания legacy_api (server_emulator/runtime.py).
+(1012 «переподключись»), затем мутация под runtime.lock.
 """
 import asyncio
 import copy
@@ -20,7 +20,8 @@ async def identities(request, runtime, app):
         # activity — оперативная сводка «виден/последний IP» для таблицы устройств
         return web.json_response({**runtime.identities.public(),
                                   'sessions': [{k:v for k,v in s.items() if k not in ('runtime','send','ws')} for s in runtime.sessions.values()],
-                                  'activity': copy.deepcopy(runtime.identities.activity)})
+                                  'activity': copy.deepcopy(runtime.identities.activity),
+                                  'default_route_mode': runtime.settings.get('default_route_mode', 'emulate')})
     if request.method != 'POST':
         raise web.HTTPMethodNotAllowed(request.method, ['GET', 'POST'])
     value = await request.json()
@@ -50,6 +51,14 @@ async def identities(request, runtime, app):
         result=runtime.identities.mutate(value)
         runtime.refresh_profiles()
         return web.json_response(result)
+
+
+@route("route_mode", methods=("PUT",))
+async def route_mode(request, runtime, app):
+    """Маршрут одного устройства (TASK-044): PUT {sn, mode} — открытые соединения
+    этого устройства закрываются (1012), колонка переподключается сама."""
+    value = await request.json()
+    return web.json_response(await runtime.set_device_route_mode(value.get('sn'), value.get('mode')))
 
 
 @route("user_login", methods=("GET", "PUT"))

@@ -18,7 +18,7 @@
     const seq = ++fetchSeq;
     const value = await api('identities');
     if (seq !== fetchSeq) return false;
-    registry = { users: value.users || [], devices: value.devices || [], unassigned: value.unassigned || [], sessions: value.sessions || [], activity: value.activity || {} };
+    registry = { users: value.users || [], devices: value.devices || [], unassigned: value.unassigned || [], sessions: value.sessions || [], activity: value.activity || {}, default_route_mode: value.default_route_mode || 'emulate' };
     return true;
   }
   const refresh = () => work(async () => { if (await fetchRegistry()) fingerprint = '', refreshDevices(); });
@@ -362,10 +362,64 @@
     return { cls: 'off', text: 'Офлайн' + (act ? ' · был ' + new Date(act.ts * 1000).toLocaleString('ru-RU') + (act.ip ? ' · ' + act.ip : '') : '') };
   }
 
+  // Маршрут устройства (TASK-044): сегментированный переключатель «Эмуляция · Гибрид ·
+  // Прокси · Запись» (стиль .segmented), на узкой ширине — выпадающий список (CSS).
+  // Смена — с подтверждением в <dialog>: соединение устройства закрывается.
+  const ROUTE_LABEL = { emulate: 'Эмуляция', hybrid: 'Гибрид', proxy: 'Прокси', record: 'Запись' };
+  const effectiveRoute = device => device.route_mode || registry.default_route_mode || 'emulate';
+  function changeRoute(device, mode) {
+    if (mode === effectiveRoute(device)) return;
+    const { dialog, form } = dialogFrame('Маршрут «' + device.name + '»');
+    const text = node('p', 'Сменить «' + ROUTE_LABEL[effectiveRoute(device)] + '» на «' + ROUTE_LABEL[mode] + '»? Открытое соединение устройства закроется — колонка переподключится сама.');
+    text.className = 'hint';
+    const save = node('button', 'Сменить'); save.type = 'submit';
+    const cancel = node('button', 'Отмена'); cancel.type = 'button'; cancel.className = 'secondary';
+    cancel.onclick = () => { dialog.close(); dialog.remove(); refresh(); };
+    const row = node('div'); row.className = 'row'; row.append(cancel, save);
+    form.append(text, row);
+    const errLine = errorLine(form);
+    submitForm(form, errLine, async () => {
+      await api('route_mode', 'PUT', { sn: device.sn, mode });
+      dialog.close(); dialog.remove(); await afterChange();
+      message('Маршрут «' + device.name + '»: ' + ROUTE_LABEL[mode] + '.');
+    });
+    dialog.showModal();
+  }
+  function routeCell(device) {
+    const cell = node('td'); cell.className = 'route-cell';
+    const current = effectiveRoute(device);
+    const segmented = node('div'); segmented.className = 'segmented';
+    for (const [value, label] of Object.entries(ROUTE_LABEL)) {
+      const b = node('button', label); b.type = 'button';
+      if (value === current) { b.classList.add('active'); b.disabled = true; }
+      b.title = 'Маршрут: ' + label;
+      b.onclick = () => changeRoute(device, value);
+      segmented.append(b);
+    }
+    const select = node('select'); select.setAttribute('aria-label', 'Маршрут');
+    for (const [value, label] of Object.entries(ROUTE_LABEL)) select.append(new Option(label, value));
+    select.value = current;
+    select.onchange = () => changeRoute(device, select.value);
+    const box = node('div'); box.className = 'route-switch';
+    box.append(segmented, select);
+    cell.append(box);
+    return cell;
+  }
+
   function renderDevices() {
-    devicesRoot.replaceChildren(
-      node('h2', 'Устройства'),
-      node('p', 'Устройство — серийный номер SN из маркеров запроса колонки (заголовок WS-подключения, /get_sync_info): оно само попадает в список, без владельца. Зелёный — активная WS-сессия, жёлтый — виден недавно по HTTP, серый — офлайн. Смена привязки закрывает соединение устройства — оно переподключится само.'));
+    devicesRoot.replaceChildren();
+    // Пояснение маршрутов (TASK-044): построчно, названия режимов — жирным.
+    const routeNote = node('div'); routeNote.className = 'hint route-note';
+    const routeLine = (name, text) => { routeNote.append(node('b', name), document.createTextNode(' — ' + text)); };
+    routeLine('Эмуляция', 'всё отвечает эмулятор.');
+    routeNote.append(node('br'));
+    routeLine('Гибрид', 'эмулятор, где есть обработчик; остальное — в Яндекс.');
+    routeNote.append(node('br'));
+    routeLine('Прокси', 'всё в Яндекс, без журнала.');
+    routeNote.append(node('br'));
+    routeLine('Запись', 'всё в Яндекс, с журналом.');
+    routeNote.append(node('br'), node('b', 'Без своего маршрута'), document.createTextNode(' устройство наследует режим по умолчанию из шапки.'));
+    devicesRoot.append(routeNote);
     const bound = registry.devices.filter(d => d.user_id).length;
     const toolbar = node('div'); toolbar.className = 'sc-toolbar';
     const counts = node('span'); counts.className = 'hint';
@@ -378,7 +432,7 @@
 
     const table = node('table'); table.className = 'dev-table';
     const head = node('tr');
-    head.append(node('th', 'Статус'), node('th', 'Модель / SN'), node('th', 'Привязка'), node('th', 'Действия'));
+    head.append(node('th', 'Статус'), node('th', 'Модель / SN'), node('th', 'Привязка'), node('th', 'Действия'), node('th', 'Маршрут'));
     const thead = node('thead'); thead.append(head); table.append(thead);
     const tbody = node('tbody');
     for (const device of registry.devices) {
@@ -426,10 +480,11 @@
         await afterChange(); message('Устройство удалено; вернётся в список с первым /get_sync_info от него.');
       });
       actions.append(del); row.append(actions);
+      row.append(routeCell(device));
       tbody.append(row);
     }
     if (!registry.devices.length) {
-      const empty = node('tr'); const cell = node('td', 'Устройств пока нет: колонка попадёт в таблицу сама — при WS-подключении или первом запросе /get_sync_info.'); cell.colSpan = 4;
+      const empty = node('tr'); const cell = node('td', 'Устройств пока нет: колонка попадёт в таблицу сама — при WS-подключении или первом запросе /get_sync_info.'); cell.colSpan = 5;
       empty.append(cell); tbody.append(empty);
     }
     table.append(tbody); devicesRoot.append(table);

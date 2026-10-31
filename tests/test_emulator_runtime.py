@@ -102,23 +102,24 @@ async def test_model_speech_and_mcp_with_local_providers(tmp_path):
 
 
 async def test_mode_toggle_preserves_settings_and_stale_form_cannot_reset_mode(tmp_path):
+    """TASK-044: /api/mode — маршрут по умолчанию; форма настроек его не меняет."""
     runtime = Runtime(tmp_path)
     runtime.settings['model']['api_key'] = 'keep-secret'
     stale_form = runtime.public()
     runner, url = await listen(create_app(runtime=runtime))
     try:
         async with ClientSession(headers={'X-Emulator': '1'}) as client:
-            async with client.put(url+'/emulator/api/mode', json={'mode': 'emulate'}) as response:
-                assert await response.json() == {'mode': 'emulate', 'connections': 'wait', 'disconnected': 0}
+            async with client.put(url+'/emulator/api/mode', json={'mode': 'record'}) as response:
+                assert await response.json() == {'mode': 'record', 'connections': 'wait', 'disconnected': 0}
             assert runtime.settings['model']['api_key'] == 'keep-secret'
             stale_form['system_prompt'] = 'edited prompt'
             async with client.put(url+'/emulator/api/settings', json=stale_form) as response:
                 assert response.status == 200
-                assert (await response.json())['mode'] == 'emulate'
+                assert (await response.json())['default_route_mode'] == 'record'
             assert runtime.settings['system_prompt'] == 'edited prompt'
             async with client.put(url+'/emulator/api/mode', json={'mode': 'invalid'}) as response:
                 assert response.status == 400
-            assert Runtime(tmp_path).settings['mode'] == 'emulate'
+            assert Runtime(tmp_path).settings['default_route_mode'] == 'record'
     finally:
         await runner.cleanup()
 

@@ -6,6 +6,7 @@ import time
 import uuid
 from pathlib import Path
 
+from .settings_service import ROUTE_MIGRATION_KEY, ROUTE_MODES
 from .state_store import StateStore
 
 
@@ -153,6 +154,40 @@ class IdentityRegistry:
                 raise ValueError('Доп. поля: имена — непустые строки без исполняемых ключей')
         return copy.deepcopy(value)
 
+    @staticmethod
+    def route_mode(value):
+        """Маршрут устройства (TASK-044): None — наследовать default_route_mode."""
+        if value in (None, ''):
+            return None
+        if value not in ROUTE_MODES:
+            raise ValueError('Маршрут: ' + ' | '.join(ROUTE_MODES))
+        return value
+
+    def pending_route_migration(self):
+        """Очередь миграции emulation_excluded → route_mode=proxy (meta StateStore)."""
+        raw = self.store.meta(ROUTE_MIGRATION_KEY)
+        try:
+            pending = json.loads(raw) if raw else {}
+        except ValueError:
+            pending = {}
+        return [sn for sn in pending.get("excluded", []) if isinstance(sn, str)]
+
+    def apply_pending_route(self, sn):
+        """Известный реестру SN из очереди миграции: route_mode=proxy и снятие с очереди."""
+        if not self._take_pending_route(sn):
+            return False
+        self.mutate({'operation': 'route_mode', 'sn': sn, 'mode': 'proxy'})
+        return True
+
+    def _take_pending_route(self, sn):
+        """SN из очереди миграции → route_mode=proxy (однократно), очередь короче."""
+        pending = self.pending_route_migration()
+        if sn not in pending:
+            return False
+        pending.remove(sn)
+        self.store.set_meta(ROUTE_MIGRATION_KEY, json.dumps({"excluded": pending}))
+        return True
+
     GROUP_ROLES = ('leader', 'follower')
 
     @classmethod
@@ -289,9 +324,23 @@ class IdentityRegistry:
                       'device_ids': aliases, 'profile': self.profile(request.get('profile', previous_profile)), 'state': state,
                       'room': self.room(request.get('room', old.get('room', ''))),
                       'model': (request.get('model', old.get('model', '')) or '').strip().lower()[:32],
-                      'fields': self.fields(request.get('fields', old.get('fields', {})))}
+                      'fields': self.fields(request.get('fields', old.get('fields', {}))),
+                      'route_mode': self.route_mode(request.get('route_mode', old.get('route_mode')))}
+            if not old and self._take_pending_route(sn):  # TASK-044: SN из emulation_excluded
+                device['route_mode'] = 'proxy'
             value['devices'] = [d for d in value['devices'] if d['sn'] != sn] + [device]
             value['unassigned'] = [d for d in value['unassigned'] if d['device_id'] not in aliases]
+        elif operation == 'route_mode':
+            # TASK-044: смена маршрута одного устройства; mode=None — снова наследовать default
+            sn = self.text(request.get('sn'), 'SN')
+            device = next((d for d in value['devices'] if d['sn'] == sn), None)
+            if device is None:
+                raise ValueError('SN не найден')
+            mode = self.route_mode(request.get('mode'))
+            if mode:
+                device['route_mode'] = mode
+            else:
+                device.pop('route_mode', None)
         elif operation == 'device_delete':
             # Удаление = отвязка (если была) + строка уходит из списка. Без игноров:
             # как только устройство снова даст о себе знать (/get_sync_info), оно тут же
@@ -326,6 +375,8 @@ class IdentityRegistry:
             device = {'sn': sn, 'name': self.text(request.get('name') or sn, 'Название'),
                       'user_id': user_id, 'device_ids': list(dict.fromkeys([device_id] + old.get('device_ids', []))),
                       'profile': old.get('profile', {}), 'state': old.get('state', {})}
+            if not old and self._take_pending_route(sn):  # TASK-044: SN из emulation_excluded
+                device['route_mode'] = 'proxy'
             value['devices'] = [d for d in value['devices'] if d['sn'] != sn] + [device]
             value['unassigned'] = [d for d in value['unassigned'] if d['device_id'] != device_id]
         elif operation == 'group':
@@ -366,8 +417,11 @@ class IdentityRegistry:
                                            'source': source or previous.get('source')}
         if not device and register:
             value = self.public()
-            value['devices'].append({'sn': device_id, 'name': device_id, 'user_id': None,
-                                     'device_ids': [device_id], 'profile': {}, 'state': {}})
+            device_row = {'sn': device_id, 'name': device_id, 'user_id': None,
+                          'device_ids': [device_id], 'profile': {}, 'state': {}}
+            if self._take_pending_route(device_id):  # TASK-044: SN из emulation_excluded
+                device_row['route_mode'] = 'proxy'
+            value['devices'].append(device_row)
             self.commit(value)
             device = self.resolve(device_id)
         return device
