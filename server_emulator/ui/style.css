@@ -268,6 +268,9 @@ body:has(.sc-edit-dialog[open]){overflow:hidden}
 .catalog-dialog form{display:grid;gap:12px}
 .catalog-dialog .row{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:6px}
 .catalog-dialog a.button{text-align:center}
+.catalog-dialog .dialog-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.catalog-dialog .dialog-head h3{margin:0;overflow-wrap:anywhere}
+.catalog-dialog .dialog-head .icon-btn{margin-left:0;flex-shrink:0}
 
 /* H11: реестр HTTP-маршрутов (три состояния) */
 .route-list{display:grid;gap:8px;margin:12px 0}
