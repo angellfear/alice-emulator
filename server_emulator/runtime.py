@@ -139,6 +139,7 @@ class Runtime:
         self.timer_scheduler = TimerScheduler(self.store, fire=self._fire_timer)
         self.timer_scheduler.recover_missed()
         self.fetch_cache = {}  # (url, query) → (ts, json): кеш GET JSON (ctx.fetch_json, плагины)
+        self.media_state = {}  # TASK-071: плеер колонки — очереди по SN (только память)
 
         # --- эффекты-примитивы сценариев: без текстов, словарей и выбора веток ---
         def _input(execution):
@@ -935,7 +936,7 @@ def mount_ui(app, runtime, prefix="/emulator"):
 
     # Каталог картинок устройств (модель по SN): только существующие
     # PNG/WebP из каталога картинок (device_images.images_dir) — путь проверяется на выход за пределы папки.
-    ASSETS = ("index.html", "toast.js", "ws.js", "app.js", "style.css", "users.js", "backend.js", "updates.js", "catalog.js", "replies.js", "animations.js", "endpoints.js", "misses.js", "endpoints.css", "devices_common.js", "device_cards.js", "mcp.js", "agent.js", "memory.js", "routines.js", "scenario_drafts.js", "params.js", "voice_stack.js", "sound_cache.js", "extensions.js", "setup.js", "server_config.js", "server_log.js", "traffic.js")
+    ASSETS = ("index.html", "toast.js", "ws.js", "app.js", "style.css", "users.js", "backend.js", "updates.js", "catalog.js", "replies.js", "animations.js", "endpoints.js", "misses.js", "endpoints.css", "devices_common.js", "device_cards.js", "mcp.js", "agent.js", "memory.js", "routines.js", "scenario_drafts.js", "params.js", "voice_stack.js", "sound_cache.js", "extensions.js", "setup.js", "server_config.js", "server_log.js", "media.js", "traffic.js")
     GENERIC_IMAGES = ROOT / "ui" / "img" / "generic"
     VENDOR = ROOT / "ui" / "vendor"
 
@@ -973,6 +974,19 @@ def mount_ui(app, runtime, prefix="/emulator"):
         raise web.HTTPNotFound()
 
     app.router.add_get("/favicon.ico", icon)
+    # TASK-071: раздача медиа-библиотеки колонке (state/media/<kind>/<путь>) —
+    # перемотку (Range) делает aiohttp FileResponse; выход за папку исключён.
+    media_root = (runtime.directory / "media").resolve()
+
+    async def media(request):
+        relative = request.match_info.get("tail", "")
+        target = (media_root / relative).resolve()
+        if media_root not in target.parents or not target.is_file():
+            raise web.HTTPNotFound()
+        return web.FileResponse(target, headers={"Accept-Ranges": "bytes", "Cache-Control": "no-cache"},
+                                chunk_size=64 * 1024)
+
+    app.router.add_get("/media/{tail:.*}", media)
     app.router.add_post(prefix + "/api/setup/protocol", guarded(lambda request: setup_api.upload(request, runtime)))
     app.router.add_post(prefix + "/api/setup/images", guarded(lambda request: setup_api.refresh_images(request, runtime)))
     app.router.add_route("PUT", prefix + "/api/catalog/apps/{id}", guarded(runtime.catalog.edit))

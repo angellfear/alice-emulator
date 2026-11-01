@@ -17,6 +17,11 @@
       "informers.clock",
       "informers.weather",
       "informers.weather.widget",
+      "media.music",
+      "media.playback",
+      "media.player",
+      "media.radio",
+      "media.tales",
       "smart_home.light",
       "system.agent_say",
       "system.dialog.reset",
@@ -511,12 +516,7 @@
               "handled": true,
               "messages": [
                 {
-                  "cards": [
-                    {
-                      "text": "Пауза пока не поддерживается: протокол плеера не восстановлен",
-                      "type": "simple_text"
-                    }
-                  ],
+                  "cards": [],
                   "directives": [
                     {
                       "analytics": "tts_play_placeholder",
@@ -530,12 +530,12 @@
                   ],
                   "event": "AliceResponse",
                   "has_voice": false,
-                  "speech": "Пауза пока не поддерживается: протокол плеера не восстановлен"
+                  "speech": "Сейчас ничего не играет."
                 }
               ],
               "reason": "phrase:exact",
               "scenario": "device.player.pause",
-              "speech": "Пауза пока не поддерживается: протокол плеера не восстановлен",
+              "speech": "Сейчас ничего не играет.",
               "speech_parts": [],
               "status": "finished",
               "text": "пауза"
@@ -554,12 +554,7 @@
               "handled": true,
               "messages": [
                 {
-                  "cards": [
-                    {
-                      "text": "Пауза пока не поддерживается: протокол плеера не восстановлен",
-                      "type": "simple_text"
-                    }
-                  ],
+                  "cards": [],
                   "directives": [
                     {
                       "analytics": "tts_play_placeholder",
@@ -573,12 +568,12 @@
                   ],
                   "event": "AliceResponse",
                   "has_voice": false,
-                  "speech": "Пауза пока не поддерживается: протокол плеера не восстановлен"
+                  "speech": "Сейчас ничего не играет."
                 }
               ],
               "reason": "phrase:exact",
               "scenario": "device.player.pause",
-              "speech": "Пауза пока не поддерживается: протокол плеера не восстановлен",
+              "speech": "Сейчас ничего не играет.",
               "speech_parts": [],
               "status": "finished",
               "text": "останови музыку"
@@ -1310,6 +1305,1170 @@
           "effects": [],
           "input": {
             "kind": "text",
+            "phrase": "включи музыку"
+          },
+          "name": "media.music-trigger0-0",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "media.music",
+              "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "включи музыку"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "включи песню"
+          },
+          "name": "media.music-trigger0-1",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "media.music",
+              "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "включи песню"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "включи трек"
+          },
+          "name": "media.music-trigger0-2",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "media.music",
+              "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "включи трек"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "включи композицию"
+          },
+          "name": "media.music-trigger0-3",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "media.music",
+              "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "включи композицию"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "поставь музыку"
+          },
+          "name": "media.music-trigger0-4",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "media.music",
+              "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "поставь музыку"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "поставь песню"
+          },
+          "name": "media.music-trigger0-5",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "media.music",
+              "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "поставь песню"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "включай музыку"
+          },
+          "name": "media.music-trigger0-6",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "media.music",
+              "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "включай музыку"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "послушать музыку"
+          },
+          "name": "media.music-trigger0-7",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "media.music",
+              "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "послушать музыку"
+            }
+          ]
+        }
+      ],
+      "id": "media.music"
+    },
+    {
+      "cases": [],
+      "id": "media.playback"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "следующий трек"
+          },
+          "name": "media.player-trigger0-0",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Это последний трек в очереди."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "media.player",
+              "speech": "Это последний трек в очереди.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "следующий трек"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "следующий"
+          },
+          "name": "media.player-trigger0-1",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Это последний трек в очереди."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "media.player",
+              "speech": "Это последний трек в очереди.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "следующий"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "дальше"
+          },
+          "name": "media.player-trigger0-2",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Это последний трек в очереди."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "media.player",
+              "speech": "Это последний трек в очереди.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "дальше"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "предыдущий трек"
+          },
+          "name": "media.player-trigger0-3",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Это первый трек в очереди."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "media.player",
+              "speech": "Это первый трек в очереди.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "предыдущий трек"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "предыдущий"
+          },
+          "name": "media.player-trigger0-4",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Это первый трек в очереди."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "media.player",
+              "speech": "Это первый трек в очереди.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "предыдущий"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "назад"
+          },
+          "name": "media.player-trigger0-5",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Это первый трек в очереди."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "media.player",
+              "speech": "Это первый трек в очереди.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "назад"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "продолжи"
+          },
+          "name": "media.player-trigger0-6",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Ничего не играет — включите музыку или сказку."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "media.player",
+              "speech": "Ничего не играет — включите музыку или сказку.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "продолжи"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "продолжить"
+          },
+          "name": "media.player-trigger0-7",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Ничего не играет — включите музыку или сказку."
+                }
+              ],
+              "reason": "phrase:contains",
+              "scenario": "media.player",
+              "speech": "Ничего не играет — включите музыку или сказку.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "продолжить"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "что играет"
+          },
+          "name": "media.player-trigger0-8",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Сейчас ничего не играет."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "media.player",
+              "speech": "Сейчас ничего не играет.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "что играет"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "что сейчас играет"
+          },
+          "name": "media.player-trigger0-9",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Сейчас ничего не играет."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "media.player",
+              "speech": "Сейчас ничего не играет.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "что сейчас играет"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "какая песня играет"
+          },
+          "name": "media.player-trigger0-10",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Сейчас ничего не играет."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "media.player",
+              "speech": "Сейчас ничего не играет.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "какая песня играет"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "какой трек играет"
+          },
+          "name": "media.player-trigger0-11",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Сейчас ничего не играет."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "media.player",
+              "speech": "Сейчас ничего не играет.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "какой трек играет"
+            }
+          ]
+        }
+      ],
+      "id": "media.player"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "включи радио"
+          },
+          "name": "media.radio-trigger0-0",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Список радиостанций пуст — добавьте потоки во вкладке «Голос → Медиа»."
+                }
+              ],
+              "reason": "phrase:mask",
+              "scenario": "media.radio",
+              "speech": "Список радиостанций пуст — добавьте потоки во вкладке «Голос → Медиа».",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "включи радио"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "включи радио *"
+          },
+          "name": "media.radio-trigger0-1",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Станции «*» нет в списке радио. Скажите: включи радио — и я перечислю."
+                }
+              ],
+              "reason": "phrase:mask",
+              "scenario": "media.radio",
+              "speech": "Станции «*» нет в списке радио. Скажите: включи радио — и я перечислю.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "включи радио *"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "поставь радио"
+          },
+          "name": "media.radio-trigger0-2",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Список радиостанций пуст — добавьте потоки во вкладке «Голос → Медиа»."
+                }
+              ],
+              "reason": "phrase:mask",
+              "scenario": "media.radio",
+              "speech": "Список радиостанций пуст — добавьте потоки во вкладке «Голос → Медиа».",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "поставь радио"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "поставь радио *"
+          },
+          "name": "media.radio-trigger0-3",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Станции «*» нет в списке радио. Скажите: включи радио — и я перечислю."
+                }
+              ],
+              "reason": "phrase:mask",
+              "scenario": "media.radio",
+              "speech": "Станции «*» нет в списке радио. Скажите: включи радио — и я перечислю.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "поставь радио *"
+            }
+          ]
+        }
+      ],
+      "id": "media.radio"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "включи сказку"
+          },
+          "name": "media.tales-trigger0-0",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»)."
+                }
+              ],
+              "reason": "phrase:mask",
+              "scenario": "media.tales",
+              "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»).",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "включи сказку"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "включи сказку *"
+          },
+          "name": "media.tales-trigger0-1",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»)."
+                }
+              ],
+              "reason": "phrase:mask",
+              "scenario": "media.tales",
+              "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»).",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "включи сказку *"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "расскажи сказку"
+          },
+          "name": "media.tales-trigger0-2",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»)."
+                }
+              ],
+              "reason": "phrase:mask",
+              "scenario": "media.tales",
+              "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»).",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "расскажи сказку"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "расскажи сказку *"
+          },
+          "name": "media.tales-trigger0-3",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»)."
+                }
+              ],
+              "reason": "phrase:mask",
+              "scenario": "media.tales",
+              "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»).",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "расскажи сказку *"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "включи аудиосказку"
+          },
+          "name": "media.tales-trigger0-4",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»)."
+                }
+              ],
+              "reason": "phrase:mask",
+              "scenario": "media.tales",
+              "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»).",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "включи аудиосказку"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "включи аудиосказку *"
+          },
+          "name": "media.tales-trigger0-5",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»)."
+                }
+              ],
+              "reason": "phrase:mask",
+              "scenario": "media.tales",
+              "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»).",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "включи аудиосказку *"
+            }
+          ]
+        }
+      ],
+      "id": "media.tales"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
             "phrase": "включи свет"
           },
           "name": "light-no-lights",
@@ -1833,24 +2992,14 @@
               "messages": [
                 {
                   "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
+                  "directives": [],
                   "event": "AliceResponse",
                   "has_voice": false,
                   "speech": ""
                 }
               ],
               "reason": "event:@@mm_stack_engine_get_next",
-              "scenario": "system.service_ack",
+              "scenario": "media.playback",
               "speech": "",
               "speech_parts": [],
               "status": "finished"

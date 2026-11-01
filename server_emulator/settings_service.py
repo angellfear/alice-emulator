@@ -24,6 +24,8 @@ ROUTE_MODES = ("emulate", "hybrid", "proxy")
 RECORD_MODES = ("off", "on", "misses")
 ROUTE_MIGRATION_KEY = "route_migration"  # meta StateStore: {"excluded": [sn]} — очередь миграции
 RECORD_MIGRATION_KEY = "record_migration"  # meta: маршрут record → proxy + опция record (TASK-054), однократно
+MAX_RADIO = 20  # радиостанций в списке медиа (TASK-071)
+
 DEFAULT = {
     "intelligence": "agent",  # режим «Интеллект»: scenarios | model | agent (intelligence.py)
     "system_prompt": "Ты домашний голосовой помощник. Отвечай кратко по-русски.",
@@ -64,6 +66,9 @@ DEFAULT = {
     # без токена отдаёт 404); restart — кто запускает сервер после обновления.
     "self_update": {"enabled": True, "repo": "angellfear/alica_emule", "channel": "stable",
                     "interval_hours": 12, "token": "", "skipped": "", "restart": "self"},
+    # Медиа (TASK-071): интернет-радио для «включи радио <имя>» — [{name, url}];
+    # файлы музыки/сказок живут на диске (state/media/…), в настройках их нет.
+    "media": {"radio": []},
 }
 
 
@@ -286,6 +291,22 @@ class SettingsService:
                 raise ValueError("self_update.skipped: нужна строка")
             if su.setdefault("restart", "self") not in ("self", "manager"):
                 raise ValueError("self_update.restart: self | manager")
+        # Медиа (TASK-071): список радио «имя → URL»; присланной формы нет — из current.
+        if "media" not in value:
+            value["media"] = copy.deepcopy(current.get("media") or DEFAULT["media"])
+        else:
+            media = value["media"]
+            if not isinstance(media, dict):
+                raise ValueError("media: нужен объект")
+            radio = media.setdefault("radio", [])
+            if not isinstance(radio, list) or len(radio) > MAX_RADIO:
+                raise ValueError(f"media.radio: список до {MAX_RADIO} станций")
+            for station in radio:
+                if not isinstance(station, dict) or not str(station.get("name") or "").strip() \
+                        or not str(station.get("url") or "").strip():
+                    raise ValueError("media.radio: станция — {name, url}")
+                validate_url(station["url"])
+                station["name"], station["url"] = str(station["name"]).strip()[:100], str(station["url"]).strip()
         # Расширения (TASK-029): устаревшая форма UI присылает настройки без ключа —
         # восстанавливаем из current (состояние расширений UI не редактирует);
         # присланное — проверяем по форме.

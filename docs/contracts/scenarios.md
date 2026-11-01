@@ -151,3 +151,10 @@ API: `GET scenario-drafts` → `{drafts}`; `POST {op: test|activate|discard|hist
 - TTS-озвучка срабатываний таймеров/будильников при выключенном aapi_tts.
 - Дни недели будильника голосом; snooze голосом (API планировщика есть).
 - Прогноз погоды на дни (только current); локация по GPS устройства.
+
+## 9. Медиа: музыка, сказки, радио, плеер (TASK-071)
+
+Сценарии раздела `media` включают файлы из библиотеки (`state/media/music|tales`) и радио из
+настроек, управляют плеером; директива `audio_play` (Struct) и очередь с колбэками плеера —
+в отдельном контракте `docs/contracts/player.md`. SDK для py-сценариев — `ctx.media`,
+`ctx.library`, `ctx.media_base` (scripts-sdk.md, 1.3.1).

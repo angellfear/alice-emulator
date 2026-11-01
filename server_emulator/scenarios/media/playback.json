@@ -1,0 +1,14 @@
+{
+ "format_version": 2,
+ "version": "1.0.0",
+ "category": "media",
+ "id": "media.playback",
+ "title": {"ru": "Плеер: следующий трек", "en": "Player: next track"},
+ "description": {"ru": "Поставщик колбэков плеера (трек закончился / колонка просит следующий): включает следующий трек очереди или молчит."},
+ "priority": 90,
+ "triggers": [
+  {"kind": "provide", "event": "media.playback_ended"},
+  {"kind": "provide", "event": "media.next_requested"}
+ ],
+ "executor": {"kind": "script"}
+}

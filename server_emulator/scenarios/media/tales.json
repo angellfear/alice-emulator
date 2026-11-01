@@ -1,0 +1,15 @@
+{
+ "format_version": 2,
+ "version": "1.0.0",
+ "category": "media",
+ "id": "media.tales",
+ "title": {"ru": "Включи сказку", "en": "Play a tale"},
+ "description": {"ru": "Файлы из библиотеки state/media/tales. «включи сказку про <имя>» — поиск по названию."},
+ "priority": 100,
+ "triggers": [
+  {"kind": "phrase", "match": "mask",
+   "phrases": ["включи сказку", "включи сказку *", "расскажи сказку", "расскажи сказку *",
+               "включи аудиосказку", "включи аудиосказку *"]}
+ ],
+ "executor": {"kind": "script"}
+}

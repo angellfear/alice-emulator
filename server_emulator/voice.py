@@ -814,6 +814,12 @@ class Conversation:
         sessions = getattr(self.runtime, 'sessions', None)
         return (sessions or {}).get(self.trace_context.get('session')) if sessions is not None else None
 
+    def _media_base(self):
+        """База URL раздачи медиа для этой колонки: хост WS-соединения (TASK-071)."""
+        from .media import base_url
+        session = self._session_record() or {}
+        return base_url(session.get('host') or '')
+
     @aapi_handler('MatchedUser')
 
     async def _on_matched_user(self, incoming, trigger):
@@ -1192,6 +1198,8 @@ class Conversation:
 
                                        device_id=self.trace_context.get('device_id') or ''))
 
+                    ctx['media_base'] = self._media_base()  # TASK-071: адрес раздачи медиа
+
                 dialog_id = getattr(request.Header, 'DialogId', '') or incoming.Event.Header.MessageId
 
                 # TASK-058: колбэк — обработчик WS. Маршрут колбэка → внутреннее событие-запрос
@@ -1300,6 +1308,8 @@ class Conversation:
                     ctx.update(context(sn=ctx['input']['sn'],
 
                                        device_id=self.trace_context.get('device_id') or ''))
+
+                    ctx['media_base'] = self._media_base()  # TASK-071: адрес раздачи медиа
 
                 if getattr(self.runtime, 'animations', None) is not None:
 

@@ -100,8 +100,9 @@ async def test_enable_word_is_not_app_open(tmp_path):
     try:
         report, _, _ = await _say(runtime, "открой сказки")
         assert report["scenario"] == "device.app.open"
-        report = await runtime.dialog.handle_text("включи сказки", _ctx(runtime, "включи сказки"), "dg",
-                                                  lambda data: None)
+        async def send(data):  # «включи сказки» теперь сценарий медиа (TASK-071) — доставка идёт
+            pass
+        report = await runtime.dialog.handle_text("включи сказки", _ctx(runtime, "включи сказки"), "dg", send)
         assert report.get("scenario") != "device.app.open"
     finally:
         await runtime.close()

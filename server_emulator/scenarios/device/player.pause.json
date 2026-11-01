@@ -1,6 +1,6 @@
 {
  "format_version": 2,
- "version": "2.0.0",
+ "version": "2.1.0",
  "category": "device",
  "id": "device.player.pause",
  "title": {
@@ -19,22 +19,5 @@
    ]
   }
  ],
- "flow": [
-  {
-   "id": "reply",
-   "op": "compose",
-   "reply": {
-    "text": "Пауза пока не поддерживается: протокол плеера не восстановлен"
-   }
-  },
-  {
-   "id": "done",
-   "op": "finish"
-  }
- ],
- "provenance": {
-  "unsupported": [
-   "директива паузы плеера не восстановлена"
-  ]
- }
+ "executor": {"kind": "script"}
 }

@@ -1,0 +1,13 @@
+{
+ "format_version": 2,
+ "version": "1.0.0",
+ "category": "media",
+ "id": "media.radio",
+ "title": {"ru": "Включи радио", "en": "Play radio"},
+ "description": {"ru": "Список потоков «имя → URL» в настройках (вкладка «Голос → Медиа»). «включи радио <имя>»."},
+ "priority": 100,
+ "triggers": [
+  {"kind": "phrase", "match": "mask", "phrases": ["включи радио", "включи радио *", "поставь радио", "поставь радио *"]}
+ ],
+ "executor": {"kind": "script"}
+}

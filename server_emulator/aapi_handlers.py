@@ -156,11 +156,13 @@ callback_route('@@mm_semantic_frame', 'weather.opened', _is_weather_tap, 'тап
                'event:@@mm_semantic_frame[purpose=weather_informer_tap_action]')
 callback_route('@@mm_semantic_frame', 'callbacks.ack', None, 'семантический фрейм — тихое подтверждение',
                'event:@@mm_semantic_frame')
-callback_route('@@mm_stack_engine_get_next', 'callbacks.ack', None, 'стек плеера — тихое подтверждение',
+# Плеер колонки (TASK-071): конец трека и запрос следующего — поставщику медиа
+# (сценарий media.playback: следующий трек очереди или тихое подтверждение)
+callback_route('@@mm_stack_engine_get_next', 'media.next_requested', None, 'стек плеера — включить следующий',
                'event:@@mm_stack_engine_get_next')
 callback_route('music_thin_client_on_started', 'callbacks.ack', None, 'плеер колонки — тихое подтверждение',
                'event:music_thin_client_on_started')
-callback_route('music_thin_client_on_stopped', 'callbacks.ack', None, 'плеер колонки — тихое подтверждение',
+callback_route('music_thin_client_on_stopped', 'media.playback_ended', None, 'плеер колонки — трек закончился',
                'event:music_thin_client_on_stopped')
 callback_route('@@agent_say', 'agent_say.requested', None, 'сообщение агента (задания по расписанию)',
                'event:@@agent_say')

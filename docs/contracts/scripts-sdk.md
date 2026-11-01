@@ -271,3 +271,17 @@ Minor: только добавления, форма построенных dict
 - Поле `requires.sdk` у расширений — TASK-028/029; сейчас совместимость фиксирует
   только `SDK_VERSION` и правило major.
 - Слоты из шаблонных триггеров (`ctx.slots`) наполняются в TASK-022.
+
+## 1.3.1 — медиа: плеер, библиотека, настройки (TASK-071)
+
+- `ctx.media` — плеер колонки (`server_emulator.media.Player`): очередь в памяти runtime
+  (`media_state[sn]`), директивы `audio_play`. Методы: `play_library(library, kind, query, text)`
+  (файлы вида — очередь и ответ с директивой; пусто → None), `play_radio(name, url, text)`,
+  `start(queue, index, text)`, `step(+1|-1|0)` (следующий/предыдущий/продолжи; None — очередь
+  кончилась), `pause()`, `resume()`, `current()`, `now_playing()`. Все методы возвращают
+  compose-ответ (или None).
+- `ctx.library` — библиотека (`MediaLibrary`): `list/folders/search/resolve/art_for` над
+  `state/media/<kind>`; `kind` — `music` или `tales`.
+- `ctx.settings` — настройки эмулятора (только чтение); список радио — `settings["media"]["radio"]`.
+- `ctx.media_base` — база раздачи файлов для колонки: `http://<хост WS-соединения>/media`
+  (файлы и обложки — по пути `/media/<kind>/<путь>`, Range поддержан).

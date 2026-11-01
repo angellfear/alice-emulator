@@ -35,7 +35,7 @@ from .extensions.context import ExtensionContext, action_context  # ExtensionCon
 from .scenario_engine import bindings as _bindings
 from .scenario_engine import parsers as _parsers
 
-SDK_VERSION = "1.3.0"
+SDK_VERSION = "1.3.1"  # TASK-071: ctx.media / ctx.library / ctx.settings / ctx.media_base
 DATASET_REFRESH_TIMEOUT_S = 10.0  # как у шага refresh без timeout
 
 
@@ -438,6 +438,37 @@ class ScenarioContext:
     def device(self):
         """Запись реестра о колонке: sn, name, room, model, display, light(s), apps, platform, fields."""
         return self._ctx.get("device") or {}
+
+    @property
+    def media_base(self):
+        """База URL раздачи медиа для этой колонки (TASK-071): http://<адрес>/media."""
+        return str(self._ctx.get("media_base") or "")
+
+    def _services_runtime(self):
+        """Живой runtime для сервисов сценария: у объекта из исполнителя (SimpleNamespace)
+        нет каталогов состояния и настроек — берётся модульная привязка bind_runtime."""
+        runtime = self._runtime
+        if hasattr(runtime, "media_state") and hasattr(runtime, "directory") and hasattr(runtime, "settings"):
+            return runtime
+        return _RUNTIME if _RUNTIME is not None else runtime
+
+    @property
+    def media(self):
+        """Плеер колонки (TASK-071): очередь и директивы audio_play — server_emulator.media.Player.
+        Очередь живёт в памяти runtime (media_state[sn]); библиотека — state/media/…"""
+        from .media import Player
+        return Player(self._services_runtime(), self.sn, base=self.media_base)
+
+    @property
+    def library(self):
+        """Медиа-библиотека (TASK-071): server_emulator.media.MediaLibrary над state/media/…"""
+        from .media import MediaLibrary
+        return MediaLibrary(self._services_runtime().directory)
+
+    @property
+    def settings(self):
+        """Настройки эмулятора (только чтение)."""
+        return self._services_runtime().settings
 
     @property
     def owner(self):
