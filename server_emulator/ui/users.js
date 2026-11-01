@@ -300,7 +300,7 @@
         dialog.close(); dialog.remove();
       } catch (err) { errLine.hidden = false; errLine.textContent = err.message; }
     };
-    dialog.showModal();
+    openDialog(dialog);
   }
 
   // Поле значения; onChange(value) — value === undefined, если сохранять нечего (пустое число/выбор)
@@ -550,11 +550,26 @@
   // ── Диалоги ────────────────────────────────────────────────────────
   function dialogFrame(title) {
     const dialog = node('dialog'); dialog.className = 'catalog-dialog';
-    const form = node('form'); form.append(node('h3', title));
+    const form = node('form');
+    // Крестик закрывает окно мышью; Esc по-прежнему шлёт cancel — оба пути убирают диалог
+    const head = node('div'); head.className = 'dialog-head';
+    const close = node('button', '✕'); close.type = 'button'; close.className = 'icon-btn';
+    close.title = 'Закрыть'; close.setAttribute('aria-label', 'Закрыть');
+    const dismiss = () => { dialog.close(); dialog.remove(); };
+    close.onclick = dismiss;
+    head.append(node('h3', title), close);
+    form.append(head);
     dialog.append(form);
-    dialog.addEventListener('cancel', () => dialog.remove());
+    dialog.addEventListener('cancel', dismiss);
     document.body.append(dialog);
     return { dialog, form };
+  }
+  // showModal ставит фокус на первый элемент — крестик: Enter закрывал бы окно вместо
+  // сохранения. Переносим фокус в первое поле ввода.
+  function openDialog(dialog) {
+    dialog.showModal();
+    const field = dialog.querySelector('input:not([type=hidden]), select, textarea');
+    if (field) field.focus();
   }
   // Ошибки видно внутри модального окна, а не только в статусе за затемнением
   const errorLine = form => { const p = node('p'); p.className = 'hint'; p.style.color = 'var(--danger)'; p.hidden = true; form.append(p); return p; };
@@ -580,7 +595,7 @@
       await api('identities', 'POST', { operation: 'device', sn: device.sn, name: device.name, user_id: select.value || null, device_ids: device.device_ids, profile: device.profile, reset_state: true });
       dialog.close(); dialog.remove(); await afterChange(); message('Устройство привязано к «' + userName(select.value) + '».');
     });
-    dialog.showModal();
+    openDialog(dialog);
   }
 
   function deviceDialog(device) {
@@ -609,7 +624,7 @@
       await api('identities', 'POST', { operation: 'device', sn: sn.value.trim(), name: name.value.trim() || sn.value.trim(), user_id: select.value || null, device_ids: aliases.value.split('\n').map(x => x.trim()).filter(Boolean), profile: device ? device.profile : {}, reset_state: true });
       dialog.close(); dialog.remove(); await afterChange(); message('Устройство сохранено.');
     });
-    dialog.showModal();
+    openDialog(dialog);
   }
 
   // ── Загрузка по разделам и тихий поллинг статусов ──────────────────
