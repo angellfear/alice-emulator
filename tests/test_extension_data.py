@@ -151,7 +151,7 @@ async def test_extension_catalog_apps(tmp_path):
         assert apps["coffee.maps"]["name"] == "Мои карты" and "origin" not in apps["coffee.maps"]
         catalog.value["apps"].clear()
         # запись расширения попадает в wire-ответ каталога: ссылка на APK — прямая
-        catalog.value["enabled"] = True
+        catalog.value["mode"] = "merged"  # режим вместо выключателя enabled
         patched = catalog.patch(b"", base_url="http://rpc.alice.yandex.net")
         assert b"https://cdn.example.com/maps.apk" in patched and b"com.coffee.maps" in patched
         await runtime.extensions.disable("coffee")

@@ -12,6 +12,7 @@ import hashlib
 import json
 import logging
 import re
+import time
 import uuid
 import zipfile
 from pathlib import Path
@@ -70,6 +71,7 @@ def catalog_view(data):
 
 
 LEGACY_BASE_URL = 'http://rpc.local'  # старый дефолт catalog.json (*.local → настоящий домен)
+MODES = ('direct', 'merged', 'own')
 
 
 class Catalog:
@@ -77,9 +79,22 @@ class Catalog:
         self.directory=Path(root)/'data'/'catalog';self.directory.mkdir(parents=True,exist_ok=True)
         self.path=self.directory/'catalog.json'
         self.extension_dirs=extension_dirs  # callable → [(origin, Path)] — слои catalog/, TASK-032
-        self.value=json.loads(self.path.read_text('utf8')) if self.path.exists() else {'enabled':False,'public_base_url':'http://rpc.alice.yandex.net','apps':[]}
-        if self.value.get('public_base_url')==LEGACY_BASE_URL:  # *.local → настоящий домен
-            self.value['public_base_url']='http://rpc.alice.yandex.net';self.save()
+        value=json.loads(self.path.read_text('utf8')) if self.path.exists() else {}
+        self.value=self._migrate(value)
+
+    @staticmethod
+    def _migrate(value):
+        """catalog.json: выключатель `enabled` → режим `mode` (true → merged, false → direct);
+        `http://rpc.local` → настоящий домен; разделы и режим присутствуют всегда."""
+        if 'enabled' in value:
+            value['mode']='merged' if value.pop('enabled') else 'direct'
+        value['mode']=value.get('mode') if value.get('mode') in MODES else 'direct'
+        value['sections']=[s for s in value.get('sections') or [] if isinstance(s,dict) and s.get('id')]
+        value.setdefault('public_base_url','http://rpc.alice.yandex.net')
+        value.setdefault('apps',[])
+        if value.get('public_base_url')==LEGACY_BASE_URL:
+            value['public_base_url']='http://rpc.alice.yandex.net'
+        return value
 
     # --- слой расширений (TASK-032) ----------------------------------------------------
     def _extension_layers(self):
@@ -124,7 +139,8 @@ class Catalog:
                                 'version':str(value.get('version') or ''),
                                 'description':str(value.get('description') or ''),
                                 'icon':str(value.get('icon') or ''),'version_code':code,
-                                'apk_url':apk,'origin':origin}
+                                'apk_url':apk,'origin':origin,
+                                'section':str(value.get('section') or '')}
         return result
 
     def apps(self):
@@ -138,61 +154,128 @@ class Catalog:
     def save(self):
         tmp=self.path.with_suffix('.tmp');tmp.write_text(json.dumps(self.value,ensure_ascii=False,indent=2),'utf8');tmp.replace(self.path)
 
+    def _record(self,app,base_url):
+        """Запись приложения в protobuf: поля 1–7 текстовые, поле 8 — varint versionCode
+        (карта catalog_view из наблюдённого каталога; колонка сравнивает его с установленной
+        версией — запись в чужом поле заставляла приложение вечно показывать «Обновить»)."""
+        effective={**app,'icon':base_url+app['icon'] if app.get('icon','').startswith('/__catalog/') else app.get('icon','')}
+        item=b''.join(textfield(n,str(effective.get(key,''))) for n,key in [(1,'id'),(2,'name'),(3,'description'),(4,'icon'),(5,'package'),(7,'version')])
+        # APK: загруженный пользователем раздаётся эмулятором, приложение расширения — прямой ссылкой
+        item+=textfield(6,base_url+'/__catalog/apk/'+app['sha256'] if app.get('sha256') else app.get('apk_url',''))
+        return item+vint(8*8+0)+vint(int(app['version_code']))
+
+    def build_own(self,base_url):
+        """Каталог только из своих приложений: группы своих разделов (по order) + «Другое».
+        Свой раздел — группа без категории (enum 0 «Другое» наблюдённого каталога) со своим
+        заголовком: колонка группирует по enum, новые значения enum не изобретаются."""
+        apps=self.apps();base_url=(base_url or self.value['public_base_url']).rstrip('/')
+        out=[]
+        for section in sorted(self.value.get('sections') or [],key=lambda s:s.get('order',0)):
+            members=[a for a in apps if a.get('section')==section['id']]
+            if members:
+                group=b''.join(textfield(2,self._record(a,base_url)) for a in members)
+                out.append(textfield(1,textfield(3,str(section.get('title') or section['id']))+group))
+        other=[a for a in apps if not a.get('section') or not any(a.get('section')==s['id'] for s in self.value.get('sections') or [])]
+        out.append(textfield(1,textfield(3,'Другое')+(b''.join(textfield(2,self._record(a,base_url)) for a in other) if other else b'')))
+        return b''.join(out)
+
     def patch(self,data,base_url=None):
-        apps=self.apps()  # пользовательские + приложения расширений (TASK-032)
-        if not self.value['enabled'] or not apps:return data
-        # Category 0 is the observed 'Other' enum; avoid inventing an unsupported enum.
+        """Ответ get_app_catalog по режиму: direct — база как есть; merged — свои приложения
+        в свои разделы (в группы Яндекса — по заголовку группы) и «Другое»; own — build_own
+        без базы. Пустая база в merged — только свои."""
+        mode=self.value.get('mode','direct')
+        apps=self.apps()  # пользовательские + приложения расширений
         base_url=(base_url or self.value['public_base_url']).rstrip('/')
-        group=b''
-        for app in apps:
-            effective={**app,'icon':base_url+app['icon'] if app.get('icon','').startswith('/__catalog/') else app.get('icon','')}
-            item=b''.join(textfield(n,str(effective.get(key,''))) for n,key in [(1,'id'),(2,'name'),(3,'description'),(4,'icon'),(5,'package'),(7,'version')])
-            # APK: загруженный пользователем раздаётся эмулятором, приложение расширения — прямой ссылкой
-            item+=textfield(6,base_url+'/__catalog/apk/'+app['sha256'] if app.get('sha256') else app.get('apk_url',''))
-            item+=vint(64)+vint(app['version_code'])
-            group+=textfield(2,item)
-        result=[];merged=False
+        if mode=='direct':return data
+        if mode=='own' or (not apps and mode=='merged') or not data:
+            return self.build_own(base_url) if mode=='own' or apps else data
+        own_ids={s['id'] for s in self.value.get('sections') or []}
+        own_titles={s['id']:str(s.get('title') or s['id']) for s in self.value.get('sections') or []}
+        other=[a for a in apps if not a.get('section') or a.get('section') not in own_ids and a.get('section') not in {g['title'] for g in catalog_view(data) if g.get('title')}]
+        result=[];merged_other=False
         for n,k,value,raw in fields(data):
-            if n==1 and k==2 and not merged:
+            if n==1 and k==2:
+                title=next((v.decode('utf8') for f,t,v,_ in fields(value) if f==3 and t==2),'')
+                # свои приложения, чей раздел — заголовок группы Яндекса
+                additions=b''.join(textfield(2,self._record(a,base_url)) for a in apps
+                                   if a.get('section') and a.get('section') not in own_ids and a.get('section')==title)
+                if additions:
+                    result.append(textfield(1,value+additions));continue  # пересборка группы
                 category=next((v for f,t,v,_ in fields(value) if f==1 and t==0),0)
                 if category==0:
-                    result.append(textfield(1,value+group));merged=True;continue
+                    # «Другое»: свои приложения без раздела и с неизвестным разделом
+                    result.append(textfield(1,value+b''.join(textfield(2,self._record(a,base_url)) for a in other)))
+                    merged_other=True;continue
             result.append(raw)
-        if not merged:result.append(textfield(1,textfield(3,'Другое')+group))
+        # свои разделы — после групп Яндекса, по order
+        for section in sorted(self.value.get('sections') or [],key=lambda s:s.get('order',0)):
+            members=[a for a in apps if a.get('section')==section['id']]
+            if members:
+                group=b''.join(textfield(2,self._record(a,base_url)) for a in members)
+                result.append(textfield(1,textfield(3,own_titles[section['id']])+group))
+        if not merged_other and other:
+            result.append(textfield(1,textfield(3,'Другое')+b''.join(textfield(2,self._record(a,base_url)) for a in other)))
         return b''.join(result)
 
+    def store_upstream(self,raw):
+        """Последний удачный ответ Яндекса на get_app_catalog — в кеш (data/catalog/upstream.bin)."""
+        (self.directory/'upstream.bin').write_bytes(raw)
+        (self.directory/'upstream.json').write_text(json.dumps({'ts':time.time()}),'utf8')
+
+    def upstream_cache(self):
+        """Кеш ответа Яндекса: (protobuf, время получения) или (None, 0)."""
+        try:
+            raw=(self.directory/'upstream.bin').read_bytes()
+            stamp=json.loads((self.directory/'upstream.json').read_text('utf8')).get('ts',0)
+        except (OSError,ValueError):
+            return None,0
+        return raw,float(stamp or 0)
+
     def observed(self):
-        import time,gzip
+        """Каталог Яндекса для панели: группы из кеша последнего ответа (только чтение)."""
         if time.monotonic()-getattr(self,'observed_at',-1000)<60:return self.observed_cache
+        raw,stamp=self.upstream_cache()
         groups=[]
-        if hasattr(self,'store'):
-            with self.store.reader() as db:
-                row=db.execute("SELECT ep.hash FROM events e JOIN event_payloads ep ON ep.event_id=e.id WHERE e.url='/gproxy/get_app_catalog' AND ep.role='response_original' AND e.status=200 ORDER BY e.ts DESC LIMIT 1").fetchone()
-            if row:
-                raw=self.store.payload(row[0])
-                if raw.startswith(b'\x1f\x8b'):
-                    import zlib
-                    inflater=zlib.decompressobj(31);raw=inflater.decompress(raw,8*1024**2+1)
-                    if len(raw)>8*1024**2 or not inflater.eof:raise ValueError('Каталог превышает лимит')
-                # Захват не обязан быть каталогом: например, локальный ответ эмулятора
-                # с JSON-ошибкой тоже пишется как response_original со статусом 200.
-                try:
-                    groups=catalog_view(raw)
-                except ValueError:
-                    groups=[]
-                else:
-                    self.observed_raw=raw
+        if raw:
+            try:
+                groups=catalog_view(raw)
+            except ValueError:
+                groups=[]
+            else:
+                self.observed_raw=raw;self.observed_ts=stamp
         self.observed_at=time.monotonic();self.observed_cache=groups
         return groups
 
     async def get(self,request):
         import asyncio
-        return web.json_response({**self.value,'apps':self.apps(),'observed':await asyncio.to_thread(self.observed)})
+        raw,stamp=await asyncio.to_thread(self.upstream_cache)
+        groups=[]
+        if raw:
+            try:groups=catalog_view(raw)
+            except ValueError:groups=[]
+        return web.json_response({'mode':self.value.get('mode','direct'),'sections':self.value.get('sections') or [],
+                                  'apps':self.apps(),'yandex':{'groups':groups,'ts':stamp,'cached':raw is not None}})
 
     async def settings(self,request):
         value=await request.json()
-        self.value['enabled']=bool(value.get('enabled'));self.save()
-        return web.json_response(self.value)
+        if 'mode' in value:
+            if value['mode'] not in MODES:raise ValueError('mode: ' + ' | '.join(MODES))
+            self.value['mode']=value['mode']
+        if 'sections' in value:
+            sections=[]
+            for item in value['sections'] or []:
+                if not isinstance(item,dict) or not str(item.get('title') or '').strip():
+                    raise ValueError('Раздел: объект с title')
+                sections.append({'id':str(item.get('id') or uuid.uuid4())[:64],
+                                 'title':str(item['title']).strip()[:100],
+                                 'order':int(item.get('order') or 0)})
+            known={s['id'] for s in sections}
+            # раздел удалён — его приложения переходят в «Другое»
+            for app in self.value['apps']:
+                if app.get('section') and app['section'] not in known:app['section']=''
+            self.value['sections']=sections
+        self.save()
+        return web.json_response({'mode':self.value.get('mode','direct'),'sections':self.value.get('sections') or []})
 
     async def upload(self,request):
         temp=self.directory/(uuid.uuid4().hex+'.upload');digest=hashlib.sha256();size=0
@@ -222,7 +305,7 @@ class Catalog:
         app=next((a for a in self.value['apps'] if a['id']==request.match_info['id']),None)
         if app is None:raise web.HTTPNotFound()
         value=await request.json()
-        updates={k:str(value[k]).strip() for k in ('name','package','version','description','icon') if k in value}
+        updates={k:str(value[k]).strip() for k in ('name','package','version','description','icon','section') if k in value}
         if not updates.get('name',app['name']):raise ValueError('Укажите название')
         package=updates.get('package',app['package'])
         if not re.fullmatch(r'[A-Za-z_][\w]*(?:\.[A-Za-z_][\w]*)+',package,re.ASCII):raise ValueError('Некорректный package')

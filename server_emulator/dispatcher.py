@@ -124,6 +124,53 @@ class Dispatcher:
         state = device.get('state') or {}
         return state.get('quasar_source') == 'direct' and state.get('quasar_direct_transparent') is True
 
+    async def app_catalog_response(self, request, host, path, record=None, device_sn=None,
+                                   device_id=None, body=None, started=None):
+        """get_app_catalog при любом маршруте устройства (режимы каталога direct/merged/own).
+        База direct/merged — живой ответ Яндекса (мост upstream; петлю закрывает резолвер
+        внешнего DNS) с кешем последнего удачного ответа; нет ни облака, ни кеша — merged
+        отдаёт только свои приложения, direct — честный 502. own — сразу свои."""
+        runtime = self.runtime
+        catalog = runtime.catalog
+        mode = catalog.value.get('mode', 'direct')
+        started = started or time.monotonic()
+        if body is None:
+            body = await request.read()
+        output, status = None, 200
+        headers = {'Content-Type': 'application/x-protobuf'}
+        if mode in ('direct', 'merged'):
+            base = None
+            target = runtime.upstream.target_for_host('rpc.alice.yandex.net', '/gproxy/get_app_catalog')
+            try:
+                _status, headers_up, payload = await runtime.upstream.forwarder.http(
+                    request.method, target, request.headers, body or b'', journal=False,
+                    host='rpc.alice.yandex.net', path=path)
+                if _status == 200 and payload:
+                    if payload[:2] == bytes((0x1f, 0x8b)):
+                        import zlib
+                        inflater = zlib.decompressobj(31)
+                        payload = inflater.decompress(payload, 8 * 1024 ** 2 + 1)
+                        if len(payload) > 8 * 1024 ** 2 or not inflater.eof:
+                            raise ValueError('Каталог превышает лимит')
+                    catalog.store_upstream(payload)
+                    base = payload
+            except (UpstreamError, ValueError) as exc:
+                runtime.server_log.log('warning', 'http', 'Каталог Яндекса не получен',
+                                       host='rpc.alice.yandex.net', error=str(exc)[:200])
+            if base is None:
+                base, _stamp = catalog.upstream_cache()
+            if base is not None:
+                output = base if mode == 'direct' else catalog.patch(base)
+            elif mode == 'direct':
+                status = 502
+                output = b'{"error":"app_catalog_unavailable"}'
+                headers = {'Content-Type': 'application/json'}
+        if output is None:  # режим own или merged без базы и кеша
+            output = catalog.build_own(catalog.value.get('public_base_url'))
+        self.journal_emulated(request, host, path, started, device_sn, device_id,
+                              body or b'', status, headers, output)
+        return web.Response(status=status, body=output, headers=headers)
+
     # TASK-070: встроенные ответы без эндпоинтов --------------------------------------
     AVATARS_CACHE_LIMIT = 200 * 1024 * 1024  # суммарный размер кеша обложек
     AVATARS_TTL = 7 * 86400
@@ -353,6 +400,12 @@ class Dispatcher:
             update = await self.handle_update(request, canonical, path or request.path, record)
             if update is not None:
                 return update
+            # TASK-074: каталог приложений — режимы direct/merged/own при любом маршруте
+            if canonical == 'rpc.alice.yandex.net' and (path or request.path) == '/gproxy/get_app_catalog':
+                return await self.app_catalog_response(request, canonical, path or request.path,
+                                                       record=record,
+                                                       device_sn=observed['sn'] if observed else sn,
+                                                       device_id=device_id)
             handled = upstream.record_mode(sn) == 'off' or self.local_handler(canonical, request.method, path or request.path)
             return await upstream.serve(request, target, host=host, path=path,
                                         journal=upstream.recording(sn, handled), unhandled=not handled,
@@ -406,6 +459,12 @@ class Dispatcher:
         update = await self.handle_update(request, canonical_host, path or request.path, record)
         if update is not None:
             return update
+        # TASK-074: каталог приложений — режимы direct/merged/own (единый путь с «Прозрачно»)
+        if canonical_host == 'rpc.alice.yandex.net' and (path or request.path) == '/gproxy/get_app_catalog':
+            return await self.app_catalog_response(request, canonical_host, path or request.path,
+                                                   record=record,
+                                                   device_sn=device['sn'] if device else sn,
+                                                   device_id=device_id, body=body, started=started)
         if quasar_token_route:
             builtin = runtime.quasar.handle(request.method, path or request.path, device, device_id, body,
                                             caller=caller, caller_id=caller_id, client_ip=self.client_ip(request))
@@ -473,21 +532,6 @@ class Dispatcher:
                 output = b'{"error":"emulator_handler_not_found"}'
                 headers, status = {"Content-Type": "application/json"}, 404
         original_output = output
-        if canonical_host == 'rpc.alice.yandex.net' and (path or request.path) == '/gproxy/get_app_catalog' and runtime.catalog.value['enabled']:
-            if status == 404:
-                await asyncio.to_thread(runtime.catalog.observed)
-                output = getattr(runtime.catalog, 'observed_raw', b'')
-                headers = {'Content-Type': 'application/x-protobuf'}; status = 200
-            elif status == 200:
-                encoding = next((v for k, v in headers.items() if k.lower() == 'content-encoding'), '')
-                if encoding.lower() == 'gzip':
-                    import zlib
-                    inflater = zlib.decompressobj(31); output = inflater.decompress(output, 8 * 1024 ** 2 + 1)
-                    if len(output) > 8 * 1024 ** 2 or not inflater.eof:
-                        raise ValueError('Каталог превышает лимит')
-                    headers = {k: v for k, v in headers.items() if k.lower() != 'content-encoding'}
-            if status == 200:
-                output = runtime.catalog.patch(output, f'{request.scheme}://{request.host}')
         if record:
             record({"request_original": body, "request_sent": body, "response_original": original_output, "response_sent": output},
                    kind="http", direction="exchange", status=status, size=len(body) + len(output), request_size=len(body), response_size=len(output),

@@ -47,12 +47,21 @@
 
   function render() {
     root.replaceChildren(node('h2', 'Каталог приложений'), node('p', 'Свои APK в каталоге Centaur — работают в эмуляции и при проксировании. APK разбирается автоматически: название, версия и иконка подтягиваются из манифеста.'));
+    const MODES = [['direct', 'Напрямую'], ['merged', 'Вместе'], ['own', 'Только свои']];
+    const MODE_HINT = { direct: 'Каталог Яндекса как есть, без своих приложений',
+                        merged: 'Каталог Яндекса и свои приложения в выбранных разделах',
+                        own: 'Только свои приложения и свои разделы' };
     const head = node('div'); head.className = 'catalog-head';
-    const toggle = node('button'); toggle.type = 'button'; toggle.className = 'catalog-switch' + (data.enabled ? ' enabled' : '');
-    toggle.setAttribute('role', 'switch'); toggle.setAttribute('aria-checked', String(!!data.enabled));
-    toggle.append(node('i'), node('span', data.enabled ? 'Встраивание включено' : 'Встраивание выключено'));
-    toggle.onclick = () => run(async () => { const target = !data.enabled; await api('', 'PUT', { enabled: target }); await load(); say('Встраивание в каталог Centaur ' + (target ? 'включено' : 'выключено') + '.'); });
-    head.append(toggle); root.append(head);
+    const modes = node('div'); modes.className = 'segmented'; modes.setAttribute('role', 'radiogroup'); modes.setAttribute('aria-label', 'Режим каталога');
+    for (const [value, title] of MODES) {
+      const b = node('button', title); b.type = 'button'; b.className = 'secondary';
+      b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', String(data.mode === value));
+      b.title = MODE_HINT[value];
+      b.onclick = () => run(async () => { await api('', 'PUT', { mode: value }); await load(); say('Режим каталога: ' + title + '.'); });
+      modes.append(b);
+    }
+    head.append(modes); root.append(head);
+    root.append(node('p', MODE_HINT[data.mode] + '. Режим действует при любом маршруте устройства. ' + (data.mode === 'direct' ? 'Загрузка APK и разделы доступны — настройте заранее, в ответ колонке они не попадут.' : 'Свои приложения попадают в ответ колонке.'), 'hint'));
 
     fileInput = node('input'); fileInput.type = 'file'; fileInput.accept = '.apk'; fileInput.multiple = true; fileInput.hidden = true;
     fileInput.setAttribute('aria-label', 'Выбрать APK');
@@ -65,6 +74,51 @@
     drop.ondrop = e => { e.preventDefault(); drag = false; drop.classList.remove('dragging'); upload(e.dataTransfer.files); };
     root.append(fileInput, drop);
 
+    let sectionList = [...(data.sections || [])];
+    const sectionTitle = id => (sectionList.find(s => s.id === id) || {}).title || '';
+    const sectionsPanel = node('div'); sectionsPanel.className = 'panel';
+    sectionsPanel.append(node('h3', 'Разделы'));
+    const sectionsRows = node('div');
+    const renderSections = () => {
+      sectionsRows.replaceChildren();
+      if (!sectionList.length) sectionsRows.append(node('p', 'Своих разделов нет — приложения без раздела попадут в «Другое».', 'hint'));
+      for (const [index, section] of sectionList.entries()) {
+        const row = node('div'); row.className = 'row';
+        const input = node('input'); input.value = section.title; input.setAttribute('aria-label', 'Название раздела');
+        input.oninput = () => { sectionList[index].title = input.value; };
+        const up = node('button', '↑'); up.type = 'button'; up.className = 'secondary'; up.title = 'Выше';
+        up.onclick = () => { if (index > 0) { [sectionList[index - 1], sectionList[index]] = [sectionList[index], sectionList[index - 1]]; renderSections(); } };
+        const remove = node('button', '✕'); remove.type = 'button'; remove.className = 'secondary danger'; remove.title = 'Удалить раздел (приложения перейдут в «Другое»)';
+        remove.onclick = () => run(async () => {
+          const dialog = node('dialog');
+          dialog.append(node('p', `Удалить раздел «${section.title}»? Его приложения перейдут в «Другое».`));
+          const buttons = node('div'); buttons.className = 'row';
+          const yes = node('button', 'Удалить'); yes.type = 'button';
+          yes.onclick = () => { sectionList.splice(index, 1); dialog.close(); dialog.remove(); renderSections(); };
+          const no = node('button', 'Отмена'); no.type = 'button'; no.className = 'secondary';
+          no.onclick = () => { dialog.close(); dialog.remove(); };
+          buttons.append(yes, no); dialog.append(buttons);
+          dialog.addEventListener('cancel', () => dialog.remove());
+          document.body.append(dialog); dialog.showModal();
+        }, 'secondary danger');
+        row.append(input, up, remove);
+        sectionsRows.append(row);
+      }
+    };
+    renderSections();
+    const addSection = node('button', 'Добавить раздел'); addSection.type = 'button'; addSection.className = 'secondary';
+    addSection.onclick = () => { sectionList.push({ id: 's' + Date.now().toString(36), title: 'Новый раздел', order: sectionList.length }); renderSections(); };
+    const saveSections = node('button', 'Сохранить разделы'); saveSections.type = 'button';
+    saveSections.onclick = () => run(async () => {
+      const saved = [...sectionsRows.querySelectorAll('.row')].map((row, index) => ({
+        id: sectionList[index].id, title: row.querySelector('input').value.trim() || 'Раздел ' + (index + 1), order: index }));
+      await api('', 'PUT', { sections: saved });
+      await load(); say('Разделы сохранены.');
+    });
+    saveSections.classList.remove('secondary');
+    sectionsPanel.append(sectionsRows, node('div', null, 'actions'), addSection, saveSections);
+    root.append(sectionsPanel);
+
     const mine = node('div'); mine.className = 'panel';
     const mineHead = node('h3', 'Мои приложения'); mine.append(mineHead);
     const grid = node('div'); grid.className = 'catalog-grid';
@@ -73,7 +127,10 @@
       card.append(iconOf(app));
       const info = node('span'); info.className = 'info';
       const name = node('b', app.name); const meta = node('small', app.version + ' · ' + sizeText(app.size)); const pkg = node('small', app.package);
-      info.append(name, meta, pkg); card.append(info, node('span', '✎'));
+      info.append(name, meta, pkg);
+      const mark = sectionTitle(app.section);
+      if (mark) info.append(node('span', mark, 'chip'));
+      card.append(info, node('span', '✎'));
       card.onclick = () => editDialog(app);
       grid.append(card);
     }
@@ -81,9 +138,14 @@
     mine.append(grid); root.append(mine);
 
     const observed = node('div'); observed.className = 'panel';
-    observed.append(node('h3', 'Каталог из собранного трафика'), node('p', 'Приложения из последнего захваченного ответа get_app_catalog (доступно, когда эмулятор встроен в прокси с журналом).'));
-    if (data.observed && data.observed.length) {
-      for (const group of data.observed) {
+    const cached = data.yandex && data.yandex.cached;
+    observed.append(node('h3', 'Каталог Яндекса'),
+      node('p', 'Последний ответ get_app_catalog от Яндекса' + (data.yandex && data.yandex.ts ? ' · получен ' + new Date(data.yandex.ts * 1000).toLocaleString('ru-RU') : '') + ' — база режимов «Напрямую» и «Вместе».'));
+    const refresh = node('button', 'Обновить'); refresh.type = 'button'; refresh.className = 'secondary';
+    refresh.onclick = () => run(async () => { await load(); say('Каталог Яндекса перечитан из кеша. Живое обновление — при запросе колонки.'); });
+    observed.append(refresh);
+    if (cached && data.yandex.groups.length) {
+      for (const group of data.yandex.groups) {
         observed.append(node('h4', (group.title || 'Раздел') + ' · ' + (group.apps || []).length));
         const og = node('div'); og.className = 'catalog-grid';
         for (const app of group.apps || []) {
@@ -127,6 +189,15 @@
       if (key === 'name') input.required = true;
       label.append(input); form.append(label); fields[key] = input;
     }
+    // Раздел: свои разделы + группы каталога Яндекса (по заголовку), по умолчанию «Другое»
+    const slabel = node('label', 'Раздел'); const select = node('select');
+    const yandexTitles = [...new Set((data.yandex.groups || []).map(g => g.title).filter(Boolean))];
+    select.append(new Option('Другое', ''));
+    for (const section of data.sections || []) select.append(new Option('Своя: ' + section.title, section.id));
+    for (const title of yandexTitles) select.append(new Option('Яндекс: ' + title, title));
+    select.value = app.section || '';
+    if (select.selectedIndex < 0) select.selectedIndex = 0;
+    slabel.append(select); form.append(slabel); fields.section = select;
     const dlabel = node('label', 'Описание'); const dtext = node('textarea'); dtext.rows = 3; dtext.value = app.description || '';
     dlabel.append(dtext); form.append(dlabel);
     const row = node('div'); row.className = 'row';
@@ -138,7 +209,7 @@
     form.onsubmit = e => {
       e.preventDefault();
       run(async () => {
-        await api('/apps/' + app.id, 'PUT', { name: fields.name.value, package: fields.package.value, version: fields.version.value, version_code: Number(fields.version_code.value), icon: fields.icon.value, description: dtext.value });
+        await api('/apps/' + app.id, 'PUT', { name: fields.name.value, package: fields.package.value, version: fields.version.value, version_code: Number(fields.version_code.value), icon: fields.icon.value, description: dtext.value, section: fields.section.value });
         dialog.close(); dialog.remove(); await load(); say('Приложение сохранено.');
       });
     };

@@ -41,7 +41,7 @@ Endpoint'ы (по умолчанию, расширяются списком до
 
 | Контракт | Поведение | Тест |
 |---|---|---|
-| POST/GET /gproxy/get_app_catalog | при включённом каталоге: если своего ответа нет — берётся наблюдаемый protobuf-каталог (без credentials), патчится под адрес эмулятора (media/WS URL), content-encoding снимается корректно; gzip-каталог >8 MiB отклоняется | test_catalog, test_quasar_backend |
+| POST/GET /gproxy/get_app_catalog | перехватывается при любом маршруте устройства (как OTA); режим каталога из catalog.json: `direct` — ответ Яндекса как есть, `merged` — ответ Яндекса и свои приложения, `own` — только свои. База direct/merged — живой запрос к Яндексу (мост upstream, петлю закрывает резолвер) с кешем последнего удачного ответа (`data/catalog/upstream.bin`); нет ни облака, ни кеша — merged отдаёт только свои, direct — 502. Запись приложения: поле 8 (varint) — versionCode, по нему колонка решает «Обновить»; gzip-каталог >8 MiB отклоняется | test_app_catalog, test_catalog |
 | GET /__catalog/icon/{hash} | иконка APK из хранилища каталога | test_catalog |
 | GET /__catalog/apk/{hash} | скачивание APK с ограничениями | test_catalog |
 | Admin: GET/PUT /api/catalog, POST /api/catalog/apk, PUT/DELETE /api/catalog/apps/{id} | инвентарь/загрузка/правки | test_catalog |
@@ -127,7 +127,7 @@ HTTP — `METHOD host path` без query; WS — `ws → Event.<имя>` (кол
 - **transparent** — обмен молча уходит upstream куда шёл, НЕ записываясь в захват (ctx capture_skip; read-once тело запроса переносится с собой). «Подмены» продолжают применяться.
 - **disabled** — локальный 404 `emulator_route_disabled`.
 
-Реестр действует только в режиме эмуляции; каталог приложений (`/gproxy/get_app_catalog` при включённом каталоге), OTA-эндпоинты и `/glagol/token` — известные маршруты, гейтом не перехватываются. API: GET/PUT/DELETE `/emulator/api/http_routes`; UI — вкладка «HTTP · Quasar». Тесты: tests/test_http_routes.py, tests/test_mode_enum.py.
+Реестр действует только в режиме эмуляции; каталог приложений (`/gproxy/get_app_catalog` — перехватывается всегда, режимы см. выше), OTA-эндпоинты и `/glagol/token` — известные маршруты, гейтом не перехватываются. API: GET/PUT/DELETE `/emulator/api/http_routes`; UI — вкладка «HTTP · Quasar». Тесты: tests/test_http_routes.py, tests/test_mode_enum.py.
 
 ## Обновление 2026-11-01: кабинет пользователя `/me`
 
