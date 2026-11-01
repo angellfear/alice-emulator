@@ -192,14 +192,18 @@ async def test_on_records_emulator_and_upstream_answers(tmp_path):
             async with client.get(url + "/no/handler?x=1", headers=DEVICE) as response:
                 assert response.status == 404
             set_route(runtime, "SN-RC", "proxy")
+            # TASK-066: OTA и в «Прозрачно» обслуживает эмулятор (запись — как в эмуляции)
             async with client.get(url + "/check_updates", headers=DEVICE) as response:
+                assert await response.json() == {"hasUpdate": False}
+            # не-OTA трафик «Прозрачно» — от Яндекса (заглушки)
+            async with client.get(url + "/other/thing", headers=DEVICE) as response:
                 assert (await response.json())["from"] == "upstream"
         await runtime.upstream.journal.flush()
         items = {(i["source"], i["path"]): i for i in runtime.upstream.journal.list()["items"]}
         handled = items[("emulator", "/check_updates")]
         miss = items[("emulator", "/no/handler?x=1")]
-        up = items[("upstream", "/check_updates")]
-        assert handled["unhandled"] == 0 and miss["unhandled"] == 1 and up["unhandled"] == 0
+        up = items[("upstream", "/other/thing")]
+        assert handled["unhandled"] == 0 and miss["unhandled"] == 1 and up["unhandled"] == 1
         assert miss["status"] == 404 and handled["device_sn"] == "SN-RC" and handled["host"] == "quasar.yandex.net"
         assert handled["key"] == "GET quasar.yandex.net /check_updates" and miss["key"] == "GET quasar.yandex.net /no/handler"
         card = runtime.upstream.journal.item(miss["id"])

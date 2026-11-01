@@ -255,6 +255,12 @@ class Dispatcher:
                 body = await request.read()
                 self.remember_sync_headers(request, observed)
                 return await self.direct_sync_info(request, observed, device_id, observed['sn'], body, upstream)
+            # TASK-066: обновления прошивки перехватываются при любом маршруте, и в «Прозрачно» —
+            # политика вкладки «Устройства → Обновления» действует и здесь; ответ по ней, запись
+            # в журнал — как в эмуляции (journal_emulated по опции «Запись»); остальное — наверх
+            update = await self.handle_update(request, canonical, path or request.path, record)
+            if update is not None:
+                return update
             handled = upstream.record_mode(sn) == 'off' or self.local_handler(canonical, request.method, path or request.path)
             return await upstream.serve(request, target, host=host, path=path,
                                         journal=upstream.recording(sn, handled), unhandled=not handled,

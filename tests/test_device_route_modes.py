@@ -409,3 +409,49 @@ async def test_route_change_response_does_not_wait_and_hybrid_keeps_ws(tmp_path,
         release.set()
         await runner.cleanup()
         await runtime.close()
+
+
+async def test_proxy_route_intercepts_ota(tmp_path):
+    """TASK-066: OTA перехватывается и в «Прозрачно» — политика «Обновлений» действует,
+    апстрим не вызван; запрос оригинала (для каталога URL) идёт мимо маршрута, петля закрыта."""
+    runtime = Runtime(tmp_path)
+    value = runtime.updates.settings()
+    value['policy'] = 'deny'
+    runtime.updates.save(value)
+    served, fetches = [], []
+    upstream_runner, port = await start_upstream(served)
+    alias_upstream(runtime, port)
+    registry(runtime)
+    set_route(runtime, "SN-UP", "proxy")
+
+    async def original(url, method, headers, body):  # запрос оригинала, как в эмуляции
+        fetches.append((url, headers.get("X-Alice-Update-Probe")))
+        return 200, {"Content-Type": "application/json"}, b'{"updates": [{"url": "https://cdn.example/ota.zip"}]}'
+
+    runtime.update_fetch = original
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        async with ClientSession() as client:
+            async with client.post(url + "/tv/api/v4/updates?device_id=up-id", headers={"Host": "quasar.yandex.net"},
+                                   json={"installed_apps": []}) as response:
+                assert response.status == 200
+                assert await response.json() == {"updates": []}  # ответ по политике, не от Яндекса
+            assert served == []  # апстрим не вызван
+            assert len(fetches) == 1 and fetches[0][1] == "1"  # оригинал запрошен с маркером probe
+            inventory = runtime.updates.inventory(sn="SN-UP")
+            assert inventory["attempts"] and inventory["attempts"][0]["device_sn"] == "SN-UP"
+            # остальной HTTP «Прозрачно» — как раньше, прямым проходом
+            async with client.get(url + "/anything?device_id=up-id", headers={"Host": "quasar.yandex.net"}) as response:
+                assert (await response.json())["from"] == "upstream"
+            assert len(served) == 1
+            # защита от петли работает и в «Прозрачно»: probe-запрос не уходит в оригинал
+            probes = len(fetches)
+            async with client.post(url + "/tv/api/v4/updates?device_id=up-id",
+                                   headers={"Host": "quasar.yandex.net", "X-Alice-Update-Probe": "1"},
+                                   json={}) as response:
+                assert response.status == 508
+            assert len(fetches) == probes
+    finally:
+        await upstream_runner.cleanup()
+        await runner.cleanup()
+        await runtime.close()
