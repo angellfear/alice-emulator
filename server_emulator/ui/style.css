@@ -674,6 +674,47 @@ label.ui-switch{position:relative;display:inline-flex;flex-direction:row;margin:
   .rp-row .rp-err{grid-column:1/-1}
 }
 
+/* ── «Эмулятор → WS»: компактные таблицы вместо карточек на каждую запись ── */
+.ws-head{margin-bottom:4px}
+.ws-head h2{margin:0}
+.ws-misses{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:14px 0 16px}
+.ws-misses .misses-block{margin:0}
+.misses-block>summary{list-style:none;display:flex;align-items:center;gap:10px}
+.misses-block>summary::-webkit-details-marker{display:none}
+.misses-block:not([open])>summary{border-bottom:none;margin-bottom:0;padding-bottom:2px}
+.misses-block>summary button{margin-left:auto;min-height:28px;padding:3px 12px;font-size:12.5px}
+.ws-panel{padding:12px 16px}
+.ws-panel>h3{display:flex;align-items:baseline;gap:8px;margin:0 0 6px}
+.ws-panel>h3 .count{color:var(--faint);font-weight:400;font-size:12px}
+.ws-table{width:100%;border-collapse:collapse;font-size:13px}
+.ws-table th{text-align:left;color:var(--faint);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:6px 10px 6px 0;border-bottom:1px solid var(--border);white-space:nowrap}
+.ws-table td{padding:7px 10px 7px 0;border-bottom:1px solid var(--border);vertical-align:top}
+.ws-table tr:last-child td{border-bottom:none}
+.ws-table td:first-child{width:1%;max-width:340px;white-space:nowrap}
+.ws-table td:first-child .ws-desc,.ws-table td:first-child .ws-filter{white-space:normal}
+.ws-filter{display:block;margin-top:3px;font-size:11.5px;color:var(--accent);overflow-wrap:anywhere}
+.ws-table th:nth-last-child(-n+2),.ws-table td:nth-last-child(-n+2){width:1%;white-space:nowrap;text-align:right;padding-right:0;padding-left:10px}
+.ws-table code{font-size:12px;color:var(--text)}
+.ws-table .chip{font-size:11px;padding:0 7px;line-height:18px}
+.ws-name{display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-width:0}
+.ws-desc{display:block;color:var(--faint);font-size:12px;margin-top:3px;line-height:1.4}
+.ws-num{font-variant-numeric:tabular-nums}
+.ws-muted{color:var(--faint)}
+.ws-off td{opacity:.6}
+.ws-send{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;align-items:end;margin-bottom:10px}
+.ws-send label{margin:0}
+.ws-send button{justify-self:start}
+@media(max-width:700px){
+  .ws-table thead{display:none}
+  .ws-table,.ws-table tbody,.ws-table tr,.ws-table td{display:block;width:auto}
+  .ws-table tr{padding:8px 0;border-bottom:1px solid var(--border)}
+  .ws-table tr:last-child{border-bottom:none}
+  .ws-table td,.ws-table td:first-child{border:none;padding:2px 0;width:auto;max-width:none;white-space:normal}
+  .ws-table td:nth-last-child(-n+2){display:inline-block;width:auto;text-align:left;padding:2px 14px 0 0}
+  .ws-table td:nth-last-child(-n+2)::before{content:attr(data-label) ": ";color:var(--faint)}
+  .ws-table td:first-child:empty{display:none}
+}
+
 /* Журнал сервера (Дополнительно → Лог, TASK-068) */
 .log-entry{border:1px solid var(--border);border-radius:var(--radius-s);background:var(--surface);margin:0 0 6px}
 .log-entry>summary{list-style:none;display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;padding:7px 10px;cursor:pointer}
