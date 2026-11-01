@@ -17,6 +17,7 @@
       "informers.clock",
       "informers.weather",
       "informers.weather.widget",
+      "media.buttons",
       "media.music",
       "media.playback",
       "media.player",
@@ -1298,6 +1299,10 @@
         }
       ],
       "id": "informers.weather.widget"
+    },
+    {
+      "cases": [],
+      "id": "media.buttons"
     },
     {
       "cases": [

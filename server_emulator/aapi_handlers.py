@@ -142,6 +142,11 @@ def _is_timesync(fields):
     return fields.get("callback") == "NAlice.TDeviceControlTimesyncTypedCallback" or fields.get("purpose") == "sync_timezone"
 
 
+def _is_player_button(fields):
+    """purpose=player_* (кнопки экрана плеера колонки: next/previous/pause/play/liked/…, TASK-072)"""
+    return str(fields.get("purpose") or "").startswith("player_")
+
+
 # Маршруты колбэков (TASK-058): порядок проверки значим — именованные раньше общего ack.
 # as_reason — форма причины прежнего event-триггера: эталон scenarios.json и отчёты не меняются
 callback_route('@@mm_typed_callback', 'informers.requested', _is_informers, 'информеры/виджет погоды',
@@ -150,6 +155,9 @@ callback_route('@@mm_typed_callback', 'informers.requested', _is_informers, 'и�
 callback_route('@@mm_typed_callback', 'timesync.requested', _is_timesync, 'синхронизация времени',
                lambda fields: "event:@@mm_typed_callback[" +
                               ("callback=%s" % fields["callback"] if fields.get("callback") else "purpose=sync_timezone") + "]")
+# Кнопки экрана плеера колонки (TASK-072): поставщик media.buttons — очередь эмулятора
+callback_route('@@mm_typed_callback', 'media.player_button', _is_player_button, 'кнопки экрана плеера',
+               lambda fields: "event:@@mm_typed_callback[purpose=%s]" % (fields.get("purpose") or "player_*"))
 callback_route('@@mm_typed_callback', 'callbacks.ack', None, 'прочие колбэки приложения — тихое подтверждение',
                'event:@@mm_typed_callback')
 callback_route('@@mm_semantic_frame', 'weather.opened', _is_weather_tap, 'тап по виджету погоды',

@@ -238,3 +238,11 @@ WS heartbeat 30 с; max_msg_size 16 MiB; провайдеры model/stt/tts — 
   предупреждение в журнал сервера («Дополнительно → Лог», source ws, повторы склеиваются).
   Полное поведение — БЛОКЕР: нужен обмен (устройство в «Прозрачно» с «Записью», воспроизвести
   продолжение долгого ответа).
+
+## Обновление 2026-11-01: кнопки экрана плеера (TASK-072)
+
+Колбэки `@@mm_typed_callback` с `purpose=player_*` (кнопки экрана плеера: next/previous/pause/
+play/liked/unliked/dislike/repeat/shuffle/speed) маршрутизируются на сценарий-поставщик
+`media.player_button` (scenarios/media/buttons.json): next/previous двигают очередь эмулятора
+(TASK-071), pause/play — `audio_play` с `set_pause`, лайки/повтор/шаффл/скорость — тихое
+подтверждение (без аккаунта Яндекса состояние кнопки показывает колонка).

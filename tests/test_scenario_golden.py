@@ -34,14 +34,14 @@ def tool():
 
 
 def test_golden_covers_builtin_library():
-    """Эталон покрывает все сценарии встроенной библиотеки (сейчас 24)."""
+    """Эталон покрывает все сценарии встроенной библиотеки (сейчас 25)."""
     from server_emulator.scenario_engine.library import ERRORS, SCENARIOS
 
     assert ERRORS == []
-    assert len(SCENARIOS) == 24
+    assert len(SCENARIOS) == 25
     recorded = json.loads(GOLDEN.read_text(encoding="utf-8"))
     ids = [entry["id"] for entry in recorded["scenarios"]]
-    assert ids == sorted(SCENARIOS)  # все 24, каждый по одному разу
+    assert ids == sorted(SCENARIOS)  # все 25, каждый по одному разу
 
 
 def test_golden_has_no_executor_trace():

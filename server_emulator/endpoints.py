@@ -98,6 +98,12 @@ BUILTIN_SILENCERS = (
      "body": b"{}", "note": "эксперименты клавиатуры — пустой список"},
     {"host": "yandex.ru", "methods": ("GET",), "path": "/ads/v1/startup", "status": 200,
      "body": b"{}", "note": "реклама при старте — пустой ответ"},
+    {"host": "rpc.alice.yandex.net", "methods": ("POST",), "path": "/gproxy/centaur_get_gallery",
+     "status": 200, "body": b"", "content_type": "application/x-protobuf",
+     "note": "галерея экрана — пустой protobuf (TASK-072; персональная галерея недоступна без аккаунта)"},
+    {"host": "quasar.yandex.net", "methods": ("POST",), "path": "/set_device_capability",
+     "status": 200, "body": b'{"status":"ok"}',
+     "note": "состояние возможностей колонки — принято (TASK-072; по WS оно хранится, TASK-069)"},
 )
 
 

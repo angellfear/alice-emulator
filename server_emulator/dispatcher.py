@@ -131,11 +131,20 @@ class Dispatcher:
     async def builtin_answer(self, request, host, path):
         """Ответы, для которых не нужен ни эндпоинт, ни Яндекс: метрики и телеметрия
         (принять и выбросить), проверки связи, RPC-подсказки и тизеры, обложки музыки
-        (пересылка с кешем на диске). Вызывается, когда каталог эндпоинтов промахнулся, —
-        пользовательский эндпоинт перекрывает встроенный. None — встроенного ответа нет."""
+        (пересылка с кешем на диске), подписка на push (TASK-070/072). Вызывается, когда
+        каталог эндпоинтов промахнулся, — пользовательский эндпоинт перекрывает встроенный.
+        None — встроенного ответа нет."""
         if request.method in ('GET', 'HEAD') and (host or '').lower() == 'egress.yandex.net':
             # проверка исходящего IP: адрес, с которого колонка пришла (как видит сервер)
             return 200, self.client_ip(request).encode(), {'Content-Type': 'text/plain'}
+        if request.method == 'POST' and (host or '').lower() == 'quasar.yandex.net' \
+                and path == '/push_subscribe':
+            # TASK-072: подписка колонки на push-канал по образцу ответа Яндекса
+            # (журнал 2026-11-01: {"sign", "status": "ok", "ts"}); канал эмулятор не ведёт
+            import secrets
+            return 200, json.dumps({"sign": secrets.token_hex(16), "status": "ok",
+                                    "ts": str(int(time.time()))}).encode(), \
+                {'Content-Type': 'application/json'}
         entry = find_builtin(host, request.method, path)
         if entry is not None:
             return entry['status'], entry['body'], entry['headers']

@@ -1,0 +1,13 @@
+{
+ "format_version": 2,
+ "version": "1.0.0",
+ "category": "media",
+ "id": "media.buttons",
+ "title": {"ru": "Плеер: кнопки экрана", "en": "Player: screen buttons"},
+ "description": {"ru": "Поставщик колбэков кнопок плеера колонки (player_next/previous/pause/play и пр.): очередь эмулятора; лайки/повтор/шаффл — тихое подтверждение."},
+ "priority": 90,
+ "triggers": [
+  {"kind": "provide", "event": "media.player_button"}
+ ],
+ "executor": {"kind": "script"}
+}
