@@ -4,7 +4,7 @@
 set -e
 cd "$(dirname "$0")"
 
-REPO=https://github.com/angellfear/alica_emule.git
+REPO=https://github.com/angellfear/alice-emulator.git
 
 if ! python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)'; then
   echo "Нужен Python 3.11 или новее: https://www.python.org/downloads/" >&2
@@ -16,12 +16,12 @@ if [ ! -e .git ]; then
   TAG=$(git ls-remote --tags --sort=-v:refname "$REPO" "refs/tags/v*" | grep -v '\^{}' | head -1 | cut -f2 | sed 's|refs/tags/||')
   if [ -n "$TAG" ]; then
     echo "Клонирую тег $TAG ..."
-    git clone --branch "$TAG" --depth 1 "$REPO" alica_emule
+    git clone --branch "$TAG" --depth 1 "$REPO" alice-emulator
   else
     echo "Тегов v* пока нет — клонирую основную ветку."
-    git clone "$REPO" alica_emule
+    git clone "$REPO" alice-emulator
   fi
-  cd alica_emule
+  cd alice-emulator
 fi
 
 if [ ! -e .venv ]; then

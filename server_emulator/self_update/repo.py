@@ -13,7 +13,7 @@ from dulwich import porcelain
 from dulwich.objects import Commit
 from dulwich.repo import Repo, NotGitRepository
 
-STASH_MESSAGE = "alica-emule: local changes before update"
+STASH_MESSAGE = "alice-emulator: local changes before update"
 
 
 def discover(root):
@@ -142,7 +142,7 @@ def stash(repo):
     commit.parents = parents
     commit.commit_time = commit.author_time = int(time.time())
     commit.commit_timezone = commit.author_timezone = 0
-    commit.author = commit.committer = b"alica-emule <alice-emulator@localhost>"
+    commit.author = commit.committer = b"alice-emulator <alice-emulator@localhost>"
     commit.message = STASH_MESSAGE.encode()
     repo.object_store.add_object(commit)
     repo.refs[b"refs/stash"] = commit.id

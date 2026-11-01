@@ -1,5 +1,5 @@
 [project]
-name = "alica-emule"
+name = "alice-emulator"
 version = "0.1.0"
 description = "Эмулятор сервера Яндекс Алисы: HTTP, WebSocket и AAPI для колонок, сценарии, расширения"
 requires-python = ">=3.11"

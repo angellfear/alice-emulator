@@ -344,7 +344,7 @@ def run_tray(open_panel=False):
         raise RuntimeError("Трей — только Windows; на Linux: python -m server_emulator.server")
     import pystray
     write_icon(STATE / "alica.ico")
-    icon = pystray.Icon("alica-emule", picture("#e8a33d"), "Алиса — эмулятор · запуск…")
+    icon = pystray.Icon("alice-emulator", picture("#e8a33d"), "Алиса — эмулятор · запуск…")
     controller = Controller(on_change=lambda: update(), on_exit=icon.stop, open_panel=open_panel)
     shown = {"color": None, "menu": None}
 

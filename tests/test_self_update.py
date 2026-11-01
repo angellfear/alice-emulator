@@ -24,7 +24,7 @@ def git(*args, cwd):
 def make_origin(tmp, tags=("0.1.0", "0.2.0"), with_pyproject=True):
     """Bare-репозиторий origin с тегами v* и рабочая копия на первом теге; возвращает (origin, work).
     Путь origin содержит owner/name — проверка origin в can_update проходит как для GitHub."""
-    origin, work = tmp / "angellfear" / "alica_emule.git", tmp / "work"
+    origin, work = tmp / "angellfear" / "alice-emulator.git", tmp / "work"
     origin.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(origin)], check=True)
     uri = origin.as_uri()  # file:// — иначе dulwich на Windows трактует «C:» как хост
@@ -74,8 +74,8 @@ def releases_app(releases, etag="W/test"):
                 "published_at": r.get("published_at", ""), "html_url": "http://example/" + r["version"]}
 
     app = web.Application()
-    app.router.add_get("/repos/angellfear/alica_emule/releases/latest", latest)
-    app.router.add_get("/repos/angellfear/alica_emule/releases", all_releases)
+    app.router.add_get("/repos/angellfear/alice-emulator/releases/latest", latest)
+    app.router.add_get("/repos/angellfear/alice-emulator/releases", all_releases)
     return app
 
 
@@ -87,9 +87,9 @@ async def test_latest_stable_ignores_prerelease_and_beta_takes_it(monkeypatch, s
     runner, url = await listen(releases_app(releases))
     try:
         monkeypatch.setattr(check, "API", url)
-        stable = await check.latest("angellfear/alica_emule")
+        stable = await check.latest("angellfear/alice-emulator")
         assert stable["release"]["version"] == "0.2.0" and stable["release"]["prerelease"] is False
-        beta = await check.latest("angellfear/alica_emule", channel="beta")
+        beta = await check.latest("angellfear/alice-emulator", channel="beta")
         assert beta["release"]["version"] == "0.3.0-rc1" and beta["release"]["prerelease"] is True
     finally:
         await runner.cleanup()
@@ -142,10 +142,10 @@ async def test_skip_hides_until_next_version(monkeypatch, tmp_path, service):
 def test_can_update_blocks_modified_files(service):
     svc, work = service
     (work / "a.txt").write_text("локальная правка", encoding="utf-8")
-    ok, reasons, files = repo.can_update(work, "angellfear/alica_emule")
+    ok, reasons, files = repo.can_update(work, "angellfear/alice-emulator")
     assert ok is False and files == ["a.txt"] and any("правки" in r for r in reasons)
     sha = repo.stash(repo.discover(work))  # stash по клику — правки отложены, копия чистая
-    assert sha and repo.can_update(work, "angellfear/alica_emule")[0] is True
+    assert sha and repo.can_update(work, "angellfear/alice-emulator")[0] is True
     assert (work / "a.txt").read_text(encoding="utf-8") == "release 0.1.0"
 
 
@@ -153,7 +153,7 @@ def test_zip_install_is_notice_only(tmp_path):
     plain = tmp_path / "zip-install"
     plain.mkdir()
     (plain / "server_emulator").mkdir()
-    ok, reasons, files = repo.can_update(plain, "angellfear/alica_emule")
+    ok, reasons, files = repo.can_update(plain, "angellfear/alice-emulator")
     assert ok is False and any("zip" in r for r in reasons) and files == []
 
 
@@ -256,3 +256,25 @@ async def test_manual_check_and_button_do_not_need_enabled(monkeypatch, service)
         assert svc.status()["available"] is True  # кнопка от галочки не зависит
     finally:
         await runner.cleanup()
+
+
+@pytest.mark.parametrize("stored, expected", [("angellfear/alica_emule", "angellfear/alice-emulator"),
+                                              ("someone/fork", "someone/fork")])
+async def test_renamed_repo_migrates_in_settings(tmp_path, stored, expected):
+    """Репозиторий переименован: прежний адрес самообновления в сохранённых настройках переводится
+    на новый, свой адрес (форк) остаётся."""
+    from server_emulator.runtime import Runtime
+    from server_emulator.state_store import StateStore
+    runtime = Runtime(tmp_path)
+    await runtime.close()
+    store = StateStore(tmp_path / "emulator.sqlite3")
+    settings = dict(store.load_settings())
+    settings["self_update"] = {**settings["self_update"], "repo": stored}
+    store.save_settings(settings)
+    store.close()
+    migrated = Runtime(tmp_path)
+    try:
+        assert migrated.settings["self_update"]["repo"] == expected
+    finally:
+        await migrated.close()
+    assert StateStore(tmp_path / "emulator.sqlite3").load_settings()["self_update"]["repo"] == expected

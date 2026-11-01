@@ -23,7 +23,7 @@ from ..server_log import log_event  # TASK-068: события самообно�
 from . import check, repo
 
 UPDATE_DIR = "update"
-DEFAULT_REPO = "angellfear/alica_emule"  # константа публичного репозитория — дефолт настройки
+DEFAULT_REPO = "angellfear/alice-emulator"  # константа публичного репозитория — дефолт настройки
 
 
 class Service:

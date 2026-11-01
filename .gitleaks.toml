@@ -1,6 +1,6 @@
 # Проектные правила поверх стандартных правил gitleaks.
 # Запуск: gitleaks dir . --config .gitleaks.toml --redact --no-banner
-title = "alica_emule: приватные данные устройств и пользователей"
+title = "alice-emulator: приватные данные устройств и пользователей"
 
 [extend]
 useDefault = true

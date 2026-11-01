@@ -13,7 +13,7 @@ TIMEOUT = ClientTimeout(total=20)
 
 def headers(token="", etag=None):
     result = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28",
-              "User-Agent": "alica-emule"}
+              "User-Agent": "alice-emulator"}
     if token:
         result["Authorization"] = "Bearer " + token
     if etag:

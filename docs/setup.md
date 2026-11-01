@@ -8,7 +8,7 @@
 ## Установка
 
 Скрипт — `install.bat` (Windows) или `install.sh` (Linux): проверяет Python 3.11+, при запуске вне
-клона клонирует репозиторий на тег последнего релиза в подпапку `alica_emule`, создаёт `.venv`
+клона клонирует репозиторий на тег последнего релиза в подпапку `alice-emulator`, создаёт `.venv`
 и ставит пакет editable (`pip install -e ".[emulator]"`). Git CLI нужен только на этой первичной
 установке; версия и самообновление работают без него. Для приватного репозитория клон идёт
 с учётными данными git пользователя — скрипт их не спрашивает и не хранит. Повторный запуск
@@ -17,8 +17,8 @@
 Вручную:
 
 ```powershell
-git clone https://github.com/angellfear/alica_emule.git   # или --branch vX.Y.Z — конкретный релиз
-cd alica_emule
+git clone https://github.com/angellfear/alice-emulator.git   # или --branch vX.Y.Z — конкретный релиз
+cd alice-emulator
 python -m venv .venv
 .venv\Scripts\python -m pip install -e ".[emulator]"       # Linux/macOS: .venv/bin/python
 ```

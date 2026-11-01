@@ -25,6 +25,7 @@ RECORD_MODES = ("off", "on", "misses")
 ROUTE_MIGRATION_KEY = "route_migration"  # meta StateStore: {"excluded": [sn]} — очередь миграции
 RECORD_MIGRATION_KEY = "record_migration"  # meta: маршрут record → proxy + опция record (TASK-054), однократно
 MAX_RADIO = 20  # радиостанций в списке медиа (TASK-071)
+LEGACY_REPO = "angellfear/alica_emule"  # прежнее имя репозитория — переводится миграцией на новое
 
 DEFAULT = {
     "intelligence": "agent",  # режим «Интеллект»: scenarios | model | agent (intelligence.py)
@@ -64,7 +65,7 @@ DEFAULT = {
     # Самообновление (TASK-040): проверка релизов GitHub и обновление по кнопке,
     # автоматически ничего не ставится. token — строка или env:ИМЯ (приватный репозиторий
     # без токена отдаёт 404); restart — кто запускает сервер после обновления.
-    "self_update": {"enabled": True, "repo": "angellfear/alica_emule", "channel": "stable",
+    "self_update": {"enabled": True, "repo": "angellfear/alice-emulator", "channel": "stable",
                     "interval_hours": 12, "token": "", "skipped": "", "restart": "self"},
     # Медиа (TASK-071): интернет-радио для «включи радио <имя>» — [{name, url}];
     # файлы музыки/сказок живут на диске (state/media/…), в настройках их нет.
@@ -128,6 +129,7 @@ class SettingsService:
         self._migrate_route_modes(settings)
         self._migrate_record_route(settings)
         self._migrate_default_route(settings)
+        self._migrate_repo_name(settings)
         self.load_scenario_files(settings)
         return settings
 
@@ -209,6 +211,17 @@ class SettingsService:
                 self.store.save_identity_data(data)
         self.store.save_settings(settings)
         log.info("Миграция маршрута по умолчанию: «%s» перенесён на устройства без своего маршрута (%d)", default, changed)
+        return True
+
+    def _migrate_repo_name(self, settings):
+        """Репозиторий переименован (alica_emule → alice-emulator): прежний адрес в настройках
+        самообновления переводится на новый; свой адрес пользователя не трогается."""
+        su = settings.get("self_update")
+        if not isinstance(su, dict) or su.get("repo") != LEGACY_REPO:
+            return False
+        su["repo"] = DEFAULT["self_update"]["repo"]
+        self.store.save_settings(settings)
+        log.info("Миграция самообновления: репозиторий %s → %s", LEGACY_REPO, su["repo"])
         return True
 
     def persist(self, settings):
