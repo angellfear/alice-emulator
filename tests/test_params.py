@@ -86,6 +86,22 @@ def test_seed_idempotent_with_legacy(tmp_path):
 
 
 @pytest.mark.asyncio
+def test_resolve_view_sources_and_secret(store):
+    """TASK-060: итог цепочки с уровнем-источником по каждому ключу; секрет — маской."""
+    store.def_upsert({"key": "server.timezone", "scope": "server", "type": "string",
+                      "default_value": "Asia/Tashkent"})
+    store.def_upsert({"key": "user.wifi_hash", "scope": "user", "type": "secret"})
+    store.def_upsert({"key": "device.room", "scope": "device", "type": "string"})
+    store.set_value("server", "server.timezone", "UTC")
+    store.set_value("user:u1", "user.wifi_hash", "s3cr3t")
+    view = store.resolve_view(sn="SN1", user_id="u1")
+    assert view["server.timezone"] == {"value": "UTC", "source": "server"}
+    assert view["user.wifi_hash"] == {"value": "__KEEP__", "source": "user"}  # секрет — маской
+    assert view["device.room"]["source"] == "default"
+    store.set_value("device:SN1", "device.room", "Кухня")
+    assert store.resolve_view(sn="SN1", user_id="u1")["device.room"] == {"value": "Кухня", "source": "device"}
+
+
 async def test_params_admin_api(tmp_path):
     from server_emulator.server import create_app
     from tests.conftest import listen
@@ -109,6 +125,29 @@ async def test_params_admin_api(tmp_path):
                 assert response.status == 200
             async with client.get(url + "/emulator/api/param_values?owner=server") as response:
                 assert (await response.json())["values"]["server.house_name"]["value"] == "Дом у реки"
+            # TASK-060: для устройства — resolve=1 (значение + уровень-источник), секрет маской;
+            # админ правит значение другого пользователя
+            runtime.identities.mutate({'operation': 'user', 'id': 'u1', 'name': 'Alex'})
+            runtime.identities.mutate({'operation': 'device', 'sn': 'SN1', 'user_id': 'u1', 'device_ids': []})
+            async with client.put(url + "/emulator/api/params", headers={"X-Emulator": "1"},
+                                  json={"definition": {"key": "user.api_token", "scope": "user",
+                                                       "type": "secret", "title": "Токен"}}) as response:
+                assert response.status == 200
+            async with client.put(url + "/emulator/api/param_values", headers={"X-Emulator": "1"},
+                                  json={"owner": "user:u1", "key": "user.api_token", "value": "s3cr3t"}) as response:
+                assert response.status == 200
+            async with client.put(url + "/emulator/api/param_values", headers={"X-Emulator": "1"},
+                                  json={"owner": "device:SN1", "key": "device.room", "value": "Кухня"}) as response:
+                assert response.status == 200
+            async with client.get(url + "/emulator/api/param_values?owner=device:SN1&resolve=1") as response:
+                body = await response.json()
+            assert body["resolved"]["device.room"] == {"value": "Кухня", "source": "device"}
+            assert body["resolved"]["user.api_token"] == {"value": "__KEEP__", "source": "user"}  # маска
+            assert "user.api_token" not in body["values"]  # values — только свои значения владельца
+            async with client.put(url + "/emulator/api/param_values", headers={"X-Emulator": "1"},
+                                  json={"owner": "user:u1", "key": "user.api_token", "value": "__KEEP__"}) as response:
+                assert response.status == 200  # маска не затирает чужой секрет
+            assert runtime.quasar_params.raw_value("user:u1", "user.api_token") == "s3cr3t"
     finally:
         await runner.cleanup()
         runtime.store.close()

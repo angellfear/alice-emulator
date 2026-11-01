@@ -282,6 +282,28 @@ class ParamStore:
             return definition["default_value"]
         raise KeyError(key)
 
+    def resolve_view(self, sn=None, user_id=None, platform=None):
+        """Итог цепочки по всем определениям с уровнем-источником (TASK-060, UI «Итог/Откуда»):
+        {key: {"value": итог, "source": "device|user|platform|server|default"}}; секреты маской.
+        Первый непустой уровень цепочки device → user → platform → server перекрывает младшие,
+        значения нет ни на одном — default_value определения."""
+        chain = [("device", f"device:{sn}" if sn else None),
+                 ("user", f"user:{user_id}" if user_id else None),
+                 ("platform", f"platform:{platform}" if platform else None),
+                 ("server", "server")]
+        result = {}
+        for definition in self.defs():
+            key, source, value = definition["key"], "default", definition.get("default_value")
+            for scope, owner in chain:
+                if owner is None:
+                    continue
+                raw = self.raw_value(owner, key)
+                if raw is not None:  # raw_value уже разбирает JSON
+                    value, source = raw, scope
+                    break
+            result[key] = {"value": self._mask(key, value), "source": source}
+        return result
+
     # --- контекст сценариев -------------------------------------------------------
     def context(self, user_id=None, sn=None, platform=None):
         """Значения для сценариев: params.<scope>.<путь> и params.effective.<путь>

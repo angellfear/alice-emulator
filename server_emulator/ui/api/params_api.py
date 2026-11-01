@@ -3,8 +3,9 @@
 params — определения (docs/contracts/params-db.md): GET список с типами и
 сферами; PUT определение; DELETE ?key= (вместе со значениями).
 param_values — значения владельца: GET ?owner=user:id|device:sn|server
-(секреты замаскированы); PUT {owner,key,value} с валидацией по определению
-("__KEEP__" — сохранить секрет). Ветки перенесены дословно из
+(секреты замаскированы); для устройства ?resolve=1 — ещё и resolved: итог цепочки
+device → user → platform → server → default с уровнем-источником (TASK-060);
+PUT {owner,key,value} с валидацией по определению ("__KEEP__" — сохранить секрет). Ветки перенесены дословно из
 legacy-замыкания legacy_api (server_emulator/runtime.py, mount_ui); guard
 и маппинг ошибок обеспечивает диспетчер реестра ui/api/__init__.py.
 """
@@ -40,8 +41,17 @@ async def param_values(request, runtime, app):
     # Значения владельца: GET ?owner=user:id|device:sn|server (секреты замаскированы);
     # PUT {owner,key,value} с валидацией по определению ("__KEEP__" — сохранить секрет)
     if request.method == 'GET':
-        return web.json_response({'owner': request.query.get('owner', ''),
-                                  'values': runtime.quasar_params.values(request.query.get('owner', ''))})
+        owner = request.query.get('owner', '')
+        values = runtime.quasar_params.values(owner)
+        resolved = None
+        if request.query.get('resolve') == '1' and owner.startswith('device:'):
+            # TASK-060: для устройства — итог цепочки и уровень-источник по каждому ключу
+            sn = owner.split(':', 1)[1]
+            device = next((d for d in runtime.identities.data['devices'] if d['sn'] == sn), None)
+            user_id = (device or {}).get('user_id')
+            platform = ((device or {}).get('profile') or {}).get('platform') or ''
+            resolved = runtime.quasar_params.resolve_view(sn=sn, user_id=user_id, platform=platform)
+        return web.json_response({'owner': owner, 'values': values, 'resolved': resolved})
     if request.method == 'PUT':
         value = await request.json()
         async with runtime.lock:

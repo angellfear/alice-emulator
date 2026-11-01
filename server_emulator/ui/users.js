@@ -89,7 +89,11 @@
     const head = node('header');
     const close = node('button', '✕'); close.type = 'button'; close.className = 'icon-btn';
     close.title = 'Закрыть'; close.setAttribute('aria-label', 'Закрыть');
-    head.append(node('h3', 'Параметры · ' + (user.name || user.id)), close);
+    head.append(node('h3', 'Параметры · ' + (user.name || user.id)));
+    const allParams = node('button', 'Все параметры'); allParams.type = 'button'; allParams.className = 'secondary';
+    allParams.title = 'Открыть «Значения» с этим владельцем (TASK-060)';
+    allParams.onclick = () => { dialog.close(); window.paramsOpenOwner?.('user', user.id); };
+    head.append(allParams, close);
     const tabs = node('nav'); tabs.className = 'pd-tabs';
     const body = node('div'); body.className = 'pd-body';
     const errLine = node('p'); errLine.className = 'pd-error'; errLine.hidden = true;
