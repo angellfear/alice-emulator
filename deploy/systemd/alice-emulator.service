@@ -1,0 +1,48 @@
+# Эмулятор сервера Алисы под systemd (Linux).
+#
+# Установка:
+#   sudo cp deploy/systemd/alice-emulator.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now alice-emulator
+# Подробности, права на порты и обновления — docs/deploy.md.
+#
+# Поправьте под себя: WorkingDirectory и ExecStart (куда клонирован репозиторий),
+# User/Group (владелец клона и папки данных), Documentation.
+#
+# ExecStart — не server.py, а service.py: при самообновлении сервер выходит с кодом 76
+# и ждёт, пока updater переключит рабочую копию на новый тег. Супервизор дожидается
+# итога и поднимает сервер снова; `Restart=always` на месте сервера поднял бы старую
+# версию прямо во время переключения.
+[Unit]
+Description=Эмулятор сервера Алисы
+Documentation=file:/opt/alice-emulator/docs/deploy.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=alice-emulator
+Group=alice-emulator
+WorkingDirectory=/opt/alice-emulator
+ExecStart=/opt/alice-emulator/.venv/bin/python -m server_emulator.service --state /var/lib/alice-emulator
+
+# Порты 80/443 без root: разрешаем только привязку к привилегированным портам
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
+# Папка данных: systemd создаст её с владельцем User и правами 0750
+StateDirectory=alice-emulator
+StateDirectoryMode=0750
+
+# Падение — перезапуск; штатная остановка (код 0) сервер обратно не поднимает
+Restart=on-failure
+RestartSec=5
+# Остановка: сигнал получает супервизор (KillMode=mixed), он передаёт его серверу и ждёт выхода
+KillMode=mixed
+TimeoutStopSec=30
+
+PrivateTmp=yes
+ProtectSystem=full
+# Самообновление меняет файлы в WorkingDirectory — ProtectSystem=strict его сломает
+
+[Install]
+WantedBy=multi-user.target

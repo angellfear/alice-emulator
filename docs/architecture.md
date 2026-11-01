@@ -354,7 +354,11 @@ Conventional Commits: PR релиза, `CHANGELOG.md`, тег `vX.Y.Z`, GitHub R
 трей: код UPDATE_CODE он не перезапускает, ждёт план, затем поднимает сервер и перезапускает себя
 (новый трей стартует с `ALICA_TRAY_TAKEOVER` — ожидание освобождения mutex одного экземпляра);
 под менеджером служб (настройка `restart: manager`, systemd `INVOCATION_ID`) — менеджер; иначе
-updater сам.
+updater сам. Менеджер для systemd — `server_emulator/service.py`: запускает сервер дочерним
+процессом, после кода UPDATE_CODE ждёт в плане итог для pid этого сервера (`ok`/`failed`) и
+запускает сервер снова; штатный выход 0 и падение с другим кодом дальше не перезапускаются
+(`Restart=on-failure` юнита). Юнит — `deploy/systemd/alice-emulator.service`, инструкция —
+[deploy.md](deploy.md).
 
 API `ui/api/self_update.py`: GET — статус (current/latest, can_update и причины, blocked_files,
 last_check, error, last_update, previous, installed_kind git|zip); POST `{action}` — `check`,
