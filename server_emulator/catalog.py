@@ -69,12 +69,17 @@ def catalog_view(data):
     return groups
 
 
+LEGACY_BASE_URL = 'http://rpc.local'  # старый дефолт catalog.json (*.local → настоящий домен)
+
+
 class Catalog:
     def __init__(self,root,extension_dirs=None):
         self.directory=Path(root)/'data'/'catalog';self.directory.mkdir(parents=True,exist_ok=True)
         self.path=self.directory/'catalog.json'
         self.extension_dirs=extension_dirs  # callable → [(origin, Path)] — слои catalog/, TASK-032
-        self.value=json.loads(self.path.read_text('utf8')) if self.path.exists() else {'enabled':False,'public_base_url':'http://rpc.local','apps':[]}
+        self.value=json.loads(self.path.read_text('utf8')) if self.path.exists() else {'enabled':False,'public_base_url':'http://rpc.alice.yandex.net','apps':[]}
+        if self.value.get('public_base_url')==LEGACY_BASE_URL:  # *.local → настоящий домен
+            self.value['public_base_url']='http://rpc.alice.yandex.net';self.save()
 
     # --- слой расширений (TASK-032) ----------------------------------------------------
     def _extension_layers(self):

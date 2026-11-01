@@ -34,7 +34,7 @@ async def test_token_for_another_device_same_owner(tmp_path):
     try:
         async with ClientSession() as client:
             async with client.get(url + '/glagol/token?device_id=speaker-id',
-                                  headers={'Host': 'quasar.local',
+                                  headers={'Host': 'quasar.yandex.net',
                                            'x-uprx-device-id': 'tv-id'}) as r:
                 body = await r.json()
                 assert r.status == 200
@@ -56,7 +56,7 @@ async def test_token_cross_owner_forbidden(tmp_path):
     try:
         async with ClientSession() as client:
             async with client.get(url + '/glagol/token?device_id=bob-tv',
-                                  headers={'Host': 'quasar.local',
+                                  headers={'Host': 'quasar.yandex.net',
                                            'x-uprx-device-id': 'tv-id'}) as r:
                 assert r.status == 403
                 assert (await r.json())['error'] == 'forbidden'
@@ -73,7 +73,7 @@ async def test_token_unknown_target_404_and_not_observed_as_caller(tmp_path):
     try:
         async with ClientSession() as client:
             async with client.get(url + '/glagol/token?device_id=ghost-id',
-                                  headers={'Host': 'quasar.local',
+                                  headers={'Host': 'quasar.yandex.net',
                                            'x-uprx-device-id': 'tv-id'}) as r:
                 assert r.status == 404
         pending = [d['device_id'] for d in runtime.identities.data['unassigned']]
@@ -92,7 +92,7 @@ async def test_token_unbound_caller_403(tmp_path):
     try:
         async with ClientSession() as client:
             async with client.get(url + '/glagol/token?device_id=speaker-id',
-                                  headers={'Host': 'quasar.local',
+                                  headers={'Host': 'quasar.yandex.net',
                                            'x-uprx-device-id': 'stranger'}) as r:
                 assert r.status == 403
                 assert (await r.json())['error'] == 'caller_not_assigned'
@@ -112,7 +112,7 @@ async def test_token_self_without_headers_backward_compatible(tmp_path):
     try:
         async with ClientSession() as client:
             async with client.get(url + '/glagol/token?device_id=speaker-id',
-                                  headers={'Host': 'quasar.local'}) as r:
+                                  headers={'Host': 'quasar.yandex.net'}) as r:
                 assert r.status == 200
                 token = (await r.json())['token']
         assert _claims(token)['sub'] == 'speaker-id'
@@ -130,7 +130,7 @@ async def test_token_without_query_returns_caller_self(tmp_path):
     try:
         async with ClientSession() as client:
             async with client.get(url + '/glagol/token',
-                                  headers={'Host': 'quasar.local',
+                                  headers={'Host': 'quasar.yandex.net',
                                            'x-uprx-device-id': 'tv-id'}) as r:
                 assert r.status == 200
                 claims = _claims((await r.json())['token'])

@@ -18,7 +18,7 @@ async def test_native_http_and_tokens_are_scoped_and_persistent(tmp_path):
     runtime=Runtime(tmp_path);setup_registry(runtime)
     runner,url=await listen(create_app(runtime=runtime))
     try:
-        async with ClientSession(headers={'Host':'quasar.local'}) as client:
+        async with ClientSession(headers={'Host':'quasar.yandex.net'}) as client:
             async with client.get(url+'/get_sync_info?device_id=id-a') as r:
                 assert (await r.json())['config']['device_config']['name']=='a'
             async with client.get(url+'/glagol/device_list?device_id=id-a') as r:

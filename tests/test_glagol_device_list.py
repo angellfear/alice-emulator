@@ -9,7 +9,7 @@ from tests.conftest import listen
 # фиктивные значения: настоящие сертификаты в тестах не используются
 FAKE_CERT = "FAKE-CERT-{sn}"
 FAKE_KEY = "FAKE-KEY-{sn}"
-HEADERS = {"Host": "quasar.local"}
+HEADERS = {"Host": "quasar.yandex.net"}
 
 
 def _define_params(runtime):

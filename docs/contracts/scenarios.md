@@ -26,7 +26,7 @@ module: "server_emulator/scenario_engine/"
 
 Каталог builtin включается `settings.builtin_scenarios`, отдельные встроенные сценарии — `settings.builtin_disabled` (аддитивная миграция дефолтов доносит ключи в старые БД). Выключенные (`enabled:false` / id в `builtin_disabled`) из роутинга исключаются.
 
-## 1a. Поставщики данных для колбэков (TASK-058)
+## 1a. Поставщики данных для колбэков
 
 Служебные колбэки колонки маршрутизируются во внутренние события (`informers.requested`,
 `timesync.requested`, `callbacks.ack`, … — aapi_handlers.py), ответ собирает сценарий-поставщик
@@ -118,7 +118,7 @@ UI каталога: плоские группы-каталоги (`builtin`, п
 
 API: `GET scenario-drafts` → `{drafts}`; `POST {op: test|activate|discard|history|revert}`.
 
-## 5. Реестр пакетов — каталог расширений (TASK-036)
+## 5. Реестр пакетов — каталог расширений
 
 Отдельного API `registry` больше нет: пакеты сценариев ставятся тем же механизмом, что и расширения
 (`docs/contracts/extensions.md`, `server_emulator/extensions/`).
@@ -152,7 +152,7 @@ API: `GET scenario-drafts` → `{drafts}`; `POST {op: test|activate|discard|hist
 - Дни недели будильника голосом; snooze голосом (API планировщика есть).
 - Прогноз погоды на дни (только current); локация по GPS устройства.
 
-## 9. Медиа: музыка, сказки, радио, плеер (TASK-071)
+## 9. Медиа: музыка, сказки, радио, плеер
 
 Сценарии раздела `media` включают файлы из библиотеки (`state/media/music|tales`) и радио из
 настроек, управляют плеером; директива `audio_play` (Struct) и очередь с колбэками плеера —

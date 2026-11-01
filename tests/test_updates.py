@@ -18,7 +18,7 @@ async def test_deny_still_fetches_real_urls_and_persists_each_attempt(tmp_path):
     try:
         async with ClientSession() as client:
             for _ in range(2):
-                async with client.post(url+'/tv/api/v4/updates?device_id=device',headers={'Host':'quasar.local'},json={'installed_apps':[]}) as response:
+                async with client.post(url+'/tv/api/v4/updates?device_id=device',headers={'Host':'quasar.yandex.net'},json={'installed_apps':[]}) as response:
                     assert response.status==200
                     assert await response.json()=={'updates':[]}
             assert len(calls)==2 and calls[0][1]=='POST'
@@ -27,7 +27,7 @@ async def test_deny_still_fetches_real_urls_and_persists_each_attempt(tmp_path):
             assert len(inventory['attempts'])==2
             assert inventory['urls'][0]['hits']==2
             assert inventory['urls'][0]['url'].endswith('?sig=signed')
-            async with client.get(url+'/allow_update',headers={'Host':'quasar.local'}) as response:
+            async with client.get(url+'/allow_update',headers={'Host':'quasar.yandex.net'}) as response:
                 assert await response.json()=={'allow':False}
     finally:await runner.cleanup()
 
@@ -62,9 +62,9 @@ async def test_allow_preserves_status_and_loop_is_stopped(tmp_path):
     runner,url=await listen(create_app(runtime=runtime))
     try:
         async with ClientSession() as client:
-            async with client.post(url+'/tv/api/v4/updates',headers={'Host':'quasar.local'}) as response:
+            async with client.post(url+'/tv/api/v4/updates',headers={'Host':'quasar.yandex.net'}) as response:
                 assert response.status==429 and response.headers['Retry-After']=='10'
-            async with client.post(url+'/tv/api/v4/updates',headers={'Host':'quasar.local','X-Alice-Update-Probe':'1'}) as response:assert response.status==508
+            async with client.post(url+'/tv/api/v4/updates',headers={'Host':'quasar.yandex.net','X-Alice-Update-Probe':'1'}) as response:assert response.status==508
     finally:await runner.cleanup()
 
 
@@ -85,7 +85,7 @@ async def test_platform_policy_between_global_and_device(tmp_path):
     runtime.update_fetch=upstream
     runner,url=await listen(create_app(runtime=runtime))
     async def check(client,device_id):
-        async with client.post(url+'/tv/api/v4/updates',headers={'Host':'quasar.local','X-YaQuasarDeviceId':device_id}) as response:
+        async with client.post(url+'/tv/api/v4/updates',headers={'Host':'quasar.yandex.net','X-YaQuasarDeviceId':device_id}) as response:
             return await response.json()
     try:
         async with ClientSession() as client:

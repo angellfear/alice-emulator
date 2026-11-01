@@ -25,7 +25,7 @@ async def test_standalone_persistence_and_admin_guards(tmp_path):
     runner, url = await listen(create_app(runtime=runtime))
     try:
         async with ClientSession() as client:
-            async with client.get(url+'/config', headers={'Host': 'quasar.local'}) as response:
+            async with client.get(url+'/config', headers={'Host': 'quasar.yandex.net'}) as response:
                 assert response.status == 404  # маршрут без builtin/эндпоинта — честный 404
             async with client.get(url+'/emulator/') as response:
                 assert 'Проверка цепочки' in await response.text()

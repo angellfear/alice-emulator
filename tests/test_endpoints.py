@@ -81,15 +81,15 @@ async def test_endpoint_replay_priority_and_fallback(tmp_path):
     try:
         async with ClientSession() as client:
             async with client.get(url + "/check_updates?device_id=d1",
-                                  headers={"Host": "quasar.local"}) as response:
+                                  headers={"Host": "quasar.yandex.net"}) as response:
                 assert response.status == 200
                 assert await response.json() == {"hasUpdate": False}  # builtin, не реплей
             async with client.post(url + "/gproxy/get_teasers",
-                                   headers={"Host": "rpc.local"}, json={}) as response:
+                                   headers={"Host": "rpc.alice.yandex.net"}, json={}) as response:
                 assert response.status == 200
                 assert response.headers["Content-Type"].startswith("application/json")
                 assert await response.json() == {"teasers": []}  # реплей каталога
-            async with client.get(url + "/", headers={"Host": "egress.local"}) as response:
+            async with client.get(url + "/", headers={"Host": "egress.test"}) as response:
                 assert response.status == 404  # выключенный — прозрачно
         assert any(r.get("kind") == "endpoint" and r["id"] == "rpc.get_teasers"
                    for r in runtime.recent)
@@ -198,7 +198,7 @@ async def test_endpoint_template_served_dynamically(tmp_path):
     try:
         async with ClientSession() as client:
             async with client.get(url + "/tv/api/v4/settings?device_id=SN-DYN",
-                                  headers={"Host": "quasar.local"}) as response:
+                                  headers={"Host": "quasar.yandex.net"}) as response:
                 body = await response.json()
                 assert response.status == 200
                 assert body["for_device"] == "SN-DYN" and body["status"] == "ok"

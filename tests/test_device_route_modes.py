@@ -43,7 +43,7 @@ def alias_upstream(runtime, port):
     """Алиасы со схемой: весь трафик «Яндекса» идёт на локальную заглушку."""
     runtime.settings["aliases"] = {host: f"http://127.0.0.1:{port}" for host in (
         "quasar.yandex.net", "rpc.alice.yandex.net", "uniproxy.alice.yandex.net",
-        "quasar.local", "rpc.local", "uniproxy.local")}
+        "quasar.yandex.net", "rpc.alice.yandex.net", "uniproxy.alice.yandex.net")}
 
 
 def registry(runtime, sn="SN-UP", device_id="up-id"):
@@ -148,7 +148,7 @@ async def test_hybrid_handled_stays_local_miss_goes_upstream(tmp_path):
 async def test_ws_modes_bridge_or_local(tmp_path):
     runtime = Runtime(tmp_path)
     registry(runtime, "SN-W", "w-id")
-    headers = {"Host": "uniproxy.local", "x-uprx-device-id": "w-id"}
+    headers = {"Host": "uniproxy.alice.yandex.net", "x-uprx-device-id": "w-id"}
     calls = []
     upstream_runner, port = await start_upstream(calls)
     alias_upstream(runtime, port)
@@ -245,7 +245,7 @@ async def test_route_change_does_not_wait_for_busy_ws(tmp_path, monkeypatch):
     runner, url = await listen(create_app(runtime=runtime))
     try:
         async with ClientSession() as client:
-            ws = await client.ws_connect(url + "/uni.ws", headers={"Host": "uniproxy.local", "x-uprx-device-id": "b-id"})
+            ws = await client.ws_connect(url + "/uni.ws", headers={"Host": "uniproxy.alice.yandex.net", "x-uprx-device-id": "b-id"})
             await ws.send_bytes(b"audio-frame")  # дальше клиент сокет не читает
             await asyncio.sleep(0.3)
             (session,) = runtime.sessions.values()
@@ -282,8 +282,8 @@ async def test_route_change_closes_proxy_bridge(tmp_path):
     runner, url = await listen(create_app(runtime=runtime))
     try:
         async with ClientSession() as client:
-            mine = await client.ws_connect(url + "/uni.ws", headers={"Host": "uniproxy.local", "x-uprx-device-id": "p-id"})
-            other = await client.ws_connect(url + "/uni.ws", headers={"Host": "uniproxy.local", "x-uprx-device-id": "o-id"})
+            mine = await client.ws_connect(url + "/uni.ws", headers={"Host": "uniproxy.alice.yandex.net", "x-uprx-device-id": "p-id"})
+            other = await client.ws_connect(url + "/uni.ws", headers={"Host": "uniproxy.alice.yandex.net", "x-uprx-device-id": "o-id"})
             await mine.send_str("a")
             assert (await mine.receive()).data == "up:a"
             assert not runtime.sessions and len(runtime.upstream.forwarder.connections) == 2
@@ -389,7 +389,7 @@ async def test_route_change_response_does_not_wait_and_hybrid_keeps_ws(tmp_path,
     runner, url = await listen(create_app(runtime=runtime))
     try:
         async with ClientSession() as client:
-            ws = await client.ws_connect(url + "/uni.ws", headers={"Host": "uniproxy.local", "x-uprx-device-id": "k-id"})
+            ws = await client.ws_connect(url + "/uni.ws", headers={"Host": "uniproxy.alice.yandex.net", "x-uprx-device-id": "k-id"})
             await ws.send_bytes(b"audio-frame")
             await asyncio.sleep(0.3)
             (session,) = runtime.sessions.values()

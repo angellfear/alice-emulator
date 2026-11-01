@@ -40,8 +40,7 @@ class Upstream:
     def target_for_host(self, host, path, query="", websocket=False):
         """URL настоящего сервера по хосту и пути (без запроса: TASK-052 action: fetch).
 
-        Канонический хост берётся из алиасов эмулятора (uniproxy.local →
-        uniproxy.alice.yandex.net); значение алиаса может быть полным upstream
+        Канонический хост берётся из алиасов эмулятора; значение алиаса может быть полным upstream
         со схемой и портом (http://127.0.0.1:9000 — тесты и кастомные upstream),
         иначе — https (wss для WS) к настоящему Яндексу.
         """

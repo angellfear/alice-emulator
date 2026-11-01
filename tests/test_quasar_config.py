@@ -173,7 +173,7 @@ async def test_get_sync_info_inline_end_to_end(tmp_path):
     try:
         async with ClientSession() as client:
             async with client.get(url + "/get_sync_info?device_id=id-1",
-                                  headers={"Host": "quasar.local"}) as response:
+                                  headers={"Host": "quasar.yandex.net"}) as response:
                 body = await response.json()
                 assert response.status == 200
                 assert body["subscription"]["enabled"] is True
@@ -185,7 +185,7 @@ async def test_get_sync_info_inline_end_to_end(tmp_path):
                                           "source": {"$select": "Выключена (invalid_subscription_user)"}}]
             runtime.identities.mutate({'operation': 'state', 'sn': 'SN-1', 'state': state})
             async with client.get(url + "/get_sync_info?device_id=id-1",
-                                  headers={"Host": "quasar.local"}) as response:
+                                  headers={"Host": "quasar.yandex.net"}) as response:
                 assert (await response.json())["subscription"]["enabled"] is False
     finally:
         await runner.cleanup()
@@ -204,7 +204,7 @@ async def test_get_sync_info_legacy_without_layers(tmp_path):
     try:
         async with ClientSession() as client:
             async with client.get(url + "/get_sync_info?device_id=id-1",
-                                  headers={"Host": "quasar.local"}) as response:
+                                  headers={"Host": "quasar.yandex.net"}) as response:
                 assert response.status == 409
     finally:
         await runner.cleanup()

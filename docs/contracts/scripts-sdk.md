@@ -11,7 +11,7 @@ module: "server_emulator/sdk.py"
 
 ## Обзор
 
-Публичный API py-скриптов (сценарии — TASK-019/020, со временем py-эндпоинты и расширения):
+Публичный API py-скриптов (сценарии, py-эндпоинты и расширения):
 контекст запроса `ScenarioContext`, построители ответа и сервисы — тонкие обёртки над
 движком сценариев. Скрипт не лезет во внутренности Runtime; SDK ничего не дублирует:
 ответ собирает существующий `reply_compose.compose_reply`, действия/данные — реестры
@@ -22,19 +22,18 @@ module: "server_emulator/sdk.py"
 `SDK_VERSION = "1.3.0"` — semver. **Ломающие изменения API — только со сменой major**
 (удаление/переименование/смена сигнатур, смена формы построенных dict'ов). Добавление
 полей и новых функций — minor, исправления поведения — patch. Расширение объявляет, с
-какой версией SDK оно совместимо (поле `requires.sdk` появится вместе с расширениями,
-TASK-028/029).
+какой версией SDK оно совместимо (поле `requires.sdk`).
 
 ## Контракт
 
-- `handle(ctx)` получает `ScenarioContext` (TASK-019) и возвращает:
+- `handle(ctx)` получает `ScenarioContext` и возвращает:
   - **построитель ответа** (`say`/`card`/`directive`/`silent`) или равнозначный dict —
     спецификацию reply в формате JSON-шага `compose` (docs/contracts/scenario-json-v2.md,
     раздел «Ответ»); каркас protobuf собирает `compose_reply`, доставку и каркас ответа
     (CardId, SequenceNumber, tts_play_placeholder, TTS-кеш) — диалоговый/голосовой слой,
     как для JSON-сценария;
   - **список** таких спецификаций — несколько сообщений по порядку;
-  - **`ask(...)`** (TASK-020) — вопрос с продолжением диалога;
+  - **`ask(...)`** — вопрос с продолжением диалога;
   - **`None`** — сценарий отказался (как `guard=false`): реплика уходит следующему
     кандидату или в режим «Интеллект»;
   - **`[]`** (1.1.0) — сценарий отработал **без сообщений**: статус `finished`, `messages: []`
@@ -60,7 +59,7 @@ TASK-028/029).
 | `card(text)` | `{"text", "card": True}` | карточка с текстом (прогноз, список) |
 | `directive(name, payload=None, payload_raw=None, analytics_type=None)` | `{"text": "", "card": False, "directives": [{…}]}` | ответ с директивой: `payload` — Struct (dict), `payload_raw` — base64 (отладка). Прочие поля элемента (`proto`+`fields`, `is_led_silent`) — достройка dict вручную |
 | `silent()` | `{"envelope": "service", "text": "", "card": False}` | ответ без реплики — «bare» в JSON: тихий служебный ответ без голосовых добавок |
-| `ask(question, then, expect=None)` | `Ask(question, then, expect)` | уточнение (TASK-020): продолжение — функция `then` того же модуля, `expect` — подсказка парсеру ответа |
+| `ask(question, then, expect=None)` | `Ask(question, then, expect)` | уточнение: продолжение — функция `then` того же модуля, `expect` — подсказка парсеру ответа |
 
 ### `ScenarioContext(runtime, ctx, dry_run=False)`
 
@@ -68,16 +67,16 @@ TASK-028/029).
 |---|---|
 | `ctx.text` | реплика, как её оставил диалоговый слой (нормализованный ASR-вариант, если он применён) |
 | `ctx.raw_text` | исходная реплика до нормализации (если отличалась) |
-| `ctx.slots` | слоты триггера (TASK-022); **живой dict** исполнения — правки переживают шаги |
+| `ctx.slots` | слоты триггера; **живой dict** исполнения — правки переживают шаги |
 | `ctx.event` | `Event(name, callback, purpose, frame)` — имя служебного события и поля запроса (для event/protocol_event-триггеров), иначе пустое |
 | `ctx.sn` | SN колонки, от которой пришёл запрос |
 | `ctx.device` | запись реестра о колонке: sn, name, room, model, display, light(s), apps, platform, fields |
 | `ctx.owner` | владелец: id, name, location (гео); комната колонки — `ctx.device.room` |
 | `ctx.now` | aware datetime в таймзоне устройства (params device → user → effective → input.timezone; без имени — таймзона сервера) |
 | `ctx.params` | параметры владельца/устройства/платформы/сервера + `effective` (docs/contracts/params-db.md) |
-| `ctx.state` | **живой dict** состояния диалога — переживает шаги (TASK-020) |
-| `ctx.extension` | `ExtensionContext` — настройки расширения (TASK-053): режимы расширений читают свои значения (`id`, `settings`, `get(key, default)`; строки `env:ИМЯ` раскрыты); у обычных py-сценариев `None`. Подробно — docs/contracts/extensions.md, «Настройки в коде расширения» |
-| `ctx.dry_run` | True в проверке сценария (TASK-019): действия не выполняются |
+| `ctx.state` | **живой dict** состояния диалога — переживает шаги |
+| `ctx.extension` | `ExtensionContext` — настройки расширения: режимы расширений читают свои значения (`id`, `settings`, `get(key, default)`; строки `env:ИМЯ` раскрыты); у обычных py-сценариев `None`. Подробно — docs/contracts/extensions.md, «Настройки в коде расширения» |
+| `ctx.dry_run` | True в проверке сценария: действия не выполняются |
 | `ctx.effects` | `[{kind, name, arguments}]` — что dry_run сделал бы; показывает проверка сценария |
 
 ### Сервисы (обёртки над реестрами `Executor`)
@@ -94,7 +93,7 @@ TASK-028/029).
 
 ## Пример py-сценария
 
-`state/scenarios/custom.timer.py` (файл рядом с JSON, TASK-019):
+`state/scenarios/custom.timer.py` (файл рядом с JSON):
 
 ```python
 """Таймер: эффект через SDK, ответ построителями SDK."""
@@ -102,7 +101,7 @@ from server_emulator.sdk import card, say
 
 
 async def handle(ctx):
-    seconds = 300  # слоты триггера — TASK-022; здесь для примера фиксировано
+    seconds = 300  # слоты триггера; здесь для примера фиксировано
     await ctx.action("timer.start", seconds=seconds, label="Таймер")  # dry_run сам запишет effect
     geo = ctx.owner.get("location") or {}
     weather = await ctx.dataset("weather", f"{geo.get('latitude')},{geo.get('longitude')}",
@@ -113,11 +112,11 @@ async def handle(ctx):
     return [reply, card(f"За окном {temp}°.")] if temp is not None else reply
 ```
 
-Скрипты с `def handle(ctx)` тоже допустимы (sync/async решает `ScriptRunner`, TASK-017).
+Скрипты с `def handle(ctx)` тоже допустимы (sync/async решает `ScriptRunner`).
 Проверка сценария (dry-run) исполняет тот же код с `ctx.dry_run=True`: `ctx.action`
 не выполняет действие, а пишет `ctx.effects` —
 `[{"kind": "action", "name": "timer.start", "arguments": {"seconds": 300}}]` — и их
-показывает проверка (TASK-019).
+показывает проверка.
 
 ## 1.1.0 — устройства, парсеры, форматтеры, датасеты, ресурсы
 
@@ -240,7 +239,7 @@ Minor: только добавления, форма построенных dict
   правка `sys.path` в коде расширения не поддерживаются. Примеры и ограничения —
   docs/contracts/extensions.md, «Настройки в коде расширения».
 
-## 1.3.0 — обработчики AAPI и отправка на устройство (TASK-059)
+## 1.3.0 — обработчики AAPI и отправка на устройство
 
 - `sdk.aapi_handler(*triggers, enabled=None)` — декоратор обработчика события колонки
   (`aapi/*.py` расширения): `async handler(event, ctx) -> bool`; событие — разобранный dict,
@@ -256,8 +255,8 @@ Minor: только добавления, форма построенных dict
 - **Код исполняется в процессе сервера без песочницы** — SDK даёт полный Python:
   импорты, файлы, сеть. Границы доверия процедурные, не технические:
   **py-сценарии пишет только администратор** (UI-редактор сценариев и файлы
-  `state/scenarios/*.py` доступны администратору; TASK-021); встроенные сценарии —
-  часть кодовой базы; расширения проходят установку администратором (TASK-029).
+  `state/scenarios/*.py` доступны администратору); встроенные сценарии —
+  часть кодовой базы; расширения проходят установку администратором.
 - SDK — единственный публичный вход во внутренности: `voice_stack`, `audio_buffer`,
   `voice` и прочие модули Runtime скриптам не адресуются; runtime-объект, переданный
   в контекст, используется только самим SDK.
@@ -266,13 +265,13 @@ Minor: только добавления, форма построенных dict
 
 ## Не реализовано
 
-- Подключение к исполнению сценариев и dry-run проверка — TASK-019.
-- Многошаговые диалоги (`ask` → продолжение, `ShouldListen`, TTL) — TASK-020.
-- Поле `requires.sdk` у расширений — TASK-028/029; сейчас совместимость фиксирует
+- Подключение к исполнению сценариев и dry-run проверка — через движок сценариев.
+- Многошаговые диалоги (`ask` → продолжение, `ShouldListen`, TTL) — поддержаны.
+- Поле `requires.sdk` у расширений; сейчас совместимость фиксирует
   только `SDK_VERSION` и правило major.
-- Слоты из шаблонных триггеров (`ctx.slots`) наполняются в TASK-022.
+- Слоты из шаблонных триггеров (`ctx.slots`) наполняются диалоговым слоем.
 
-## 1.3.1 — медиа: плеер, библиотека, настройки (TASK-071)
+## 1.3.1 — медиа: плеер, библиотека, настройки
 
 - `ctx.media` — плеер колонки (`server_emulator.media.Player`): очередь в памяти runtime
   (`media_state[sn]`), директивы `audio_play`. Методы: `play_library(library, kind, query, text)`

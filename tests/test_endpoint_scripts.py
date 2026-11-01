@@ -127,7 +127,7 @@ async def test_dispatch_runs_script_and_500_on_error(tmp_path):
         async with ClientSession() as client:
             async with client.get(
                 url + "/dyn",
-                headers={"Host": "quasar.local", "X-YaQuasarPlatform": "yandexstation_2"},
+                headers={"Host": "quasar.yandex.net", "X-YaQuasarPlatform": "yandexstation_2"},
             ) as response:
                 assert response.status == 200
                 body = await response.json()
@@ -149,7 +149,7 @@ async def test_dispatch_runs_script_and_500_on_error(tmp_path):
             )
             async with client.get(
                 url + "/dyn",
-                headers={"Host": "quasar.local", "X-YaQuasarPlatform": "yandexstation_2"},
+                headers={"Host": "quasar.yandex.net", "X-YaQuasarPlatform": "yandexstation_2"},
             ) as response:
                 assert response.status == 500
                 body = await response.json()

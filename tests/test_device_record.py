@@ -334,7 +334,7 @@ async def test_emulator_records_mask_secret_headers(tmp_path):
 
 # --- WS ------------------------------------------------------------------------------------
 
-WS_HEADERS = {"Host": "uniproxy.local", "x-uprx-device-id": "w-id"}
+WS_HEADERS = {"Host": "uniproxy.alice.yandex.net", "x-uprx-device-id": "w-id"}
 
 
 async def test_ws_emulator_audio_not_recorded_aapi_and_unknown_are(tmp_path):

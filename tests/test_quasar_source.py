@@ -27,7 +27,7 @@ async def start_upstream(calls):
 
 def alias_upstream(runtime, port):
     runtime.settings["aliases"] = {"quasar.yandex.net": f"http://127.0.0.1:{port}",
-                                   "quasar.local": f"http://127.0.0.1:{port}"}
+                                   "quasar.yandex.net": f"http://127.0.0.1:{port}"}
 
 
 def registry(runtime, sn="SN-Q", device_id="q-id"):

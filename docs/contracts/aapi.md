@@ -45,8 +45,8 @@ module: "server_emulator/voice.py"
 | Ack | `delivery=acknowledged` в action_log | volume-set, text-basic | test_quasar_backend |
 | LogSpotter | ответ LogAck с RefMessageId | logspotter-ack | replay-тест; отдельного unit-теста нет |
 | RequestStat | ответ RequestStatAck | cancel-request | test_emulator_and_pcm |
-| MatchedUser | биометрия говорящего (TASK-069): классификация голоса (`Request.Event.BiometryClassification`: Scores ClassName/Confidence/Tag, Simple) → `conversation.speaker` и `sessions[<соединение>]['speaker']`; в контексте сценариев — `speaker`, агенту — kwargs `speaker`. Облако не отвечает — эмулятор тоже | voice-clock (MatchedUser) | test_aapi_handlers |
-| CapabilityUpdateState | состояние возможностей колонки (TASK-069): `CapabilityType` (enum, напр. AccessibilityVoiceControlType) + `AnyCapability.RawCapability` → последнее состояние каждого типа в `sessions[…]['capabilities']` (память, без БД) и `conversation.capabilities`; в контексте сценариев — `device.capabilities` (preview читаемых строк дампа). Облако не отвечает | voice-clock (CapabilityUpdateState) | test_aapi_handlers |
+| MatchedUser | биометрия говорящего: классификация голоса (`Request.Event.BiometryClassification`: Scores ClassName/Confidence/Tag, Simple) → `conversation.speaker` и `sessions[<соединение>]['speaker']`; в контексте сценариев — `speaker`, агенту — kwargs `speaker`. Облако не отвечает — эмулятор тоже | voice-clock (MatchedUser) | test_aapi_handlers |
+| CapabilityUpdateState | состояние возможностей колонки: `CapabilityType` (enum, напр. AccessibilityVoiceControlType) + `AnyCapability.RawCapability` → последнее состояние каждого типа в `sessions[…]['capabilities']` (память, без БД) и `conversation.capabilities`; в контексте сценариев — `device.capabilities` (preview читаемых строк дампа). Облако не отвечает | voice-clock (CapabilityUpdateState) | test_aapi_handlers |
 | ContinueRequest | колонка просит продолжить ответ (`RequestMessageId`). Поведение облака не разобрано (образца нет): ответа нет, событие — в журнал сервера (source ws, предупреждение склеивается); полное поведение — БЛОКЕР задания 069 | — | test_aapi_handlers |
 | SpotterEnd / Ping | наблюдаются, обработчиков нет — игнорируются без ошибки | voice-clock | replay-тест держит соединение |
 | MusicInput, SyncPushResponse, AsrRecognize, TtsGenerate, DeferredTtsGenerate, DataProxyInput, FileUploadRequest, TtsUpdateState, RecordInput, ClientSubscriptionState, TranslateInput, AudioTranscriptionInputRequest, FinishRequest | не наблюдались в captures; обработчиков нет | — | — |
@@ -84,7 +84,7 @@ module: "server_emulator/voice.py"
 
 WS heartbeat 30 с; max_msg_size 16 MiB; провайдеры model/stt/tts — HTTP total 90 с; MCP 30 с; лимиты аудио из §1. Firmware/capability-гейт ещё не реализован (B05/E01) — статус в coverage.md.
 
-## Обновление 2026-11-01: реестр обработчиков и колбэки (TASK-058)
+## Обновление 2026-11-01: реестр обработчиков и колбэки
 
 Реестр — `aapi_handlers.py`: `@aapi_handler(trigger, enabled=…)` объявляет обработчик рядом
 с кодом; у записи есть источник (`builtin`, у расширений через SDK — `extension:<id>`),
@@ -215,7 +215,7 @@ WS heartbeat 30 с; max_msg_size 16 MiB; провайдеры model/stt/tts — 
 - Реплика задания попадает и в голосовой тред `voice:<SN>` (agent.md, «Треды»): ответ на вопрос
   задания понятен агенту.
 
-## Обновление 2026-11-01: биометрия и возможности колонки (TASK-069)
+## Обновление 2026-11-01: биометрия и возможности колонки
 
 Промахи рабочего сервера (`MatchedUser` 91, `CapabilityUpdateState` 49, `ContinueRequest` 1) получили
 встроенные обработчики в `voice.py` (реестр `aapi_handlers`, видны в «WS → Входящие»):
@@ -239,10 +239,9 @@ WS heartbeat 30 с; max_msg_size 16 MiB; провайдеры model/stt/tts — 
   Полное поведение — БЛОКЕР: нужен обмен (устройство в «Прозрачно» с «Записью», воспроизвести
   продолжение долгого ответа).
 
-## Обновление 2026-11-01: кнопки экрана плеера (TASK-072)
+## Обновление 2026-11-01: кнопки экрана плеера
 
 Колбэки `@@mm_typed_callback` с `purpose=player_*` (кнопки экрана плеера: next/previous/pause/
 play/liked/unliked/dislike/repeat/shuffle/speed) маршрутизируются на сценарий-поставщик
-`media.player_button` (scenarios/media/buttons.json): next/previous двигают очередь эмулятора
-(TASK-071), pause/play — `audio_play` с `set_pause`, лайки/повтор/шаффл/скорость — тихое
+`media.player_button` (scenarios/media/buttons.json): next/previous двигают очередь эмулятора, pause/play — `audio_play` с `set_pause`, лайки/повтор/шаффл/скорость — тихое
 подтверждение (без аккаунта Яндекса состояние кнопки показывает колонка).

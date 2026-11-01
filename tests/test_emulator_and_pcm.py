@@ -39,7 +39,7 @@ async def test_offline_replay_preserves_gzip_matches_body_and_omits_cookies():
         def close(self):
             pass
 
-    config = {'response_role': 'response_original', 'strict_body': True, 'aliases': {'rpc.local': 'rpc.alice.yandex.net'}}
+    config = {'response_role': 'response_original', 'strict_body': True, 'aliases': {'rpc.alice.yandex.net': 'rpc.alice.yandex.net'}}
     runner = web.AppRunner(create_app(config, FixtureArchive()))
     await runner.setup()
     site = web.TCPSite(runner, '127.0.0.1', 0)
@@ -47,12 +47,12 @@ async def test_offline_replay_preserves_gzip_matches_body_and_omits_cookies():
     url = 'http://127.0.0.1:'+str(site._server.sockets[0].getsockname()[1])+'/test'
     try:
         async with ClientSession(auto_decompress=False) as client:
-            async with client.post(url, data=b'input', headers={'Host': 'rpc.local'}) as response:
+            async with client.post(url, data=b'input', headers={'Host': 'rpc.alice.yandex.net'}) as response:
                 assert response.status == 200
                 assert await response.read() == packed
                 assert response.headers['Content-Encoding'] == 'gzip'
                 assert 'Set-Cookie' not in response.headers
-            async with client.post(url, data=b'wrong', headers={'Host': 'rpc.local'}) as response:
+            async with client.post(url, data=b'wrong', headers={'Host': 'rpc.alice.yandex.net'}) as response:
                 assert response.status == 404
     finally:
         await runner.cleanup()

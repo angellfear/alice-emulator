@@ -53,7 +53,7 @@ DEFAULT = {
     "agent": {"engine": "graph"},
     # Долговременная память агента (agent/memory.py): эмбеддинги — OpenAI-совместимый /v1/embeddings
     "memory": {"enabled": True, "embed": {"url": "", "model": "", "api_key": ""}, "recall_limit": 6, "reflect_after_s": 120},
-    "aliases": {"quasar.local": "quasar.yandex.net", "rpc.local": "rpc.alice.yandex.net", "uniproxy.local": "uniproxy.alice.yandex.net"},
+    "aliases": {},  # колонка ходит на настоящие домены Яндекса; алиасы — для своих upstream и тестов
     # Расширения (TASK-029): источники (URL/локальные папки), состояние включённости,
     # установленное (версия/предыдущая/источник/самопроверка) и значения настроек.
     # Файлы живут в state/extensions/<id>/<version>/; детали — extensions/manager.py.
@@ -129,6 +129,7 @@ class SettingsService:
         self._migrate_route_modes(settings)
         self._migrate_record_route(settings)
         self._migrate_default_route(settings)
+        self._migrate_legacy_aliases(settings)
         self._migrate_repo_name(settings)
         self.load_scenario_files(settings)
         return settings
@@ -211,6 +212,24 @@ class SettingsService:
                 self.store.save_identity_data(data)
         self.store.save_settings(settings)
         log.info("Миграция маршрута по умолчанию: «%s» перенесён на устройства без своего маршрута (%d)", default, changed)
+        return True
+
+    LEGACY_ALIASES = {"quasar.local": "quasar.yandex.net", "rpc.local": "rpc.alice.yandex.net",
+                      "uniproxy.local": "uniproxy.alice.yandex.net"}
+
+    def _migrate_legacy_aliases(self, settings):
+        """Дефолтные алиасы `*.local` → настоящие домены (колонка и так ходит на них):
+        из сохранённых настроек удаляются ровно эти три пары, если их значения совпадают
+        со старыми умолчаниями. Алиасы пользователя не трогаются."""
+        aliases = settings.get("aliases")
+        if not isinstance(aliases, dict):
+            return False
+        extra = {k: v for k, v in aliases.items() if self.LEGACY_ALIASES.get(k) != v}
+        if len(extra) == len(aliases):
+            return False
+        settings["aliases"] = extra
+        self.store.save_settings(settings)
+        log.info("Миграция алиасов: убраны устаревшие *.local (колонка ходит на настоящие домены)")
         return True
 
     def _migrate_repo_name(self, settings):

@@ -130,7 +130,7 @@ async def test_extension_catalog_apps(tmp_path):
     make_extension(runtime, files={
         "catalog/maps.json": dump({"name": "Карты", "package": "com.coffee.maps", "version": "1.0",
                                    "version_code": 5, "apk_url": "https://cdn.example.com/maps.apk"}),
-        "catalog/local.json": dump({"name": "Локальный", "package": "com.coffee.local",
+        "catalog/local.json": dump({"name": "Локальный", "package": "com.coffee.test",
                                     "version_code": 1, "apk_url": "/__catalog/apk/abc"}),  # только http(s)
         "catalog/nopkg.json": dump({"name": "Без package", "version_code": 1,
                                     "apk_url": "https://cdn.example.com/x.apk"}),
@@ -152,7 +152,7 @@ async def test_extension_catalog_apps(tmp_path):
         catalog.value["apps"].clear()
         # запись расширения попадает в wire-ответ каталога: ссылка на APK — прямая
         catalog.value["enabled"] = True
-        patched = catalog.patch(b"", base_url="http://rpc.local")
+        patched = catalog.patch(b"", base_url="http://rpc.alice.yandex.net")
         assert b"https://cdn.example.com/maps.apk" in patched and b"com.coffee.maps" in patched
         await runtime.extensions.disable("coffee")
         assert catalog.apps() == []

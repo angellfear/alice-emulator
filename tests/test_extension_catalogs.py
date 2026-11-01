@@ -65,12 +65,12 @@ def coffee_files():
         "lists/drinks.json": json.dumps({"lists": {"drink": {"values": [
             {"in": "кофе", "out": "coffee"}, {"in": "чай", "out": "tea"}]}}}, ensure_ascii=False),
         "endpoints/coffee.status.json": json.dumps({
-            "id": "coffee.status", "host": "coffee.local", "method": "GET", "path": "/status",
+            "id": "coffee.status", "host": "coffee.test", "method": "GET", "path": "/status",
             "status": 200, "content_type": "application/json",
             "body_base64": base64.b64encode(json.dumps({"status": "ok"}).encode()).decode(),
         }, ensure_ascii=False),
         "endpoints/coffee.motd.json": json.dumps({
-            "id": "coffee.motd", "host": "coffee.local", "method": "GET", "path": "/motd",
+            "id": "coffee.motd", "host": "coffee.test", "method": "GET", "path": "/motd",
             "status": 200, "mode": "script", "content_type": "application/json", "body_base64": "",
         }, ensure_ascii=False),
         "endpoints/coffee.motd.py": MOTD_PY,
@@ -130,17 +130,17 @@ async def test_extension_scenario_and_endpoints_work(tmp_path):
         report = await say_to(runtime, "свари эспрессо")
         assert report["handled"] and report["speech"] == "Эспрессо готов"
         # эндпоинт расширения: find/serve; script-режим — .py от каталога расширения
-        entry = runtime.endpoints.find("coffee.local", "GET", "/status")
+        entry = runtime.endpoints.find("coffee.test", "GET", "/status")
         assert entry["id"] == "coffee.status" and entry["_origin"] == "extension:coffee"
         status, body, content_type = runtime.endpoints.serve(entry, {})
         assert (status, content_type) == (200, "application/json")
         assert json.loads(body) == {"status": "ok"}
-        motd = runtime.endpoints.find("coffee.local", "GET", "/motd")
+        motd = runtime.endpoints.find("coffee.test", "GET", "/motd")
         assert runtime.endpoints.script_path(motd) == root / "endpoints" / "coffee.motd.py"
         assert runtime.endpoints.read_script("coffee.motd") == MOTD_PY
         served = await runtime.endpoint_scripts.run(
             runtime.endpoints.script_path(motd),
-            ScriptRequest("GET", "coffee.local", "/motd", {}, {}, b""), runtime)
+            ScriptRequest("GET", "coffee.test", "/motd", {}, {}, b""), runtime)
         assert served.body == {"motd": "Кофе готов"}
     finally:
         await runtime.close()
@@ -176,15 +176,15 @@ async def test_user_copy_overrides_extension_and_edit_creates_copy(tmp_path):
         user_file = runtime.directory / "endpoints" / "other" / "coffee.status.json"
         assert user_file.is_file()
         assert extension_file.read_text(encoding="utf-8") == original
-        assert runtime.endpoints.find("coffee.local", "GET", "/status")["enabled"] is False
+        assert runtime.endpoints.find("coffee.test", "GET", "/status")["enabled"] is False
         runtime.endpoints.remove("coffee.status")  # копия удалена — слой расширения вернулся
         runtime.endpoints.reload()
-        assert runtime.endpoints.find("coffee.local", "GET", "/status")["enabled"] is True
+        assert runtime.endpoints.find("coffee.test", "GET", "/status")["enabled"] is True
         # upsert пользовательской копии с тем же id: заменяет запись расширения в каталоге
-        runtime.endpoints.upsert({"id": "coffee.status", "host": "coffee.local", "method": "GET",
+        runtime.endpoints.upsert({"id": "coffee.status", "host": "coffee.test", "method": "GET",
                                   "path": "/status", "status": 200, "content_type": "application/json",
                                   "body_base64": base64.b64encode(b'{"status": "user"}').decode()})
-        entry = runtime.endpoints.find("coffee.local", "GET", "/status")
+        entry = runtime.endpoints.find("coffee.test", "GET", "/status")
         assert "_origin" not in entry  # пользовательская копия без метки расширения
         _status, body, _type = runtime.endpoints.serve(entry, {})
         assert json.loads(body) == {"status": "user"}
@@ -198,17 +198,17 @@ async def test_endpoint_script_edit_copies_handler_from_extension(tmp_path):
     root = make_extension(runtime)
     runtime.extensions.load_enabled()
     try:
-        runtime.endpoints.upsert({"id": "coffee.motd", "host": "coffee.local", "method": "GET",
+        runtime.endpoints.upsert({"id": "coffee.motd", "host": "coffee.test", "method": "GET",
                                   "path": "/motd", "status": 200, "mode": "script",
                                   "content_type": "application/json", "body_base64": ""},
                                  script=None)
         user_script = runtime.endpoints.script_path(
-            runtime.endpoints.find("coffee.local", "GET", "/motd"))
+            runtime.endpoints.find("coffee.test", "GET", "/motd"))
         assert user_script == runtime.directory / "endpoints" / "other" / "coffee.motd.py"
         assert user_script.read_text(encoding="utf-8") == MOTD_PY  # код переехал в копию
         assert (root / "endpoints" / "coffee.motd.py").read_text(encoding="utf-8") == MOTD_PY
         served = await runtime.endpoint_scripts.run(user_script,
-                                                    ScriptRequest("GET", "coffee.local", "/motd", {}, {}, b""),
+                                                    ScriptRequest("GET", "coffee.test", "/motd", {}, {}, b""),
                                                     runtime)
         assert served.body == {"motd": "Кофе готов"}
     finally:
@@ -227,7 +227,7 @@ async def test_disable_extension_removes_scenarios_endpoints_and_phrases(tmp_pat
         await runtime.extensions.disable("coffee")
         assert not any(s["id"] == "coffee.make" for s in runtime._scenarios())
         assert not any(s["id"] == "coffee.make" for s in runtime._scenarios())
-        assert runtime.endpoints.find("coffee.local", "GET", "/status") is None
+        assert runtime.endpoints.find("coffee.test", "GET", "/status") is None
         assert "Варю кофе." not in runtime._static_phrases()
     finally:
         await runtime.close()

@@ -10,7 +10,7 @@ from server_emulator.server import create_app
 from server_emulator.state_store import StateStore
 from tests.conftest import listen
 
-HEADERS = {"Host": "quasar.local"}
+HEADERS = {"Host": "quasar.yandex.net"}
 COMMON = {"config": {"account_config": {"spotter": "alisa", "jingle": True},
                      "device_config": {"name": "x"}, "system_config": {}}}
 SPOTTER = "config.account_config.spotter"

@@ -8,7 +8,7 @@ from server_emulator.server import create_app
 from server_emulator.state_store import StateStore
 from tests.conftest import listen
 
-HEADERS = {"Host": "quasar.local"}
+HEADERS = {"Host": "quasar.yandex.net"}
 PAIR = [{"sn": "SN-1", "role": "leader"}, {"sn": "SN-2", "role": "follower"}]
 
 

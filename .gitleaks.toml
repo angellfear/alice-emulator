@@ -112,6 +112,11 @@ description = "Глобальные исключения"
 # значение нужно тесту целиком, к реальным сервисам отношения не имеет.
 regexes = ['''sk-abcdefghijklmnopqrstuv1234''']
 paths = [
-  '''^server_emulator/ui/img/''',
-  '''^server_emulator/schemas/''',
+  '^server_emulator/ui/img/',
+  '^server_emulator/schemas/',
+  # Не входят в Git (AGENTS.md): живые данные пользователя, внутренние задания и байткод.
+  '^server_emulator/state',
+  '^tasks/',
+  '\.pytest_cache/',
+  '__pycache__',
 ]

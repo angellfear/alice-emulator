@@ -67,7 +67,7 @@ module: "server_emulator/scenario_engine/parsers.py"
 У `event` фильтры `callback`/`purpose`/`frame` необязательны; сравниваются с
 полями служебного запроса (`input.callback`, `input.purpose`, `input.frame`).
 
-`provide` — сценарий-поставщик данных внутреннего события (TASK-058): колбэк-обработчик
+`provide` — сценарий-поставщик данных внутреннего события: колбэк-обработчик
 принимает событие колонки и публикует «нужны данные» (`informers.requested`, `timesync.requested`,
 …), поставщик собирает ответ колонке.
 
@@ -150,7 +150,7 @@ Binding: `{"source": "path", "path": "slots.weather.current.temperature_2m"}`
 
 ## Шаги flow
 
-Политика TASK-027: **JSON — для простого ответа и одного действия**. Сложное (данные, разбор
+Политика: **JSON — для простого ответа и одного действия**. Сложное (данные, разбор
 фразы, ветвление, состояние) — только py (раздел «Исполнитель script», SDK).
 
 Актуальные шаги — их можно использовать в новых сценариях:
@@ -165,8 +165,7 @@ Binding: `{"source": "path", "path": "slots.weather.current.temperature_2m"}`
 
 ### Удалённые шаги
 
-`extract`, `load`, `refresh`, `fetch`, `branch`, `set`, `store`, `wait_state` **удалены** (TASK-027,
-п.4): код исполнителя и контракты валидатора убраны. Сценарий с таким шагом не проходит `validate_scenario`
+`extract`, `load`, `refresh`, `fetch`, `branch`, `set`, `store`, `wait_state` **удалены**: код исполнителя и контракты валидатора убраны. Сценарий с таким шагом не проходит `validate_scenario`
 (при сохранении и при загрузке) с ошибкой «шаг <op> больше не поддерживается — перенесите в py».
 Имена шагов остаются в `validate.LEGACY_OPS` только ради этого сообщения. Параметры `strict` и
 `previous` у `validate_scenario` (`existing` у `validate_package`) приняты ради совместимости вызовов
@@ -212,7 +211,7 @@ finish / error`; py-сценарии пишет администратор.
 нет файла — `script_missing`, сценарий роутером не выбирается).
 
 `handle(ctx)` получает контекст SDK — `ScenarioContext` (полный API:
-docs/contracts/scripts-sdk.md, TASK-018: построители `say`/`card`/`directive`/
+docs/contracts/scripts-sdk.md: построители `say`/`card`/`directive`/
 `silent`, сервисы `ctx.action`/`ctx.fetch_json`/`ctx.dataset`/`ctx.lexicon`,
 `ctx.slots`/`ctx.state` — живые dict'ы исполнения) — и возвращает:
 

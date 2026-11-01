@@ -105,7 +105,7 @@ async def test_builtin_gap_handlers(tmp_path):
         capability = find_builtin("quasar.yandex.net", "POST", "/set_device_capability")
         assert json.loads(capability["body"]) == {"status": "ok"}
     finally:
-        runtime.close()
+        await runtime.close()
 
 
 def directives_sent(sent):

@@ -42,7 +42,7 @@ def content_type(path):
 def base_url(host):
     """Адрес раздачи медиа для колонки: хост, по которому она достаёт эмулятор
     (хост WS-соединения, из записи сессии), порт по умолчанию — HTTP-порт сервера."""
-    return "http://" + (host or "quasar.local") + "/media"
+    return "http://" + (host or "quasar.yandex.net") + "/media"
 
 
 class MediaLibrary:

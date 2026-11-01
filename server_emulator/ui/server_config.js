@@ -89,7 +89,7 @@
     if (over.size) notes.push('Перекрыто командной строкой: ' + [...over].join(', ') + '.');
     if ((state.errors || []).length) notes.push('Ошибки запуска: ' + state.errors.join('; ') + '.');
     section.replaceChildren(make('h2', {}, 'Сервер'),
-      make('p', { className: 'hint' }, 'Колонки подключаются к основному порту 443 по TLS и к HTTP-порту 80 (quasar.local); сертификат должен быть тем, которому доверяют колонки. Изменения применяются перезапуском сервера; если с новыми настройками он не поднимется, вернутся прежние.'),
+      make('p', { className: 'hint' }, 'Колонки подключаются к основному порту 443 по TLS и к HTTP-порту 80 (quasar.yandex.net); сертификат должен быть тем, которому доверяют колонки. Изменения применяются перезапуском сервера; если с новыми настройками он не поднимется, вернутся прежние.'),
       make('p', { className: 'hint' }, [version, 'Сейчас: ' + (listeners || '—') + (notes.length ? ' ' + notes.join(' ') : '')].filter(Boolean).join(' · ')),
       form, selfUpdatePanel());
   }
