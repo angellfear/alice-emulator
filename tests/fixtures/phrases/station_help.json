@@ -1,0 +1,1358 @@
+{
+ "source": "https://alice.yandex.ru/support/ru/station/skills/",
+ "sections": [
+  {
+   "slug": "track",
+   "title": "Треки, альбомы, аудиокниги",
+   "group": "media",
+   "phrases": [
+    {
+     "text": "включи майкла джексона",
+     "expect": null
+    },
+    {
+     "text": "запусти наутилус помпилиус",
+     "expect": null
+    },
+    {
+     "text": "поставь альбом группа крови",
+     "expect": "media.music"
+    },
+    {
+     "text": "давай послушаем химеру",
+     "expect": null
+    },
+    {
+     "text": "запусти песню ромашки",
+     "expect": "media.music"
+    },
+    {
+     "text": "врубай трек вечно молодой",
+     "expect": "media.music"
+    },
+    {
+     "text": "включи песню белые розы на повторе",
+     "expect": "media.music"
+    },
+    {
+     "text": "поставь трек мое сердце на повторе",
+     "expect": "media.music"
+    },
+    {
+     "text": "включи другую версию",
+     "expect": null
+    },
+    {
+     "text": "включи аудиокнигу дюна",
+     "expect": null
+    },
+    {
+     "text": "запусти книгу война и мир",
+     "expect": null
+    },
+    {
+     "text": "замедли",
+     "expect": null
+    },
+    {
+     "text": "ускорь в полтора раза",
+     "expect": null
+    },
+    {
+     "text": "поставь скорость 2",
+     "expect": null
+    },
+    {
+     "text": "какая скорость воспроизведения",
+     "expect": null
+    },
+    {
+     "text": "продолжи книгу волшебник изумрудного города",
+     "expect": null
+    },
+    {
+     "text": "давай послушаем дискотеку 80-х",
+     "expect": "media.music"
+    },
+    {
+     "text": "запусти плейлист танго",
+     "expect": "media.music"
+    },
+    {
+     "text": "включи шум дождя",
+     "expect": null
+    },
+    {
+     "text": "поставь пение птиц",
+     "expect": null
+    },
+    {
+     "text": "давай послушаем шум океана",
+     "expect": null
+    },
+    {
+     "text": "продолжи",
+     "expect": "media.player"
+    },
+    {
+     "text": "запусти музыку в спальне",
+     "expect": "media.music"
+    },
+    {
+     "text": "открой список моих треков",
+     "expect": null
+    },
+    {
+     "text": "покажи исполнителя",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "recommended",
+   "title": "Подборки",
+   "group": "media",
+   "phrases": [
+    {
+     "text": "включи музыку",
+     "expect": "media.music"
+    },
+    {
+     "text": "врубай новую музыку",
+     "expect": null
+    },
+    {
+     "text": "включи музыкальные новинки",
+     "expect": "media.music"
+    },
+    {
+     "text": "запусти самое популярное",
+     "expect": null
+    },
+    {
+     "text": "давай послушаем популярную музыку",
+     "expect": null
+    },
+    {
+     "text": "включи русскую поп-музыку",
+     "expect": null
+    },
+    {
+     "text": "запусти диско",
+     "expect": null
+    },
+    {
+     "text": "врубай индастриал",
+     "expect": null
+    },
+    {
+     "text": "включи трек в жанре джаз",
+     "expect": "media.music"
+    },
+    {
+     "text": "давай послушаем песню в жанре рок",
+     "expect": "media.music"
+    },
+    {
+     "text": "включи радостное",
+     "expect": null
+    },
+    {
+     "text": "давай послушаем грустное",
+     "expect": null
+    },
+    {
+     "text": "поставь осеннее",
+     "expect": null
+    },
+    {
+     "text": "поставь музыку для тренировки",
+     "expect": "media.music"
+    },
+    {
+     "text": "давай послушаем фоновую музыку",
+     "expect": null
+    },
+    {
+     "text": "врубай музыку для вечеринки",
+     "expect": "media.music"
+    },
+    {
+     "text": "запусти вечные хиты",
+     "expect": null
+    },
+    {
+     "text": "включи музыку 80-х",
+     "expect": "media.music"
+    },
+    {
+     "text": "давай послушаем русскую музыку",
+     "expect": null
+    },
+    {
+     "text": "поставь кельтскую музыку",
+     "expect": null
+    },
+    {
+     "text": "включи музыку с мужским вокалом",
+     "expect": "media.music"
+    },
+    {
+     "text": "давай послушаем инструментальную музыку",
+     "expect": null
+    },
+    {
+     "text": "поставь музыку на русском языке",
+     "expect": "media.music"
+    },
+    {
+     "text": "включи веселый рок для тренировки",
+     "expect": null
+    },
+    {
+     "text": "включи что-нибудь новенькое",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "your-playlist",
+   "title": "Моя музыка",
+   "group": "media",
+   "phrases": [
+    {
+     "text": "включи мою музыку",
+     "expect": null
+    },
+    {
+     "text": "включи плейлист мои избранные треки",
+     "expect": "media.music"
+    },
+    {
+     "text": "давай послушаем плейлист дежавю",
+     "expect": "media.music"
+    },
+    {
+     "text": "поставь плейлист премьера",
+     "expect": "media.music"
+    },
+    {
+     "text": "нравится",
+     "expect": null
+    },
+    {
+     "text": "лайк",
+     "expect": null
+    },
+    {
+     "text": "классный трек",
+     "expect": null
+    },
+    {
+     "text": "не нравится",
+     "expect": null
+    },
+    {
+     "text": "дизлайк",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "recognize-track",
+   "title": "Что играет",
+   "group": "media",
+   "phrases": [
+    {
+     "text": "какой трек играет",
+     "expect": "media.player"
+    },
+    {
+     "text": "что играет",
+     "expect": "media.player"
+    },
+    {
+     "text": "включи режим диджей",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "tales",
+   "title": "Сказки",
+   "group": "media",
+   "phrases": [
+    {
+     "text": "расскажи сказку",
+     "expect": "media.tales"
+    },
+    {
+     "text": "включи сказку",
+     "expect": "media.tales"
+    },
+    {
+     "text": "включи сказки",
+     "expect": "media.tales"
+    },
+    {
+     "text": "расскажи сказку пряничный домик",
+     "expect": "media.tales"
+    },
+    {
+     "text": "расскажи сказку от сергея лазарева",
+     "expect": "media.tales"
+    }
+   ]
+  },
+  {
+   "slug": "audio-settings",
+   "title": "Звук и плеер",
+   "group": "media",
+   "phrases": [
+    {
+     "text": "включи элвиса пресли вперемешку",
+     "expect": null
+    },
+    {
+     "text": "запусти metallica вперемешку",
+     "expect": null
+    },
+    {
+     "text": "врубай плейлист хорошее настроение вперемешку",
+     "expect": "media.music"
+    },
+    {
+     "text": "поставь на паузу",
+     "expect": "device.player.pause"
+    },
+    {
+     "text": "стоп",
+     "expect": "device.player.pause"
+    },
+    {
+     "text": "замолчи",
+     "expect": null
+    },
+    {
+     "text": "закончи",
+     "expect": null
+    },
+    {
+     "text": "продолжай играть",
+     "expect": "media.player"
+    },
+    {
+     "text": "снова запусти",
+     "expect": "media.player"
+    },
+    {
+     "text": "возобнови",
+     "expect": "media.player"
+    },
+    {
+     "text": "верни музыку",
+     "expect": "media.player"
+    },
+    {
+     "text": "следующий",
+     "expect": "media.player"
+    },
+    {
+     "text": "хочу что-нибудь другое",
+     "expect": null
+    },
+    {
+     "text": "пропустить",
+     "expect": "media.player"
+    },
+    {
+     "text": "вперед",
+     "expect": "media.player"
+    },
+    {
+     "text": "давай дальше",
+     "expect": "media.player"
+    },
+    {
+     "text": "предыдущий трек",
+     "expect": "media.player"
+    },
+    {
+     "text": "начни сначала",
+     "expect": null
+    },
+    {
+     "text": "зациклить трек",
+     "expect": null
+    },
+    {
+     "text": "включи песню по барам на повторе",
+     "expect": "media.music"
+    },
+    {
+     "text": "на 10 секунд вперед",
+     "expect": null
+    },
+    {
+     "text": "на 20 секунд назад",
+     "expect": null
+    },
+    {
+     "text": "сделай громче",
+     "expect": "device.volume"
+    },
+    {
+     "text": "сделай тише",
+     "expect": "device.volume"
+    },
+    {
+     "text": "громкость на семь",
+     "expect": "device.volume"
+    },
+    {
+     "text": "вруби на всю",
+     "expect": "device.volume"
+    },
+    {
+     "text": "выключись через 15 минут",
+     "expect": null
+    },
+    {
+     "text": "выключи станцию через 2 часа",
+     "expect": null
+    },
+    {
+     "text": "продолжи музыку везде",
+     "expect": null
+    },
+    {
+     "text": "включи везде",
+     "expect": null
+    },
+    {
+     "text": "вернись",
+     "expect": null
+    },
+    {
+     "text": "выйти",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "timer",
+   "title": "Таймер",
+   "group": "time",
+   "phrases": [
+    {
+     "text": "поставь таймер на 10 минут",
+     "expect": "timers.timer.set"
+    },
+    {
+     "text": "поставь таймер на час",
+     "expect": "timers.timer.set"
+    },
+    {
+     "text": "сколько осталось до таймера",
+     "expect": null
+    },
+    {
+     "text": "сколько до конца таймера",
+     "expect": null
+    },
+    {
+     "text": "какие таймеры установлены",
+     "expect": null
+    },
+    {
+     "text": "поставь первый таймер на паузу",
+     "expect": null
+    },
+    {
+     "text": "удали таймер",
+     "expect": "timers.timer.cancel"
+    },
+    {
+     "text": "выключи второй таймер",
+     "expect": "timers.timer.cancel"
+    },
+    {
+     "text": "хватит",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "sleep-timer",
+   "title": "Таймер сна",
+   "group": "time",
+   "phrases": [
+    {
+     "text": "выключись через 20 минут",
+     "expect": null
+    },
+    {
+     "text": "выключи музыку в полночь",
+     "expect": null
+    },
+    {
+     "text": "сколько осталось до конца таймера сна",
+     "expect": null
+    },
+    {
+     "text": "поставь таймер сна на паузу",
+     "expect": null
+    },
+    {
+     "text": "удали таймер сна",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "reminder",
+   "title": "Напоминания",
+   "group": "time",
+   "phrases": [
+    {
+     "text": "напомни мне позвонить маме через полчаса",
+     "expect": null
+    },
+    {
+     "text": "напомни выключить духовку через 7 минут",
+     "expect": null
+    },
+    {
+     "text": "поставь напоминание почитать книгу на каждый вторник в 20:00",
+     "expect": null
+    },
+    {
+     "text": "перечисли напоминания",
+     "expect": null
+    },
+    {
+     "text": "удали напоминание",
+     "expect": null
+    },
+    {
+     "text": "удали все напоминания",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "calendar",
+   "title": "Календарь",
+   "group": "time",
+   "phrases": [
+    {
+     "text": "поставь встречу с родителями в 10",
+     "expect": null
+    },
+    {
+     "text": "установи в пятницу на 14:00 встречу с коллегами на 40 минут",
+     "expect": null
+    },
+    {
+     "text": "поставь встречу в аэропорту 27 мая в 5 утра",
+     "expect": null
+    },
+    {
+     "text": "отметь в календаре тренировку по субботам в 10 утра",
+     "expect": null
+    },
+    {
+     "text": "удали встречу 22 мая в 9:00 утра",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "chat",
+   "title": "Общение",
+   "group": "chat",
+   "phrases": [
+    {
+     "text": "как дела",
+     "expect": null
+    },
+    {
+     "text": "кто тебя создал",
+     "expect": null
+    },
+    {
+     "text": "какое твое любимое приложение",
+     "expect": null
+    },
+    {
+     "text": "что ты умеешь",
+     "expect": null
+    },
+    {
+     "text": "расскажи скороговорку",
+     "expect": null
+    },
+    {
+     "text": "спой что-нибудь",
+     "expect": null
+    },
+    {
+     "text": "расскажи свое стихотворение",
+     "expect": null
+    },
+    {
+     "text": "скажи тост",
+     "expect": null
+    },
+    {
+     "text": "расскажи кричалку",
+     "expect": null
+    },
+    {
+     "text": "повтори за мной привет",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "date",
+   "title": "Дата и время",
+   "group": "chat",
+   "phrases": [
+    {
+     "text": "который час",
+     "expect": "informers.clock"
+    },
+    {
+     "text": "точное время в москве",
+     "expect": null
+    },
+    {
+     "text": "какой сегодня день",
+     "expect": null
+    },
+    {
+     "text": "в какой день недели будет 8 марта",
+     "expect": null
+    },
+    {
+     "text": "понедельник это какое число",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "shopping",
+   "title": "Список покупок",
+   "group": "chat",
+   "phrases": [
+    {
+     "text": "добавь в список покупок йогурт хлеб кефир и шампунь",
+     "expect": null
+    },
+    {
+     "text": "добавь в список покупок масло",
+     "expect": null
+    },
+    {
+     "text": "покажи список покупок",
+     "expect": null
+    },
+    {
+     "text": "удали из списка покупок конфеты",
+     "expect": null
+    },
+    {
+     "text": "очисти список покупок",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "games",
+   "title": "Игры",
+   "group": "chat",
+   "phrases": [
+    {
+     "text": "давай поговорим с мудрым учителем",
+     "expect": null
+    },
+    {
+     "text": "давай погадаем",
+     "expect": null
+    },
+    {
+     "text": "давай сыграем в верю не верю",
+     "expect": null
+    },
+    {
+     "text": "давай сыграем в угадай песню",
+     "expect": null
+    },
+    {
+     "text": "давай сыграем в найди лишнее",
+     "expect": null
+    },
+    {
+     "text": "давай сыграем в шар судьбы",
+     "expect": null
+    },
+    {
+     "text": "давай сыграем в слова",
+     "expect": null
+    },
+    {
+     "text": "давай сыграем в города",
+     "expect": null
+    },
+    {
+     "text": "давай сыграем в квест про космос",
+     "expect": null
+    },
+    {
+     "text": "давай сыграем в зоологию",
+     "expect": null
+    },
+    {
+     "text": "давай сыграем в виселицу",
+     "expect": null
+    },
+    {
+     "text": "давай сыграем в угадай число",
+     "expect": null
+    },
+    {
+     "text": "давай сыграем в загадки",
+     "expect": null
+    },
+    {
+     "text": "расскажи про этот день в истории",
+     "expect": null
+    },
+    {
+     "text": "выйти из игры",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "alice-recipe",
+   "title": "Рецепты",
+   "group": "unavailable",
+   "phrases": [
+    {
+     "text": "что приготовить на обед",
+     "expect": null
+    },
+    {
+     "text": "какие есть рецепты салата",
+     "expect": null
+    },
+    {
+     "text": "какие рецепты есть с курицей",
+     "expect": null
+    },
+    {
+     "text": "найди рецепт шарлотки",
+     "expect": null
+    },
+    {
+     "text": "давай приготовим лазанью",
+     "expect": null
+    },
+    {
+     "text": "тут дальше",
+     "expect": null
+    },
+    {
+     "text": "сколько надо муки",
+     "expect": null
+    },
+    {
+     "text": "повтори ингредиенты",
+     "expect": null
+    },
+    {
+     "text": "закончи приготовление",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "weather",
+   "title": "Погода",
+   "group": "knowledge",
+   "phrases": [
+    {
+     "text": "какая сегодня погода",
+     "expect": "informers.weather"
+    },
+    {
+     "text": "погода в москве",
+     "expect": "informers.weather"
+    },
+    {
+     "text": "тепло ли сейчас в сочи",
+     "expect": null
+    },
+    {
+     "text": "когда начнется снег",
+     "expect": null
+    },
+    {
+     "text": "нужно ли брать зонтик",
+     "expect": null
+    },
+    {
+     "text": "что там с ветром",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "facts",
+   "title": "Факты",
+   "group": "knowledge",
+   "phrases": [
+    {
+     "text": "какова высота эвереста",
+     "expect": null
+    },
+    {
+     "text": "кто такой александр флеминг",
+     "expect": null
+    },
+    {
+     "text": "сколько калорий в горьком шоколаде",
+     "expect": null
+    },
+    {
+     "text": "значение имени александр",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "geo",
+   "title": "Места",
+   "group": "knowledge",
+   "phrases": [
+    {
+     "text": "где тут рядом бассейн",
+     "expect": null
+    },
+    {
+     "text": "куда сходить в кино",
+     "expect": null
+    },
+    {
+     "text": "найди кафе поближе",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "route",
+   "title": "Маршруты",
+   "group": "knowledge",
+   "phrases": [
+    {
+     "text": "сколько идти до работы",
+     "expect": null
+    },
+    {
+     "text": "долго ли ехать на автобусе до работы",
+     "expect": null
+    },
+    {
+     "text": "как пройти в библиотеку",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "traffic",
+   "title": "Пробки",
+   "group": "knowledge",
+   "phrases": [
+    {
+     "text": "как там на дорогах",
+     "expect": null
+    },
+    {
+     "text": "где сейчас пробки",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "news",
+   "title": "Новости",
+   "group": "knowledge",
+   "phrases": [
+    {
+     "text": "расскажи новости",
+     "expect": null
+    },
+    {
+     "text": "включи новости",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "price",
+   "title": "Курсы и цены",
+   "group": "knowledge",
+   "phrases": [
+    {
+     "text": "92 евро сколько в рублях",
+     "expect": null
+    },
+    {
+     "text": "какой курс биткоина",
+     "expect": null
+    },
+    {
+     "text": "сколько стоит нефть",
+     "expect": null
+    },
+    {
+     "text": "сколько стоит ноутбук",
+     "expect": null
+    },
+    {
+     "text": "подскажи квадратный корень из восьми",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "translation",
+   "title": "Перевод",
+   "group": "knowledge",
+   "phrases": [
+    {
+     "text": "как по-английски искусственный интеллект",
+     "expect": null
+    },
+    {
+     "text": "переведи на французский воскресенье",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "tv-schedule",
+   "title": "Телепрограмма",
+   "group": "knowledge",
+   "phrases": [
+    {
+     "text": "скажи программу на вечер",
+     "expect": null
+    },
+    {
+     "text": "скажи программу на 8 февраля",
+     "expect": null
+    },
+    {
+     "text": "какие фильмы сегодня по тв",
+     "expect": null
+    },
+    {
+     "text": "скажи программу планета hd",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "light-modes",
+   "title": "Режимы подсветки",
+   "group": "device",
+   "phrases": [
+    {
+     "text": "включи лава-лампу",
+     "expect": null
+    },
+    {
+     "text": "включи свечу",
+     "expect": null
+    },
+    {
+     "text": "включи ночник",
+     "expect": null
+    },
+    {
+     "text": "отключи режим свеча",
+     "expect": null
+    },
+    {
+     "text": "выключи подсветку",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "film",
+   "title": "Фильмы",
+   "group": "unavailable",
+   "phrases": [
+    {
+     "text": "включи фильм обыкновенное чудо",
+     "expect": null
+    },
+    {
+     "text": "запусти мультфильм король лев",
+     "expect": null
+    },
+    {
+     "text": "поставь фильм побег из шоушенка",
+     "expect": null
+    },
+    {
+     "text": "включи комедию",
+     "expect": null
+    },
+    {
+     "text": "покажи что-нибудь романтическое",
+     "expect": null
+    },
+    {
+     "text": "покажи новинки фильмов",
+     "expect": null
+    },
+    {
+     "text": "запусти фильм 2012 года",
+     "expect": null
+    },
+    {
+     "text": "посоветуй мультфильм",
+     "expect": null
+    },
+    {
+     "text": "продолжить смотреть",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "series",
+   "title": "Сериалы",
+   "group": "unavailable",
+   "phrases": [
+    {
+     "text": "включи сериал друзья",
+     "expect": null
+    },
+    {
+     "text": "поставь сериал клиника",
+     "expect": null
+    },
+    {
+     "text": "найди комедийный сериал",
+     "expect": null
+    },
+    {
+     "text": "включи первый сезон пятую серию",
+     "expect": null
+    },
+    {
+     "text": "посоветуй сериал",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "tv-channel",
+   "title": "ТВ-каналы",
+   "group": "unavailable",
+   "phrases": [
+    {
+     "text": "включи новогодний канал",
+     "expect": null
+    },
+    {
+     "text": "запусти пятый канал",
+     "expect": null
+    },
+    {
+     "text": "что идет по рбк",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "video-search",
+   "title": "Видео в интернете",
+   "group": "unavailable",
+   "phrases": [
+    {
+     "text": "покажи видео с енотом в сети",
+     "expect": null
+    },
+    {
+     "text": "запусти мультфильм про кота в сети",
+     "expect": null
+    },
+    {
+     "text": "включи музыкальный клип в сети",
+     "expect": null
+    },
+    {
+     "text": "включи хоккей",
+     "expect": null
+    },
+    {
+     "text": "включи футбол",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "video-settings",
+   "title": "Управление видео",
+   "group": "unavailable",
+   "phrases": [
+    {
+     "text": "перемотай на 10 минут вперед",
+     "expect": null
+    },
+    {
+     "text": "перемотай на 20 минут назад",
+     "expect": null
+    },
+    {
+     "text": "пропусти заставку",
+     "expect": null
+    },
+    {
+     "text": "пропусти титры",
+     "expect": null
+    },
+    {
+     "text": "покажи список дорожек",
+     "expect": null
+    },
+    {
+     "text": "включи русские субтитры",
+     "expect": null
+    },
+    {
+     "text": "выключи субтитры",
+     "expect": null
+    },
+    {
+     "text": "включи следующую серию",
+     "expect": null
+    },
+    {
+     "text": "выключи колонку через 2 часа",
+     "expect": null
+    },
+    {
+     "text": "выключись через 40 минут",
+     "expect": null
+    },
+    {
+     "text": "выключи станцию в полночь",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "buy-film",
+   "title": "Покупка фильма",
+   "group": "unavailable",
+   "phrases": []
+  },
+  {
+   "slug": "karaoke",
+   "title": "Караоке",
+   "group": "unavailable",
+   "phrases": [
+    {
+     "text": "включи караоке",
+     "expect": null
+    },
+    {
+     "text": "включи песню штиль в караоке",
+     "expect": null
+    },
+    {
+     "text": "давай споем под караоке",
+     "expect": null
+    },
+    {
+     "text": "покажи текст песни",
+     "expect": null
+    },
+    {
+     "text": "показать слова песни",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "alice-show",
+   "title": "Шоу Алисы",
+   "group": "unavailable",
+   "phrases": [
+    {
+     "text": "включи утреннее шоу",
+     "expect": null
+    },
+    {
+     "text": "запусти утреннее шоу",
+     "expect": null
+    },
+    {
+     "text": "поставь утреннее шоу",
+     "expect": null
+    },
+    {
+     "text": "доброе утро",
+     "expect": null
+    },
+    {
+     "text": "включи вечернее шоу",
+     "expect": null
+    },
+    {
+     "text": "добрый вечер",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "voice-order",
+   "title": "Заказ в Лавке",
+   "group": "unavailable",
+   "phrases": [
+    {
+     "text": "закажи продукты в лавке",
+     "expect": null
+    },
+    {
+     "text": "добавь в корзину молоко",
+     "expect": null
+    },
+    {
+     "text": "давай купим 2 пачки муки",
+     "expect": null
+    },
+    {
+     "text": "все",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "order-status",
+   "title": "Статус заказа",
+   "group": "unavailable",
+   "phrases": [
+    {
+     "text": "когда привезут продукты из лавки",
+     "expect": null
+    },
+    {
+     "text": "где мои покупки из маркета",
+     "expect": null
+    },
+    {
+     "text": "расскажи о статусе заказа из яндекс еды",
+     "expect": null
+    },
+    {
+     "text": "где мой заказ из деливери",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "feedback",
+   "title": "Поддержка",
+   "group": "unavailable",
+   "phrases": [
+    {
+     "text": "свяжись с поддержкой",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "emotions",
+   "title": "Эмоции",
+   "group": "unavailable",
+   "phrases": [
+    {
+     "text": "мне грустно",
+     "expect": null
+    },
+    {
+     "text": "ты супер",
+     "expect": null
+    },
+    {
+     "text": "подмигни мне",
+     "expect": "device.led.emotion"
+    },
+    {
+     "text": "покажи глазки",
+     "expect": "device.led.emotion"
+    },
+    {
+     "text": "улыбнись",
+     "expect": null
+    }
+   ]
+  },
+  {
+   "slug": "non-obvious",
+   "title": "Неочевидные команды",
+   "group": "unavailable",
+   "phrases": [
+    {
+     "text": "вызови такси на работу",
+     "expect": null
+    },
+    {
+     "text": "давай запишем капсулу времени",
+     "expect": null
+    },
+    {
+     "text": "давай сочиним сказку",
+     "expect": null
+    },
+    {
+     "text": "придумай стихотворение про зиму",
+     "expect": null
+    },
+    {
+     "text": "шепот",
+     "expect": null
+    },
+    {
+     "text": "включи метроном",
+     "expect": null
+    },
+    {
+     "text": "найди мой телефон",
+     "expect": null
+    },
+    {
+     "text": "включи радионяню в детской",
+     "expect": null
+    },
+    {
+     "text": "выключись через 30 минут",
+     "expect": null
+    },
+    {
+     "text": "что за песня",
+     "expect": null
+    }
+   ]
+  }
+ ]
+}

@@ -13,7 +13,7 @@ async def handle(ctx):
         elif text.startswith("назад") or "предыдущ" in text:
             command = "prev"
         else:
-            return silent()
+            return None  # не команда плеера — отказ, реплика следующему кандидату
     if command == "what":
         return player.now_playing() or {"text": "Сейчас ничего не играет.", "card": False}
     if command == "resume":

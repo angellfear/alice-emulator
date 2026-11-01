@@ -1,0 +1,2453 @@
+{
+ "generated": "2026-11-01T21:06:15",
+ "results": [
+  {
+   "group": "media",
+   "section": "track",
+   "text": "включи майкла джексона",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "запусти наутилус помпилиус",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.app.open",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "поставь альбом группа крови",
+   "expect": "media.music",
+   "verdict": "ok",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "давай послушаем химеру",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "запусти песню ромашки",
+   "expect": "media.music",
+   "verdict": "ok",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "врубай трек вечно молодой",
+   "expect": "media.music",
+   "verdict": "ok",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "включи песню белые розы на повторе",
+   "expect": "media.music",
+   "verdict": "ok",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "поставь трек мое сердце на повторе",
+   "expect": "media.music",
+   "verdict": "ok",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "включи другую версию",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "включи аудиокнигу дюна",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "запусти книгу война и мир",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.app.open",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "замедли",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "ускорь в полтора раза",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "поставь скорость 2",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "какая скорость воспроизведения",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "продолжи книгу волшебник изумрудного города",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "media.player",
+   "reason": "phrase:contains"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "давай послушаем дискотеку 80-х",
+   "expect": "media.music",
+   "verdict": "ok",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "запусти плейлист танго",
+   "expect": "media.music",
+   "verdict": "ok",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "включи шум дождя",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "поставь пение птиц",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "давай послушаем шум океана",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "продолжи",
+   "expect": "media.player",
+   "verdict": "ok",
+   "scenario": "media.player",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "запусти музыку в спальне",
+   "expect": "media.music",
+   "verdict": "ok",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "открой список моих треков",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.app.open",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "track",
+   "text": "покажи исполнителя",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "включи музыку",
+   "expect": "media.music",
+   "verdict": "ok",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "врубай новую музыку",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "включи музыкальные новинки",
+   "expect": "media.music",
+   "verdict": "ok",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "запусти самое популярное",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.app.open",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "давай послушаем популярную музыку",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "включи русскую поп-музыку",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "запусти диско",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.app.open",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "врубай индастриал",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "включи трек в жанре джаз",
+   "expect": "media.music",
+   "verdict": "ok",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "давай послушаем песню в жанре рок",
+   "expect": "media.music",
+   "verdict": "ok",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "включи радостное",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "давай послушаем грустное",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "поставь осеннее",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "поставь музыку для тренировки",
+   "expect": "media.music",
+   "verdict": "ok",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "давай послушаем фоновую музыку",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "врубай музыку для вечеринки",
+   "expect": "media.music",
+   "verdict": "ok",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "запусти вечные хиты",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.app.open",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "включи музыку 80-х",
+   "expect": "media.music",
+   "verdict": "ok",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "давай послушаем русскую музыку",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "поставь кельтскую музыку",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "включи музыку с мужским вокалом",
+   "expect": "media.music",
+   "verdict": "ok",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "давай послушаем инструментальную музыку",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "поставь музыку на русском языке",
+   "expect": "media.music",
+   "verdict": "ok",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "включи веселый рок для тренировки",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "media",
+   "section": "recommended",
+   "text": "включи что-нибудь новенькое",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "media",
+   "section": "your-playlist",
+   "text": "включи мою музыку",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "media",
+   "section": "your-playlist",
+   "text": "включи плейлист мои избранные треки",
+   "expect": "media.music",
+   "verdict": "ok",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "your-playlist",
+   "text": "давай послушаем плейлист дежавю",
+   "expect": "media.music",
+   "verdict": "ok",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "your-playlist",
+   "text": "поставь плейлист премьера",
+   "expect": "media.music",
+   "verdict": "ok",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "your-playlist",
+   "text": "нравится",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "media",
+   "section": "your-playlist",
+   "text": "лайк",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "media",
+   "section": "your-playlist",
+   "text": "классный трек",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "media",
+   "section": "your-playlist",
+   "text": "не нравится",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "media",
+   "section": "your-playlist",
+   "text": "дизлайк",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "media",
+   "section": "recognize-track",
+   "text": "какой трек играет",
+   "expect": "media.player",
+   "verdict": "ok",
+   "scenario": "media.player",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "recognize-track",
+   "text": "что играет",
+   "expect": "media.player",
+   "verdict": "ok",
+   "scenario": "media.player",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "recognize-track",
+   "text": "включи режим диджей",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "media",
+   "section": "tales",
+   "text": "расскажи сказку",
+   "expect": "media.tales",
+   "verdict": "ok",
+   "scenario": "media.tales",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "tales",
+   "text": "включи сказку",
+   "expect": "media.tales",
+   "verdict": "ok",
+   "scenario": "media.tales",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "tales",
+   "text": "включи сказки",
+   "expect": "media.tales",
+   "verdict": "ok",
+   "scenario": "media.tales",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "tales",
+   "text": "расскажи сказку пряничный домик",
+   "expect": "media.tales",
+   "verdict": "ok",
+   "scenario": "media.tales",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "tales",
+   "text": "расскажи сказку от сергея лазарева",
+   "expect": "media.tales",
+   "verdict": "ok",
+   "scenario": "media.tales",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "включи элвиса пресли вперемешку",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "запусти metallica вперемешку",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.app.open",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "врубай плейлист хорошее настроение вперемешку",
+   "expect": "media.music",
+   "verdict": "ok",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "поставь на паузу",
+   "expect": "device.player.pause",
+   "verdict": "ok",
+   "scenario": "device.player.pause",
+   "reason": "phrase:contains"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "стоп",
+   "expect": "device.player.pause",
+   "verdict": "ok",
+   "scenario": "device.player.pause",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "замолчи",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "закончи",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "продолжай играть",
+   "expect": "media.player",
+   "verdict": "ok",
+   "scenario": "media.player",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "снова запусти",
+   "expect": "media.player",
+   "verdict": "ok",
+   "scenario": "media.player",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "возобнови",
+   "expect": "media.player",
+   "verdict": "ok",
+   "scenario": "media.player",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "верни музыку",
+   "expect": "media.player",
+   "verdict": "ok",
+   "scenario": "media.player",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "следующий",
+   "expect": "media.player",
+   "verdict": "ok",
+   "scenario": "media.player",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "хочу что-нибудь другое",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "пропустить",
+   "expect": "media.player",
+   "verdict": "ok",
+   "scenario": "media.player",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "вперед",
+   "expect": "media.player",
+   "verdict": "ok",
+   "scenario": "media.player",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "давай дальше",
+   "expect": "media.player",
+   "verdict": "ok",
+   "scenario": "media.player",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "предыдущий трек",
+   "expect": "media.player",
+   "verdict": "ok",
+   "scenario": "media.player",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "начни сначала",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "зациклить трек",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "включи песню по барам на повторе",
+   "expect": "media.music",
+   "verdict": "ok",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "на 10 секунд вперед",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "на 20 секунд назад",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.player"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "сделай громче",
+   "expect": "device.volume",
+   "verdict": "ok",
+   "scenario": "device.volume",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "сделай тише",
+   "expect": "device.volume",
+   "verdict": "ok",
+   "scenario": "device.volume",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "громкость на семь",
+   "expect": "device.volume",
+   "verdict": "ok",
+   "scenario": "device.volume",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "вруби на всю",
+   "expect": "device.volume",
+   "verdict": "ok",
+   "scenario": "device.volume",
+   "reason": "template"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "выключись через 15 минут",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "выключи станцию через 2 часа",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "продолжи музыку везде",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "media.player",
+   "reason": "phrase:contains"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "включи везде",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "вернись",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "media",
+   "section": "audio-settings",
+   "text": "выйти",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "time",
+   "section": "timer",
+   "text": "поставь таймер на 10 минут",
+   "expect": "timers.timer.set",
+   "verdict": "ok",
+   "scenario": "timers.timer.set",
+   "reason": "template"
+  },
+  {
+   "group": "time",
+   "section": "timer",
+   "text": "поставь таймер на час",
+   "expect": "timers.timer.set",
+   "verdict": "ok",
+   "scenario": "timers.timer.set",
+   "reason": "template"
+  },
+  {
+   "group": "time",
+   "section": "timer",
+   "text": "сколько осталось до таймера",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "time",
+   "section": "timer",
+   "text": "сколько до конца таймера",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "time",
+   "section": "timer",
+   "text": "какие таймеры установлены",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "time",
+   "section": "timer",
+   "text": "поставь первый таймер на паузу",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.player.pause",
+   "reason": "phrase:contains"
+  },
+  {
+   "group": "time",
+   "section": "timer",
+   "text": "удали таймер",
+   "expect": "timers.timer.cancel",
+   "verdict": "ok",
+   "scenario": "timers.timer.cancel",
+   "reason": "template"
+  },
+  {
+   "group": "time",
+   "section": "timer",
+   "text": "выключи второй таймер",
+   "expect": "timers.timer.cancel",
+   "verdict": "ok",
+   "scenario": "timers.timer.cancel",
+   "reason": "template"
+  },
+  {
+   "group": "time",
+   "section": "timer",
+   "text": "хватит",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "time",
+   "section": "sleep-timer",
+   "text": "выключись через 20 минут",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "time",
+   "section": "sleep-timer",
+   "text": "выключи музыку в полночь",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.player.pause",
+   "reason": "template"
+  },
+  {
+   "group": "time",
+   "section": "sleep-timer",
+   "text": "сколько осталось до конца таймера сна",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "time",
+   "section": "sleep-timer",
+   "text": "поставь таймер сна на паузу",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.player.pause",
+   "reason": "phrase:contains"
+  },
+  {
+   "group": "time",
+   "section": "sleep-timer",
+   "text": "удали таймер сна",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "time",
+   "section": "reminder",
+   "text": "напомни мне позвонить маме через полчаса",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "time",
+   "section": "reminder",
+   "text": "напомни выключить духовку через 7 минут",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "time",
+   "section": "reminder",
+   "text": "поставь напоминание почитать книгу на каждый вторник в 20:00",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "time",
+   "section": "reminder",
+   "text": "перечисли напоминания",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "time",
+   "section": "reminder",
+   "text": "удали напоминание",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "time",
+   "section": "reminder",
+   "text": "удали все напоминания",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "time",
+   "section": "calendar",
+   "text": "поставь встречу с родителями в 10",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "time",
+   "section": "calendar",
+   "text": "установи в пятницу на 14:00 встречу с коллегами на 40 минут",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "time",
+   "section": "calendar",
+   "text": "поставь встречу в аэропорту 27 мая в 5 утра",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "time",
+   "section": "calendar",
+   "text": "отметь в календаре тренировку по субботам в 10 утра",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "time",
+   "section": "calendar",
+   "text": "удали встречу 22 мая в 9:00 утра",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "chat",
+   "text": "как дела",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "chat",
+   "text": "кто тебя создал",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "chat",
+   "text": "какое твое любимое приложение",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "chat",
+   "text": "что ты умеешь",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "chat",
+   "text": "расскажи скороговорку",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "chat",
+   "text": "спой что-нибудь",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "chat",
+   "text": "расскажи свое стихотворение",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "chat",
+   "text": "скажи тост",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "chat",
+   "text": "расскажи кричалку",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "chat",
+   "text": "повтори за мной привет",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "date",
+   "text": "который час",
+   "expect": "informers.clock",
+   "verdict": "ok",
+   "scenario": "informers.clock",
+   "reason": "template"
+  },
+  {
+   "group": "chat",
+   "section": "date",
+   "text": "точное время в москве",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "informers.clock",
+   "reason": "phrase:contains"
+  },
+  {
+   "group": "chat",
+   "section": "date",
+   "text": "какой сегодня день",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "date",
+   "text": "в какой день недели будет 8 марта",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "date",
+   "text": "понедельник это какое число",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "shopping",
+   "text": "добавь в список покупок йогурт хлеб кефир и шампунь",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "shopping",
+   "text": "добавь в список покупок масло",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "shopping",
+   "text": "покажи список покупок",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "shopping",
+   "text": "удали из списка покупок конфеты",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "shopping",
+   "text": "очисти список покупок",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "games",
+   "text": "давай поговорим с мудрым учителем",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "games",
+   "text": "давай погадаем",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "games",
+   "text": "давай сыграем в верю не верю",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "games",
+   "text": "давай сыграем в угадай песню",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "games",
+   "text": "давай сыграем в найди лишнее",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "games",
+   "text": "давай сыграем в шар судьбы",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "games",
+   "text": "давай сыграем в слова",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "games",
+   "text": "давай сыграем в города",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "games",
+   "text": "давай сыграем в квест про космос",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "games",
+   "text": "давай сыграем в зоологию",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "games",
+   "text": "давай сыграем в виселицу",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "games",
+   "text": "давай сыграем в угадай число",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "games",
+   "text": "давай сыграем в загадки",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "games",
+   "text": "расскажи про этот день в истории",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "chat",
+   "section": "games",
+   "text": "выйти из игры",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "alice-recipe",
+   "text": "что приготовить на обед",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "alice-recipe",
+   "text": "какие есть рецепты салата",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "alice-recipe",
+   "text": "какие рецепты есть с курицей",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "alice-recipe",
+   "text": "найди рецепт шарлотки",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "alice-recipe",
+   "text": "давай приготовим лазанью",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "alice-recipe",
+   "text": "тут дальше",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.player"
+  },
+  {
+   "group": "unavailable",
+   "section": "alice-recipe",
+   "text": "сколько надо муки",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "alice-recipe",
+   "text": "повтори ингредиенты",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "alice-recipe",
+   "text": "закончи приготовление",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "weather",
+   "text": "какая сегодня погода",
+   "expect": "informers.weather",
+   "verdict": "ok",
+   "scenario": "informers.weather",
+   "reason": "phrase:contains"
+  },
+  {
+   "group": "knowledge",
+   "section": "weather",
+   "text": "погода в москве",
+   "expect": "informers.weather",
+   "verdict": "ok",
+   "scenario": "informers.weather",
+   "reason": "template"
+  },
+  {
+   "group": "knowledge",
+   "section": "weather",
+   "text": "тепло ли сейчас в сочи",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "weather",
+   "text": "когда начнется снег",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "weather",
+   "text": "нужно ли брать зонтик",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "weather",
+   "text": "что там с ветром",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "facts",
+   "text": "какова высота эвереста",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "facts",
+   "text": "кто такой александр флеминг",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "facts",
+   "text": "сколько калорий в горьком шоколаде",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "facts",
+   "text": "значение имени александр",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "geo",
+   "text": "где тут рядом бассейн",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "geo",
+   "text": "куда сходить в кино",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "geo",
+   "text": "найди кафе поближе",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "route",
+   "text": "сколько идти до работы",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "route",
+   "text": "долго ли ехать на автобусе до работы",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "route",
+   "text": "как пройти в библиотеку",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "traffic",
+   "text": "как там на дорогах",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "traffic",
+   "text": "где сейчас пробки",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "news",
+   "text": "расскажи новости",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "news",
+   "text": "включи новости",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "knowledge",
+   "section": "price",
+   "text": "92 евро сколько в рублях",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "price",
+   "text": "какой курс биткоина",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "price",
+   "text": "сколько стоит нефть",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "price",
+   "text": "сколько стоит ноутбук",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "price",
+   "text": "подскажи квадратный корень из восьми",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "translation",
+   "text": "как по-английски искусственный интеллект",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "translation",
+   "text": "переведи на французский воскресенье",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "tv-schedule",
+   "text": "скажи программу на вечер",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "tv-schedule",
+   "text": "скажи программу на 8 февраля",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "tv-schedule",
+   "text": "какие фильмы сегодня по тв",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "knowledge",
+   "section": "tv-schedule",
+   "text": "скажи программу планета hd",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "device",
+   "section": "light-modes",
+   "text": "включи лава-лампу",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "device",
+   "section": "light-modes",
+   "text": "включи свечу",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "device",
+   "section": "light-modes",
+   "text": "включи ночник",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "device",
+   "section": "light-modes",
+   "text": "отключи режим свеча",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "device",
+   "section": "light-modes",
+   "text": "выключи подсветку",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "film",
+   "text": "включи фильм обыкновенное чудо",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "unavailable",
+   "section": "film",
+   "text": "запусти мультфильм король лев",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.app.open",
+   "reason": "template"
+  },
+  {
+   "group": "unavailable",
+   "section": "film",
+   "text": "поставь фильм побег из шоушенка",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "film",
+   "text": "включи комедию",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "unavailable",
+   "section": "film",
+   "text": "покажи что-нибудь романтическое",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "film",
+   "text": "покажи новинки фильмов",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "film",
+   "text": "запусти фильм 2012 года",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.app.open",
+   "reason": "template"
+  },
+  {
+   "group": "unavailable",
+   "section": "film",
+   "text": "посоветуй мультфильм",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "film",
+   "text": "продолжить смотреть",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "media.player",
+   "reason": "phrase:contains"
+  },
+  {
+   "group": "unavailable",
+   "section": "series",
+   "text": "включи сериал друзья",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "unavailable",
+   "section": "series",
+   "text": "поставь сериал клиника",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "series",
+   "text": "найди комедийный сериал",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "series",
+   "text": "включи первый сезон пятую серию",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "unavailable",
+   "section": "series",
+   "text": "посоветуй сериал",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "tv-channel",
+   "text": "включи новогодний канал",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "unavailable",
+   "section": "tv-channel",
+   "text": "запусти пятый канал",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.app.open",
+   "reason": "template"
+  },
+  {
+   "group": "unavailable",
+   "section": "tv-channel",
+   "text": "что идет по рбк",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "video-search",
+   "text": "покажи видео с енотом в сети",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "video-search",
+   "text": "запусти мультфильм про кота в сети",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.app.open",
+   "reason": "template"
+  },
+  {
+   "group": "unavailable",
+   "section": "video-search",
+   "text": "включи музыкальный клип в сети",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "unavailable",
+   "section": "video-search",
+   "text": "включи хоккей",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "unavailable",
+   "section": "video-search",
+   "text": "включи футбол",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "unavailable",
+   "section": "video-settings",
+   "text": "перемотай на 10 минут вперед",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "video-settings",
+   "text": "перемотай на 20 минут назад",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.player"
+  },
+  {
+   "group": "unavailable",
+   "section": "video-settings",
+   "text": "пропусти заставку",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "video-settings",
+   "text": "пропусти титры",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "video-settings",
+   "text": "покажи список дорожек",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "video-settings",
+   "text": "включи русские субтитры",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "unavailable",
+   "section": "video-settings",
+   "text": "выключи субтитры",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "video-settings",
+   "text": "включи следующую серию",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "unavailable",
+   "section": "video-settings",
+   "text": "выключи колонку через 2 часа",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "video-settings",
+   "text": "выключись через 40 минут",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "video-settings",
+   "text": "выключи станцию в полночь",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "karaoke",
+   "text": "включи караоке",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "unavailable",
+   "section": "karaoke",
+   "text": "включи песню штиль в караоке",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "media.music",
+   "reason": "template"
+  },
+  {
+   "group": "unavailable",
+   "section": "karaoke",
+   "text": "давай споем под караоке",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "karaoke",
+   "text": "покажи текст песни",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "karaoke",
+   "text": "показать слова песни",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "alice-show",
+   "text": "включи утреннее шоу",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "unavailable",
+   "section": "alice-show",
+   "text": "запусти утреннее шоу",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.app.open",
+   "reason": "template"
+  },
+  {
+   "group": "unavailable",
+   "section": "alice-show",
+   "text": "поставь утреннее шоу",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "alice-show",
+   "text": "доброе утро",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "alice-show",
+   "text": "включи вечернее шоу",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "unavailable",
+   "section": "alice-show",
+   "text": "добрый вечер",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "voice-order",
+   "text": "закажи продукты в лавке",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "voice-order",
+   "text": "добавь в корзину молоко",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "voice-order",
+   "text": "давай купим 2 пачки муки",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "voice-order",
+   "text": "все",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "order-status",
+   "text": "когда привезут продукты из лавки",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "order-status",
+   "text": "где мои покупки из маркета",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "order-status",
+   "text": "расскажи о статусе заказа из яндекс еды",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "order-status",
+   "text": "где мой заказ из деливери",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "feedback",
+   "text": "свяжись с поддержкой",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "emotions",
+   "text": "мне грустно",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "emotions",
+   "text": "ты супер",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "emotions",
+   "text": "подмигни мне",
+   "expect": "device.led.emotion",
+   "verdict": "ok",
+   "scenario": "device.led.emotion",
+   "reason": "template"
+  },
+  {
+   "group": "unavailable",
+   "section": "emotions",
+   "text": "покажи глазки",
+   "expect": "device.led.emotion",
+   "verdict": "ok",
+   "scenario": "device.led.emotion",
+   "reason": "template"
+  },
+  {
+   "group": "unavailable",
+   "section": "emotions",
+   "text": "улыбнись",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "non-obvious",
+   "text": "вызови такси на работу",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "non-obvious",
+   "text": "давай запишем капсулу времени",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "non-obvious",
+   "text": "давай сочиним сказку",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "non-obvious",
+   "text": "придумай стихотворение про зиму",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "non-obvious",
+   "text": "шепот",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "non-obvious",
+   "text": "включи метроном",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "unavailable",
+   "section": "non-obvious",
+   "text": "найди мой телефон",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "non-obvious",
+   "text": "включи радионяню в детской",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "script_declined:media.music"
+  },
+  {
+   "group": "unavailable",
+   "section": "non-obvious",
+   "text": "выключись через 30 минут",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  },
+  {
+   "group": "unavailable",
+   "section": "non-obvious",
+   "text": "что за песня",
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
+  }
+ ]
+}
