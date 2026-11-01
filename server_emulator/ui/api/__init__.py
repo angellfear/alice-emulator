@@ -8,11 +8,13 @@
 нет протокола станции → 503 setup_required).
 """
 import asyncio
+import logging
 
 from aiohttp import ClientError, web
 
 from ...schema import SetupRequired
 
+log = logging.getLogger(__name__)
 ROUTES = {}
 
 
@@ -46,6 +48,12 @@ async def dispatch(request, runtime, app):
         return web.json_response({"error": str(exc) or "Объект не найден"}, status=400)
     except (asyncio.TimeoutError, OSError, ClientError):
         return web.json_response({"error": "Соединение с провайдером недоступно или истекло время ожидания"}, status=502)
+    except web.HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001 — сбой обработчика: JSON с адресом вместо текста aiohttp, место — в журнал сервера
+        log.exception("api/%s: %s", request.match_info["action"], type(exc).__name__)
+        return web.json_response({"error": f"Внутренняя ошибка api/{request.match_info['action']}: "
+                                           f"{type(exc).__name__}: {str(exc)[:200]}"}, status=500)
 
 
 def guarded(handler):

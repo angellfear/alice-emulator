@@ -25,6 +25,7 @@ import logging
 import sqlite3
 import threading
 import time
+import traceback
 from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -254,9 +255,20 @@ class ServerLog:
             self.db.commit()
 
 
+def where(exception, limit=6):
+    """Место сбоя: последние кадры трейсбека в коде эмулятора («dispatcher.py:475 serve») — без значений
+    переменных, заголовков и тел; кадров эмулятора нет — последние кадры вообще (aiohttp и т. п.)."""
+    if exception is None or exception.__traceback__ is None:
+        return None
+    frames = traceback.extract_tb(exception.__traceback__)
+    own = [f for f in frames if "server_emulator" in Path(f.filename).parts] or frames
+    return [f"{Path(f.filename).name}:{f.lineno} {f.name}" for f in own[-limit:]]
+
+
 class JournalHandler(logging.Handler):
     """WARNING+ из aiohttp/asyncio/эмулятора → журнал (source по имени логгера).
-    Сообщение — первая строка исключения без трейсбека; заголовки и тела не попадают."""
+    Сообщение — первая строка исключения; в detail — текст записи логгера (context) и место сбоя (where:
+    файл:строка функция, без значений); заголовки и тела не попадают."""
 
     def emit(self, record):
         store = _ACTIVE
@@ -271,7 +283,9 @@ class JournalHandler(logging.Handler):
             else:
                 text = str(record.getMessage()).strip()
                 message = text.splitlines()[0] if text else "(без сообщения)"
-            store.log(level, logger_source(record.name), message[:MESSAGE_LIMIT], logger=record.name)
+            context = str(record.getMessage()).strip().splitlines()[0][:200] if exception is not None and str(record.getMessage()).strip() else None
+            store.log(level, logger_source(record.name), message[:MESSAGE_LIMIT], logger=record.name,
+                      context=context, where=where(exception))
         except Exception:  # noqa: BLE001 — сбой логирования не должен ронять поток
             self.handleError(record)
 
