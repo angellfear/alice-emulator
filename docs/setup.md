@@ -92,17 +92,22 @@ python -m server_emulator.server
 Готовые скрипты: `start.bat` (Windows, трей без консоли) и `start.sh` (Linux, при отсутствии `.venv`
 сначала запускает установку). Ярлык на рабочий стол — `tools/install_autostart.ps1 -Desktop`.
 
-UI: `http://127.0.0.1:8877/emulator/`. HTTP/WS устройства обслуживаются на том же порту, для
-UniProxy используется `/uni.ws`.
+UI: `http://127.0.0.1/emulator/` — порт 80 без TLS. Устройства обслуживает порт 443: это тот же
+сервер, фронт по SNI решает — отвечает эмулятор или туннель в облако; для UniProxy используется
+`/uni.ws`.
 
 | Параметр | Назначение |
 |---|---|
 | `--host 0.0.0.0` | принимать подключения по сети |
-| `--port N` | порт (по умолчанию 8877) |
+| `--port N` | TLS-порт устройств (по умолчанию 443) |
+| `--http-port N` | второй порт без TLS, панель (по умолчанию 80; `0` — выключен) |
 | `--state DIR` | каталог данных (по умолчанию `server_emulator/state/`, в Git не попадает) |
-| `--cert FILE --key FILE` | HTTPS/WSS |
+| `--cert FILE --key FILE` | HTTPS/WSS (сертификат на имена Яндекса) |
+| `--no-ssl` | без TLS на основном порту (отладка) |
 
 Подробнее: [server_emulator/README.md](../server_emulator/README.md).
+
+Работа 24/7 на Linux-сервере — служба systemd: [deploy.md](deploy.md).
 
 ## Самообновление
 

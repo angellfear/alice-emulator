@@ -74,6 +74,9 @@ python -m server_emulator.server
 **http://127.0.0.1/emulator/**. Порты по умолчанию — 443 (TLS) и 80, меняются в «Дополнительно →
 Сервер». Папка данных — `--state <папка>` (по умолчанию `server_emulator/state/`, в Git не попадает).
 
+Постоянная работа на Linux-сервере — служба systemd, обновление по кнопке из панели:
+[docs/deploy.md](docs/deploy.md).
+
 ### Первый запуск
 
 При первом запуске откроется окно «Настройка эмулятора»:
@@ -99,6 +102,7 @@ python -m pytest tests/ -q
 
 - [Архитектура](docs/architecture.md)
 - [Установка и настройка](docs/setup.md)
+- [Развёртывание: служба systemd](docs/deploy.md)
 - [Скриншоты интерфейса](docs/screenshots.md)
 - [Контракты](docs/contracts/) — протоколы, сценарии, расширения, API
 

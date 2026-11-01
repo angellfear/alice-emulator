@@ -16,10 +16,14 @@ python -m server_emulator.server
 Собственный каталог данных: `python -m server_emulator.server --state D:/my-emulator-state`.
 Тестовый экземпляр без портов колонок: `python -m server_emulator.server --host 127.0.0.1 --port 18090 --no-ssl --http-port 0`.
 
-UI: http://127.0.0.1:8877/emulator/
-HTTP/WS устройства обслуживаются на том же порту; для UniProxy используется /uni.ws.
+UI: http://127.0.0.1/emulator/ (порт 80 без TLS; устройства — TLS-порт 443).
+HTTP/WS устройства обслуживаются на том же сервере; для UniProxy используется /uni.ws.
 Чтобы принимать подключения по сети: `python -m server_emulator.server --host 0.0.0.0 --port 8877`.
 Для HTTPS/WSS: `python -m server_emulator.server --port 8878 --cert cert.pem --key key.pem`.
+
+Служба systemd (Linux: работа 24/7, обновление по кнопке из панели):
+`python -m server_emulator.service --state /путь/к/данным`; юнит — `deploy/systemd/alice-emulator.service`,
+инструкция — [docs/deploy.md](../docs/deploy.md).
 
 ## Встраивание в прокси (временно)
 
