@@ -27,6 +27,11 @@
     catch (e) { say(e.message, true); if (!data) failed(e.message); }
     finally {
       busy = false; root.querySelectorAll('button').forEach(b => (b.disabled = false));
+      // первый render происходит внутри run (busy=true) — подпись зоны загрузки после операции
+      const strong = root.querySelector('.catalog-drop strong');
+      const span = root.querySelector('.catalog-drop span');
+      if (strong) strong.textContent = 'Перетащите APK сюда';
+      if (span) span.textContent = 'или нажмите, чтобы выбрать · название, версии и иконка заполнятся автоматически';
       if (pending) { pending = false; sync(); }
     }
   }

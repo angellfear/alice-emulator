@@ -33,3 +33,4 @@ server_emulator/ui/img/devices/
 tasks/
 CLAUDE.md
 AGENTS.md
+tools/demo.json
