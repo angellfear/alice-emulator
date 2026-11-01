@@ -22,13 +22,35 @@
   };
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-  function field(label, input, chooser) {
+  // загрузка PEM в state/certs/ на сервере: в поле подставляется путь, настройки применяются сохранением
+  async function uploadCert(kind, file) {
+    const form = new FormData();
+    form.append('kind', kind);
+    form.append('file', file, file.name);
+    const r = await fetch('api/server-cert', { method: 'POST', headers: { 'X-Emulator': '1' }, body: form });
+    const v = await r.json().catch(() => ({}));
+    if (!r.ok) throw Error(v.error || r.statusText);
+    return v;
+  }
+
+  // upload — загрузка файла на сервер (kind: cert | key); ввод пути на компьютере с эмулятором остаётся
+  function field(label, input, upload) {
     const row = make('label', {}, label);
-    if (chooser) {
-      // браузер не отдаёт путь к файлу — выбор только подставляет имя, основное — ввод пути
-      const pick = make('input', { type: 'file', hidden: true });
-      pick.onchange = () => { if (pick.files[0]) input.value = pick.files[0].name; };
-      const button = make('button', { type: 'button', className: 'secondary' }, 'Файл…');
+    if (upload) {
+      const pick = make('input', { type: 'file', hidden: true, accept: '.crt,.pem,.cer,.key' });
+      const button = make('button', { type: 'button', className: 'secondary' }, 'Загрузить…');
+      pick.onchange = async () => {
+        const file = pick.files[0];
+        pick.value = '';
+        if (!file || button.disabled) return;
+        button.disabled = true;
+        try {
+          const stored = await uploadCert(upload.kind, file);
+          input.value = stored.path;
+          upload.done(stored);
+        } catch (e) { notify(e.message, { error: true }); }
+        finally { button.disabled = false; }
+      };
       button.onclick = () => pick.click();
       row.append(make('div', { className: 'srv-path' }, input, button, pick));
     } else row.append(input);
@@ -42,14 +64,20 @@
       host: make('input', { value: c.host, spellcheck: false }),
       port: make('input', { type: 'number', min: 1, max: 65535, value: c.port }),
       ssl: make('input', { type: 'checkbox', checked: !!c.ssl }),
-      cert: make('input', { value: c.cert, spellcheck: false, placeholder: 'C:/certs/server.crt' }),
+      cert: make('input', { value: c.cert, spellcheck: false, placeholder: 'certs/server.crt или C:/certs/server.crt' }),
       key: make('input', { value: c.key, spellcheck: false, placeholder: 'пусто — ключ в файле сертификата' }),
       http_port: make('input', { type: 'number', min: 0, max: 65535, value: c.http_port }),
       front: make('input', { type: 'checkbox', checked: c.front !== false }),
       front_dns: make('input', { value: (c.front_dns || []).join(', '), spellcheck: false }),
     };
     const sslRow = make('label', { className: 'srv-check' }, inputs.ssl, make('span', {}, 'SSL на основном порту'));
-    const certBox = make('div', { className: 'srv-cert' }, field('Сертификат', inputs.cert, true), field('Ключ', inputs.key, true));
+    const uploaded = s => notify('Загружено: ' + s.path + '. Нажмите «Сохранить и перезапустить», чтобы применить.');
+    const certBox = make('div', { className: 'srv-cert' },
+      field('Сертификат', inputs.cert, { kind: 'cert', done: s => {
+        if (s.has_key) inputs.key.value = '';  // ключ лежит в том же файле
+        uploaded(s);
+      } }),
+      field('Ключ', inputs.key, { kind: 'key', done: uploaded }));
     const frontRow = make('label', { className: 'srv-check' }, inputs.front,
       make('span', {}, 'Фронт TLS (SNI)', make('small', { className: 'hint' },
         ' — домены вне сертификата идут туннелем к настоящему серверу (музыка в «Прозрачно»)')));
@@ -89,7 +117,7 @@
     if (over.size) notes.push('Перекрыто командной строкой: ' + [...over].join(', ') + '.');
     if ((state.errors || []).length) notes.push('Ошибки запуска: ' + state.errors.join('; ') + '.');
     section.replaceChildren(make('h2', {}, 'Сервер'),
-      make('p', { className: 'hint' }, 'Колонки подключаются к основному порту 443 по TLS и к HTTP-порту 80 (quasar.yandex.net); сертификат должен быть тем, которому доверяют колонки. Изменения применяются перезапуском сервера; если с новыми настройками он не поднимется, вернутся прежние.'),
+      make('p', { className: 'hint' }, 'Колонки подключаются к основному порту 443 по TLS и к HTTP-порту 80 (quasar.yandex.net); сертификат должен быть тем, которому доверяют колонки. Путь к файлу указывается на компьютере с эмулятором либо файл загружается кнопкой — он сохранится в папке данных (certs/). Изменения применяются перезапуском сервера; если с новыми настройками он не поднимется, вернутся прежние.'),
       make('p', { className: 'hint' }, [version, 'Сейчас: ' + (listeners || '—') + (notes.length ? ' ' + notes.join(' ') : '')].filter(Boolean).join(' · ')),
       form, selfUpdatePanel());
   }

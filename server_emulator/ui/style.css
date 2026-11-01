@@ -731,3 +731,10 @@ label.ui-switch{position:relative;display:inline-flex;flex-direction:row;margin:
 .log-detail{margin:0 10px 9px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-s);
   background:var(--surface-2);max-height:220px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;
   font-size:12px;color:var(--muted)}
+
+/* ── «Дополнительно → Сервер»: поле пути с кнопкой «Загрузить…» и строки-галочки ── */
+.srv-path{display:flex;gap:8px;align-items:center}
+.srv-path input:not([type=file]){flex:1 1 auto;min-width:0}
+.srv-path button{flex:none;white-space:nowrap}
+label.srv-check{flex-direction:row;align-items:center;gap:8px}
+label.srv-check input{flex:none;width:auto;height:auto;margin:0}

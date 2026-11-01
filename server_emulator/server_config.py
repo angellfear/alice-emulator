@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import socket
 import ssl
@@ -18,6 +19,8 @@ from pathlib import Path
 FILE = "server.json"
 DEFAULTS = {"host": "0.0.0.0", "port": 443, "ssl": True, "cert": "", "key": "", "http_port": 80,
             "front": True, "front_dns": ["8.8.8.8", "1.1.1.1"]}  # фронт TLS и DNS туннелей (TASK-067)
+CERT_DIR = "certs"          # загруженные в интерфейсе сертификаты и ключи: <state>/certs/
+CERT_LIMIT = 1024 * 1024    # PEM-файл больше 1 МиБ — не сертификат
 RESTART_CODE = 75   # код выхода «перезапустить»: лаунчер (TASK-045) запускает сервер сразу
 UPDATE_CODE = 76    # код выхода «идёт самообновление» (TASK-040): updater перезапустит сервер сам
 
@@ -26,8 +29,17 @@ def _path(state):
     return Path(state) / FILE
 
 
+def clean_path(value):
+    """Путь из формы: без пробелов и парных кавычек («Копировать как путь» в проводнике Windows даёт путь в двойных кавычках)."""
+    text = str(value or "").strip()
+    while len(text) >= 2 and text[0] == text[-1] and text[0] in "\"'":
+        text = text[1:-1].strip()
+    return text
+
+
 def resolve(state, value):
     """Путь к файлу сертификата: абсолютный или относительно папки данных; пусто — None."""
+    value = clean_path(value)
     if not value:
         return None
     path = Path(value).expanduser()
@@ -70,7 +82,8 @@ def ssl_context(state, config):
         raise ValueError("SSL включён, но не указан сертификат")
     for label, path in (("Сертификат", cert), ("Ключ", key)):
         if path is not None and not path.is_file():
-            raise ValueError(f"{label}: файл не найден — {path}")
+            raise ValueError(f"{label}: файл не найден на сервере — {path}. "
+                             "Укажите путь на компьютере с эмулятором или загрузите файл.")
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     try:
         context.load_cert_chain(cert, key)
@@ -94,7 +107,7 @@ def validate(state, value):
         raise ValueError("DNS туннелей: адреса через запятую (до 4)")
     config = {"host": host, "port": _port(value.get("port", DEFAULTS["port"]), "Порт"),
               "ssl": bool(value.get("ssl", DEFAULTS["ssl"])),
-              "cert": str(value.get("cert") or "").strip(), "key": str(value.get("key") or "").strip(),
+              "cert": clean_path(value.get("cert")), "key": clean_path(value.get("key")),
               "http_port": _port(value.get("http_port", DEFAULTS["http_port"]), "HTTP-порт", allow_zero=True),
               "front": bool(value.get("front", DEFAULTS["front"])),
               "front_dns": [item.strip() for item in dns]}
@@ -102,6 +115,46 @@ def validate(state, value):
         raise ValueError("Порт и HTTP-порт должны различаться")
     ssl_context(state, config)
     return config
+
+
+def store_cert(state, kind, filename, data):
+    """Загрузка PEM из интерфейса в `<state>/certs/` → путь относительно папки данных (`certs/server.crt`).
+
+    kind — `cert` или `key`. Файл без «-----BEGIN» отвергается, имя очищается от пути и лишних символов,
+    запись атомарная. Настройки не меняются — адрес в поле подставляет форма, применяется сохранением.
+    Возвращает {path, has_key}: has_key — в файле сертификата лежит и закрытый ключ (поле «Ключ» можно очистить).
+    """
+    if kind not in ("cert", "key"):
+        raise ValueError("Тип файла: cert или key")
+    label = "Сертификат" if kind == "cert" else "Ключ"
+    if not data:
+        raise ValueError(f"{label}: файл пустой")
+    if len(data) > CERT_LIMIT:
+        raise ValueError(f"{label}: файл больше {CERT_LIMIT // 1024 // 1024} МиБ — это не PEM-файл")
+    try:
+        text = data.decode("ascii")
+    except UnicodeDecodeError:
+        raise ValueError(f"{label}: нужен PEM-файл (текст с «-----BEGIN»), а не бинарный DER") from None
+    if "-----BEGIN" not in text:
+        raise ValueError(f"{label}: в файле нет «-----BEGIN» — нужен PEM-файл")
+    has_key = "PRIVATE KEY-----" in text
+    if kind == "key" and not has_key:
+        raise ValueError("Ключ: в файле нет закрытого ключа (-----BEGIN … PRIVATE KEY-----)")
+    name = re.sub(r"[^\w.\-]+", "_", re.split(r"[\\/]", str(filename or ""))[-1], flags=re.ASCII).strip("._ ")
+    if not name:
+        name = "server"
+    if not Path(name).suffix:
+        name += ".crt" if kind == "cert" else ".key"
+    folder = Path(state) / CERT_DIR
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / name
+    temp = folder / f"{name}.{uuid.uuid4().hex[:8]}.tmp"
+    try:
+        temp.write_bytes(data)
+        os.replace(temp, target)
+    finally:
+        temp.unlink(missing_ok=True)
+    return {"path": f"{CERT_DIR}/{name}", "has_key": has_key}
 
 
 def port_busy(host, port):

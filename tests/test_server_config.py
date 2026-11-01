@@ -4,7 +4,7 @@ import json
 import socket
 
 import pytest
-from aiohttp import ClientSession
+from aiohttp import ClientSession, FormData
 
 from server_emulator import control, server, server_config
 from server_emulator.runtime import Runtime
@@ -192,3 +192,113 @@ def test_main_restarts_itself_with_same_arguments(tmp_path, monkeypatch):
         server.main(["--port", "9001", "--no-ssl", "--state", str(tmp_path)])
     assert calls["config"]["port"] == 9001 and calls["config"]["ssl"] is False
     assert calls["execv"][1][1:] == ["-m", "server_emulator.server", "--port", "9001"]
+
+
+def test_quoted_and_padded_cert_paths_are_accepted(tmp_path):
+    cert, key = self_signed(tmp_path)
+    value = {"ssl": True, "port": 8443, "http_port": 0, "cert": f'  "{cert}" ', "key": f"'{key}'"}
+    config = server_config.validate(tmp_path, value)
+    assert config["cert"] == str(cert) and config["key"] == str(key)
+    assert server_config.clean_path('"a b"') == "a b" and server_config.clean_path("  x  ") == "x"
+    assert server_config.clean_path('"unbalanced') == '"unbalanced'
+
+
+def test_missing_cert_message_says_path_is_on_server(tmp_path):
+    with pytest.raises(ValueError, match="файл не найден на сервере") as info:
+        server_config.validate(tmp_path, {"ssl": True, "port": 8443, "http_port": 0, "cert": "D:/nope/a.crt"})
+    assert "загрузите файл" in str(info.value) and "Сертификат" in str(info.value)
+
+
+def test_store_cert_saves_under_certs_and_validate_accepts(tmp_path):
+    (tmp_path / "src").mkdir()
+    cert, key = self_signed(tmp_path / "src")
+    state = tmp_path / "state"
+    stored = server_config.store_cert(state, "cert", "server.crt", cert.read_bytes())
+    assert stored == {"path": "certs/server.crt", "has_key": False}
+    assert (state / "certs" / "server.crt").read_bytes() == cert.read_bytes()
+    stored_key = server_config.store_cert(state, "key", "server.key", key.read_bytes())
+    assert stored_key["path"] == "certs/server.key" and stored_key["has_key"] is True
+    config = server_config.validate(state, {"ssl": True, "port": 8443, "http_port": 0,
+                                            "cert": stored["path"], "key": stored_key["path"]})
+    assert config["cert"] == "certs/server.crt"
+    assert not list((state / "certs").glob("*.tmp"))
+
+
+def test_store_cert_rejects_non_pem_empty_and_oversized(tmp_path):
+    with pytest.raises(ValueError, match="BEGIN"):
+        server_config.store_cert(tmp_path, "cert", "a.crt", b"just text")
+    with pytest.raises(ValueError, match="PEM"):
+        server_config.store_cert(tmp_path, "cert", "a.crt", bytes([0x30, 0x82, 0x01, 0xFF]) * 8)
+    with pytest.raises(ValueError, match="пустой"):
+        server_config.store_cert(tmp_path, "cert", "a.crt", b"")
+    big = b"-----BEGIN CERTIFICATE-----\n" + b"A" * server_config.CERT_LIMIT
+    with pytest.raises(ValueError, match="больше"):
+        server_config.store_cert(tmp_path, "cert", "a.crt", big)
+    with pytest.raises(ValueError, match="закрытого ключа"):
+        server_config.store_cert(tmp_path, "key", "a.key", b"-----BEGIN CERTIFICATE-----\nAAAA\n")
+    with pytest.raises(ValueError, match="Тип файла"):
+        server_config.store_cert(tmp_path, "other", "a.crt", b"-----BEGIN CERTIFICATE-----")
+    assert not (tmp_path / "certs").exists() or not any((tmp_path / "certs").iterdir())
+
+
+@pytest.mark.parametrize("name, expected", [
+    ("../../evil.crt", "certs/evil.crt"),
+    ("..\\..\\windows\\evil.pem", "certs/evil.pem"),
+    ("C:\\certs\\my cert (1).crt", "certs/my_cert_1_.crt"),
+    ("", "certs/server.crt"),
+    ("..", "certs/server.crt"),
+    ("noext", "certs/noext.crt"),
+])
+def test_store_cert_sanitizes_file_name(tmp_path, name, expected):
+    state = tmp_path / "state"
+    stored = server_config.store_cert(state, "cert", name, b"-----BEGIN CERTIFICATE-----\nAAAA\n")
+    assert stored["path"] == expected
+    assert (state / expected).is_file()
+    assert [p for p in state.rglob("*") if p.is_file()] == [state / expected]
+
+
+def test_combined_pem_works_with_empty_key(tmp_path):
+    cert, key = self_signed(tmp_path)
+    combined = cert.read_bytes() + key.read_bytes()
+    state = tmp_path / "state"
+    stored = server_config.store_cert(state, "cert", "both.pem", combined)
+    assert stored == {"path": "certs/both.pem", "has_key": True}
+    config = server_config.validate(state, {"ssl": True, "port": 8443, "http_port": 0, "cert": stored["path"], "key": ""})
+    assert config["key"] == "" and server_config.ssl_context(state, config) is not None
+
+
+async def test_api_uploads_cert_and_does_not_touch_settings(tmp_path):
+    cert, key = self_signed(tmp_path)
+    runtime = Runtime(tmp_path / "state")
+    runner, url = await listen(server.create_app(runtime=runtime))
+    api = url + "/emulator/api/server-cert"
+    headers = {"X-Emulator": "1"}
+
+    def form(kind, data, filename="server.crt"):
+        body = FormData()
+        body.add_field("kind", kind)
+        body.add_field("file", data, filename=filename, content_type="application/octet-stream")
+        return body
+    try:
+        async with ClientSession() as client:
+            async with client.post(api, data=form("cert", cert.read_bytes())) as response:
+                assert response.status == 403                          # без X-Emulator
+            async with client.post(api, headers=headers, data=form("cert", cert.read_bytes(), "server.crt")) as response:
+                assert response.status == 200
+                assert await response.json() == {"path": "certs/server.crt", "has_key": False}
+            async with client.post(api, headers=headers, data=form("key", key.read_bytes(), "server.key")) as response:
+                assert (await response.json())["path"] == "certs/server.key"
+            async with client.post(api, headers=headers, data=form("cert", b"not a pem")) as response:
+                assert response.status == 400 and "BEGIN" in (await response.json())["error"]
+            async with client.post(api, headers=headers, data=form("cert", b"-----BEGIN X" + b"A" * (2 * 1024 * 1024))) as response:
+                assert response.status == 400
+            async with client.post(api, headers=headers, json={"kind": "cert"}) as response:
+                assert response.status == 400
+            async with client.put(url + "/emulator/api/server", headers=headers,
+                                  json={"host": "127.0.0.1", "port": 8443, "http_port": 0, "ssl": True,
+                                        "cert": "certs/server.crt", "key": "certs/server.key"}) as response:
+                assert response.status == 200
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+    assert sorted(p.name for p in (tmp_path / "state" / "certs").iterdir()) == ["server.crt", "server.key"]

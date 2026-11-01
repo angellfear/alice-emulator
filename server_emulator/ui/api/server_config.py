@@ -3,6 +3,8 @@
 GET api/server → {config (файл), effective (с учётом командной строки), overridden, listeners, errors,
 launcher}. PUT api/server — проверка и сохранение в state/server.json (ошибка — 400, файл не меняется;
 занятый порт — предупреждение). POST api/server {"action": "restart"} — применить перезапуском.
+POST api/server-cert (multipart: kind=cert|key и file) — загрузка PEM в state/certs/ → {path, has_key};
+настройки не меняются, путь подставляет форма, применяется сохранением. Содержимое файла не логируется и не возвращается.
 """
 from aiohttp import web
 
@@ -45,3 +47,23 @@ async def server(request, runtime, app):
     if not control.request_exit(app, server_config.RESTART_CODE):
         raise ValueError("Сервер запущен без управления перезапуском (тестовый экземпляр)")
     return web.json_response({"restarting": True})
+
+
+@route("server-cert", methods=("POST",))
+async def server_cert(request, runtime, app):
+    if not request.content_type.startswith("multipart/"):
+        raise ValueError("Нужен файл сертификата или ключа (multipart)")
+    kind, data = None, None
+    async for part in await request.multipart():
+        if part.name == "kind":
+            kind = (await part.text()).strip()
+        elif part.filename is not None and data is None:
+            data = bytearray()
+            while chunk := await part.read_chunk(64 * 1024):
+                data += chunk
+                if len(data) > server_config.CERT_LIMIT:  # дальше не читаем: не PEM-файл
+                    break
+            filename = part.filename
+    if data is None:
+        raise ValueError("Файл не передан")
+    return web.json_response(server_config.store_cert(runtime.directory, kind, filename, bytes(data)))
