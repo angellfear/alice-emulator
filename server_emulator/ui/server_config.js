@@ -104,7 +104,7 @@
       busy = true; save.disabled = true;
       try {
         const saved = await call('PUT', value);
-        const target = saved.url + '/emulator/';
+        const target = panelUrl(saved.effective || saved.config);
         save.textContent = 'Перезапуск…';
         await call('POST', { action: 'restart' });
         await waitFor(target, saved.warnings || []);
@@ -154,6 +154,23 @@
       finally { busy = false; save.disabled = false; }
     };
     return form;
+  }
+
+  // адрес панели после перезапуска: сервер слушает все адреса (0.0.0.0 / ::) — остаёмся на хосте, по которому
+  // открыта панель (адрес в сети, имя компьютера), меняются только схема и порт; та же схема, если её слушатель остался
+  function panelUrl(c) {
+    const wildcard = ['0.0.0.0', '::', ''].includes(c.host);
+    const host = wildcard ? location.hostname : c.host;
+    let scheme, port;
+    if (location.protocol === 'http:' && c.http_port) [scheme, port] = ['http', c.http_port];
+    else if (location.protocol === 'https:' && c.ssl) [scheme, port] = ['https', c.port];
+    else if (c.http_port) [scheme, port] = ['http', c.http_port];
+    else [scheme, port] = [c.ssl ? 'https' : 'http', c.port];
+    const url = new URL(location.href);
+    url.protocol = scheme + ':';
+    url.hostname = host.includes(':') && !host.startsWith('[') ? '[' + host + ']' : host;
+    url.port = String(port);  // стандартный порт схемы URL убирает сам
+    return url.href;
   }
 
   // ждём сервер на новом адресе: тот же адрес — опрос и перезагрузка, другой — переход (CORS не даёт опросить)

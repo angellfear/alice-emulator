@@ -10,7 +10,7 @@
   const section = $('setup');
   if (!dialog || !section) return;
   const SKIP = 'setup-images-skip';
-  let state = null, busy = false;
+  let state = null, busy = false, imagesChanged = false;
 
   const make = (tag, text, cls) => { const n = document.createElement(tag); if (text != null) n.textContent = text; if (cls) n.className = cls; return n; };
   const say = (text, error = false) => { notify(text, { error }); };
@@ -41,7 +41,15 @@
   });
 
   const imagesText = () => 'Картинки устройств: ' + (state ? state.images + ' из ' + state.images_total : '…') + (state && state.images_busy ? ' (загрузка…)' : '');
-  const protocolText = () => 'Протокол станции: ' + (!state ? '…' : state.schemas ? 'загружен' + (state.protocol_files ? ', файлов ' + state.protocol_files : '') : 'не загружен');
+  const SOURCES = { library: 'из libquasar_daemons.so', zip: 'из zip' };
+  const protocolText = () => {
+    if (!state) return 'Протокол станции: …';
+    if (state.schemas_error) return 'Протокол станции: повреждён — загрузите заново (' + state.schemas_error + ')';
+    if (!state.schemas) return 'Протокол станции: не загружен';
+    const when = state.protocol_imported ? new Date(state.protocol_imported * 1000).toLocaleDateString() : '';
+    return 'Протокол станции: загружен' + [SOURCES[state.protocol_source] || '', when, state.protocol_files ? 'файлов ' + state.protocol_files : '']
+      .filter(Boolean).map((part, i) => (i ? ' · ' : ' ') + part).join('');
+  };
 
   function renderSection() {
     const box = make('div', null, 'panel setup-state');
@@ -115,7 +123,10 @@
         method: 'POST', headers: { 'X-Emulator': '1', 'Content-Type': 'application/json' }, body: JSON.stringify({ accept: true }) }));
       state = { ...state, ...result };
       progress('');
-      reload('Картинки устройств: ' + result.images + ' из ' + result.images_total + '.');
+      const text = 'Картинки устройств: ' + result.images + ' из ' + result.images_total + '.';
+      // протокол ещё не загружен — окно остаётся открытым со следующим шагом; страница перечитается после него
+      if (!state.schemas) { imagesChanged = true; say(text + ' Осталось загрузить протокол.'); render(); return; }
+      reload(text);
     } catch (e) {
       progress('');
       fail(e.message);
@@ -154,7 +165,11 @@
   $('setup-images-accept').onchange = () => { $('setup-images-load').disabled = busy || !$('setup-images-accept').checked; };
   dialog.addEventListener('cancel', event => { if (busy) event.preventDefault(); });
   // закрыл окно без картинок — больше не открываем его само ради них (в этом браузере)
-  dialog.addEventListener('close', () => { if (state && !state.images) store(SKIP, '1'); });
+  dialog.addEventListener('close', () => {
+    if (state && !state.images) store(SKIP, '1');
+    // картинки скачаны, а протокол так и не загружен: страница перечитывается, чтобы показать картинки
+    if (imagesChanged && !busy) { imagesChanged = false; reload('Картинки устройств: ' + state.images + ' из ' + state.images_total + '.'); }
+  });
   $('setup-open').onclick = () => openDialog();
   try { const text = sessionStorage.getItem('setup-done'); if (text) { sessionStorage.removeItem('setup-done'); say(text); } } catch (e) { /* нет хранилища */ }
   render();

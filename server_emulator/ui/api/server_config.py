@@ -40,7 +40,7 @@ async def server(request, runtime, app):
         server_config.save(state, config)
         effective, overridden = server_config.effective(config, {k: info.get("config", {}).get(k)
                                                                  for k in info.get("overridden", [])})
-        return web.json_response({"saved": True, "config": config, "warnings": warnings,
+        return web.json_response({"saved": True, "config": config, "effective": effective, "warnings": warnings,
                                   "url": server_config.local_url(effective), "overridden": overridden})
     if (body or {}).get("action") != "restart":
         raise ValueError("Неизвестное действие")

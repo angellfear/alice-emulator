@@ -408,9 +408,26 @@ def protocol_info(directory=None):
 
 
 def setup_status():
-    files = protocol_info().get("files") or {}
-    return {"schemas": schema_module.schemas_ready(),
-            "protocol_files": files.get("centaur", 0) if isinstance(files, dict) else 0}
+    """Состояние протокола для окна настройки. Файлы на месте — ещё не «загружен»: оба набора должны
+    разбираться (DescriptorPool, кеш по mtime/размеру), иначе schemas=False и schemas_error с причиной."""
+    info = protocol_info()
+    files = info.get("files") or {}
+    status = {"schemas": False, "schemas_error": "",
+              "protocol_files": files.get("centaur", 0) if isinstance(files, dict) else 0,
+              "protocol_source": info.get("source") or "", "protocol_imported": info.get("imported") or 0}
+    if not schema_module.schemas_ready():
+        return status
+    root = schema_module.schemas_dir()
+    try:
+        for name in (schema_module.ALICE_API, schema_module.station_file(root)):
+            path = root / name
+            stat = path.stat()
+            schema_module._pool(str(path), stat.st_mtime_ns, stat.st_size)
+    except Exception as exc:  # noqa: BLE001 — битый или неполный набор: показать в окне, предложить загрузить заново
+        status["schemas_error"] = f"{name}: {exc}"[:300]
+        return status
+    status["schemas"] = True
+    return status
 
 
 def main(argv=None):
