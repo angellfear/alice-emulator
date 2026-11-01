@@ -5,7 +5,7 @@
   const section = document.getElementById('server');
   if (!section) return;
   let state = null, busy = false;
-  const FIELDS = ['host', 'port', 'ssl', 'cert', 'key', 'http_port'];
+  const FIELDS = ['host', 'port', 'ssl', 'cert', 'key', 'http_port', 'front', 'front_dns'];
 
   const make = (tag, props = {}, ...children) => { const n = Object.assign(document.createElement(tag), props); n.append(...children); return n; };
   const call = async (method, body) => {
@@ -45,23 +45,34 @@
       cert: make('input', { value: c.cert, spellcheck: false, placeholder: 'C:/certs/server.crt' }),
       key: make('input', { value: c.key, spellcheck: false, placeholder: 'пусто — ключ в файле сертификата' }),
       http_port: make('input', { type: 'number', min: 0, max: 65535, value: c.http_port }),
+      front: make('input', { type: 'checkbox', checked: c.front !== false }),
+      front_dns: make('input', { value: (c.front_dns || []).join(', '), spellcheck: false }),
     };
     const sslRow = make('label', { className: 'srv-check' }, inputs.ssl, make('span', {}, 'SSL на основном порту'));
     const certBox = make('div', { className: 'srv-cert' }, field('Сертификат', inputs.cert, true), field('Ключ', inputs.key, true));
-    const syncSsl = () => { certBox.hidden = !inputs.ssl.checked; };
+    const frontRow = make('label', { className: 'srv-check' }, inputs.front,
+      make('span', {}, 'Фронт TLS (SNI)', make('small', { className: 'hint' },
+        ' — домены вне сертификата идут туннелем к настоящему серверу (музыка в «Прозрачно»)')));
+    const dnsRow = field('DNS туннелей (через запятую)', inputs.front_dns);
+    const syncSsl = () => {
+      certBox.hidden = !inputs.ssl.checked;
+      frontRow.hidden = !inputs.ssl.checked;
+      dnsRow.hidden = !inputs.ssl.checked;  // DNS нужен только туннелям фронта
+    };
     inputs.ssl.onchange = syncSsl; syncSsl();
     const error = make('p', { className: 'sc-err', hidden: true, role: 'alert' });
     const save = make('button', { type: 'submit' }, 'Сохранить и перезапустить');
     const listeners = (state.listeners || []).map(l => (l.ok ? '' : '✕ ') + l.scheme + '://' + l.host + ':' + l.port + (l.ok ? '' : ' — ' + l.error)).join(' · ');
     const version = state.version ? 'Версия: ' + state.version.version + (state.version.commit ? ' · ' + state.version.commit : '') + (state.version.dirty ? ' (есть правки)' : '') : '';
     const form = make('form', { className: 'panel srv-form' },
-      field('Адрес', inputs.host), field('Порт', inputs.port), sslRow, certBox, field('HTTP-порт (0 — выключен)', inputs.http_port),
+      field('Адрес', inputs.host), field('Порт', inputs.port), sslRow, certBox,
+      field('HTTP-порт (0 — выключен)', inputs.http_port), frontRow, dnsRow,
       error, make('div', { className: 'actions' }, save));
     form.onsubmit = async event => {
       event.preventDefault();
       if (busy) return;
       error.hidden = true;
-      const value = Object.fromEntries(FIELDS.map(k => [k, k === 'ssl' ? inputs.ssl.checked : ['port', 'http_port'].includes(k) ? Number(inputs[k].value) : inputs[k].value.trim()]));
+      const value = Object.fromEntries(FIELDS.map(k => [k, k === 'ssl' ? inputs.ssl.checked : k === 'front' ? inputs.front.checked : ['port', 'http_port'].includes(k) ? Number(inputs[k].value) : inputs[k].value.trim()]));
       busy = true; save.disabled = true;
       try {
         const saved = await call('PUT', value);

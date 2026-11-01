@@ -16,7 +16,8 @@ import uuid
 from pathlib import Path
 
 FILE = "server.json"
-DEFAULTS = {"host": "0.0.0.0", "port": 443, "ssl": True, "cert": "", "key": "", "http_port": 80}
+DEFAULTS = {"host": "0.0.0.0", "port": 443, "ssl": True, "cert": "", "key": "", "http_port": 80,
+            "front": True, "front_dns": ["8.8.8.8", "1.1.1.1"]}  # фронт TLS и DNS туннелей (TASK-067)
 RESTART_CODE = 75   # код выхода «перезапустить»: лаунчер (TASK-045) запускает сервер сразу
 UPDATE_CODE = 76    # код выхода «идёт самообновление» (TASK-040): updater перезапустит сервер сам
 
@@ -85,10 +86,18 @@ def validate(state, value):
     host = str(value.get("host", DEFAULTS["host"])).strip()
     if not host:
         raise ValueError("Адрес: пусто")
+    dns = value.get("front_dns", DEFAULTS["front_dns"])
+    if isinstance(dns, str):  # из формы: через запятую
+        dns = [item.strip() for item in dns.split(",")]
+    if not isinstance(dns, list) or not dns or len(dns) > 4 \
+            or not all(isinstance(item, str) and item.strip() for item in dns):
+        raise ValueError("DNS туннелей: адреса через запятую (до 4)")
     config = {"host": host, "port": _port(value.get("port", DEFAULTS["port"]), "Порт"),
               "ssl": bool(value.get("ssl", DEFAULTS["ssl"])),
               "cert": str(value.get("cert") or "").strip(), "key": str(value.get("key") or "").strip(),
-              "http_port": _port(value.get("http_port", DEFAULTS["http_port"]), "HTTP-порт", allow_zero=True)}
+              "http_port": _port(value.get("http_port", DEFAULTS["http_port"]), "HTTP-порт", allow_zero=True),
+              "front": bool(value.get("front", DEFAULTS["front"])),
+              "front_dns": [item.strip() for item in dns]}
     if config["port"] == config["http_port"]:
         raise ValueError("Порт и HTTP-порт должны различаться")
     ssl_context(state, config)

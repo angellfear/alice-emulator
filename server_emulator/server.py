@@ -19,6 +19,8 @@ from .server_config import RESTART_CODE
 from .legacy_replay import control_response, create_app as legacy_create_app
 from .runtime import Runtime, mount_ui, STANDALONE_KEY
 
+RUNTIME_KEY = web.AppKey("emulator_runtime", Runtime)  # фронт TLS (TASK-067) достаёт runtime из serve()
+
 
 def create_app(config=None, archive=None, runtime=None, control_token=None):
     if archive is not None:
@@ -29,6 +31,7 @@ def create_app(config=None, archive=None, runtime=None, control_token=None):
     # B04: панель требует входа после bootstrap; трафик устройств не охраняется
     app = web.Application(middlewares=[auth_middleware(runtime.auth)], client_max_size=16*1024**2)
     app[STANDALONE_KEY] = True
+    app[RUNTIME_KEY] = runtime
     mount_auth(app, runtime.auth)
     mount_ui(app, runtime)
     # M08: планировщик таймеров. Стартуем из on_startup: create_app вызывается
@@ -65,13 +68,21 @@ async def serve(app, state, config):
 
     app[EXIT_KEY] = exit_
     info = app[INFO_KEY]
+    runtime = app.get(RUNTIME_KEY)
     errors, plan = [], []
     try:
         tls = server_config.ssl_context(state, config)
     except ValueError as exc:
         tls = None
         errors.append(f"порт {config['port']} (SSL): {exc}")
-    if not config["ssl"]:
+    # TASK-067: фронт TLS — слушает публичный порт сырым TCP, по SNI отдаёт соединение
+    # внутреннему aiohttp-слушателю (TLS терминирует он) или ведёт туннелем к настоящему хосту
+    front = None
+    if config["ssl"] and tls is not None and config.get("front", True) and runtime is not None:
+        from .front import Front
+        front = Front(runtime)
+        plan.append(("front", config["port"], tls))
+    elif not config["ssl"]:
         plan.append(("http", config["port"], None))
     elif tls is not None:
         plan.append(("https", config["port"], tls))
@@ -84,11 +95,21 @@ async def serve(app, state, config):
     try:
         listeners = []
         for scheme, port, context in plan:
-            entry = {"scheme": scheme, "host": config["host"], "port": port, "ok": True}
+            entry = {"scheme": "https" if scheme == "front" else scheme, "host": config["host"], "port": port,
+                     "ok": True, "front": scheme == "front"}
             try:
-                await web.TCPSite(runner, config["host"], port, ssl_context=context).start()
+                if scheme == "front":
+                    before = set(runner.addresses)
+                    await web.TCPSite(runner, "127.0.0.1", 0, ssl_context=context).start()
+                    internal_port = next(a[1] for a in runner.addresses if a not in before)
+                    await front.start(config["host"], port, internal_port,
+                                      cert_path=server_config.resolve(state, config.get("cert")),
+                                      dns_servers=config.get("front_dns"))
+                    runtime.client_peer = front.client_peer  # реальный адрес колонки для обработчиков
+                else:
+                    await web.TCPSite(runner, config["host"], port, ssl_context=context).start()
             except OSError as exc:
-                entry.update(ok=False, error=str(exc))
+                entry.update(ok=False, error=str(exc), front=False)
                 errors.append(f"порт {port}: {exc}")
             listeners.append(entry)
         info.update(listeners=listeners, errors=errors)
@@ -107,9 +128,11 @@ async def serve(app, state, config):
         server_log.log_event("info", "server",
                              "Сервер запущен" + (f" (версия {info['version']})" if info.get("version") else "")
                              + " — слушаю " + ", ".join(f"{entry['scheme']}://{entry['host']}:{entry['port']}"
+                                                        + (" (фронт TLS)" if entry.get("front") else "")
                                                         for entry in listeners if entry["ok"]))
         for entry in listeners:
             print(f"{'Слушаю' if entry['ok'] else 'Ошибка'} {entry['scheme']}://{entry['host']}:{entry['port']}"
+                  + (" (фронт TLS)" if entry.get("front") else "")
                   + ("" if entry["ok"] else f" — {entry['error']}"), flush=True)
         for error in errors:
             if "SSL" in error:
@@ -120,6 +143,10 @@ async def serve(app, state, config):
                              "Сервер перезапускается" if code == RESTART_CODE else "Сервер остановлен")
         return code
     finally:
+        if front is not None:
+            await front.stop()
+            if runtime is not None:
+                runtime.client_peer = None
         await runner.cleanup()
         await server_log.flush()  # записи о старте/остановке не теряются при выходе
 
