@@ -74,6 +74,79 @@ class TransparentRoute:
         self.body = body
 
 
+# ── Встроенные ответы без эндпоинтов (TASK-070) ─────────────────────────────
+# Телеметрия и проверки связи, на которые у эмулятора нет данных: короткий ответ
+# «успех» (образцов ответов в журнале нет — см. docs/contracts/http.md), чтобы
+# колонка не видела ошибок и промахи не засорялись. Пользовательский эндпоинт
+# перекрывает встроенный (dispatch ищет каталог раньше).
+BUILTIN_SILENCERS = (
+    {"host": "clck.yandex.net", "methods": ("POST",), "prefix": "/", "status": 200, "body": b"",
+     "note": "метрики колонки — принять и выбросить"},
+    {"host": "report.appmetrica.yandex.net", "methods": ("POST",), "prefix": "/", "status": 200, "body": b"",
+     "note": "AppMetrica — принять и выбросить"},
+    {"host": "rosenberg.appmetrica.yandex.net", "methods": ("POST",), "prefix": "/", "status": 200, "body": b"",
+     "note": "геометрика — принять и выбросить"},
+    {"host": "scbh.yandex.net", "methods": ("GET", "HEAD"), "path": "/generate_204", "status": 204, "body": b"",
+     "note": "проверка доступности интернета"},
+    {"host": "soft.export.yandex.ru", "methods": ("GET", "HEAD"), "path": "/status.xml", "status": 200,
+     "body": b"<status>ok</status>", "content_type": "text/xml", "note": "проверка доступности"},
+    {"host": "rpc.alice.yandex.net", "methods": ("POST",), "path": "/gproxy/get_auth_suggests", "status": 200,
+     "body": b"{}", "note": "подсказки входа — пустой список"},
+    {"host": "rpc.alice.yandex.net", "methods": ("POST",), "path": "/gproxy/get_teasers", "status": 200,
+     "body": b"{}", "note": "тизеры экрана — пустой список"},
+    {"host": "keyboard.yandex.net", "methods": ("GET",), "path": "/experiments", "status": 200,
+     "body": b"{}", "note": "эксперименты клавиатуры — пустой список"},
+    {"host": "yandex.ru", "methods": ("GET",), "path": "/ads/v1/startup", "status": 200,
+     "body": b"{}", "note": "реклама при старте — пустой ответ"},
+)
+
+
+def find_builtin(host, method, path):
+    """Встроенный ответ для запроса без эндпоинта: {status, body, headers, note} или None."""
+    host = (host or "").lower()
+    path = path or "/"
+    for item in BUILTIN_SILENCERS:
+        if item["host"] != host or method not in item["methods"]:
+            continue
+        if ("path" in item and item["path"] != path) \
+                or ("prefix" in item and not path.startswith(item["prefix"])):
+            continue
+        body = item.get("body", b"")
+        return {"status": item["status"], "body": body,
+                "headers": {"Content-Type": item.get("content_type", "application/json" if body == b"{}" else "text/plain")},
+                "note": item["note"]}
+    return None
+
+
+def builtin_covers(host, method, path):
+    """Обслуживается ли запрос встроенным ответом (включая обложки аватаров, TASK-070):
+    такие запросы не попадают в «HTTP без эндпоинта»."""
+    if find_builtin(host, method, path) is not None:
+        return True
+    return (host or "").lower() == "avatars.yandex.net" and method in ("GET", "HEAD") \
+        and (path or "").startswith(("/get-music-content/", "/get-video-content/"))
+
+
+def builtin_entries():
+    """Строки каталога для UI (источник «встроенный», только чтение): перекрывается
+    своим эндпоинтом — защиты URL, как у Квазара/Обновлений, у них нет."""
+    entries = []
+    for index, item in enumerate(BUILTIN_SILENCERS):
+        entries.append({"id": f"builtin.{index}", "host": item["host"], "method": item["methods"][0],
+                        "path": item.get("path") or item.get("prefix") or "/",
+                        "methods_extra": item["methods"][1:],
+                        "category": "builtin", "enabled": True, "readonly": True, "owner": "endpoints",
+                        "title": item["note"],
+                        "notes": "Встроенный ответ (TASK-070): перекрывается своим эндпоинтом с тем же URL."})
+    entries.append({"id": "builtin.avatars", "host": "avatars.yandex.net", "method": "GET",
+                    "path": "/get-music-content/…", "category": "builtin", "enabled": True,
+                    "readonly": True, "owner": "endpoints",
+                    "title": "обложки музыки — пересылка с кешем на диске",
+                    "notes": "Пересылается настоящему серверу (TASK-070), ответ кешируется в state/cache/avatars; "
+                             "без сети — кеш, затем 404."})
+    return entries
+
+
 def render_template(template, context):
     """Рекурсивный рендер шаблона: строки заменяют {{токены}}, остальное как есть."""
     if isinstance(template, str):
@@ -388,17 +461,21 @@ class EndpointCatalog:
         extension = [view(e) for e in self.endpoints if e.get("_origin")]
         # Маршрут показываем у того, кто его реально обслуживает (порядок dispatch:
         # обновления → builtin Квазара): дубль /check_updates у Квазара скрыт.
-        rank = {"updates": 0, "quasar-http": 1}
+        rank = {"updates": 0, "quasar-http": 1, "endpoints": 2}
         seen, shown = set(), []
         for item in sorted(system, key=lambda e: rank.get(e.get("owner"), 2)):
             key = (item["host"].lower(), item["method"], item["path"])
             if key not in seen:
                 seen.add(key)
                 shown.append(item)
-        items = sorted(own + extension + shown, key=lambda e: (e["category"], e["host"], e["path"]))
+        builtin = [e for e in builtin_entries()
+                   if not any(e["host"].lower() == x["host"].lower() and e["method"] == x["method"]
+                              and e["path"] == x["path"] for x in own + extension)]
+        items = sorted(own + extension + shown + builtin, key=lambda e: (e["category"], e["host"], e["path"]))
         described = {(e["host"].lower(), e["method"], e["path"]) for e in items}
         misses = [dict(m, key=k) for k, m in self.misses().items()
-                  if (m["host"], m["method"], m["path"]) not in described]
+                  if (m["host"], m["method"], m["path"]) not in described
+                  and not builtin_covers(m["host"], m["method"], m["path"])]
         return {"endpoints": items,
                 "misses": sorted(misses, key=lambda m: -m["last_ts"]),
                 "categories": sorted({e["category"] for e in items}),

@@ -23,6 +23,7 @@ from aiohttp import web
 from multidict import CIMultiDict
 
 from .identity import collect_device_id
+from .endpoints import builtin_covers, find_builtin
 from .quasar_replace import apply_replacements, replaced_headers
 from .upstream import UpstreamError, forward_headers
 from .upstream.forward import decoded_json
@@ -96,7 +97,8 @@ class Dispatcher:
         if host == 'quasar.yandex.net' and runtime.quasar.handles(method, path):
             return True
         endpoint = runtime.endpoints.find(host, method, path)
-        return bool(endpoint and endpoint.get('enabled') and endpoint.get('mode') != 'script')
+        return bool(endpoint and endpoint.get('enabled') and endpoint.get('mode') != 'script') \
+            or builtin_covers(host, method, path)  # TASK-070: встроенные ответы без эндпоинтов
 
     def journal_emulated(self, request, host, path, started, sn, device_id, body, status, headers, output):
         """Запись ответа эмулятора в журнал — по опции «Запись» устройства (source=emulator)."""
@@ -121,6 +123,87 @@ class Dispatcher:
         галочка «И в прозрачном маршруте» (state.quasar_direct_transparent) устройства."""
         state = device.get('state') or {}
         return state.get('quasar_source') == 'direct' and state.get('quasar_direct_transparent') is True
+
+    # TASK-070: встроенные ответы без эндпоинтов --------------------------------------
+    AVATARS_CACHE_LIMIT = 200 * 1024 * 1024  # суммарный размер кеша обложек
+    AVATARS_TTL = 7 * 86400
+
+    async def builtin_answer(self, request, host, path):
+        """Ответы, для которых не нужен ни эндпоинт, ни Яндекс: метрики и телеметрия
+        (принять и выбросить), проверки связи, RPC-подсказки и тизеры, обложки музыки
+        (пересылка с кешем на диске). Вызывается, когда каталог эндпоинтов промахнулся, —
+        пользовательский эндпоинт перекрывает встроенный. None — встроенного ответа нет."""
+        if request.method in ('GET', 'HEAD') and (host or '').lower() == 'egress.yandex.net':
+            # проверка исходящего IP: адрес, с которого колонка пришла (как видит сервер)
+            return 200, self.client_ip(request).encode(), {'Content-Type': 'text/plain'}
+        entry = find_builtin(host, request.method, path)
+        if entry is not None:
+            return entry['status'], entry['body'], entry['headers']
+        if (host or '').lower() == 'avatars.yandex.net' and request.method in ('GET', 'HEAD') \
+                and path.startswith(('/get-music-content/', '/get-video-content/')):
+            return await self._avatar(request, path)
+        return None
+
+    def _read_avatar(self, key):
+        """Кеш обложки: (body, content_type, ts) или None. Файл <key>.bin + <key>.meta
+        (первая строка — время загрузки, вторая — content-type)."""
+        directory = self.runtime.directory / 'cache' / 'avatars'
+        try:
+            body = (directory / (key + '.bin')).read_bytes()
+            first, _, rest = (directory / (key + '.meta')).read_text(encoding='ascii').partition('\n')
+            return body, rest.strip() or 'image/jpeg', float(first)
+        except (OSError, ValueError):
+            return None
+
+    def _store_avatar(self, key, body, content_type):
+        """Обложка в кеш (state/cache/avatars) с вытеснением самого старого по лимиту и сроку."""
+        directory = self.runtime.directory / 'cache' / 'avatars'
+        try:
+            directory.mkdir(parents=True, exist_ok=True)
+            (directory / (key + '.bin')).write_bytes(body)
+            (directory / (key + '.meta')).write_text(f"{time.time()}\n{content_type or 'image/jpeg'}", encoding='ascii')
+            files = sorted((p for p in directory.iterdir() if p.suffix == '.bin'), key=lambda p: p.stat().st_mtime)
+            total = sum(p.stat().st_size for p in files)
+            for path in files:
+                if total <= self.AVATARS_CACHE_LIMIT and time.time() - path.stat().st_mtime <= self.AVATARS_TTL:
+                    break
+                total -= path.stat().st_size
+                path.unlink(missing_ok=True)
+                (directory / (path.stem + '.meta')).unlink(missing_ok=True)
+        except OSError:
+            pass
+
+    async def _avatar(self, request, path):
+        """Обложка avatars.yandex.net: пересылка настоящему серверу (в эмуляции и гибриде),
+        ответ кешируется; без сети — кеш (даже протухший), затем 404. Range-запросы
+        проходят насквозь без кеша (частичный ответ нельзя сохранять как целый)."""
+        import hashlib
+        runtime = self.runtime
+        key = hashlib.sha1((path + '?' + request.query_string).encode('utf-8', 'ignore')).hexdigest()
+        ranged = bool(request.headers.get('Range'))
+        if not ranged:
+            cached = self._read_avatar(key)
+            if cached is not None and time.time() - cached[2] <= self.AVATARS_TTL:
+                return 200, cached[0], {'Content-Type': cached[1], 'Cache-Control': 'max-age=86400'}
+        target = runtime.upstream.target_for_host('avatars.yandex.net', str(request.rel_url))
+        status, headers, payload = 0, [], b''
+        try:
+            status, headers, payload = await runtime.upstream.forwarder.http(
+                request.method, target, request.headers, b'', journal=False,
+                host='avatars.yandex.net', path=path)
+        except UpstreamError as exc:
+            runtime.server_log.log('warning', 'http', 'Обложка не получена — отвечаю из кеша',
+                                   host='avatars.yandex.net', error=str(exc)[:200])
+        keep = ('content-type', 'cache-control', 'etag', 'expires', 'accept-ranges')
+        if status == 200 and payload and not ranged:
+            content_type = next((v for k, v in headers if k.lower() == 'content-type'), 'image/jpeg')
+            self._store_avatar(key, payload, content_type)
+        if status in (200, 206):
+            return status, payload, {k: v for k, v in headers if k.lower() in keep}
+        cached = None if ranged else self._read_avatar(key)
+        if cached is not None:
+            return 200, cached[0], {'Content-Type': cached[1], 'Cache-Control': 'max-age=86400'}
+        return 404, b'{"error":"avatar_unavailable"}', {'Content-Type': 'application/json'}
 
     async def direct_sync_info(self, request, device, device_id, sn, body, upstream):
         """TASK-052, «Напрямую»: get_sync_info пересылается настоящему quasar.yandex.net,
@@ -271,6 +354,7 @@ class Dispatcher:
             # фаза 2, отдельное задание.
             return await runtime.websocket(request, record)
         body = await request.read()
+        silencer_used = False  # TASK-070: встроенный ответ без эндпоинта — журнал «Запись» не пишется
         host = host or request.host.split(':', 1)[0]
         canonical_host = self.canonical_host(request, host)
         # v9 §8: в /glagol/token query device_id — ЦЕЛЬ (токен другого устройства),
@@ -350,7 +434,14 @@ class Dispatcher:
             catalog_covered = canonical_host == 'rpc.alice.yandex.net' and (path or request.path) == '/gproxy/get_app_catalog'
             miss_args = (canonical_host, request.method, path or request.path, request.query_string,
                          body, request.headers.get('Content-Type', ''), list(request.headers.items()))
-            if route_mode == "hybrid" and upstream is not None and not catalog_covered:
+            # TASK-070: встроенные ответы без эндпоинтов (метрики, проверки связи, подсказки,
+            # обложки) — до пересылки гибрида и 404; пользовательский эндпоинт перекрывает
+            # (каталог ищется выше). В промахи и журнал «Запись» не пишется (шум).
+            silencer = None if catalog_covered else await self.builtin_answer(request, canonical_host, path or request.path)
+            if silencer is not None:
+                silencer_used = True
+                status, output, headers = silencer
+            elif route_mode == "hybrid" and upstream is not None and not catalog_covered:
                 # Гибрид: обработчика нет — промах уходит в Яндекс (журнал пишет upstream)
                 # и остаётся в «Без ответа» с отметкой «ушёл в Яндекс» (UI — misses.js).
                 try:
@@ -364,13 +455,14 @@ class Dispatcher:
                     runtime.endpoints.note_miss(*miss_args,
                                                 forwarded=f"error: {type(exc).__name__}: {exc}"[:200])
                     return web.json_response({"error": "upstream_unavailable",
-                                              "detail": str(exc)[:200]}, status=502)
+                                          "detail": str(exc)[:200]}, status=502)
                 runtime.endpoints.note_miss(*miss_args, forwarded="upstream")
                 return forwarded
-            if not catalog_covered:
-                runtime.endpoints.note_miss(*miss_args)
-            output = b'{"error":"emulator_handler_not_found"}'
-            headers, status = {"Content-Type": "application/json"}, 404
+            else:
+                if not catalog_covered:
+                    runtime.endpoints.note_miss(*miss_args)
+                output = b'{"error":"emulator_handler_not_found"}'
+                headers, status = {"Content-Type": "application/json"}, 404
         original_output = output
         if canonical_host == 'rpc.alice.yandex.net' and (path or request.path) == '/gproxy/get_app_catalog' and runtime.catalog.value['enabled']:
             if status == 404:
@@ -396,6 +488,7 @@ class Dispatcher:
             journal_sn, journal_id = (caller['sn'] if caller else None), caller_id or None
         else:
             journal_sn, journal_id = (device['sn'] if device else sn), device_id
-        self.journal_emulated(request, canonical_host, path or request.path, started, journal_sn, journal_id,
-                              body, status, headers, output)
+        if not silencer_used:  # TASK-070: встроенные ответы — без записи в журнал трафика
+            self.journal_emulated(request, canonical_host, path or request.path, started, journal_sn, journal_id,
+                                  body, status, headers, output)
         return web.Response(status=status, body=output, headers=headers)

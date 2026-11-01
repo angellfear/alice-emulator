@@ -13,6 +13,7 @@
   const OWNERS = {
     'quasar-http': { title: 'Квазар — встроенная логика', tab: 'Квазар' },
     updates: { title: 'Обновления (OTA)', tab: 'Обновления' },
+    endpoints: { title: 'Встроенные ответы (перекрываются своим эндпоинтом)', tab: 'HTTP' },
   };
   const HOSTS = ['quasar.yandex.net', 'rpc.alice.yandex.net', 'uniproxy.alice.yandex.net', 'egress.yandex.net'];
   const TYPES = ['application/json', 'application/x-protobuf', 'text/plain', 'application/octet-stream'];

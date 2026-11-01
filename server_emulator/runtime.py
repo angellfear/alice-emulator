@@ -964,6 +964,15 @@ def mount_ui(app, runtime, prefix="/emulator"):
 
     from .ui.api import setup as setup_api
     app.router.add_post(prefix + "/api/catalog/apk", guarded(runtime.catalog.upload))
+    # TASK-070: иконка панели — запросы браузера к серверу не попадают в «HTTP без эндпоинта»
+    favicon = ROOT.parent / "tools" / "assets" / "alica.ico"
+
+    async def icon(request):
+        if favicon.is_file():
+            return web.FileResponse(favicon, headers={"Cache-Control": "max-age=86400"})
+        raise web.HTTPNotFound()
+
+    app.router.add_get("/favicon.ico", icon)
     app.router.add_post(prefix + "/api/setup/protocol", guarded(lambda request: setup_api.upload(request, runtime)))
     app.router.add_post(prefix + "/api/setup/images", guarded(lambda request: setup_api.refresh_images(request, runtime)))
     app.router.add_route("PUT", prefix + "/api/catalog/apps/{id}", guarded(runtime.catalog.edit))

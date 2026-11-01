@@ -166,3 +166,28 @@ HTTP — `METHOD host path` без query; WS — `ws → Event.<имя>` (кол
 Запрос оригинала для каталога URL выполняется мимо маршрута (прямая сессия) с заголовком
 `X-Alice-Update-Probe: 1`; ответ на такой маркер — 508 (петля закрыта). Журнал — как в эмуляции
 (`journal_emulated` по опции «Запись»). Остальной трафик «Прозрачно» не меняется.
+
+## Обновление 2026-11-01: встроенные ответы без эндпоинтов (TASK-070)
+
+Промахи рабочего сервера («HTTP без эндпоинта») обслуживаются встроенными ответами
+(`endpoints.py: BUILTIN_SILENCERS`, вызов — `Dispatcher.builtin_answer` в fallback'е, после
+каталога эндпоинтов). Пользовательский эндпоинт с тем же URL перекрывает встроенный (защиты URL,
+как у Квазара/Обновлений, нет). В «HTTP без эндпоинта» и в журнал трафика («Запись») они не
+пишутся (шум); в каталоге видны в группе «Встроенные ответы».
+
+| Хост и путь | Ответ |
+|---|---|
+| `POST clck.yandex.net/*` (quasar_metrics/tv/quasar/smart_display_errors) | 200, пустое тело |
+| `POST report.appmetrica.yandex.net/report`, `POST rosenberg.appmetrica.yandex.net/location` | 200, пустое тело |
+| `HEAD/GET scbh.yandex.net/generate_204` | 204 без тела |
+| `GET egress.yandex.net/` | 200 text/plain — адрес клиента, с которого пришёл запрос (семантика «твой исходящий IP») |
+| `GET soft.export.yandex.ru/status.xml` | 200 `text/xml` `<status>ok</status>` |
+| `POST rpc.alice.yandex.net/gproxy/get_auth_suggests`, `get_teasers` | 200 `{}` |
+| `GET keyboard.yandex.net/experiments` | 200 `{}` |
+| `GET yandex.ru/ads/v1/startup` | 200 `{}` |
+| `GET avatars.yandex.net/get-music-content/…`, `get-video-content/…` | пересылка настоящему серверу (цель — `upstream.target_for_host`, алиасы учитываются), ответ кешируется в `state/cache/avatars` (лимит 200 МБ, срок 7 дней, вытеснение самого старого); без сети — кеш (даже протухший), затем 404; Range-запросы проходят насквозь без кеша |
+
+Форматы, для которых в журнале не нашлось образцов (метрики, status.xml, `{}`) — безопасный
+минимум «успех»; если колонке потребуется что-то другое, ответ видно в «Прозрачно» и
+перекрывается своим эндпоинтом. Запросы браузера к самой панели (`favicon.ico` — отдаётся
+`tools/assets/alica.ico`; `/`, `/emulator/*`, `/me` — маршруты панели) — не промахи.
