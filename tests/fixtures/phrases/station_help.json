@@ -8,11 +8,11 @@
    "phrases": [
     {
      "text": "включи майкла джексона",
-     "expect": null
+     "expect": "media.music"
     },
     {
      "text": "запусти наутилус помпилиус",
-     "expect": null
+     "expect": "media.music"
     },
     {
      "text": "поставь альбом группа крови",
@@ -20,7 +20,7 @@
     },
     {
      "text": "давай послушаем химеру",
-     "expect": null
+     "expect": "media.music"
     },
     {
      "text": "запусти песню ромашки",
@@ -40,35 +40,35 @@
     },
     {
      "text": "включи другую версию",
-     "expect": null
+     "expect": "media.player"
     },
     {
      "text": "включи аудиокнигу дюна",
-     "expect": null
+     "expect": "media.music"
     },
     {
      "text": "запусти книгу война и мир",
-     "expect": null
+     "expect": "media.music"
     },
     {
      "text": "замедли",
-     "expect": null
+     "expect": "media.player"
     },
     {
      "text": "ускорь в полтора раза",
-     "expect": null
+     "expect": "media.player"
     },
     {
      "text": "поставь скорость 2",
-     "expect": null
+     "expect": "media.player"
     },
     {
      "text": "какая скорость воспроизведения",
-     "expect": null
+     "expect": "media.player"
     },
     {
      "text": "продолжи книгу волшебник изумрудного города",
-     "expect": null
+     "expect": "media.player"
     },
     {
      "text": "давай послушаем дискотеку 80-х",
@@ -80,15 +80,15 @@
     },
     {
      "text": "включи шум дождя",
-     "expect": null
+     "expect": "media.sounds"
     },
     {
      "text": "поставь пение птиц",
-     "expect": null
+     "expect": "media.sounds"
     },
     {
      "text": "давай послушаем шум океана",
-     "expect": null
+     "expect": "media.sounds"
     },
     {
      "text": "продолжи",
@@ -119,7 +119,7 @@
     },
     {
      "text": "врубай новую музыку",
-     "expect": null
+     "expect": "media.music"
     },
     {
      "text": "включи музыкальные новинки",
@@ -127,23 +127,23 @@
     },
     {
      "text": "запусти самое популярное",
-     "expect": null
+     "expect": "media.music"
     },
     {
      "text": "давай послушаем популярную музыку",
-     "expect": null
+     "expect": "media.music"
     },
     {
      "text": "включи русскую поп-музыку",
-     "expect": null
+     "expect": "media.music"
     },
     {
      "text": "запусти диско",
-     "expect": null
+     "expect": "media.music"
     },
     {
      "text": "врубай индастриал",
-     "expect": null
+     "expect": "media.music"
     },
     {
      "text": "включи трек в жанре джаз",
@@ -155,11 +155,11 @@
     },
     {
      "text": "включи радостное",
-     "expect": null
+     "expect": "media.music"
     },
     {
      "text": "давай послушаем грустное",
-     "expect": null
+     "expect": "media.music"
     },
     {
      "text": "поставь осеннее",
@@ -171,7 +171,7 @@
     },
     {
      "text": "давай послушаем фоновую музыку",
-     "expect": null
+     "expect": "media.music"
     },
     {
      "text": "врубай музыку для вечеринки",
@@ -179,7 +179,7 @@
     },
     {
      "text": "запусти вечные хиты",
-     "expect": null
+     "expect": "media.music"
     },
     {
      "text": "включи музыку 80-х",
@@ -187,7 +187,7 @@
     },
     {
      "text": "давай послушаем русскую музыку",
-     "expect": null
+     "expect": "media.music"
     },
     {
      "text": "поставь кельтскую музыку",
@@ -199,7 +199,7 @@
     },
     {
      "text": "давай послушаем инструментальную музыку",
-     "expect": null
+     "expect": "media.music"
     },
     {
      "text": "поставь музыку на русском языке",
@@ -207,11 +207,11 @@
     },
     {
      "text": "включи веселый рок для тренировки",
-     "expect": null
+     "expect": "media.music"
     },
     {
      "text": "включи что-нибудь новенькое",
-     "expect": null
+     "expect": "media.music"
     }
    ]
   },
@@ -222,7 +222,7 @@
    "phrases": [
     {
      "text": "включи мою музыку",
-     "expect": null
+     "expect": "media.music"
     },
     {
      "text": "включи плейлист мои избранные треки",
@@ -238,23 +238,23 @@
     },
     {
      "text": "нравится",
-     "expect": null
+     "expect": "media.player"
     },
     {
      "text": "лайк",
-     "expect": null
+     "expect": "media.player"
     },
     {
      "text": "классный трек",
-     "expect": null
+     "expect": "media.player"
     },
     {
      "text": "не нравится",
-     "expect": null
+     "expect": "media.player"
     },
     {
      "text": "дизлайк",
-     "expect": null
+     "expect": "media.player"
     }
    ]
   },
@@ -311,11 +311,11 @@
    "phrases": [
     {
      "text": "включи элвиса пресли вперемешку",
-     "expect": null
+     "expect": "media.music"
     },
     {
      "text": "запусти metallica вперемешку",
-     "expect": null
+     "expect": "media.music"
     },
     {
      "text": "врубай плейлист хорошее настроение вперемешку",
@@ -331,11 +331,11 @@
     },
     {
      "text": "замолчи",
-     "expect": null
+     "expect": "device.player.pause"
     },
     {
      "text": "закончи",
-     "expect": null
+     "expect": "device.player.pause"
     },
     {
      "text": "продолжай играть",
@@ -359,7 +359,7 @@
     },
     {
      "text": "хочу что-нибудь другое",
-     "expect": null
+     "expect": "media.player"
     },
     {
      "text": "пропустить",
@@ -379,11 +379,11 @@
     },
     {
      "text": "начни сначала",
-     "expect": null
+     "expect": "media.player"
     },
     {
      "text": "зациклить трек",
-     "expect": null
+     "expect": "media.player"
     },
     {
      "text": "включи песню по барам на повторе",
@@ -391,11 +391,11 @@
     },
     {
      "text": "на 10 секунд вперед",
-     "expect": null
+     "expect": "media.player"
     },
     {
      "text": "на 20 секунд назад",
-     "expect": null
+     "expect": "media.player"
     },
     {
      "text": "сделай громче",
@@ -423,7 +423,7 @@
     },
     {
      "text": "продолжи музыку везде",
-     "expect": null
+     "expect": "media.player"
     },
     {
      "text": "включи везде",
@@ -478,7 +478,7 @@
     },
     {
      "text": "хватит",
-     "expect": null
+     "expect": "device.player.pause"
     }
    ]
   },

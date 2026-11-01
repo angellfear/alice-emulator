@@ -22,6 +22,7 @@
       "media.playback",
       "media.player",
       "media.radio",
+      "media.sounds",
       "media.tales",
       "smart_home.light",
       "system.agent_say",
@@ -95,12 +96,7 @@
               "handled": true,
               "messages": [
                 {
-                  "cards": [
-                    {
-                      "text": "Приложение «спотифай» найдено. Запуск пока не поддерживается: директива запуска не восстановлена в схеме.",
-                      "type": "simple_text"
-                    }
-                  ],
+                  "cards": [],
                   "directives": [
                     {
                       "analytics": "tts_play_placeholder",
@@ -114,12 +110,12 @@
                   ],
                   "event": "AliceResponse",
                   "has_voice": false,
-                  "speech": "Приложение «спотифай» найдено. Запуск пока не поддерживается: директива запуска не восстановлена в схеме."
+                  "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
                 }
               ],
               "reason": "template",
-              "scenario": "device.app.open",
-              "speech": "Приложение «спотифай» найдено. Запуск пока не поддерживается: директива запуска не восстановлена в схеме.",
+              "scenario": "media.music",
+              "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
               "speech_parts": [],
               "status": "finished",
               "text": "запусти спотифай"
@@ -2234,6 +2230,201 @@
         }
       ],
       "id": "media.radio"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "включи звуки природы"
+          },
+          "name": "media.sounds-trigger0-0",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
+                }
+              ],
+              "reason": "template",
+              "scenario": "media.music",
+              "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "включи звуки природы"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "звуки природы"
+          },
+          "name": "media.sounds-trigger0-1",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Звуков природы в библиотеке нет — добавьте файлы в state/media/sounds (вкладка «Голос → Медиа»)."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "media.sounds",
+              "speech": "Звуков природы в библиотеке нет — добавьте файлы в state/media/sounds (вкладка «Голос → Медиа»).",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "звуки природы"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "включи шум дождя"
+          },
+          "name": "media.sounds-trigger0-2",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Звуков природы в библиотеке нет — добавьте файлы в state/media/sounds (вкладка «Голос → Медиа»)."
+                }
+              ],
+              "reason": "template",
+              "scenario": "media.sounds",
+              "speech": "Звуков природы в библиотеке нет — добавьте файлы в state/media/sounds (вкладка «Голос → Медиа»).",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "включи шум дождя"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "включи пение птиц"
+          },
+          "name": "media.sounds-trigger0-3",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Звуков природы в библиотеке нет — добавьте файлы в state/media/sounds (вкладка «Голос → Медиа»)."
+                }
+              ],
+              "reason": "template",
+              "scenario": "media.sounds",
+              "speech": "Звуков природы в библиотеке нет — добавьте файлы в state/media/sounds (вкладка «Голос → Медиа»).",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "включи пение птиц"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "включи шум океана"
+          },
+          "name": "media.sounds-trigger0-4",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Звуков природы в библиотеке нет — добавьте файлы в state/media/sounds (вкладка «Голос → Медиа»)."
+                }
+              ],
+              "reason": "template",
+              "scenario": "media.sounds",
+              "speech": "Звуков природы в библиотеке нет — добавьте файлы в state/media/sounds (вкладка «Голос → Медиа»).",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "включи шум океана"
+            }
+          ]
+        }
+      ],
+      "id": "media.sounds"
     },
     {
       "cases": [

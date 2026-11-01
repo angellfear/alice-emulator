@@ -39,7 +39,9 @@ def load_corpus(path=CORPUS):
 
 def make_runtime(directory):
     """Runtime на временной папке: маршрутизация как на живом экземпляре, без сети
-    (плагин погоды отвечает отказом — сценарий даёт честную ошибку данных)."""
+    (плагин погоды отвечает отказом — сценарий даёт честную ошибку данных). Библиотека
+    — демо-файлы с названиями из корпуса: голые запросы («включи майкла джексона»)
+    должны находить музыку, иначе честный отказ не отличить от промаха."""
     from server_emulator.runtime import Runtime
 
     runtime = Runtime(directory)
@@ -48,6 +50,30 @@ def make_runtime(directory):
         return None
 
     runtime.scenario_plugins["weather"] = lambda fetch, session: _no_weather
+    media_root = runtime.directory / "media"
+    for relative in ("music/Майкл Джексон/Beat It.mp3", "music/Наутилус Помпилиус/Химера.mp3",
+                     "music/Кино/Группа крови.mp3", "music/Ромашки/Ромашки.mp3",
+                     "music/Вечно молодой.mp3", "music/Белые розы.mp3", "music/Мое сердце.mp3",
+                     "music/Элвис Пресли/Hound Dog.mp3", "music/Metallica/Enter Sandman.mp3",
+                     "music/Аудиокниги/Дюна.mp3", "music/Аудиокниги/Книга Война и мир.mp3",
+                     "music/Диско/Диско.mp3",
+                     "music/Индастриал/Индастриал.mp3", "music/Настроение/Радостное.mp3",
+                     "music/Настроение/Грустное.mp3", "music/Настроение/Осеннее.mp3",
+                     "music/Хиты/Вечные хиты.mp3", "music/Новая музыка/Новая музыка.mp3",
+                     "music/Популярное/Популярная музыка.mp3", "music/Жанры/Русская поп музыка.mp3",
+                     "music/Тренировка/Веселый рок.mp3", "music/Фон/Фоновая музыка.mp3",
+                     "music/Кельтская музыка.mp3", "music/Чарт/Самое популярное.mp3",
+                     "tales/Пряничный домик.mp3",
+                     "tales/Сергей Лазарев/Сказка.mp3",
+                     "sounds/Шум дождя.mp3", "sounds/Пение птиц.mp3", "sounds/Шум океана.mp3"):
+        path = media_root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"ID3demo" * 8)
+    (media_root / "likes.json").write_text(
+        json.dumps({"": {"music": {"like": ["Ромашки/Ромашки.mp3"], "dislike": []}}}, ensure_ascii=False),
+        encoding="utf-8")
+    runtime.settings.setdefault("media", {})["radio"] = [
+        {"name": "Европа Плюс", "url": "http://demo.example/europa"}]
     return runtime
 
 
@@ -60,14 +86,17 @@ async def run_corpus(corpus, runtime=None):
     try:
         results = []
         for section in corpus["sections"]:
-            for phrase in section["phrases"]:
+            for index, phrase in enumerate(section["phrases"]):
                 text = phrase["text"]
                 ctx = {"input": {"message_id": "coverage", "request_id": "coverage",
-                                 "dialog_id": "coverage", "sn": "", "text": text},
+                                 "dialog_id": f"coverage-{len(results)}-{index}", "sn": "",
+                                 "text": text},
                        "clock": {"now": datetime.datetime.now()}, "dry_run": True}
                 ctx.update(runtime._scenario_context(sn=""))
-                report = await runtime.dialog.handle_text(text, ctx, "coverage", None,
-                                                          deliver=False)
+                # свой dialog_id на фразу: сценарий в ожидании уточнения (awaiting)
+                # не должен продолжаться на следующей фразе
+                report = await runtime.dialog.handle_text(text, ctx, ctx["input"]["dialog_id"],
+                                                          None, deliver=False)
                 scenario = report.get("scenario") if report.get("handled") else None
                 expect = phrase.get("expect")
                 verdict = "miss" if scenario is None else ("ok" if scenario == expect else "other")

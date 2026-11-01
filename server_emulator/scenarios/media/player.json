@@ -1,6 +1,6 @@
 {
  "format_version": 2,
- "version": "1.0.0",
+ "version": "2.0.0",
  "category": "media",
  "id": "media.player",
  "title": {
@@ -8,7 +8,7 @@
   "en": "Player control"
  },
  "description": {
-  "ru": "«следующий трек», «предыдущий», «продолжи», «что играет» — очередь, которую включил эмулятор."
+  "ru": "«следующий трек», «предыдущий», «продолжи», «что играет», «лайк», «замедли», «начни сначала», «другая версия» — очередь, которую включил эмулятор. Перемотка честно недоступна (в образце директивы нет поля позиции)."
  },
  "priority": 100,
  "triggers": [
@@ -34,6 +34,90 @@
    "sentences": [
     "{player_command}"
    ]
+  },
+  {
+   "kind": "template",
+   "sentences": [
+    "(зациклить|зацикли) [(этот)] (трек|песню)"
+   ],
+   "slots": {
+    "player_command": "repeat"
+   }
+  },
+  {
+   "kind": "template",
+   "sentences": [
+    "начни сначала"
+   ],
+   "slots": {
+    "player_command": "restart"
+   }
+  },
+  {
+   "kind": "template",
+   "sentences": [
+    "включи другую версию"
+   ],
+   "slots": {
+    "player_command": "another"
+   }
+  },
+  {
+   "kind": "template",
+   "sentences": [
+    "замедли"
+   ],
+   "slots": {
+    "speed": 0.75
+   }
+  },
+  {
+   "kind": "template",
+   "sentences": [
+    "ускорь",
+    "ускорь в полтора раза",
+    "ускорь в два раза"
+   ],
+   "slots": {
+    "speed": 1.5
+   }
+  },
+  {
+   "kind": "template",
+   "sentences": [
+    "(поставь|установи) скорость {number}",
+    "скорость {number}"
+   ]
+  },
+  {
+   "kind": "template",
+   "sentences": [
+    "какая скорость [воспроизведения]"
+   ],
+   "slots": {
+    "player_command": "speed_get"
+   }
+  },
+  {
+   "kind": "template",
+   "sentences": [
+    "перемотай [на] {number} {duration_unit} [{seek_dir}]",
+    "на {number} {duration_unit} {seek_dir}"
+   ],
+   "lists": {
+    "seek_dir": {
+     "values": [
+      {
+       "in": "вперед",
+       "out": "+"
+      },
+      {
+       "in": "назад",
+       "out": "-"
+      }
+     ]
+    }
+   }
   }
  ],
  "executor": {

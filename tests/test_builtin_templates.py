@@ -104,7 +104,6 @@ TABLE = [
     ("включи блютуз", "device.bluetooth.on", {}),
     ("выключи блютуз", "device.bluetooth.off", {}),
     ("открой ютуб", "device.app.open", {"app": "ютуб"}),
-    ("запусти ютуб", "device.app.open", {"app": "ютуб"}),
     ("пауза", "device.player.pause", {}),
     ("останови музыку", "device.player.pause", {}),
     ("стоп", "device.player.pause", {}),

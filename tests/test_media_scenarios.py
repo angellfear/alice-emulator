@@ -107,7 +107,8 @@ async def test_play_music_scenario_and_range_serving(tmp_path):
         directives = directives_of(report)
         play = next(payload for name, payload in directives if name == "audio_play")
         assert play["stream"]["type"] == "Track" and play["stream"]["format"] == "MP3"
-        assert play["metadata"]["title"] == "song one"
+        # вся библиотека вперемешку: любой из двух файлов первым
+        assert play["metadata"]["title"] in {"song one", "smooth"}
         assert play["metadata"]["art_image_url"].endswith("/media/music/song%20one.jpg")
         # файл раздаётся; Range — частичный ответ
         async with ClientSession() as client:
@@ -121,9 +122,9 @@ async def test_play_music_scenario_and_range_serving(tmp_path):
                 assert await response.read() == SONG[:10]
             async with client.get(url + "/media/../settings.json") as response:
                 assert response.status == 404  # выход за папку закрыт
-        # очередь запомнена: «следующий трек» — второй файл
+        # очередь запомнена: вся библиотека, порядок вперемешку
         state = runtime.media_state["SN-T"]
-        assert [track["name"] for track in state["queue"]] == ["song one", "smooth"]
+        assert sorted(track["name"] for track in state["queue"]) == ["smooth", "song one"]
     finally:
         await runner.cleanup()
         await runtime.close()
@@ -151,19 +152,21 @@ async def test_player_control_and_radio(tmp_path):
     runtime = Runtime(tmp_path)
     make_library(tmp_path)
     runtime.settings["media"] = {"radio": [{"name": "Джаз ФМ", "url": "http://stream.example/jazz"}]}
-    await reply_for(runtime, "включи музыку", sn="SN-T")
-    # следующий/предыдущий/что играет
-    report = await reply_for(runtime, "следующий трек", sn="SN-T")
-    play = next(payload for name, payload in directives_of(report) if name == "audio_play")
-    assert play["metadata"]["title"] == "smooth"
-    report = await reply_for(runtime, "предыдущий трек", sn="SN-T")
-    play = next(payload for name, payload in directives_of(report) if name == "audio_play")
-    assert play["metadata"]["title"] == "song one"
+    await reply_for(runtime, "включи музыку джаз", sn="SN-T")
+    # что играет / пауза на треке из папки Джаз
     report = await reply_for(runtime, "что играет", sn="SN-T")
-    assert "song one" in " ".join(cards_of(report))
+    assert "smooth" in " ".join(cards_of(report))
     report = await reply_for(runtime, "пауза", sn="SN-T")
     play = next(payload for name, payload in directives_of(report) if name == "audio_play")
-    assert play["stream"]["url"].endswith("song%20one.mp3") and play["set_pause"] is True
+    assert play["stream"]["url"].endswith("smooth.mp3") and play["set_pause"] is True
+    # вся библиотека вперемешку: следующий/предыдущий ходят по очереди из двух файлов
+    await reply_for(runtime, "включи музыку", sn="SN-T")
+    report = await reply_for(runtime, "следующий трек", sn="SN-T")
+    play = next(payload for name, payload in directives_of(report) if name == "audio_play")
+    assert play["metadata"]["title"] in {"song one", "smooth"}
+    report = await reply_for(runtime, "предыдущий трек", sn="SN-T")
+    play = next(payload for name, payload in directives_of(report) if name == "audio_play")
+    assert play["metadata"]["title"] in {"song one", "smooth"}
     # радио по имени; неизвестная станция — честный ответ
     report = await reply_for(runtime, "включи радио джаз", sn="SN-T")
     play = next(payload for name, payload in directives_of(report) if name == "audio_play")
@@ -186,7 +189,8 @@ async def test_playback_provider_advances_queue(tmp_path):
     report = await runtime.dialog.handle_event("media.playback_ended", ctx, "dg", send)
     assert report["handled"]
     play = next(payload for name, payload in directives_of_sent(sent) if name == "audio_play")
-    assert play["metadata"]["title"] == "smooth"  # очередь перешла на второй
+    titles = {track["name"] for track in runtime.media_state["SN-T"]["queue"]}
+    assert play["metadata"]["title"] in titles and runtime.media_state["SN-T"]["index"] == 1
     sent.clear()
     report = await runtime.dialog.handle_event("media.next_requested", ctx, "dg", send)
     assert report["handled"] and not directives_of_sent(sent)  # очередь кончилась — тихий ответ
@@ -219,4 +223,154 @@ async def test_media_api_upload_delete_and_radio(tmp_path):
             assert not list((runtime.directory / "media" / "music").rglob("*.mp3"))  # файл и папка удалены
     finally:
         await runner.cleanup()
+        await runtime.close()
+
+
+def _id3_file(path, title, artist, album="", genre=""):
+    """mp3-заглушка с ID3v2.4-тегами (кодировка utf-8)."""
+    def frame(fid, text):
+        payload = b"\x03" + text.encode("utf-8")
+        return fid + len(payload).to_bytes(4, "big") + b"\x00\x00" + payload
+    frames = frame(b"TIT2", title) + frame(b"TPE1", artist)
+    if album:
+        frames += frame(b"TALB", album)
+    if genre:
+        frames += frame(b"TCON", genre)
+    path.write_bytes(b"ID3\x04\x00\x00" + bytes(((len(frames) >> 21) & 0x7F, (len(frames) >> 14) & 0x7F,
+                                                 (len(frames) >> 7) & 0x7F, len(frames) & 0x7F)) + frames)
+
+
+def _payload_of(report):
+    play = next((payload for name, payload in directives_of(report) if name == "audio_play"), None)
+    assert play is not None, report.get("speech")
+    return play
+
+
+async def test_search_by_tags_and_stems(tmp_path):
+    """Поиск по тегам и путям с склонением по основе; название трека — из тега."""
+    runtime = Runtime(tmp_path)
+    music = tmp_path / "media" / "music" / "Тутси"
+    music.mkdir(parents=True)
+    _id3_file(music / "hit.mp3", "Самый, самый", "Тутси", album="Лучшее", genre="Поп")
+    (tmp_path / "media" / "music" / "Майкл Джексон" / "Beat It.mp3").parent.mkdir(parents=True)
+    (tmp_path / "media" / "music" / "Майкл Джексон" / "Beat It.mp3").write_bytes(b"ID3" + b"\x00" * 10)
+    try:
+        report = await reply_for(runtime, "включи музыку тутси", sn="SN-T")
+        play = _payload_of(report)
+        assert play["metadata"]["title"] == "Самый, самый" and play["metadata"]["subtitle"] == "Тутси"
+        report = await reply_for(runtime, "включи майкла джексона", sn="SN-T")
+        play = _payload_of(report)
+        assert play["stream"]["url"].endswith("Beat%20It.mp3")
+        report = await reply_for(runtime, "включи музыку металлика", sn="SN-T")
+        assert "В библиотеке нет музыки с названием «металлика»" in " ".join(cards_of(report))
+    finally:
+        await runtime.close()
+
+
+async def test_play_modes_repeat_and_favorites(tmp_path):
+    """«на повторе» — очередь из одного трека; «нравится» — избранное; «мою музыку» его играет;
+    дизлайк исключает трек из выдачи."""
+    runtime = Runtime(tmp_path)
+    make_library(tmp_path)
+    (tmp_path / "media" / "music" / "Белые розы.mp3").write_bytes(SONG)
+    try:
+        report = await reply_for(runtime, "включи песню белые розы на повторе", sn="SN-T")
+        play = _payload_of(report)
+        assert play["metadata"]["title"] == "Белые розы"
+        state = runtime.media_state["SN-T"]
+        assert len(state["queue"]) == 1  # один трек на повторе
+        # лайк текущего трека и включение избранного
+        await reply_for(runtime, "лайк", sn="SN-T")
+        report = await reply_for(runtime, "включи мою музыку", sn="SN-T")
+        assert "В избранном" not in " ".join(cards_of(report))
+        state = runtime.media_state["SN-T"]
+        assert [track["name"] for track in state["queue"]] == ["Белые розы"]
+        # дизлайк: трек пропускается и больше не предлагается
+        report = await reply_for(runtime, "не нравится", sn="SN-T")
+        assert report["handled"]
+        import json as _json
+        marks = _json.loads((tmp_path / "media" / "likes.json").read_text(encoding="utf-8"))
+        assert marks["SN-T"]["music"]["dislike"] == ["Белые розы.mp3"]
+        assert marks["SN-T"]["music"]["like"] == []  # «не нравится» сняло лайк
+        report = await reply_for(runtime, "включи мою музыку", sn="SN-T")
+        assert "В избранном" in " ".join(cards_of(report))
+    finally:
+        await runtime.close()
+
+
+async def test_player_speed_restart_another_and_seek(tmp_path):
+    """Скорость (playback_speed из образца), «начни сначала», «другая версия»;
+    перемотка честно недоступна — в образце директивы нет поля позиции."""
+    runtime = Runtime(tmp_path)
+    make_library(tmp_path)
+    (tmp_path / "media" / "music" / "smooth remix.mp3").write_bytes(b"ID3remix" * 8)
+    try:
+        await reply_for(runtime, "включи музыку джаз", sn="SN-T")
+        report = await reply_for(runtime, "замедли", sn="SN-T")
+        assert _payload_of(report)["playback_speed"] == 0.75
+        report = await reply_for(runtime, "поставь скорость 2", sn="SN-T")
+        assert _payload_of(report)["playback_speed"] == 2.0
+        report = await reply_for(runtime, "какая скорость воспроизведения", sn="SN-T")
+        assert "2.0" in " ".join(cards_of(report))
+        report = await reply_for(runtime, "начни сначала", sn="SN-T")
+        assert _payload_of(report)["stream"]["url"].endswith("smooth.mp3")
+        report = await reply_for(runtime, "включи другую версию", sn="SN-T")
+        assert _payload_of(report)["stream"]["url"].endswith("smooth%20remix.mp3")
+        report = await reply_for(runtime, "перемотай на 10 минут вперед", sn="SN-T")
+        assert "Перемотку" in " ".join(cards_of(report))
+    finally:
+        await runtime.close()
+
+
+async def test_sounds_scenario(tmp_path):
+    """Звуки природы: файл из state/media/sounds играет; пустая папка — честный ответ."""
+    runtime = Runtime(tmp_path)
+    sounds = tmp_path / "media" / "sounds"
+    sounds.mkdir(parents=True)
+    (sounds / "Шум дождя.mp3").write_bytes(SONG)
+    try:
+        report = await reply_for(runtime, "включи шум дождя", sn="SN-T")
+        play = _payload_of(report)
+        assert play["stream"]["url"].endswith("sounds/%D0%A8%D1%83%D0%BC%20%D0%B4%D0%BE%D0%B6%D0%B4%D1%8F.mp3")
+    finally:
+        await runtime.close()
+    empty = Runtime(tmp_path / "empty")
+    try:
+        report = await reply_for(empty, "поставь пение птиц", sn="SN-E")
+        assert "state/media/sounds" in " ".join(cards_of(report))
+    finally:
+        await empty.close()
+
+
+async def test_least_played_and_dislike_filter(tmp_path):
+    """«что-нибудь новенькое» — давно не игранное; дизлайк не предлагается."""
+    from server_emulator import media as media_mod
+
+    runtime = Runtime(tmp_path)
+    library = MediaLibrary(tmp_path)
+    (tmp_path / "media" / "music").mkdir(parents=True)
+    (tmp_path / "media" / "music" / "a.mp3").write_bytes(SONG)
+    (tmp_path / "media" / "music" / "b.mp3").write_bytes(SONG)
+    media_mod.note_played(runtime, "u1", "music", "a.mp3")
+    assert media_mod.least_played(library, runtime, "u1", "music")[0] == "b.mp3"
+    # дизлайк исключается из выдачи play_library
+    media_mod.mark_track(library, "u1", "music", "a.mp3", "dislike")
+    found = library.search("music", "")
+    assert [posix for posix, _size in found if posix != "a.mp3"] == ["b.mp3"]
+    reply = runtime.media_state and None
+    player = Player(runtime, "SN-T", base="http://127.0.0.1/media")
+    assert player.play_library(library, "music", query="a", user="u1") is None
+    await runtime.close()
+
+
+async def test_repeat_current_track(tmp_path):
+    """«зациклить трек» — очередь из одного текущего трека."""
+    runtime = Runtime(tmp_path)
+    make_library(tmp_path)
+    try:
+        await reply_for(runtime, "включи музыку джаз", sn="SN-T")
+        report = await reply_for(runtime, "зациклить трек", sn="SN-T")
+        assert _payload_of(report)["metadata"]["title"] == "smooth"
+        assert [track["name"] for track in runtime.media_state["SN-T"]["queue"]] == ["smooth"]
+    finally:
         await runtime.close()

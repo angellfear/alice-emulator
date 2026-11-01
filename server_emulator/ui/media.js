@@ -15,7 +15,7 @@
   }
   async function work(fn) { try { await fn(); } catch (e) { notice(e.message, true); } }
 
-  const KINDS = [['music', 'Музыка'], ['tales', 'Сказки']];
+  const KINDS = [['music', 'Музыка'], ['tales', 'Сказки'], ['sounds', 'Звуки']];
   let kind = 'music';
 
   // --- библиотека ------------------------------------------------------------

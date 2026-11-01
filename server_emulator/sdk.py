@@ -440,6 +440,11 @@ class ScenarioContext:
         return self._ctx.get("device") or {}
 
     @property
+    def user(self):
+        """Профиль владельца колонки: id, name, location, fields (корень user контекста)."""
+        return self._ctx.get("user") or {}
+
+    @property
     def media_base(self):
         """База URL раздачи медиа для этой колонки (TASK-071): http://<адрес>/media."""
         return str(self._ctx.get("media_base") or "")
