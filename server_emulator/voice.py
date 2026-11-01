@@ -8,6 +8,8 @@ import json
 
 import re
 
+import time
+
 import uuid
 
 
@@ -119,6 +121,14 @@ def _semantic_frame_name(payload):
 
 
 
+def _printable_preview(raw, limit=400):
+    """Читаемые строки из сырого дампа возможности (protobuf без схемы): состояние экрана
+    и плеера колонка присылает текстом внутри структуры — строка для контекста устройства."""
+    strings = re.findall(r'[A-Za-zА-Яа-яЁё0-9 ._/:()+\-,—]{4,}', (raw or b'').decode('utf-8', 'ignore'))
+    return ' | '.join(dict.fromkeys(string.strip() for string in strings))[:limit]
+
+
+
 
 
 def service_event_fields(request, event_obj):
@@ -218,6 +228,12 @@ class Conversation:
         self.trace_context = trace_context if trace_context is not None else {}
 
         self.trace_by_channel = {}
+
+        # TASK-069: биометрия говорящего и состояние возможностей колонки (сессия устройства)
+
+        self.speaker = None
+
+        self.capabilities = {}
 
 
 
@@ -789,6 +805,64 @@ class Conversation:
 
 
 
+    # TASK-069: служебные события состояния колонки. Облако на них не отвечает (образец
+    # журнала 2026-11-01: после MatchedUser/CapabilityUpdateState нет сообщений с их
+    # MessageId в RefMessageId) — данные сохраняются, события считаются обработанными.
+
+    def _session_record(self):
+        """Запись сессии этого соединения в runtime.sessions (нет — None)."""
+        sessions = getattr(self.runtime, 'sessions', None)
+        return (sessions or {}).get(self.trace_context.get('session')) if sessions is not None else None
+
+    @aapi_handler('MatchedUser')
+
+    async def _on_matched_user(self, incoming, trigger):
+        """Биометрия говорящего: колонка распознала голос (взрослый/ребёнок, пол) к текущему
+        запросу. Оценки — в контексте разговора и сессии устройства; ответа нет."""
+        classification = incoming.Event.MatchedUser.Request.Event.BiometryClassification
+        speaker = {'scores': {score.ClassName: round(score.Confidence, 3) for score in classification.Scores
+                              if score.ClassName},
+                   'simple': {item.Tag: item.ClassName for item in classification.Simple
+                              if item.Tag and item.ClassName},
+                   'ts': time.time()}
+        self.speaker = speaker
+        session = self._session_record()
+        if session is not None:
+            session['speaker'] = speaker
+        return True
+
+    @aapi_handler('CapabilityUpdateState')
+
+    async def _on_capability_update_state(self, incoming, trigger):
+        """Состояние возможностей колонки (экран, плеер, громкость…). Последнее состояние
+        каждого типа — в сессии устройства (память, без записи в БД) и в контексте устройства."""
+        event = incoming.Event.CapabilityUpdateState
+        raw = bytes(event.AnyCapability.RawCapability) if event.AnyCapability.RawCapability \
+            else bytes(event.Capability.value)
+        descriptor = event.DESCRIPTOR.fields_by_name['CapabilityType']
+        number = event.CapabilityType or event.AnyCapability.CapabilityType
+        name = (descriptor.enum_type.values_by_number.get(number)
+                or descriptor.enum_type.values_by_number[0]).name
+        entry = {'ts': time.time(), 'bytes': len(raw), 'preview': _printable_preview(raw)}
+        self.capabilities[name] = entry
+        session = self._session_record()
+        if session is not None:
+            session.setdefault('capabilities', {})[name] = dict(entry, raw=raw)
+        return True
+
+    @aapi_handler('ContinueRequest')
+
+    async def _on_continue_request(self, incoming, trigger):
+        """Колонка просит продолжить ответ (RequestMessageId). Поведение облака не разобрано
+        (образца в журнале нет): ответа нет, событие — в журнал сервера до разбора."""
+        self.runtime.server_log.log('warning', 'ws',
+                                    'ContinueRequest получен — поведение не разобрано, ответа нет (нужен образец)',
+                                    device_sn=self.trace_context.get('sn') or None,
+                                    request_message_id=incoming.Event.ContinueRequest.RequestMessageId)
+        return True
+
+
+
     @aapi_handler(*CONTROL_REPLIES)
 
     async def _on_control(self, incoming, trigger):
@@ -1316,7 +1390,9 @@ class Conversation:
 
                                                  dialog_id=getattr(request.Header, 'DialogId', '') or '',
 
-                                                 request_id=getattr(request.Header, 'RequestId', '') or '')
+                                                 request_id=getattr(request.Header, 'RequestId', '') or '',
+
+                                                 speaker=self.speaker)  # TASK-069: кто говорит
 
             answer = await (self._chat_or_defer(chat, incoming, request, text, defer, trace) if defer else chat)
 

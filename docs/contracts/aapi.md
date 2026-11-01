@@ -45,7 +45,10 @@ module: "server_emulator/voice.py"
 | Ack | `delivery=acknowledged` в action_log | volume-set, text-basic | test_quasar_backend |
 | LogSpotter | ответ LogAck с RefMessageId | logspotter-ack | replay-тест; отдельного unit-теста нет |
 | RequestStat | ответ RequestStatAck | cancel-request | test_emulator_and_pcm |
-| MatchedUser / CapabilityUpdateState / SpotterEnd / ContinueRequest / Ping | наблюдаются, обработчиков нет — игнорируются без ошибки | voice-clock (MatchedUser, CapabilityUpdateState) | replay-тест держит соединение |
+| MatchedUser | биометрия говорящего (TASK-069): классификация голоса (`Request.Event.BiometryClassification`: Scores ClassName/Confidence/Tag, Simple) → `conversation.speaker` и `sessions[<соединение>]['speaker']`; в контексте сценариев — `speaker`, агенту — kwargs `speaker`. Облако не отвечает — эмулятор тоже | voice-clock (MatchedUser) | test_aapi_handlers |
+| CapabilityUpdateState | состояние возможностей колонки (TASK-069): `CapabilityType` (enum, напр. AccessibilityVoiceControlType) + `AnyCapability.RawCapability` → последнее состояние каждого типа в `sessions[…]['capabilities']` (память, без БД) и `conversation.capabilities`; в контексте сценариев — `device.capabilities` (preview читаемых строк дампа). Облако не отвечает | voice-clock (CapabilityUpdateState) | test_aapi_handlers |
+| ContinueRequest | колонка просит продолжить ответ (`RequestMessageId`). Поведение облака не разобрано (образца нет): ответа нет, событие — в журнал сервера (source ws, предупреждение склеивается); полное поведение — БЛОКЕР задания 069 | — | test_aapi_handlers |
+| SpotterEnd / Ping | наблюдаются, обработчиков нет — игнорируются без ошибки | voice-clock | replay-тест держит соединение |
 | MusicInput, SyncPushResponse, AsrRecognize, TtsGenerate, DeferredTtsGenerate, DataProxyInput, FileUploadRequest, TtsUpdateState, RecordInput, ClientSubscriptionState, TranslateInput, AudioTranscriptionInputRequest, FinishRequest | не наблюдались в captures; обработчиков нет | — | — |
 
 ## 4. События сервера (TServerMessage.Event, 25 по descriptor)
@@ -211,3 +214,27 @@ WS heartbeat 30 с; max_msg_size 16 MiB; провайдеры model/stt/tts — 
   в `LISTENING` (без «Алиса»), без речи закрывает микрофон через ~5 с (`NoSpeechDetectedError`).
 - Реплика задания попадает и в голосовой тред `voice:<SN>` (agent.md, «Треды»): ответ на вопрос
   задания понятен агенту.
+
+## Обновление 2026-11-01: биометрия и возможности колонки (TASK-069)
+
+Промахи рабочего сервера (`MatchedUser` 91, `CapabilityUpdateState` 49, `ContinueRequest` 1) получили
+встроенные обработчики в `voice.py` (реестр `aapi_handlers`, видны в «WS → Входящие»):
+
+- **MatchedUser** — колонка сообщает классификацию голоса к текущему запросу
+  (`Request.Event.BiometryClassification`: оценки `Scores` {ClassName → Confidence} по тегам
+  children/gender, упрощённо `Simple` {Tag → ClassName}). Сохраняется: `conversation.speaker`,
+  `runtime.sessions[<соединение>]['speaker']`. Сценариям — `speaker` в контексте
+  (`speaker.scores.adult`, `speaker.simple.gender`), агенту — kwargs `speaker`. Ответа нет:
+  в образце журнала («Прозрачно», C00T10001B6SAK, обмены 108–112) облако на событие не отвечает,
+  первый ответ (`InputStartAck`) ссылается на VoiceInput.
+- **CapabilityUpdateState** — состояние возможностей колонки: `CapabilityType` (enum
+  `NAlice.TCapability.ECapabilityType`) и сырой дамп `AnyCapability.RawCapability` (protobuf без
+  схемы — например дерево доступности экрана с именами приложения и текстами). Последнее состояние
+  каждого типа — в `sessions[…]['capabilities']` (только память: ts, размер, preview читаемых строк;
+  БД на каждое событие не пишется) и `conversation.capabilities`; сценариям —
+  `device.capabilities[<тип>]` (preview), агенту — сессия устройства. Ответа нет (образец тот же).
+- **ContinueRequest** — единственное поле `RequestMessageId`; образца ответа облака в журнале нет
+  (вытеснен ротацией). Минимальное поведение: ответа нет, событие считается обработанным (не промах),
+  предупреждение в журнал сервера («Дополнительно → Лог», source ws, повторы склеиваются).
+  Полное поведение — БЛОКЕР: нужен обмен (устройство в «Прозрачно» с «Записью», воспроизвести
+  продолжение долгого ответа).

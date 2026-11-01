@@ -254,6 +254,8 @@ class Runtime:
             params = self.quasar_params.context(user_id=(user or {}).get("id"), sn=(device or {}).get("sn"),
                                                 platform=platform)
             online = {x.get("device_sn") for x in self.sessions.values() if x.get("send")}
+            # TASK-069: биометрия говорящего и состояние возможностей колонки — из WS-сессии
+            session = next((s for s in self.sessions.values() if sn and s.get("device_sn") == sn), None)
             home = []  # колонки владельца: адресация команд между колонками по имени/псевдониму
             for other in self.identities.data["devices"]:
                 if not user or other.get("user_id") != user.get("id"):
@@ -279,8 +281,11 @@ class Runtime:
                                "light": copy.deepcopy(light), "lights": sorted(light),
                                "apps": copy.deepcopy(state.get("apps") if isinstance(state.get("apps"), list) else []),
                                "platform": platform,
-                               "fields": copy.deepcopy((device or {}).get("fields") or {})},
+                               "fields": copy.deepcopy((device or {}).get("fields") or {}),
+                               "capabilities": {name: (entry or {}).get("preview") or ""  # TASK-069
+                                                for name, entry in ((session or {}).get("capabilities") or {}).items()}},
                     "params": params, "home": {"devices": home},
+                    "speaker": copy.deepcopy((session or {}).get("speaker")),
                     "settings": {"weather": copy.deepcopy(self.settings.get("weather") or {})}}
         self._scenario_context = _scenario_context
         self.dialog = DialogManager(self.scenario_executor, self._scenarios,
