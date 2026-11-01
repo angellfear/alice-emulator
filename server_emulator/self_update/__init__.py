@@ -19,6 +19,7 @@ from pathlib import Path
 from aiohttp import ClientError
 
 from .. import auth, version
+from ..server_log import log_event  # TASK-068: события самообновления — в журнал сервера
 from . import check, repo
 
 UPDATE_DIR = "update"
@@ -33,6 +34,7 @@ class Service:
         self.snoozed = False  # «Позже» — до следующей плановой проверки
         self.manual = asyncio.Event()  # «Проверить сейчас» не ждёт интервала
         self.task = None
+        self._reported_release = None  # версию о находке пишет один раз (TASK-068)
 
     # --- фоновая проверка -------------------------------------------------------------
 
@@ -51,6 +53,7 @@ class Service:
     async def _loop(self):
         """Проверка при старте (с задержкой — серверу надо подняться) и затем раз в interval_hours."""
         await asyncio.sleep(45)
+        self._report_last_update()  # TASK-068: итог обновления/отката от updater (отдельный процесс)
         while True:
             try:
                 await self.check()
@@ -91,8 +94,40 @@ class Service:
             result["etag"] = answer["etag"]
         except (LookupError, ClientError, OSError, asyncio.TimeoutError) as exc:
             result["error"] = str(exc)
+        self._log_check(result)  # TASK-068: находка версии и сбой проверки — в журнал сервера
         self.last = result
         return result
+
+    def _log_check(self, result):
+        """События проверки в журнал: новая доступная версия — один раз на версию,
+        сбой проверки — при переходе в состояние ошибки (повторы склеивает журнал)."""
+        release = self._available(version.current(self.root))
+        if release and self._reported_release != release["version"]:
+            self._reported_release = release["version"]
+            log_event("info", "self_update",
+                      f"Доступна новая версия {release['version']} (сейчас {version.current(self.root)['version']})")
+        error = result.get("error")
+        if error and not self.last.get("error"):
+            log_event("warning", "self_update", f"Проверка обновлений не удалась: {error}")
+
+    def _report_last_update(self):
+        """Итог последнего обновления/отката (plan.json писал updater отдельным процессом) —
+        в журнал один раз при старте, если updater закончил недавно."""
+        try:
+            plan = json.loads((self.runtime.directory / UPDATE_DIR / "plan.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return
+        status, finished = plan.get("status"), plan.get("finished_at")
+        if status not in ("ok", "failed") or not isinstance(finished, (int, float)) \
+                or finished < time.time() - 600:
+            return
+        verb = "Откат" if plan.get("action") == "rollback" else "Обновление"
+        if status == "ok":
+            log_event("info", "self_update", f"{verb} до {plan.get('target_version')} завершено успешно")
+        else:
+            log_event("error", "self_update",
+                      f"{verb} до {plan.get('target_version')} не удалось (вернулась версия "
+                      f"{plan.get('previous_tag')}); лог: {UPDATE_DIR}/update.log")
 
     def _available(self, current):
         """Новый релиз есть и он старше текущей версии (packaging, пререлиз — только канал beta)."""

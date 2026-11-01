@@ -32,7 +32,7 @@ const GROUPS=[
   {title:'Эмулятор',tabs:[['scenarios','Сценарии'],['endpoints','HTTP'],['ws','WS'],['quasar-http','Quasar'],['params','Параметры'],['app-catalog','Каталог приложений'],['traffic','Журнал']]},
   {title:'Голос',tabs:[['voice-stack','Голосовой стек'],['replies','Звуковой кеш'],['animations','Анимации']]},
   {title:'Интеллект',tabs:[['intelligence','Режим',null,'hidden'],['llm','Модель','model'],['agent','Агент','agent'],['mcp','MCP','agent'],['memory','Память','agent'],['routines','Задания','agent']]},
-  {title:'Дополнительно',tabs:[['extensions','Расширения'],['server','Сервер'],['setup','Настройка'],['studio','Проверка']]}];
+  {title:'Дополнительно',tabs:[['extensions','Расширения'],['server','Сервер'],['server-log','Лог'],['setup','Настройка'],['studio','Проверка']]}];
 const level=()=>LEVELS.includes(settings?.intelligence)?settings.intelligence:'agent';
 const allowed=([,,min])=>!min||LEVELS.indexOf(level())>=LEVELS.indexOf(min);
 const listed=t=>allowed(t)&&t[3]!=='hidden';  // в подвкладках; скрытая — запасная страница группы

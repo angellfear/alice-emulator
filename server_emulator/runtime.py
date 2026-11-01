@@ -54,6 +54,8 @@ class Runtime:
         # в settings_service.SettingsService; runtime держит текущий dict и оркестрацию.
         self.settings_service = SettingsService(self.store, self.directory)
         self.settings = self.settings_service.load()
+        from .server_log import ServerLog, install_logging  # TASK-068: журнал «Дополнительно → Лог»
+        self.server_log = install_logging(ServerLog(self.directory / "server_log.sqlite3"))
         self.scenario_dir = self.settings_service.scenario_dir  # один JSON-файл на сценарий
         self.provider_manager = ProviderManager(self)  # TASK-007 (DEBT-01): ASR/TTS/LLM-резолвинг и legacy-цикл
         self.recent = []
@@ -301,6 +303,7 @@ class Runtime:
         if self.routines is not None:
             self.routines.shutdown()
         await self.self_update.close()  # TASK-040: цикл проверки релизов и его клиент
+        await self.server_log.close()  # TASK-068: доработать очередь журнала сервера
         await self.closer.drain()
         await self.upstream.close()  # TASK-043: доработать очередь журнала, закрыть клиента прохода
         await self.lifecycle.close()
@@ -387,6 +390,9 @@ class Runtime:
         """Запись в журнал recent (TASK-019: сбои сценариев — Executor вызывает
         этот колбэк); тот же формат и лимит, что у остальных записей."""
         self.recent = (self.recent + [entry])[-30:]
+        if entry.get("kind") == "scenario":  # TASK-068: сбои сценариев — и в журнал сервера
+            self.server_log.log("error", "scenarios",
+                                f"Ошибка сценария {entry.get('id', '')}: {entry.get('error', '')}")
 
     # TASK-033: реестры действий и датасетов включённых расширений -------------------
     def rebuild_extension_registries(self):
@@ -886,6 +892,8 @@ class Runtime:
                         current = self.sessions[session_id].get('device_id')
                         if id_report['mismatch'] or (current not in (None, '', resolved)):
                             self.recent = (self.recent + [{'kind': 'ws', 'device_id_report': id_report}])[-30:]
+                            self.server_log.log("warning", "ws", "Расхождение DeviceId соединения",
+                                                device_id_report=id_report)
                             await ws.close(code=1008, message=b'Device identity changed')
                             break
                         # sync — авторитетное представление устройства: как и header,
@@ -922,7 +930,7 @@ def mount_ui(app, runtime, prefix="/emulator"):
 
     # Каталог картинок устройств (модель по SN): только существующие
     # PNG/WebP из каталога картинок (device_images.images_dir) — путь проверяется на выход за пределы папки.
-    ASSETS = ("index.html", "toast.js", "ws.js", "app.js", "style.css", "users.js", "backend.js", "updates.js", "catalog.js", "replies.js", "animations.js", "endpoints.js", "misses.js", "endpoints.css", "devices_common.js", "device_cards.js", "mcp.js", "agent.js", "memory.js", "routines.js", "scenario_drafts.js", "params.js", "voice_stack.js", "sound_cache.js", "extensions.js", "setup.js", "server_config.js", "traffic.js")
+    ASSETS = ("index.html", "toast.js", "ws.js", "app.js", "style.css", "users.js", "backend.js", "updates.js", "catalog.js", "replies.js", "animations.js", "endpoints.js", "misses.js", "endpoints.css", "devices_common.js", "device_cards.js", "mcp.js", "agent.js", "memory.js", "routines.js", "scenario_drafts.js", "params.js", "voice_stack.js", "sound_cache.js", "extensions.js", "setup.js", "server_config.js", "server_log.js", "traffic.js")
     GENERIC_IMAGES = ROOT / "ui" / "img" / "generic"
     VENDOR = ROOT / "ui" / "vendor"
 

@@ -26,6 +26,8 @@ import uuid
 
 from aiohttp import web
 
+from .server_log import log_event
+
 COOKIE = "alica_session"
 SESSION_TTL = 12 * 3600
 LINK_TTL = 12 * 3600  # токен кабинета для админа (TASK-062)
@@ -255,6 +257,9 @@ def mount_auth(app, store):
             return web.json_response({"error": "expected_json"}, status=400)
         result = store.login(str(value.get("name", "")), str(value.get("password", "")))
         if result is None:
+            # TASK-068: имя без пароля и без заголовков — в журнал сервера (источник auth)
+            log_event("warning", "auth", f"Неудачный вход в панель: {str(value.get('name', ''))[:100] or '(без имени)'}",
+                      ip=request.remote)
             await asyncio.sleep(0.3)  # грубый тормоз перебора
             return web.json_response({"error": "invalid_credentials"}, status=401)
         token, session = result

@@ -12,6 +12,7 @@ from aiohttp import web
 from ...control import EXIT_KEY, request_exit
 from ...self_update import repo
 from ...server_config import UPDATE_CODE
+from ...server_log import log_event
 from . import route
 
 
@@ -58,6 +59,10 @@ def _start_update(service, app, action):
             raise ValueError("; ".join(status["reasons"]) or "обновление недоступно")
     plan = service.plan(target, action)
     service.spawn_updater(plan)
+    # TASK-068: запуск обновления/отката — в журнал сервера (итог пишет updater в plan.json,
+    # его сервер доложит журналом при следующем старте)
+    log_event("info", "self_update",
+              f"Откат на {target} запущен" if action == "rollback" else f"Обновление до {target} запущено")
     if not request_exit(app, UPDATE_CODE):
         raise ValueError("Сервер запущен без управления — завершите его и обновите вручную")
     return {"updating": True, "target": target, "launch": plan["launch"]}

@@ -12,7 +12,7 @@ if not __package__:
     package.__path__ = [str(Path(__file__).resolve().parent)]
     sys.modules[__package__] = package
 from aiohttp import web
-from . import control, server_config
+from . import control, server_config, server_log
 from .auth import auth_middleware, mount_auth
 from .control import EXIT_KEY, INFO_KEY
 from .server_config import RESTART_CODE
@@ -93,21 +93,35 @@ async def serve(app, state, config):
             listeners.append(entry)
         info.update(listeners=listeners, errors=errors)
         if not all(entry["ok"] for entry in listeners) and server_config.rollback(state):
+            server_log.log_event("warning", "server",
+                                 "Сервер не поднялся с новыми настройками слушателей — возвращены прежние: "
+                                 + "; ".join(errors))
             print("Сервер не поднялся с новыми настройками — возвращены прежние: " + "; ".join(errors), flush=True)
             return RESTART_CODE
         if not any(entry["ok"] for entry in listeners):
+            server_log.log_event("error", "server", "Ни один порт не открыт: " + "; ".join(errors))
             print("Ни один порт не открыт: " + "; ".join(errors), file=sys.stderr, flush=True)
             return 1
         server_config.confirm(state)
+        # TASK-068: старт — версия и слушатели (событие для «Дополнительно → Лог»)
+        server_log.log_event("info", "server",
+                             "Сервер запущен" + (f" (версия {info['version']})" if info.get("version") else "")
+                             + " — слушаю " + ", ".join(f"{entry['scheme']}://{entry['host']}:{entry['port']}"
+                                                        for entry in listeners if entry["ok"]))
         for entry in listeners:
             print(f"{'Слушаю' if entry['ok'] else 'Ошибка'} {entry['scheme']}://{entry['host']}:{entry['port']}"
                   + ("" if entry["ok"] else f" — {entry['error']}"), flush=True)
         for error in errors:
             if "SSL" in error:
                 print("Ошибка " + error, file=sys.stderr, flush=True)
-        return await done
+        code = await done
+        # TASK-068: штатная остановка или перезапуск (настройки/обновление) — в журнал
+        server_log.log_event("info", "server",
+                             "Сервер перезапускается" if code == RESTART_CODE else "Сервер остановлен")
+        return code
     finally:
         await runner.cleanup()
+        await server_log.flush()  # записи о старте/остановке не теряются при выходе
 
 
 def main(argv=None):

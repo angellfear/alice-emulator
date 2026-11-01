@@ -145,6 +145,9 @@ class Dispatcher:
             if replaced and 'error' in replaced:
                 runtime.recent = (runtime.recent + [{'kind': 'quasar_replace', 'device_sn': sn,
                                                      'error': replaced['error']}])[-30:]
+                # TASK-068: замены сломали JSON — администратор должен это увидеть
+                runtime.server_log.log("error", "quasar", "Замены regexp сломали ответ get_sync_info",
+                                       device_sn=sn, error=str(replaced['error'])[:200])
                 replaced = None
             parsed = decoded_json(headers, payload)
             if parsed is not None:
@@ -181,6 +184,8 @@ class Dispatcher:
             ('header.x-uprx-device-id', request.headers.get('x-uprx-device-id')))
         if id_report['mismatch']:
             runtime.recent = (runtime.recent + [{'kind': 'http', 'host': host, 'device_id_report': id_report}])[-30:]
+            runtime.server_log.log("warning", "http", "Расхождение DeviceId в OTA-запросе",
+                                   host=host, device_id_report=id_report)
         # OTA-запрос — тоже представление устройства: маркер есть — строка в реестре
         device = runtime.identities.observe(device_id, source=id_report['resolved_from'], ip=self.client_ip(request),
                                             register=True) if device_id else None
@@ -209,6 +214,8 @@ class Dispatcher:
         except Exception as exc:  # noqa: BLE001 — любой сбой пользовательского кода
             detail = failure(exc)
             runtime.recent = (runtime.recent + [{"kind": "endpoint_script", "id": endpoint["id"], "error": detail[-300:]}])[-30:]
+            runtime.server_log.log("error", "scripts", f"Ошибка обработчика эндпоинта {endpoint['id']}",
+                                   host=host, path=str(path)[:200], error=detail[-200:])
             return 500, json.dumps({"error": "endpoint_script", "detail": detail}, ensure_ascii=False).encode(), \
                 {"Content-Type": "application/json"}
         if result is None:
@@ -286,6 +293,8 @@ class Dispatcher:
                 ('query.device_id', request.query.get('device_id')))
             if id_report['mismatch']:
                 runtime.recent = (runtime.recent + [{'kind': 'http', 'host': host, 'device_id_report': id_report}])[-30:]
+                runtime.server_log.log("warning", "http", "Расхождение DeviceId в запросе",
+                                       host=host, device_id_report=id_report)
             device = runtime.identities.observe(device_id, source=id_report['resolved_from'], ip=self.client_ip(request),
                                                 register=True) if device_id else None
         if canonical_host == 'quasar.yandex.net' and (path or request.path) == '/get_sync_info':

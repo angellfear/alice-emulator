@@ -17,6 +17,7 @@ from aiohttp import ClientSession, ClientTimeout, TCPConnector, WSMsgType, web
 from multidict import CIMultiDict
 from yarl import URL
 
+from ..server_log import log_event  # TASK-068: ошибки пересылки — в журнал сервера
 from .journal import TrafficJournal
 from .record import WsTap
 
@@ -34,6 +35,13 @@ MAX_WS_MESSAGE_BYTES = 16 * 1024 ** 2
 
 class UpstreamError(RuntimeError):
     """Пересылка не удалась (резолв, соединение, лимит) — диспетчер отвечает 502."""
+
+
+def note_upstream_failure(context, error):
+    """TASK-068: неудачная пересылка наверх (502) — в журнал сервера, источник upstream."""
+    log_event("error", "upstream", f"Пересылка наверх не удалась: {context.get('host') or ''}",
+              path=str(context.get("path") or "")[:200], device_sn=context.get("device_sn"),
+              error=str(error)[:200])
 
 
 def decoded_body(headers, payload, maximum=8 * 1024 ** 2):
@@ -135,6 +143,7 @@ class Forwarder:
                                    duration_ms=(time.monotonic() - start) * 1000, request_size=len(body or b""),
                                    response_size=0, request_headers=sent_headers, request_body=body or b"",
                                    source="upstream", **context)
+            note_upstream_failure(context, exc)
             raise
         except Exception as exc:  # noqa: BLE001 — наверх всегда уходит UpstreamError
             error = f"{type(exc).__name__}: {exc}"[:300]
@@ -143,6 +152,7 @@ class Forwarder:
                                    duration_ms=(time.monotonic() - start) * 1000, request_size=len(body or b""),
                                    response_size=0, request_headers=sent_headers, request_body=body or b"",
                                    source="upstream", **context)
+            note_upstream_failure(context, error)
             raise UpstreamError(error) from exc
         if journal:
             self.journal.write(kind="http", direction="exchange", status=status,
@@ -172,6 +182,7 @@ class Forwarder:
                                           compress=0, max_msg_size=MAX_WS_MESSAGE_BYTES),
                 CONNECT_TIMEOUT_S)
         except Exception as exc:  # noqa: BLE001 — наверх всегда уходит UpstreamError
+            note_upstream_failure(context, f"{type(exc).__name__}: {exc}")
             raise UpstreamError(f"{type(exc).__name__}: {exc}"[:300]) from exc
         local = web.WebSocketResponse(protocols=[remote.protocol] if remote.protocol else (),
                                       autoping=False, heartbeat=None, compress=False,
