@@ -20,6 +20,13 @@
     "установи таймер",
     "заведи таймер"
    ]
+  },
+  {
+   "kind": "template",
+   "sentences": [
+    "(поставь|установи|заведи) таймер",
+    "(поставь|установи|заведи) таймер на ({duration_fixed}|{duration_number} {duration_unit}|{duration_number} {duration_unit} {duration_number2} {duration_unit2})"
+   ]
   }
  ],
  "executor": {

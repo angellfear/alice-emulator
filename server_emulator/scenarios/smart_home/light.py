@@ -15,11 +15,12 @@ def lamps_text(lights):
 
 
 async def handle(ctx):
-    power = ctx.parse_lexicon("power")
+    slots = ctx.slots or {}
+    power = slots.get("power") or ctx.parse_lexicon("power")
     if power is None:
         raise ValueError("Не удалось понять команду света")
     lights = list(ctx.device.get("lights") or [])
-    room = ctx.parse_lexicon("rooms")
+    room = slots.get("room") or ctx.parse_lexicon("rooms")
     if room is not None:
         if room not in lights:
             return say(f"Лампы «{room}» нет. Доступны: {lamps_text(lights)}.")
@@ -32,7 +33,11 @@ async def handle(ctx):
     else:
         return say(f"Не понял, какую лампу: доступны {lamps_text(lights)}.")
     arguments = {"room": room, "on": power}
-    brightness = ctx.parse_number(minimum=1, maximum=100)
+    brightness = slots.get("number")
+    if brightness is not None:
+        brightness = int(brightness)
+    else:
+        brightness = ctx.parse_number(minimum=1, maximum=100)
     if brightness is not None:
         arguments["brightness"] = brightness
     result = await ctx.action("light.set", **arguments)  # сбой действия — исключение, сценарий errored

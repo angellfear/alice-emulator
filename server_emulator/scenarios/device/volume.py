@@ -16,7 +16,8 @@ async def push(ctx, action, **arguments):
 
 
 async def handle(ctx):
-    mode = ctx.parse_lexicon("modes")
+    slots = ctx.slots or {}
+    mode = slots.get("volume_fixed") or slots.get("volume_mode") or ctx.parse_lexicon("modes")
     if mode == "mute":
         await push(ctx, "sound_set_level", level=0)
         return say("Звук выключен.")
@@ -29,7 +30,11 @@ async def handle(ctx):
     if mode is not None:  # любой иной режим словаря — «тише», как ветка else прежнего flow
         await push(ctx, "sound_quiter")
         return say("Тише.")
-    level = ctx.parse_number(minimum=0, maximum=100)
+    level = slots.get("number")
+    if level is not None:
+        level = int(level)
+    else:
+        level = ctx.parse_number(minimum=0, maximum=100)
     if level is None:
         raise ValueError("Не удалось понять громкость")
     if level > 10:

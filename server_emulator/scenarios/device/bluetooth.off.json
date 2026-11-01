@@ -16,6 +16,12 @@
     "выключи bluetooth",
     "выключи блютус"
    ]
+  },
+  {
+   "kind": "template",
+   "sentences": [
+    "выключи (блютуз|bluetooth|блютус) [{query}]"
+   ]
   }
  ],
  "flow": [

@@ -19,6 +19,12 @@
     "запусти"
    ],
    "match": "contains"
+  },
+  {
+   "kind": "template",
+   "sentences": [
+    "(открой|запусти) {app}"
+   ]
   }
  ],
  "executor": {

@@ -12,6 +12,7 @@ phrase-триггеров (router.with_templates); сущности шаблон
 """
 from __future__ import annotations
 
+import copy
 import json
 import uuid
 
@@ -111,9 +112,13 @@ class DialogManager:
         return self._templates
 
     def _candidates(self, catalog, templates, replica):
-        """Кандидаты реплики: template-совпадения (вся фраза) приоритетнее phrase;
-        возвращает ([(scenario, reason)], {scenario_id: slots}) — слоты совпавших
-        шаблонов для победителя (guard/зависимости решают, кто победит)."""
+        """Кандидаты реплики послойно: свой слой (пользователь + расширения) целиком
+        раньше встроенного — как в каталоге (пользовательская запись перекрывает
+        встроенную); внутри слоя шаблонные совпадения (вся фраза) приоритетнее phrase
+        (полная фраза — самый строгий сигнал). Сценарий входит в кандидаты один раз,
+        первым своим совпадением: предложения шаблона объявлены от частного к общему,
+        первое — самые точные слоты («включи музыку» без query, а не query="музыку").
+        Возвращает ([(scenario, reason)], {scenario_id: slots})."""
         found = candidates(catalog, text=replica)
         if templates is None:
             return found, {}
@@ -123,8 +128,19 @@ class DialogManager:
         by_id = {}
         for scenario in catalog:
             by_id.setdefault(str(scenario.get("id")), scenario)
-        matched = [by_id[sid] for sid, _slots in hits if sid in by_id]
-        return with_templates(found, matched), dict(hits)
+        slots_by_id, matched_own, matched_builtin = {}, [], []
+        for sid, slots in hits:
+            if sid in slots_by_id:
+                continue
+            slots_by_id[sid] = slots
+            scenario = by_id.get(sid)
+            if scenario is not None:
+                (matched_builtin if scenario.get("_origin") == "builtin"
+                 else matched_own).append(scenario)
+        own = [pair for pair in found if pair[0].get("_origin") != "builtin"]
+        builtin = [pair for pair in found if pair[0].get("_origin") == "builtin"]
+        return (with_templates(own, matched_own)
+                + with_templates(builtin, matched_builtin)), slots_by_id
 
     async def handle_text(self, text, ctx, dialog_id, send, deliver=True):
         """Текстовая реплика: continuation → probe (H02, без эффектов) → router →
@@ -255,6 +271,8 @@ class DialogManager:
                   "speech_parts": list(getattr(outcome, "speech_parts", []) or []),
                   "effects": list(getattr(outcome, "effects", []) or []),  # TASK-019: dry-run py-сценария
                   "trace": [{"step": t["step"], "op": t["op"], "status": t["status"]} for t in outcome.trace]}
+        if ctx.get("dry_run"):  # вкладка «Проверка»: какие сущности шаблона попали в слоты
+            report["slots"] = copy.deepcopy(ctx.get("slots") or {})
         if not deliver:
             report["messages"] = messages
         return report

@@ -80,7 +80,7 @@ $('device-status').onclick=()=>work(async()=>{const status=await api('status');$
 // определение — один JSON-файл на сценарий (state/scenarios), имя/описание ru/en, декларативный executor.
 const i18n=v=>!v?'':typeof v==='string'?v:(v.ru||v.en||'');
 const scenarioTitle=s=>i18n(s.title)||s.name||s.id||'(без id)';
-const scenarioDesc=s=>{const d=i18n(s.description);if(d)return d;const t=(s.triggers||[]).map(x=>x&&x.name).filter(Boolean);return t.length?'«'+t.slice(0,3).join('», «')+'»':''};
+const scenarioDesc=s=>{const d=i18n(s.description);if(d)return d;const t=(s.triggers||[]).flatMap(x=>!x?[]:x.name?[x.name]:x.kind==='template'?(x.sentences||[]).slice(0,1):[]).filter(Boolean);return t.length?'«'+t.slice(0,3).join('», «')+'»':''};
 // Быстрый сценарий v2 (docs/contracts/scenario-json-v2.md): фраза → ответ текстом, раздел «Пользовательские».
 const quickScenario=(id,trigger,reply)=>({"format_version":2,"id":"user."+(id||"scenario"),"version":"1.0.0","category":"custom","title":{"ru":trigger||"Сценарий"},"description":{"ru":""},"triggers":[{"kind":"phrase","phrases":[trigger]}],"flow":[{"id":"reply","op":"compose","reply":{"text":reply}},{"id":"done","op":"finish"}]});
 const quickFromScenario=s=>{if(!s||s.format_version!==2||!Array.isArray(s.triggers)||s.triggers.length!==1||s.triggers[0].kind!=='phrase')return null;const ph=s.triggers[0].phrases||[];if(ph.length!==1||!Array.isArray(s.flow)||s.flow.length!==2)return null;const[composeStep,finishStep]=s.flow;if(composeStep.op!=='compose'||!composeStep.reply||typeof composeStep.reply.text!=='string'||Object.keys(composeStep.reply).length!==1)return null;if(finishStep.op!=='finish')return null;return{trigger:ph[0],reply:composeStep.reply.text,id:String(s.id||'').replace(/^user\./,'')}};
@@ -279,7 +279,7 @@ $('scenario-form').onsubmit=e=>{e.preventDefault();work(async()=>{scShowError(''
 	scenarioSelected=result.saved;scDialog().close();await loadScenarios();
 	message('Сценарий сохранён: '+result.saved+(replaced?'; встроенный '+replaced+' выключен.':''))}catch(err){scShowError(err.message);message(err.message,true)}})};
 $('delete-scenario').onclick=()=>work(async()=>{scShowError('');try{const scenario=JSON.parse($('scenario-json').value);if(!scenario.id)throw Error('В редакторе нет id сценария');const result=await api('scenarios?id='+encodeURIComponent(scenario.id),'DELETE');scenarioSelected=null;scDialog().close();await loadScenarios();message('Сценарий удалён: '+result.deleted)}catch(err){scShowError(err.message);message(err.message,true)}});
-$('scenario-test').onclick=()=>work(async()=>{const report=await api('scenarios','POST',{text:$('scenario-test-text').value});$('scenario-test-result').textContent=report.handled?`${report.scenario} · ${report.status} (${report.reason})`:`не выбран: ${report.verdict||''} ${report.reason||''}`});
+$('scenario-test').onclick=()=>work(async()=>{const report=await api('scenarios','POST',{text:$('scenario-test-text').value});const slots=report.slots&&Object.keys(report.slots).length?Object.entries(report.slots).map(([k,v])=>`${k}=${typeof v==='object'?JSON.stringify(v):v}`).join(', '):'';$('scenario-test-result').textContent=report.handled?`${report.scenario} · ${report.status} (${report.reason})${slots?' · '+slots:''}`:`не выбран: ${report.verdict||''} ${report.reason||''}`});
 $('scenarios-install').onclick=()=>goTab('extensions');
 const syncScenarios=()=>{if(location.hash==='#scenarios')work(loadScenarios)};
 window.addEventListener('hashchange',syncScenarios);syncScenarios();

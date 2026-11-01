@@ -20,7 +20,7 @@ SPEECH_PREFIX = '<speaker voice="emotional_alice.gpu" emotion="calm_happy"> '
 async def handle(ctx):
     if str(ctx.device.get("display") or "") == "none":
         return say("На этой колонке нет анимаций: у модели нет LED-экрана.")
-    emotion = ctx.parse_lexicon("emotions")
+    emotion = (ctx.slots or {}).get("led_emotion") or ctx.parse_lexicon("emotions")
     if emotion not in PHRASE:
         raise ValueError("Не понял, какую эмоцию показать")
     reply = say(PHRASE[emotion])

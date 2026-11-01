@@ -20,6 +20,15 @@
     "разбуди меня",
     "заведи будильник"
    ]
+  },
+  {
+   "kind": "template",
+   "sentences": [
+    "(поставь|заведи) будильник",
+    "(поставь|заведи) будильник [на|в] ({hour} [{minute}] [{day_period}]|{time_word}) [({date_word}|[в] {weekday}|{day} {month})]",
+    "будильник [на|в] ({hour} [{minute}] [{day_period}]|{time_word}) [({date_word}|[в] {weekday}|{day} {month})]",
+    "разбуди меня [в] ({hour} [{minute}] [{day_period}]|{time_word}) [({date_word}|[в] {weekday}|{day} {month})]"
+   ]
   }
  ],
  "executor": {

@@ -19,6 +19,21 @@
     "покажи глазки",
     "подмигни"
    ]
+  },
+  {
+   "kind": "template",
+   "sentences": [
+    "подмигни [мне]"
+   ],
+   "slots": {
+    "led_emotion": "wink"
+   }
+  },
+  {
+   "kind": "template",
+   "sentences": [
+    "[покажи] [мне] {led_emotion}"
+   ]
   }
  ],
  "executor": {

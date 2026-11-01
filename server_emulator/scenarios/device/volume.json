@@ -21,6 +21,16 @@
     "выключи звук",
     "максимальная громкость"
    ]
+  },
+  {
+   "kind": "template",
+   "sentences": [
+    "громкость [на] {number}",
+    "(сделай|сделать) {volume_mode}",
+    "громкость {volume_mode}",
+    "{volume_mode}",
+    "{volume_fixed}"
+   ]
   }
  ],
  "executor": {

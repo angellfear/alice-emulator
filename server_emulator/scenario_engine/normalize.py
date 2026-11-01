@@ -109,15 +109,18 @@ def deglue(text, lexicon):
     """Склеенные токены разваливаются на слова лексикона.
 
     Тронуты только токены, которых нет в лексиконе целиком и которые
-    полностью разбираются на лексикон — обычные слова не искажаются.
+    разбираются минимум на ДВА слова лексикона — разбор с одним словарным
+    куском («полчаса» → «пол | час | а») это огрех, а не склейка: слова
+    с вложенным словом лексикона остаются целыми.
     """
     out = []
     for token in text.split(" "):
         if token and token not in lexicon and len(token) >= 6:
             words = _segments(token, lexicon)
-            out.extend(words or [token])
-        else:
-            out.append(token)
+            if sum(1 for word in words if word in lexicon) >= 2:
+                out.extend(words)
+                continue
+        out.append(token)
     return " ".join(out)
 
 

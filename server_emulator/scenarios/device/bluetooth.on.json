@@ -16,6 +16,12 @@
     "включи bluetooth",
     "включи блютус"
    ]
+  },
+  {
+   "kind": "template",
+   "sentences": [
+    "включи (блютуз|bluetooth|блютус) [{query}]"
+   ]
   }
  ],
  "flow": [

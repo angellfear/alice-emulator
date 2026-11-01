@@ -74,7 +74,7 @@
                   "speech": "Приложение «ютуб» найдено. Запуск пока не поддерживается: директива запуска не восстановлена в схеме."
                 }
               ],
-              "reason": "phrase:contains",
+              "reason": "template",
               "scenario": "device.app.open",
               "speech": "Приложение «ютуб» найдено. Запуск пока не поддерживается: директива запуска не восстановлена в схеме.",
               "speech_parts": [],
@@ -117,7 +117,7 @@
                   "speech": "Приложение «спотифай» найдено. Запуск пока не поддерживается: директива запуска не восстановлена в схеме."
                 }
               ],
-              "reason": "phrase:contains",
+              "reason": "template",
               "scenario": "device.app.open",
               "speech": "Приложение «спотифай» найдено. Запуск пока не поддерживается: директива запуска не восстановлена в схеме.",
               "speech_parts": [],
@@ -160,7 +160,7 @@
                   "speech": "Приложение «телеграм» не найдено."
                 }
               ],
-              "reason": "phrase:contains",
+              "reason": "template",
               "scenario": "device.app.open",
               "speech": "Приложение «телеграм» не найдено.",
               "speech_parts": [],
@@ -216,7 +216,7 @@
                   "speech": "Выключаю."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "device.bluetooth.off",
               "speech": "Выключаю.",
               "speech_parts": [],
@@ -267,7 +267,7 @@
                   "speech": "Выключаю."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "device.bluetooth.off",
               "speech": "Выключаю.",
               "speech_parts": [],
@@ -323,7 +323,7 @@
                   "speech": "Включаю."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "device.bluetooth.on",
               "speech": "Включаю.",
               "speech_parts": [],
@@ -374,7 +374,7 @@
                   "speech": "Включаю."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "device.bluetooth.on",
               "speech": "Включаю.",
               "speech_parts": [],
@@ -435,7 +435,7 @@
                   "speech": "<speaker voice=\"emotional_alice.gpu\" emotion=\"calm_happy\"> А вот и глазки!"
                 }
               ],
-              "reason": "phrase:contains",
+              "reason": "template",
               "scenario": "device.led.emotion",
               "speech": "<speaker voice=\"emotional_alice.gpu\" emotion=\"calm_happy\"> А вот и глазки!",
               "speech_parts": [],
@@ -491,7 +491,7 @@
                   "speech": "<speaker voice=\"emotional_alice.gpu\" emotion=\"calm_happy\"> Научилась подмигивать специально для таких случаев."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "device.led.emotion",
               "speech": "<speaker voice=\"emotional_alice.gpu\" emotion=\"calm_happy\"> Научилась подмигивать специально для таких случаев.",
               "speech_parts": [],
@@ -534,7 +534,7 @@
                   "speech": "Сейчас ничего не играет."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "device.player.pause",
               "speech": "Сейчас ничего не играет.",
               "speech_parts": [],
@@ -572,7 +572,7 @@
                   "speech": "Сейчас ничего не играет."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "device.player.pause",
               "speech": "Сейчас ничего не играет.",
               "speech_parts": [],
@@ -631,7 +631,7 @@
                   "speech": "Громкость 5 из 10."
                 }
               ],
-              "reason": "phrase:contains",
+              "reason": "template",
               "scenario": "device.volume",
               "speech": "Громкость 5 из 10.",
               "speech_parts": [],
@@ -685,7 +685,7 @@
                   "speech": "Громкость 5 из 10."
                 }
               ],
-              "reason": "phrase:contains",
+              "reason": "template",
               "scenario": "device.volume",
               "speech": "Громкость 5 из 10.",
               "speech_parts": [],
@@ -739,7 +739,7 @@
                   "speech": "Звук выключен."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "device.volume",
               "speech": "Звук выключен.",
               "speech_parts": [],
@@ -793,7 +793,7 @@
                   "speech": "Максимальная громкость."
                 }
               ],
-              "reason": "phrase:contains",
+              "reason": "template",
               "scenario": "device.volume",
               "speech": "Максимальная громкость.",
               "speech_parts": [],
@@ -844,7 +844,7 @@
                   "speech": "Громче."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "device.volume",
               "speech": "Громче.",
               "speech_parts": [],
@@ -895,7 +895,7 @@
                   "speech": "Тише."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "device.volume",
               "speech": "Тише.",
               "speech_parts": [],
@@ -943,7 +943,7 @@
                   "speech": "Сейчас 21 час 7 минут."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "informers.clock",
               "speech": "Сейчас 21 час 7 минут.",
               "speech_parts": [],
@@ -986,7 +986,7 @@
                   "speech": "Сейчас 21 час 7 минут."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "informers.clock",
               "speech": "Сейчас 21 час 7 минут.",
               "speech_parts": [],
@@ -1029,7 +1029,7 @@
                   "speech": "Сейчас 21 час 7 минут."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "informers.clock",
               "speech": "Сейчас 21 час 7 минут.",
               "speech_parts": [],
@@ -1091,7 +1091,7 @@
                   "speech": "<speaker is_whisper=\"true\"> Сейчас +12. Сегодня от +8 до +14. Осадки не ожидаются."
                 }
               ],
-              "reason": "phrase:contains",
+              "reason": "template",
               "scenario": "informers.weather",
               "speech": "<speaker is_whisper=\"true\"> Сейчас +12. Сегодня от +8 до +14. Осадки не ожидаются.",
               "speech_parts": [
@@ -1156,7 +1156,7 @@
                   "speech": "<speaker is_whisper=\"true\"> Сейчас +12. Сегодня от +8 до +14. Осадки не ожидаются."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "informers.weather",
               "speech": "<speaker is_whisper=\"true\"> Сейчас +12. Сегодня от +8 до +14. Осадки не ожидаются.",
               "speech_parts": [
@@ -1335,7 +1335,7 @@
                   "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "media.music",
               "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
               "speech_parts": [],
@@ -1373,7 +1373,7 @@
                   "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "media.music",
               "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
               "speech_parts": [],
@@ -1411,7 +1411,7 @@
                   "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "media.music",
               "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
               "speech_parts": [],
@@ -1449,7 +1449,7 @@
                   "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "media.music",
               "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
               "speech_parts": [],
@@ -1487,7 +1487,7 @@
                   "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "media.music",
               "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
               "speech_parts": [],
@@ -1525,7 +1525,7 @@
                   "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "media.music",
               "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
               "speech_parts": [],
@@ -1563,7 +1563,7 @@
                   "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "media.music",
               "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
               "speech_parts": [],
@@ -1648,7 +1648,7 @@
                   "speech": "Это последний трек в очереди."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "media.player",
               "speech": "Это последний трек в очереди.",
               "speech_parts": [],
@@ -1686,7 +1686,7 @@
                   "speech": "Это последний трек в очереди."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "media.player",
               "speech": "Это последний трек в очереди.",
               "speech_parts": [],
@@ -1724,7 +1724,7 @@
                   "speech": "Это последний трек в очереди."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "media.player",
               "speech": "Это последний трек в очереди.",
               "speech_parts": [],
@@ -1762,7 +1762,7 @@
                   "speech": "Это первый трек в очереди."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "media.player",
               "speech": "Это первый трек в очереди.",
               "speech_parts": [],
@@ -1800,7 +1800,7 @@
                   "speech": "Это первый трек в очереди."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "media.player",
               "speech": "Это первый трек в очереди.",
               "speech_parts": [],
@@ -1838,7 +1838,7 @@
                   "speech": "Это первый трек в очереди."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "media.player",
               "speech": "Это первый трек в очереди.",
               "speech_parts": [],
@@ -1876,7 +1876,7 @@
                   "speech": "Ничего не играет — включите музыку или сказку."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "media.player",
               "speech": "Ничего не играет — включите музыку или сказку.",
               "speech_parts": [],
@@ -1914,7 +1914,7 @@
                   "speech": "Ничего не играет — включите музыку или сказку."
                 }
               ],
-              "reason": "phrase:contains",
+              "reason": "template",
               "scenario": "media.player",
               "speech": "Ничего не играет — включите музыку или сказку.",
               "speech_parts": [],
@@ -1952,7 +1952,7 @@
                   "speech": "Сейчас ничего не играет."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "media.player",
               "speech": "Сейчас ничего не играет.",
               "speech_parts": [],
@@ -1990,7 +1990,7 @@
                   "speech": "Сейчас ничего не играет."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "media.player",
               "speech": "Сейчас ничего не играет.",
               "speech_parts": [],
@@ -2028,7 +2028,7 @@
                   "speech": "Сейчас ничего не играет."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "media.player",
               "speech": "Сейчас ничего не играет.",
               "speech_parts": [],
@@ -2066,7 +2066,7 @@
                   "speech": "Сейчас ничего не играет."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "media.player",
               "speech": "Сейчас ничего не играет.",
               "speech_parts": [],
@@ -2109,7 +2109,7 @@
                   "speech": "Список радиостанций пуст — добавьте потоки во вкладке «Голос → Медиа»."
                 }
               ],
-              "reason": "phrase:mask",
+              "reason": "template",
               "scenario": "media.radio",
               "speech": "Список радиостанций пуст — добавьте потоки во вкладке «Голос → Медиа».",
               "speech_parts": [],
@@ -2147,7 +2147,7 @@
                   "speech": "Станции «*» нет в списке радио. Скажите: включи радио — и я перечислю."
                 }
               ],
-              "reason": "phrase:mask",
+              "reason": "template",
               "scenario": "media.radio",
               "speech": "Станции «*» нет в списке радио. Скажите: включи радио — и я перечислю.",
               "speech_parts": [],
@@ -2185,7 +2185,7 @@
                   "speech": "Список радиостанций пуст — добавьте потоки во вкладке «Голос → Медиа»."
                 }
               ],
-              "reason": "phrase:mask",
+              "reason": "template",
               "scenario": "media.radio",
               "speech": "Список радиостанций пуст — добавьте потоки во вкладке «Голос → Медиа».",
               "speech_parts": [],
@@ -2223,7 +2223,7 @@
                   "speech": "Станции «*» нет в списке радио. Скажите: включи радио — и я перечислю."
                 }
               ],
-              "reason": "phrase:mask",
+              "reason": "template",
               "scenario": "media.radio",
               "speech": "Станции «*» нет в списке радио. Скажите: включи радио — и я перечислю.",
               "speech_parts": [],
@@ -2266,7 +2266,7 @@
                   "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»)."
                 }
               ],
-              "reason": "phrase:mask",
+              "reason": "template",
               "scenario": "media.tales",
               "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»).",
               "speech_parts": [],
@@ -2304,7 +2304,7 @@
                   "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»)."
                 }
               ],
-              "reason": "phrase:mask",
+              "reason": "template",
               "scenario": "media.tales",
               "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»).",
               "speech_parts": [],
@@ -2342,7 +2342,7 @@
                   "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»)."
                 }
               ],
-              "reason": "phrase:mask",
+              "reason": "template",
               "scenario": "media.tales",
               "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»).",
               "speech_parts": [],
@@ -2380,7 +2380,7 @@
                   "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»)."
                 }
               ],
-              "reason": "phrase:mask",
+              "reason": "template",
               "scenario": "media.tales",
               "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»).",
               "speech_parts": [],
@@ -2418,7 +2418,7 @@
                   "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»)."
                 }
               ],
-              "reason": "phrase:mask",
+              "reason": "template",
               "scenario": "media.tales",
               "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»).",
               "speech_parts": [],
@@ -2456,7 +2456,7 @@
                   "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»)."
                 }
               ],
-              "reason": "phrase:mask",
+              "reason": "template",
               "scenario": "media.tales",
               "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»).",
               "speech_parts": [],
@@ -2504,7 +2504,7 @@
                   "speech": "Лампы не настроены: добавьте state.light устройству."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "smart_home.light",
               "speech": "Лампы не настроены: добавьте state.light устройству.",
               "speech_parts": [],
@@ -2559,7 +2559,7 @@
                   "speech": "Свет (кухня) включён на 70%."
                 }
               ],
-              "reason": "phrase:contains",
+              "reason": "template",
               "scenario": "smart_home.light",
               "speech": "Свет (кухня) включён на 70%.",
               "speech_parts": [],
@@ -2613,7 +2613,7 @@
                   "speech": "Свет (спальня) выключен."
                 }
               ],
-              "reason": "phrase:contains",
+              "reason": "template",
               "scenario": "smart_home.light",
               "speech": "Свет (спальня) выключен.",
               "speech_parts": [],
@@ -2669,7 +2669,7 @@
                   "speech": "Свет (кухня) включён на 50%."
                 }
               ],
-              "reason": "phrase:contains",
+              "reason": "template",
               "scenario": "smart_home.light",
               "speech": "Свет (кухня) включён на 50%.",
               "speech_parts": [],
@@ -2712,7 +2712,7 @@
                   "speech": "Не понял, какую лампу: доступны [\"кухня\", \"спальня\"]."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "smart_home.light",
               "speech": "Не понял, какую лампу: доступны [\"кухня\", \"спальня\"].",
               "speech_parts": [],
@@ -2755,7 +2755,7 @@
                   "speech": "Лампы «ванная» нет. Доступны: [\"кухня\", \"спальня\"]."
                 }
               ],
-              "reason": "phrase:contains",
+              "reason": "template",
               "scenario": "smart_home.light",
               "speech": "Лампы «ванная» нет. Доступны: [\"кухня\", \"спальня\"].",
               "speech_parts": [],
@@ -2853,7 +2853,7 @@
                   "speech": "Готово, начинаем с чистого листа."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "system.dialog.reset",
               "speech": "Готово, начинаем с чистого листа.",
               "speech_parts": [],
@@ -2896,7 +2896,7 @@
                   "speech": "Готово, начинаем с чистого листа."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "system.dialog.reset",
               "speech": "Готово, начинаем с чистого листа.",
               "speech_parts": [],
@@ -3142,7 +3142,7 @@
                   "speech": "Активных будильников нет."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "timers.alarm.cancel",
               "speech": "Активных будильников нет.",
               "speech_parts": [],
@@ -3193,7 +3193,7 @@
                   "speech": "Будильник отменён."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "timers.alarm.cancel",
               "speech": "Будильник отменён.",
               "speech_parts": [],
@@ -3252,7 +3252,7 @@
                   "speech": "Будильник на 7:30."
                 }
               ],
-              "reason": "phrase:contains",
+              "reason": "template",
               "scenario": "timers.alarm.set",
               "speech": "Будильник на 7:30.",
               "speech_parts": [],
@@ -3550,7 +3550,7 @@
                   "speech": "Активных таймеров нет."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "timers.timer.cancel",
               "speech": "Активных таймеров нет.",
               "speech_parts": [],
@@ -3601,7 +3601,7 @@
                   "speech": "Таймер отменён."
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "timers.timer.cancel",
               "speech": "Таймер отменён.",
               "speech_parts": [],
@@ -3767,7 +3767,7 @@
                   "speech": "На сколько поставить таймер?"
                 }
               ],
-              "reason": "phrase:exact",
+              "reason": "template",
               "scenario": "timers.timer.set",
               "speech": "На сколько поставить таймер?",
               "speech_parts": [],

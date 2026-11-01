@@ -9,12 +9,13 @@ def radio_list(ctx):
 
 
 async def handle(ctx):
-    text = (ctx.text or "").lower().replace("ё", "е")
-    name = ""
-    for prefix in ("включи радио ", "поставь радио ", "включай радио ", "включи радио", "поставь радио"):
-        if text.startswith(prefix):
-            name = text[len(prefix):].strip()
-            break
+    name = (ctx.slots or {}).get("query") or ""
+    if not name:
+        text = (ctx.text or "").lower().replace("ё", "е")
+        for prefix in ("включи радио ", "поставь радио ", "включай радио ", "включи радио", "поставь радио"):
+            if text.startswith(prefix):
+                name = text[len(prefix):].strip()
+                break
     stations = radio_list(ctx)
     if not name:
         names = ", ".join(n for n, _u in stations) if stations else ""

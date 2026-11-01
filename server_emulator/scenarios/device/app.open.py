@@ -7,7 +7,7 @@ from server_emulator.sdk import say
 
 
 async def handle(ctx):
-    name = ctx.parse_rest("commands")
+    name = (ctx.slots or {}).get("app") or ctx.parse_rest("commands")
     if not name:
         raise ValueError("Не понял, какое приложение открыть")
     app = ctx.find_in(ctx.device.get("apps") or [], lexicon="commands", field="name")

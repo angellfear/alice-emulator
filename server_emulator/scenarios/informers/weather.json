@@ -24,6 +24,13 @@
   {
    "kind": "provide",
    "event": "weather.opened"
+  },
+  {
+   "kind": "template",
+   "sentences": [
+    "[(какая|скажи|покажи)] погода [{query}]",
+    "сколько градусов [сейчас] [на улице]"
+   ]
   }
  ],
  "executor": {
