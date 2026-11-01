@@ -13,7 +13,13 @@ POST   voice-stack-file       — ?id=&key= тело — WAV (проверка �
 GET    voice-stack-file       — ?id=&key= прослушать; DELETE — удалить
 POST   voice-stack-test       — {ref} проба синтеза источника TTS без кеша → WAV
 POST   voice-stack-transcribe — ?id=&key= текст загруженного эталона WAV текущим ASR → {text}
+POST   voice-stack-voices     — {service, adapter, values, id?, refresh?} список голосов поставщика (options_from: voices) → {options, error?}
+POST   voice-stack-bake       — multipart meta{service, adapter, values, id?, text} + audio (WAV): запечь голос поставщика →
+                                {voice_id, title}; JSON {package: <id>} — запечь эталон пакета (перезапуск сервера) → {bake}
+POST   voice-stack-unbake     — {service, adapter, values, id?} удалить запечённый голос поставщика; {package} — голос пакета
+POST   voice-stack-preset-file — ?service=&id=&key= тело — WAV эталона клонирования пресета; GET — прослушать; DELETE — удалить
 """
+import json
 import logging
 
 from aiohttp import web
@@ -31,8 +37,12 @@ async def _body(request):
 
 
 async def _package(request, runtime):
+    return await _package_by(request, runtime, "id")
+
+
+async def _package_by(request, runtime, key):
     body = await _body(request)
-    return body, runtime.voice_stack.package(str(body.get("id", "")))
+    return body, runtime.voice_stack.package(str(body.get(key, "")))
 
 
 @route("voice-stack", methods=("GET",))
@@ -70,8 +80,11 @@ async def voice_stack_package(request, runtime, app):
         raise ValueError("values: объект")
     before = stack.local.options(package)
     options = stack.local.save_options(package, body["values"])
+    bake = package.get("bake") or {}
     for field in package.get("fields", []):  # эталон без текста — текст распознаёт текущий ASR
         target = field.get("transcribe_to")
+        if bake and (options.get("voice_mode") != bake.get("mode", "baked") or not bake.get("transcribe", True)):
+            break  # эталон не используется в этом режиме голоса или модели текст эталона не нужен
         if target and options.get(field["key"]) and not str(options.get(target) or "").strip():
             try:
                 text = await _transcribe(runtime, stack.local.file_path(package, field["key"]))
@@ -90,6 +103,83 @@ async def voice_stack_package(request, runtime, app):
             stack.local.stop(package)  # запущенный вручную — тоже с новыми параметрами (эталон запечётся)
             await stack.local.start(package)
     return web.json_response({"values": options})
+
+
+@route("voice-stack-voices", methods=("POST",))
+async def voice_stack_voices(request, runtime, app):
+    body = await _body(request)
+    if not isinstance(body.get("values", {}), dict):
+        raise ValueError("values: объект")
+    return web.json_response(await runtime.voice_stack.voices(
+        body.get("service"), str(body.get("adapter", "")), body.get("values") or {}, body.get("id") or None,
+        refresh=bool(body.get("refresh"))))
+
+
+@route("voice-stack-bake", methods=("POST",))
+async def voice_stack_bake(request, runtime, app):
+    stack = runtime.voice_stack
+    if request.content_type == "application/json":  # эталон пакета: сервер запекает при запуске
+        body, package = await _package_by(request, runtime, "package")
+        spec = package.get("bake")
+        if not spec:
+            raise ValueError("Пакет не запекает голос")
+        if not stack.local.installed(package):
+            raise ValueError("Сначала установите пакет")
+        options = stack.local.options(package)
+        if not options.get(spec["audio"]):
+            raise ValueError("Сначала загрузите эталон")
+        if spec.get("transcribe", True) and not str(options.get(spec["text"]) or "").strip():
+            options = stack.local.save_options(package, {spec["text"]: await _transcribe(
+                runtime, stack.local.file_path(package, spec["audio"]))})
+        stack.local.dirty.discard(package["id"])
+        stack.local.stop(package)
+        await stack.local.start(package)
+        return web.json_response({"started": package["id"]})
+    form = await request.post()
+    try:
+        meta = json.loads(str(form.get("meta") or "{}"))
+    except ValueError:
+        raise ValueError("meta: JSON")
+    audio = form.get("audio")
+    if not isinstance(meta, dict) or not hasattr(audio, "file"):
+        raise ValueError("Нужны meta и файл audio")
+    result = await stack.bake(meta.get("service"), str(meta.get("adapter", "")), meta.get("values") or {},
+                              audio.file.read(), meta.get("text"), meta.get("id") or None)
+    return web.json_response(result)
+
+
+@route("voice-stack-unbake", methods=("POST",))
+async def voice_stack_unbake(request, runtime, app):
+    stack = runtime.voice_stack
+    body = await _body(request)
+    if body.get("package"):
+        package = stack.package(str(body["package"]))
+        spec = package.get("bake")
+        if not spec:
+            raise ValueError("Пакет не запекает голос")
+        stack.local.remove_file(package, spec["audio"])
+        return web.json_response({"removed": package["id"]})
+    await stack.unbake(body.get("service"), str(body.get("adapter", "")), body.get("values") or {}, body.get("id") or None)
+    return web.json_response({"removed": True})
+
+
+@route("voice-stack-preset-file", methods=("GET", "POST", "DELETE"))
+async def voice_stack_preset_file(request, runtime, app):
+    stack = runtime.voice_stack
+    service, identifier, key = request.query.get("service"), request.query.get("id", ""), request.query.get("key", "")
+    path, _ = stack.preset_file_path(service, identifier, key)
+    if request.method == "GET":
+        if not path.is_file():
+            raise ValueError("Файл не загружен")
+        return web.FileResponse(path, headers={"Content-Type": "audio/wav", "Cache-Control": "no-cache"})
+    if request.method == "DELETE":
+        stack.remove_preset_file(service, identifier, key)
+        info = {"removed": key}
+    else:
+        info = stack.upload_preset_file(service, identifier, key, await request.read())
+    if stack.active(service) == "p:" + identifier:
+        await stack.apply(service, "p:" + identifier)  # применённый пресет — сразу с новым эталоном
+    return web.json_response(info)
 
 
 @route("voice-stack-install", methods=("POST",))

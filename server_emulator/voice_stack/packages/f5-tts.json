@@ -48,7 +48,8 @@
       "step": 1,
       "when": {
         "device": "cpu"
-      }
+      },
+      "group": "advanced"
     },
     {
       "key": "priority",
@@ -63,23 +64,27 @@
           "value": "low",
           "label": "Низкий (фоновый)"
         }
-      ]
+      ],
+      "group": "advanced"
     },
     {
       "key": "checkpoint",
       "label": "Чекпойнт модели (путь или hf://)",
-      "type": "text"
+      "type": "text",
+      "group": "advanced"
     },
     {
       "key": "vocab",
       "label": "Словарь модели (путь или hf://)",
-      "type": "text"
+      "type": "text",
+      "group": "advanced"
     },
     {
       "key": "ref_audio",
       "label": "Эталонная запись голоса (WAV, 2–30 с)",
       "type": "file",
-      "accept": ".wav"
+      "accept": ".wav",
+      "required": true
     },
     {
       "key": "ref_text",
@@ -96,13 +101,15 @@
       "key": "nfe",
       "label": "Шагов синтеза (качество/время)",
       "type": "number",
-      "step": 1
+      "step": 1,
+      "group": "advanced"
     },
     {
       "key": "port",
       "label": "Порт",
       "type": "number",
-      "step": 1
+      "step": 1,
+      "group": "advanced"
     }
   ],
   "defaults": {
@@ -222,5 +229,8 @@
   "models": [],
   "reinstall_on": [
     "device"
+  ],
+  "voice_modes": [
+    "clone"
   ]
 }

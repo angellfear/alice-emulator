@@ -17,7 +17,7 @@
        "platforms": {"windows": {"cpu": [{"pip": [...]}], "cuda": [{"pip": [...], "args": ["--index-url", "..."]}]},
                      "linux":   {...}},
        "notes": {"linux": "..."},                            # системные требования платформы
-       "models": [{"url": ".../{voice}.tar.bz2"} | {"url": "...", "name": "x.onnx"}],
+       "models": [{"url": ".../{voice}.tar.bz2" | ".zip"} | {"url": "...", "name": "x.onnx"}],
        "reinstall_on": ["device", "voice"]}
 
   {плейсхолдеры} — параметры запуска, {dir} — папка установки, {python} — python venv.
@@ -27,7 +27,16 @@
 Применение пишет конфигурацию с ключом "adapter" в settings[stt|tts|model]; конвейер вызывает
 адаптер оттуда (Runtime.provider / recognize_stream / speech_stream), профили устройств работают как раньше.
 
-Расширения (TASK-031) добавляют свои слои (extensions/layers.source_layers) поверх встроенных:
+Поля адаптеров и пакетов (fields) кроме key/label/type/options/when понимают метаданные для UI:
+"help" (строка-подсказка под полем), "link" (ссылка «Получить ключ»), "group": "advanced"
+(под кнопкой «Дополнительно»), "required", "options_from": "gpus" | "voices" (список голосов
+запрашивает адаптер: async voices(runtime, config)). Голос TTS — "voice_modes": подмножество
+preset | baked | clone (см. docs/contracts/voice-stack.md): у baked адаптер даёт
+async bake_voice(runtime, config, audio, text) и (необязательно) unbake_voice(runtime, config, voice_id),
+пакет — "bake": {"audio": <поле-файл>, "text": <поле текста>, "mode": "baked", "transcribe": true}
+("transcribe": false — модели текст эталона не нужен, пустой текст не распознаётся ASR).
+
+Расширения добавляют свои слои (extensions/layers.source_layers) поверх встроенных:
 voice/packages/*.json — пакеты с id «<ext-id>.<pkg>», voice/adapters/*.py — адаптеры с id
 «<ext-id>.<файл>», voice/presets/*.json — пресеты с id «<ext-id>.<id>» (только чтение;
 правка через save_preset с этим id создаёт пользовательскую копию). Пользовательский пресет
@@ -35,6 +44,7 @@ voice/packages/*.json — пакеты с id «<ext-id>.<pkg>», voice/adapters/
 """
 import asyncio
 import copy
+import hashlib
 import inspect
 import json
 import logging
@@ -46,6 +56,7 @@ import sys
 import tarfile
 import time
 import urllib.request
+import zipfile
 from pathlib import Path
 
 from aiohttp import ClientSession, ClientTimeout
@@ -60,6 +71,13 @@ PACKAGES = ROOT / "packages"
 SERVICES = ("asr", "tts", "llm")
 SETTINGS_KEY = {"asr": "stt", "tts": "tts", "llm": "model"}
 FIELD_TYPES = ("text", "password", "number", "select", "textarea", "file")
+FIELD_GROUPS = ("advanced",)
+OPTIONS_FROM = ("gpus", "voices")
+VOICE_MODES = ("preset", "baked", "clone")
+# Служебные значения голоса: режим и запечённый голос (в поля адаптера/пакета не объявляются)
+VOICE_FIELDS = {"voice_mode": {"key": "voice_mode", "type": "select"},
+                "baked_voice_id": {"key": "baked_voice_id", "type": "text"},
+                "baked_voice_title": {"key": "baked_voice_title", "type": "text"}}
 WAV_LIMIT = 15 * 1024 ** 2
 WAV_SECONDS = (2.0, 30.0)
 KEEP = "__KEEP__"
@@ -79,7 +97,7 @@ def fill(value, options):
 
 
 def extension_for_adapter(runtime, config):
-    """ExtensionContext расширения-владельца адаптера (TASK-053) или None —
+    """ExtensionContext расширения-владельца адаптера или None —
     встроенный/свой адаптер. Идентификатор — config["adapter"] («<ext-id>.<файл>»);
     владелец — включённое расширение с самым длинным совпавшим префиксом (id
     расширений могут содержать точки). Новый объект на каждый вызов адаптера."""
@@ -97,7 +115,7 @@ def extension_for_adapter(runtime, config):
 
 
 def call_adapter(function, runtime, config, *args):
-    """Вызов функции адаптера из конвейера (TASK-053): адаптерам расширений, чья
+    """Вызов функции адаптера из конвейера: адаптерам расширений, чья
     функция принимает extension (проверка сигнатуры), передаётся kwarg
     extension=ExtensionContext; встроенные и прежние адаптеры вызываются как раньше."""
     try:
@@ -146,8 +164,9 @@ def gpus():
     return found
 
 
-def wav_info(data):
-    """Проверка WAV (RIFF/WAVE, PCM или float, 1–2 канала) → {seconds, rate, channels, bits}; иначе ValueError."""
+def wav_info(data, seconds=WAV_SECONDS):
+    """Проверка WAV (RIFF/WAVE, PCM или float, 1–2 канала, длительность в пределах seconds) →
+    {seconds, rate, channels, bits}; иначе ValueError."""
     import struct
     if len(data) < 44 or data[:4] != b"RIFF" or data[8:12] != b"WAVE":
         raise ValueError("Нужен файл WAV (RIFF/WAVE)")
@@ -168,16 +187,47 @@ def wav_info(data):
         raise ValueError("WAV: поддерживается только PCM или float, без сжатия")
     if channels not in (1, 2) or not 8000 <= rate <= 96000 or not align:
         raise ValueError("WAV: 1–2 канала, 8–96 кГц")
-    seconds = size / align / rate
-    if not WAV_SECONDS[0] <= seconds <= WAV_SECONDS[1]:
-        raise ValueError(f"Длительность эталона {seconds:.1f} с — нужно {WAV_SECONDS[0]:.0f}–{WAV_SECONDS[1]:.0f} с")
-    return {"seconds": round(seconds, 1), "rate": rate, "channels": channels, "bits": bits}
+    length = size / align / rate
+    if not seconds[0] <= length <= seconds[1]:
+        raise ValueError(f"Длительность эталона {length:.1f} с — нужно {seconds[0]:.0f}–{seconds[1]:.0f} с")
+    return {"seconds": round(length, 1), "rate": rate, "channels": channels, "bits": bits}
 
 
 def validate_fields(fields):
     for field in fields:
         if field.get("type", "text") not in FIELD_TYPES or not field.get("key"):
             raise ValueError("fields: key + type " + "|".join(FIELD_TYPES))
+        if field.get("group") not in (None, *FIELD_GROUPS):
+            raise ValueError("fields.group: " + "|".join(FIELD_GROUPS))
+        if field.get("options_from") not in (None, *OPTIONS_FROM):
+            raise ValueError("fields.options_from: " + "|".join(OPTIONS_FROM))
+
+
+def voice_modes(source):
+    """voice_modes адаптера/пакета (spec сервиса или пакет): подмножество VOICE_MODES по порядку объявления."""
+    modes = (source or {}).get("voice_modes") or []
+    return [m for m in modes if m in VOICE_MODES]
+
+
+def validate_modes(item):
+    modes = item.get("voice_modes")
+    if modes is None:
+        return
+    if not isinstance(modes, list) or not modes or any(m not in VOICE_MODES for m in modes):
+        raise ValueError("voice_modes: подмножество " + "|".join(VOICE_MODES))
+
+
+def value_fields(spec):
+    """Поля, значения которых принимает форма: объявленные + служебные поля голоса (если есть voice_modes)."""
+    modes = voice_modes(spec)
+    extra = [VOICE_FIELDS[k] for k in (("voice_mode",) + (("baked_voice_id", "baked_voice_title") if "baked" in modes else ())) if modes]
+    return list(spec.get("fields", [])) + extra
+
+
+def check_modes(spec, values):
+    mode, modes = values.get("voice_mode"), voice_modes(spec)
+    if mode not in (None, "") and mode not in modes:
+        raise ValueError("Режим голоса «%s» не поддерживается" % mode)
 
 
 # --- пакеты --------------------------------------------------------------------------
@@ -209,6 +259,12 @@ def validate_package(item):
     if not isinstance(item.get("platforms"), dict):
         raise ValueError("platforms: {windows|linux: {cpu|cuda: [шаги]}}")
     validate_fields(item.get("fields", []))
+    validate_modes(item)
+    bake = item.get("bake")
+    if bake is not None:
+        keys = {f["key"] for f in item.get("fields", [])}
+        if not (isinstance(bake, dict) and bake.get("audio") in keys and bake.get("text") in keys):
+            raise ValueError("bake: {audio, text} — ключи полей пакета")
 
 
 def load_extension_packages(origin, directory):
@@ -238,7 +294,7 @@ class PcmTTS:
         self.voice, self.response_format = config.get("voice", ""), config.get("response_format", "")
 
     async def synth_pcm(self, text):
-        # адаптер расширения получает extension=ExtensionContext (TASK-053), если принимает
+        # адаптер расширения получает extension=ExtensionContext, если принимает
         return await call_adapter(self._adapter.synth_pcm, self._runtime, self._config, text)
 
     def label(self):
@@ -280,20 +336,26 @@ class LocalSpeech:
         return list(package["platforms"].get(PLATFORM, {}))
 
     # --- параметры запуска -------------------------------------------------------
-    def options(self, package):
-        saved = {}
+    def _saved(self, package):
         try:
             saved = json.loads((self.options_dir / (package["id"] + ".json")).read_text(encoding="utf-8"))
         except (OSError, ValueError):
-            pass
-        options = {**package["defaults"], **(saved if isinstance(saved, dict) else {})}
+            return {}
+        return saved if isinstance(saved, dict) else {}
+
+    def options(self, package):
+        options = {**package["defaults"], **self._saved(package)}
+        modes, bake = voice_modes(package), package.get("bake") or {}
+        if modes and options.get("voice_mode") not in modes:  # старые настройки: загруженный эталон = его режим
+            options["voice_mode"] = bake.get("mode", "baked") if bake and options.get(bake.get("audio")) and                 bake.get("mode", "baked") in modes else modes[0]
         devices = self.devices(package)
         if "device" in options and devices and options["device"] not in devices:
             options["device"] = devices[0]
         return options
 
     def save_options(self, package, values):
-        options = {**self.options(package), **coerce(package.get("fields", []), values)}
+        check_modes(package, values)
+        options = {**self.options(package), **coerce(value_fields(package), values)}
         if not 1024 <= int(options.get("port") or 0) <= 65535:
             raise ValueError("Порт: 1024–65535")
         if "device" in options and options["device"] not in self.devices(package):
@@ -330,6 +392,8 @@ class LocalSpeech:
 
     def _set_file(self, package, key, value):
         options = {**self.options(package), key: value}
+        if "voice_mode" not in self._saved(package):
+            options.pop("voice_mode", None)  # режим выводится из загруженного эталона, не фиксируется загрузкой
         self.options_dir.mkdir(parents=True, exist_ok=True)
         (self.options_dir / (package["id"] + ".json")).write_text(
             json.dumps(options, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -354,6 +418,21 @@ class LocalSpeech:
             except (OSError, ValueError) as exc:
                 result[field["key"]] = {"name": path.name, "error": str(exc)}
         return result
+
+    def baked(self, package):
+        """Состояние запечённого голоса пакета: {"baked": bool, "name": файл эмбеддинга} или None
+        (у пакета нет "bake"). Сервер пишет <эталон>.<sha1(WAV + текст)[:12]>.pt рядом с эталоном."""
+        spec = package.get("bake")
+        if not spec:
+            return None
+        options = self.options(package)
+        path = Path(options.get(spec["audio"]) or "")
+        if not options.get(spec["audio"]) or not path.is_file():
+            return {"baked": False, "name": ""}
+        text = " ".join(str(options.get(spec["text"]) or "").split())
+        digest = hashlib.sha1(path.read_bytes() + text.encode("utf-8")).hexdigest()[:12]
+        target = path.with_name(path.stem + "." + digest + ".pt")
+        return {"baked": target.is_file(), "name": target.name if target.is_file() else ""}
 
     def marker(self, package):
         try:
@@ -461,14 +540,19 @@ class LocalSpeech:
         models = [{k: fill(v, options) for k, v in m.items()} for m in package.get("models", [])]
         for index, model in enumerate(models):
             name = model.get("name") or model["url"].rsplit("/", 1)[-1]
-            archive = name.endswith((".tar.bz2", ".tar.gz"))
-            if (folder / name.split(".tar.")[0]).is_dir() if archive else (folder / name).exists():
+            tar, zipped = name.endswith((".tar.bz2", ".tar.gz")), name.endswith(".zip")
+            unpacked = name.split(".tar.")[0] if tar else name[:-4] if zipped else None
+            if (folder / unpacked).is_dir() if unpacked else (folder / name).exists():
                 continue  # уже скачано (переустановка с теми же моделями)
             self._download(model["url"], folder / name, job, name, (index, len(models)))
-            if archive:
+            if unpacked:  # архив с папкой модели внутри (vosk-model-…/, vits-piper-…/)
                 job.update(stage="Распаковка " + name)
-                with tarfile.open(folder / name) as source:
-                    source.extractall(folder, filter="data")
+                if tar:
+                    with tarfile.open(folder / name) as source:
+                        source.extractall(folder, filter="data")
+                else:
+                    with zipfile.ZipFile(folder / name) as source:  # zipfile сам отбрасывает абсолютные пути и «..»
+                        source.extractall(folder)
                 (folder / name).unlink()
         marker = {k: options.get(k) for k in package.get("reinstall_on", [])}
         (folder / "installed.json").write_text(json.dumps(
@@ -503,6 +587,9 @@ class LocalSpeech:
             return
         folder = self.folder(package)
         options = {**self.options(package), "dir": str(folder), "python": str(self.python(package))}
+        bake = package.get("bake")
+        if bake and options.get("voice_mode") != bake.get("mode", "baked"):
+            options[bake["audio"]] = options[bake["text"]] = ""  # другой режим голоса — эталон серверу не передаётся
         env = dict(os.environ, HOST="127.0.0.1", PORT=str(options["port"]), PYTHONIOENCODING="utf-8")
         env.update({k: fill(v, options) for k, v in package["server"].get("env", {}).items()})
         flags, extra = getattr(subprocess, "CREATE_NO_WINDOW", 0), {}
@@ -623,17 +710,30 @@ class VoiceStack:
             raise ValueError("Пресет не найден")
         return found
 
+    @staticmethod
+    def _resolve_keep(values, previous):
+        """KEEP (маска секрета) → прежнее значение сохранённого пресета."""
+        return {k: ((previous or {}).get("values", {}).get(k, "") if v == KEEP else v) for k, v in values.items()}
+
+    def _write_preset(self, service, item):
+        folder = self.state_dir / "presets" / service
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / (item["id"] + ".json")).write_text(json.dumps(item, ensure_ascii=False, indent=2), encoding="utf-8")
+
     def save_preset(self, service, adapter_id, title, values, identifier=None):
-        """Создать (identifier=None) или обновить пресет; API-ключ KEEP — прежнее значение."""
+        """Создать (identifier=None) или обновить пресет; секреты со значением KEEP — прежнее значение.
+        Поля-файлы (эталон голоса) форма не меняет — их путь переносится из прежнего пресета."""
         module = self.adapter(service, adapter_id)
+        spec = module.SERVICES[service]
         title = str(title or "").strip()[:80]
         if not title:
             raise ValueError("Название пресета обязательно")
+        check_modes(spec, values)
         previous = self.preset(service, identifier) if identifier else None
-        values = coerce(module.SERVICES[service].get("fields", []), values)
-        for key, value in list(values.items()):
-            if value == KEEP:
-                values[key] = (previous or {}).get("values", {}).get(key, "")
+        values = self._resolve_keep(coerce(value_fields(spec), values), previous)
+        for key in [f["key"] for f in spec.get("fields", []) if f.get("type") == "file"] + list(VOICE_FIELDS):
+            if key not in values and key in (previous or {}).get("values", {}):
+                values[key] = previous["values"][key]
         if identifier is None:
             base = re.sub(r"[^a-z0-9]+", "-", adapter_id.lower()).strip("-") or "preset"
             existing = {p["id"] for p in self.presets(service)}
@@ -641,10 +741,103 @@ class VoiceStack:
             while identifier in existing:
                 identifier, number = f"{base}-{number}", number + 1
         item = {"id": identifier, "service": service, "title": title, "adapter": adapter_id, "values": values}
-        folder = self.state_dir / "presets" / service
-        folder.mkdir(parents=True, exist_ok=True)
-        (folder / (identifier + ".json")).write_text(json.dumps(item, ensure_ascii=False, indent=2), encoding="utf-8")
+        self._write_preset(service, item)
         return item
+
+    # --- файлы пресета (эталон клонирования): <пресет>/<ключ>.wav, путь — в values ----------------
+    def preset_file_path(self, service, identifier, key):
+        preset = self.preset(service, identifier)
+        spec = self.adapter(service, preset["adapter"]).SERVICES[service]
+        if not any(f["key"] == key and f.get("type") == "file" for f in spec.get("fields", [])):
+            raise ValueError("У адаптера нет поля-файла " + key)
+        if preset.get("readonly"):
+            raise ValueError("Пресет расширения — только чтение; сделайте копию")
+        return self.state_dir / "presets" / service / identifier / (key + ".wav"), preset
+
+    def upload_preset_file(self, service, identifier, key, data):
+        target, preset = self.preset_file_path(service, identifier, key)
+        if len(data) > WAV_LIMIT:
+            raise ValueError("Файл больше 15 МБ")
+        info = wav_info(data)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temporary = target.with_suffix(".tmp")
+        temporary.write_bytes(data)
+        os.replace(temporary, target)
+        self._write_preset(service, {**preset, "values": {**preset["values"], key: str(target)}})
+        return info
+
+    def remove_preset_file(self, service, identifier, key):
+        target, preset = self.preset_file_path(service, identifier, key)
+        target.unlink(missing_ok=True)
+        self._write_preset(service, {**preset, "values": {**preset["values"], key: ""}})
+
+    @staticmethod
+    def _files_info(spec, values):
+        result = {}
+        for field in spec.get("fields", []):
+            if field.get("type") != "file" or not values.get(field["key"]):
+                continue
+            path = Path(values[field["key"]])
+            try:
+                result[field["key"]] = {"name": path.name, **wav_info(path.read_bytes())}
+            except (OSError, ValueError) as exc:
+                result[field["key"]] = {"name": path.name, "error": str(exc)}
+        return result
+
+    # --- голоса поставщика и запекание ---------------------------------------------------------
+    def _preset_config(self, service, adapter_id, values, identifier=None):
+        module = self.adapter(service, adapter_id)
+        spec = module.SERVICES[service]
+        check_modes(spec, values)
+        previous = self.preset(service, identifier) if identifier else None
+        values = self._resolve_keep(coerce(value_fields(spec), values), previous)
+        return module, spec, {**copy.deepcopy(spec.get("defaults", {})), **values, "adapter": adapter_id}
+
+    async def voices(self, service, adapter_id, values, identifier=None, refresh=False):
+        """Список голосов поставщика для поля options_from=voices: {"options": [...], "error"?}.
+        Адаптер без voices() или ошибка запроса — options по умолчанию из описания поля + текст ошибки.
+        refresh=True → config["refresh"] = True (мимо кеша адаптера)."""
+        module, spec, config = self._preset_config(service, adapter_id, values or {}, identifier)
+        if refresh:
+            config["refresh"] = True  # адаптеры кешируют список (10 минут): «Обновить список» просит свежий
+        field = next((f for f in spec.get("fields", []) if f.get("options_from") == "voices"), None)
+        fallback = list((field or {}).get("options", []))
+        if not callable(getattr(module, "voices", None)):
+            return {"options": fallback, "error": "Адаптер не умеет запрашивать список голосов"}
+        try:
+            items = await call_adapter(module.voices, self.runtime, config)
+            options = [{k: v for k, v in item.items() if k in ("value", "label", "lang", "gender")}
+                       for item in items if isinstance(item, dict) and item.get("value")]
+        except ValueError as exc:  # понятный текст адаптера (без ключей)
+            return {"options": fallback, "error": str(exc) or "Не удалось получить список голосов"}
+        except Exception as exc:  # noqa: BLE001 — сеть/формат: текст исключения может содержать URL
+            log.warning("Список голосов %s не получен: %s", adapter_id, type(exc).__name__)
+            return {"options": fallback, "error": "Не удалось получить список голосов — проверьте ключ и сеть"}
+        return {"options": options or fallback}
+
+    async def bake(self, service, adapter_id, values, audio, text, identifier=None):
+        """Запечь голос у поставщика: эталон (WAV) уходит один раз, возвращается постоянный voice_id."""
+        module, spec, config = self._preset_config(service, adapter_id, values or {}, identifier)
+        if "baked" not in voice_modes(spec) or not callable(getattr(module, "bake_voice", None)):
+            raise ValueError("Адаптер не умеет запекать голос")
+        rules = spec.get("bake") or {}
+        text = " ".join(str(text or "").split())
+        if rules.get("text", True) and not text:
+            raise ValueError("Введите текст эталонной записи")
+        if len(audio) > WAV_LIMIT:
+            raise ValueError("Файл больше 15 МБ")
+        wav_info(audio, tuple(rules.get("seconds") or WAV_SECONDS))
+        result = await call_adapter(module.bake_voice, self.runtime, config, audio, text)
+        if not isinstance(result, dict) or not result.get("voice_id"):
+            raise ValueError("Поставщик не вернул идентификатор голоса")
+        return {"voice_id": str(result["voice_id"]), "title": str(result.get("title") or result["voice_id"])}
+
+    async def unbake(self, service, adapter_id, values, identifier=None):
+        """Удалить запечённый голос (у поставщика — если адаптер умеет unbake_voice)."""
+        module, spec, config = self._preset_config(service, adapter_id, values or {}, identifier)
+        voice_id = str(config.get("baked_voice_id") or "")
+        if voice_id and callable(getattr(module, "unbake_voice", None)):
+            await call_adapter(module.unbake_voice, self.runtime, config, voice_id)
 
     def delete_preset(self, service, identifier):
         self.preset(service, identifier)
@@ -654,6 +847,7 @@ class VoiceStack:
         if not file.is_file():
             raise ValueError("Пресет расширения — только чтение; сделайте копию")
         file.unlink()
+        shutil.rmtree(self.state_dir / "presets" / service / identifier, ignore_errors=True)  # эталоны пресета
 
     # --- активный источник -------------------------------------------------------
     def active(self, service):
@@ -739,12 +933,20 @@ class VoiceStack:
         settings["voice_stack"] = {**(settings.get("voice_stack") or {}), service: "p:" + preset["id"]}
         await self.runtime.save_settings(settings)
 
+    def _mask(self, service, preset, adapters):
+        """Пресет для API: секреты (type=password) — KEEP, поля-файлы — только сведения о файле."""
+        module = adapters.get(preset.get("adapter"))
+        spec = module.SERVICES[service] if module is not None and service in module.SERVICES else {}
+        secrets = {f["key"] for f in spec.get("fields", []) if f.get("type") == "password"} | {"api_key"}
+        files = {f["key"] for f in spec.get("fields", []) if f.get("type") == "file"}
+        values = {k: (KEEP if k in secrets and v else ("" if k in files else v)) for k, v in preset.get("values", {}).items()}
+        return {**preset, "values": values, "files": self._files_info(spec, preset.get("values", {}))}
+
     async def public(self):
         await self.migrate()
         packages, adapters, result = self.packages(), adapter_registry.available(), {}
         for service in SERVICES:
-            presets = [{**p, "values": {k: (KEEP if k == "api_key" and v else v) for k, v in p.get("values", {}).items()}}
-                       for p in self.presets(service)]
+            presets = [self._mask(service, p, adapters) for p in self.presets(service)]
             items = []
             for package in packages[service]:
                 devices = self.local.devices(package)
@@ -754,11 +956,22 @@ class VoiceStack:
                 items.append({k: package[k] for k in ("id", "title", "description", "requirements") if k in package}
                              | {"fields": fields, "values": self.local.options(package), "files": self.local.files(package), "platform": PLATFORM,
                                 "note": package.get("notes", {}).get(PLATFORM, ""), "state": await self.local.state(package)}
+                             | ({"voice_modes": voice_modes(package)} if voice_modes(package) else {})
+                             | ({"bake": {**package["bake"], **self.local.baked(package)}} if package.get("bake") else {})
                              | ({"origin": package["_origin"]} if package.get("_origin") else {}))
-            kinds = [{"id": key, "title": getattr(module, "TITLE", key), "description": getattr(module, "DESCRIPTION", ""),
-                      **{k: module.SERVICES[service].get(k, d) for k, d in (("fields", []), ("defaults", {}), ("examples", {}))}}
-                     for key, module in sorted(adapters.items(), key=lambda kv: getattr(kv[1], "TITLE", kv[0]))
-                     if service in module.SERVICES]
+            kinds = []
+            for key, module in sorted(adapters.items(), key=lambda kv: getattr(kv[1], "TITLE", kv[0])):
+                if service not in module.SERVICES:
+                    continue
+                spec = module.SERVICES[service]
+                kinds.append({"id": key, "title": spec.get("title") or getattr(module, "TITLE", key),
+                              "description": spec.get("description") or getattr(module, "DESCRIPTION", ""),
+                              **{k: spec.get(k, d) for k, d in (("fields", []), ("defaults", {}), ("examples", {}))},
+                              **({"voice_modes": voice_modes(spec)} if voice_modes(spec) else {}),
+                              **({"bake": {**(spec.get("bake") or {}), "available": callable(getattr(module, "bake_voice", None))}}
+                                 if "baked" in voice_modes(spec) else {}),
+                              "voices": callable(getattr(module, "voices", None)), "test": hasattr(module, "synth_pcm")})
+            kinds.sort(key=lambda kind: kind["title"].lower())
             entry = {"presets": presets, "packages": items, "adapters": kinds, "active": self.active(service)}
             unavailable = self.unavailable_source(service)
             if unavailable:

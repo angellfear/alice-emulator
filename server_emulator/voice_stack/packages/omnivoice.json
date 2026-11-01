@@ -48,7 +48,8 @@
       "step": 1,
       "when": {
         "device": "cpu"
-      }
+      },
+      "group": "advanced"
     },
     {
       "key": "priority",
@@ -63,29 +64,41 @@
           "value": "low",
           "label": "Низкий (фоновый)"
         }
-      ]
+      ],
+      "group": "advanced"
     },
     {
       "key": "ref_audio",
       "label": "Эталонная запись голоса (WAV, 3–10 с лучше всего)",
       "type": "file",
       "accept": ".wav",
-      "transcribe_to": "ref_text"
+      "transcribe_to": "ref_text",
+      "required": true,
+      "when": {
+        "voice_mode": "baked"
+      }
     },
     {
       "key": "ref_text",
       "label": "Текст эталонной записи (пусто — распознаётся при сохранении)",
-      "type": "textarea"
+      "type": "textarea",
+      "when": {
+        "voice_mode": "baked"
+      }
     },
     {
       "key": "instruct",
       "label": "Описание голоса, если нет эталона (англ.: female, low pitch)",
-      "type": "text"
+      "type": "text",
+      "when": {
+        "voice_mode": "preset"
+      }
     },
     {
       "key": "language",
       "label": "Язык",
-      "type": "text"
+      "type": "text",
+      "group": "advanced"
     },
     {
       "key": "speed",
@@ -97,13 +110,15 @@
       "key": "steps",
       "label": "Шагов генерации (качество/время)",
       "type": "number",
-      "step": 1
+      "step": 1,
+      "group": "advanced"
     },
     {
       "key": "port",
       "label": "Порт",
       "type": "number",
-      "step": 1
+      "step": 1,
+      "group": "advanced"
     }
   ],
   "defaults": {
@@ -223,5 +238,14 @@
   "models": [],
   "reinstall_on": [
     "device"
-  ]
+  ],
+  "voice_modes": [
+    "preset",
+    "baked"
+  ],
+  "bake": {
+    "audio": "ref_audio",
+    "text": "ref_text",
+    "mode": "baked"
+  }
 }

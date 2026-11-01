@@ -479,6 +479,23 @@ small.warn{color:#e8d06a}
 .vs-file-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .vs-file-name{color:var(--text);font-size:13px}
 .vs-file audio{width:100%;height:34px}
+.vs-label{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.vs-link{font-size:12px;color:var(--accent-strong);text-decoration:none;white-space:nowrap}
+.vs-link:hover{text-decoration:underline}
+.vs-help{font-size:11.5px;line-height:1.45;color:var(--faint)}
+.vs-field.vs-missing input,.vs-field.vs-missing select,.vs-field.vs-missing textarea{border-color:var(--danger)}
+.vs-select-row{display:flex;gap:8px;align-items:stretch}
+.vs-select-row select{flex:1;min-width:0;width:auto}
+.vs-modes{display:flex;gap:6px;flex-wrap:wrap}
+.vs-modes button{flex:1 1 auto;min-width:0;padding:6px 10px;font-size:13px}
+.vs-modes button[aria-pressed=true]{background:var(--accent);color:#081120;border-color:transparent}
+.vs-mode-name{font-size:13px;font-weight:600;color:var(--text)}
+.vs-adv{border:1px solid var(--border);border-radius:var(--radius-s);padding:8px 12px}
+.vs-adv summary{cursor:pointer;font-size:13px;color:var(--muted)}
+.vs-adv[open] summary{margin-bottom:10px}
+.vs-bake{display:flex;flex-direction:column;gap:8px}
+.vs-bake-status{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text)}
+.vs-bake-status.on .vs-dot{background:#4cc38a}
 .sc-text{flex:1}
 .sc-icon{width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:var(--radius-s);flex-shrink:0}
 .sc-icon:hover{background:var(--surface-3);color:var(--accent-strong);border-color:var(--accent-border)}

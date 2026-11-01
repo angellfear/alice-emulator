@@ -5,20 +5,27 @@ from aiohttp import ClientTimeout
 
 from ...auth import secret
 
-TITLE = "Anthropic (Claude)"
-DESCRIPTION = "Claude через Messages API; ключ — console.anthropic.com. Инструменты модели поддерживаются."
+TITLE = "Anthropic (Claude) (Online)"
+DESCRIPTION = "Claude через Messages API: платно, оплата по токенам. Инструменты модели поддерживаются."
 SERVICES = {
     "llm": {
-        "fields": [{"key": "api_key", "label": "API-ключ", "type": "password"},
+        "fields": [{"key": "api_key", "label": "API-ключ", "type": "password", "required": True,
+                    "link": "https://console.anthropic.com/settings/keys",
+                    "help": "console.anthropic.com → Settings → API keys"},
                    {"key": "model", "label": "Модель", "type": "select", "options": [
                        {"value": "claude-haiku-5-5", "label": "Claude Haiku 5.5 (быстрый)"},
                        {"value": "claude-sonnet-5-5", "label": "Claude Sonnet 5.5"},
                        {"value": "claude-opus-5-5", "label": "Claude Opus 5.5"}]},
-                   {"key": "temperature", "label": "Температура", "type": "number", "step": 0.1},
-                   {"key": "max_tokens", "label": "Максимум токенов ответа", "type": "number", "step": 1},
-                   {"key": "url", "label": "URL", "type": "text"}],
+                   {"key": "temperature", "label": "Температура", "type": "number", "step": 0.1, "group": "advanced"},
+                   {"key": "max_tokens", "label": "Максимум токенов ответа", "type": "number", "step": 1, "group": "advanced"},
+                   {"key": "url", "label": "Адрес сервиса", "type": "text", "group": "advanced",
+                    "help": "Пусто — https://api.anthropic.com/v1/messages; нужен для прокси"}],
         "defaults": {"url": "https://api.anthropic.com/v1/messages", "model": "claude-haiku-5-5",
                      "temperature": 0.3, "max_tokens": 512},
+        "examples": {
+            "Claude Haiku (Online)": {"model": "claude-haiku-5-5", "temperature": 0.3, "max_tokens": 512},
+            "Claude Sonnet (Online)": {"model": "claude-sonnet-5-5", "temperature": 0.3, "max_tokens": 512},
+        },
     },
 }
 MATCH = {"llm": r"api\.anthropic\.com"}

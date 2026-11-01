@@ -68,13 +68,15 @@
       "key": "threads",
       "label": "Потоков на запрос",
       "type": "number",
-      "step": 1
+      "step": 1,
+      "group": "advanced"
     },
     {
       "key": "workers",
       "label": "Параллельных запросов",
       "type": "number",
-      "step": 1
+      "step": 1,
+      "group": "advanced"
     },
     {
       "key": "priority",
@@ -89,13 +91,15 @@
           "value": "low",
           "label": "Низкий (фоновый)"
         }
-      ]
+      ],
+      "group": "advanced"
     },
     {
       "key": "port",
       "label": "Порт",
       "type": "number",
-      "step": 1
+      "step": 1,
+      "group": "advanced"
     }
   ],
   "defaults": {
@@ -180,5 +184,8 @@
   "reinstall_on": [
     "device",
     "voice"
+  ],
+  "voice_modes": [
+    "preset"
   ]
 }

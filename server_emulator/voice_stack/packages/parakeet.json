@@ -1,0 +1,245 @@
+{
+  "id": "parakeet",
+  "service": "asr",
+  "title": "Parakeet v3 (GPU)",
+  "order": 40,
+  "description": "NVIDIA Parakeet-tdt-0.6b-v3 (лицензия CC-BY-4.0, с указанием авторства): многоязычное распознавание, в том числе русского, с пунктуацией и заглавными буквами. ONNX-версия на onnx-asr (без тяжёлого NeMo). Рассчитана на видеокарту NVIDIA (~4 ГБ); на процессоре работает в int8, но медленнее. Модель ~0,7 ГБ (int8) или ~2,6 ГБ (fp32) скачивается при установке.",
+  "requirements": {
+    "gpu": true,
+    "vram_gb": 4,
+    "disk_gb": 7
+  },
+  "adapter": "openai",
+  "config": {
+    "url": "http://127.0.0.1:{port}/v1/audio/transcriptions",
+    "model": "parakeet-tdt-0.6b-v3",
+    "language": "ru"
+  },
+  "fields": [
+    {
+      "key": "device",
+      "label": "Устройство",
+      "type": "select",
+      "options": [
+        {
+          "value": "cpu",
+          "label": "Процессор (CPU)"
+        },
+        {
+          "value": "cuda",
+          "label": "Видеокарта NVIDIA (CUDA)"
+        }
+      ]
+    },
+    {
+      "key": "gpu",
+      "label": "Видеокарта",
+      "type": "select",
+      "options_from": "gpus",
+      "when": {
+        "device": "cuda"
+      }
+    },
+    {
+      "key": "quantization",
+      "label": "Точность весов",
+      "type": "select",
+      "options": [
+        {
+          "value": "auto",
+          "label": "Авто: int8 на процессоре, fp32 на видеокарте"
+        },
+        {
+          "value": "int8",
+          "label": "int8: файлы меньше, на процессоре быстрее"
+        },
+        {
+          "value": "fp32",
+          "label": "fp32: чуть точнее, файлы больше"
+        }
+      ],
+      "group": "advanced"
+    },
+    {
+      "key": "threads",
+      "label": "Потоков процессора",
+      "type": "number",
+      "step": 1,
+      "group": "advanced"
+    },
+    {
+      "key": "workers",
+      "label": "Параллельных запросов",
+      "type": "number",
+      "step": 1,
+      "group": "advanced"
+    },
+    {
+      "key": "priority",
+      "label": "Приоритет процесса",
+      "type": "select",
+      "options": [
+        {
+          "value": "normal",
+          "label": "Обычный"
+        },
+        {
+          "value": "low",
+          "label": "Низкий (фоновый)"
+        }
+      ],
+      "group": "advanced"
+    },
+    {
+      "key": "port",
+      "label": "Порт",
+      "type": "number",
+      "step": 1,
+      "group": "advanced"
+    }
+  ],
+  "defaults": {
+    "device": "cuda",
+    "gpu": "0",
+    "quantization": "auto",
+    "threads": 4,
+    "workers": 1,
+    "priority": "normal",
+    "port": 5016
+  },
+  "server": {
+    "script": "tools/parakeet_server.py",
+    "health": "/health",
+    "env": {
+      "ASR_MODEL_DIR": "{dir}/parakeet-tdt-0.6b-v3",
+      "ASR_VAD_DIR": "{dir}/silero-vad",
+      "ASR_DEVICE": "{device}",
+      "ASR_QUANT": "{quantization}",
+      "ASR_THREADS": "{threads}",
+      "ASR_WORKERS": "{workers}",
+      "HF_HUB_OFFLINE": "1",
+      "CUDA_VISIBLE_DEVICES": "{gpu}"
+    }
+  },
+  "platforms": {
+    "windows": {
+      "cpu": [
+        {
+          "pip": [
+            "onnx-asr[hub]==0.12.0",
+            "huggingface-hub==2.4.0",
+            "numpy==2.5.4",
+            "aiohttp==3.14.5",
+            "soundfile==0.14.0",
+            "soxr==1.1.0",
+            "onnxruntime==1.31.1"
+          ]
+        },
+        {
+          "run": [
+            "{python}",
+            "-c",
+            "import sys, onnx_asr\nname, path, device, quant, vad = sys.argv[1:6]\nquantization = {'auto': None if device == 'cuda' else 'int8', 'int8': 'int8'}.get(quant)\ncpu = ['CPUExecutionProvider']\nonnx_asr.load_model(name, path, quantization=quantization, providers=cpu)\nonnx_asr.load_vad('silero', vad, providers=cpu)",
+            "nemo-parakeet-tdt-0.6b-v3",
+            "{dir}/parakeet-tdt-0.6b-v3",
+            "{device}",
+            "{quantization}",
+            "{dir}/silero-vad"
+          ],
+          "title": "Загрузка модели и VAD"
+        }
+      ],
+      "cuda": [
+        {
+          "pip": [
+            "onnx-asr[hub]==0.12.0",
+            "huggingface-hub==2.4.0",
+            "numpy==2.5.4",
+            "aiohttp==3.14.5",
+            "soundfile==0.14.0",
+            "soxr==1.1.0",
+            "onnxruntime-gpu[cuda,cudnn]==1.24.4",
+            "nvidia-cublas-cu12==12.8.4.1"
+          ]
+        },
+        {
+          "run": [
+            "{python}",
+            "-c",
+            "import sys, onnx_asr\nname, path, device, quant, vad = sys.argv[1:6]\nquantization = {'auto': None if device == 'cuda' else 'int8', 'int8': 'int8'}.get(quant)\ncpu = ['CPUExecutionProvider']\nonnx_asr.load_model(name, path, quantization=quantization, providers=cpu)\nonnx_asr.load_vad('silero', vad, providers=cpu)",
+            "nemo-parakeet-tdt-0.6b-v3",
+            "{dir}/parakeet-tdt-0.6b-v3",
+            "{device}",
+            "{quantization}",
+            "{dir}/silero-vad"
+          ],
+          "title": "Загрузка модели и VAD"
+        }
+      ]
+    },
+    "linux": {
+      "cpu": [
+        {
+          "pip": [
+            "onnx-asr[hub]==0.12.0",
+            "huggingface-hub==2.4.0",
+            "numpy==2.5.4",
+            "aiohttp==3.14.5",
+            "soundfile==0.14.0",
+            "soxr==1.1.0",
+            "onnxruntime==1.31.1"
+          ]
+        },
+        {
+          "run": [
+            "{python}",
+            "-c",
+            "import sys, onnx_asr\nname, path, device, quant, vad = sys.argv[1:6]\nquantization = {'auto': None if device == 'cuda' else 'int8', 'int8': 'int8'}.get(quant)\ncpu = ['CPUExecutionProvider']\nonnx_asr.load_model(name, path, quantization=quantization, providers=cpu)\nonnx_asr.load_vad('silero', vad, providers=cpu)",
+            "nemo-parakeet-tdt-0.6b-v3",
+            "{dir}/parakeet-tdt-0.6b-v3",
+            "{device}",
+            "{quantization}",
+            "{dir}/silero-vad"
+          ],
+          "title": "Загрузка модели и VAD"
+        }
+      ],
+      "cuda": [
+        {
+          "pip": [
+            "onnx-asr[hub]==0.12.0",
+            "huggingface-hub==2.4.0",
+            "numpy==2.5.4",
+            "aiohttp==3.14.5",
+            "soundfile==0.14.0",
+            "soxr==1.1.0",
+            "onnxruntime-gpu[cuda,cudnn]==1.24.4",
+            "nvidia-cublas-cu12==12.8.4.1"
+          ]
+        },
+        {
+          "run": [
+            "{python}",
+            "-c",
+            "import sys, onnx_asr\nname, path, device, quant, vad = sys.argv[1:6]\nquantization = {'auto': None if device == 'cuda' else 'int8', 'int8': 'int8'}.get(quant)\ncpu = ['CPUExecutionProvider']\nonnx_asr.load_model(name, path, quantization=quantization, providers=cpu)\nonnx_asr.load_vad('silero', vad, providers=cpu)",
+            "nemo-parakeet-tdt-0.6b-v3",
+            "{dir}/parakeet-tdt-0.6b-v3",
+            "{device}",
+            "{quantization}",
+            "{dir}/silero-vad"
+          ],
+          "title": "Загрузка модели и VAD"
+        }
+      ]
+    }
+  },
+  "notes": {
+    "windows": "Windows и Linux: драйвер NVIDIA с поддержкой CUDA 12.8 (библиотеки CUDA и cuDNN ставятся из pip).",
+    "linux": "Windows и Linux: драйвер NVIDIA с поддержкой CUDA 12.8 (библиотеки CUDA и cuDNN ставятся из pip)."
+  },
+  "models": [],
+  "reinstall_on": [
+    "device",
+    "quantization"
+  ]
+}

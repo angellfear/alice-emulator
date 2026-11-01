@@ -1,0 +1,279 @@
+{
+  "id": "xtts",
+  "service": "tts",
+  "title": "Coqui XTTS-v2 (GPU)",
+  "order": 60,
+  "description": "Coqui XTTS-v2, 17 языков включая русский: свой голос из эталона 6–30 с (латенты считаются один раз и хранятся), потоковый синтез. Нужна видеокарта NVIDIA (~4 ГБ); на процессоре медленнее речи. Лицензия модели CPML — только некоммерческое использование. Модель ~2,1 ГБ скачивается при установке.",
+  "requirements": {
+    "gpu": true,
+    "vram_gb": 4,
+    "disk_gb": 8
+  },
+  "adapter": "openai",
+  "config": {
+    "url": "http://127.0.0.1:{port}/v1/audio/speech",
+    "model": "xtts-v2",
+    "voice": "reference",
+    "response_format": "pcm_f32le"
+  },
+  "voice_modes": [
+    "baked"
+  ],
+  "bake": {
+    "audio": "ref_audio",
+    "text": "ref_text",
+    "mode": "baked",
+    "transcribe": false
+  },
+  "fields": [
+    {
+      "key": "ref_audio",
+      "label": "Эталонная запись голоса (WAV, 6–30 с)",
+      "type": "file",
+      "accept": ".wav",
+      "required": true,
+      "transcribe_to": "ref_text"
+    },
+    {
+      "key": "ref_text",
+      "label": "Текст эталонной записи (необязательно: XTTS клонирует голос по звуку)",
+      "type": "textarea"
+    },
+    {
+      "key": "device",
+      "label": "Устройство",
+      "type": "select",
+      "options": [
+        {
+          "value": "cpu",
+          "label": "Процессор (CPU)"
+        },
+        {
+          "value": "cuda",
+          "label": "Видеокарта NVIDIA (CUDA)"
+        }
+      ]
+    },
+    {
+      "key": "gpu",
+      "label": "Видеокарта",
+      "type": "select",
+      "options_from": "gpus",
+      "when": {
+        "device": "cuda"
+      }
+    },
+    {
+      "key": "temperature",
+      "label": "Температура (больше — разнообразнее)",
+      "type": "number",
+      "step": 0.05,
+      "group": "advanced"
+    },
+    {
+      "key": "speed",
+      "label": "Скорость речи",
+      "type": "number",
+      "step": 0.1,
+      "group": "advanced"
+    },
+    {
+      "key": "language",
+      "label": "Язык текста (ru, en, de, fr…)",
+      "type": "text",
+      "group": "advanced"
+    },
+    {
+      "key": "stream",
+      "label": "Отдавать звук по мере синтеза",
+      "type": "select",
+      "options": [
+        {
+          "value": "1",
+          "label": "Включено"
+        },
+        {
+          "value": "0",
+          "label": "Выключено"
+        }
+      ],
+      "group": "advanced"
+    },
+    {
+      "key": "threads",
+      "label": "Потоков процессора",
+      "type": "number",
+      "step": 1,
+      "group": "advanced"
+    },
+    {
+      "key": "priority",
+      "label": "Приоритет процесса",
+      "type": "select",
+      "options": [
+        {
+          "value": "normal",
+          "label": "Обычный"
+        },
+        {
+          "value": "low",
+          "label": "Низкий (фоновый)"
+        }
+      ],
+      "group": "advanced"
+    },
+    {
+      "key": "port",
+      "label": "Порт",
+      "type": "number",
+      "step": 1,
+      "group": "advanced"
+    }
+  ],
+  "defaults": {
+    "device": "cuda",
+    "gpu": "0",
+    "ref_audio": "",
+    "ref_text": "",
+    "temperature": 0.75,
+    "speed": 1.0,
+    "language": "ru",
+    "stream": "1",
+    "threads": 4,
+    "priority": "normal",
+    "port": 5022
+  },
+  "server": {
+    "script": "tools/xtts_server.py",
+    "health": "/health",
+    "env": {
+      "XTTS_MODEL_DIR": "{dir}",
+      "XTTS_DEVICE": "{device}",
+      "XTTS_THREADS": "{threads}",
+      "XTTS_REF_AUDIO": "{ref_audio}",
+      "XTTS_REF_TEXT": "{ref_text}",
+      "XTTS_LANGUAGE": "{language}",
+      "XTTS_TEMPERATURE": "{temperature}",
+      "XTTS_SPEED": "{speed}",
+      "XTTS_STREAM": "{stream}",
+      "CUDA_VISIBLE_DEVICES": "{gpu}"
+    }
+  },
+  "platforms": {
+    "windows": {
+      "cpu": [
+        {
+          "pip": [
+            "torch==2.8.0",
+            "torchaudio==2.8.0"
+          ],
+          "args": [
+            "--index-url",
+            "https://download.pytorch.org/whl/cpu"
+          ]
+        },
+        {
+          "pip": [
+            "coqui-tts==0.28.0",
+            "six==1.17.0",
+            "transformers==4.57.3",
+            "soundfile==0.14.0",
+            "aiohttp==3.14.5"
+          ]
+        }
+      ],
+      "cuda": [
+        {
+          "pip": [
+            "torch==2.8.0",
+            "torchaudio==2.8.0"
+          ],
+          "args": [
+            "--index-url",
+            "https://download.pytorch.org/whl/cu126"
+          ]
+        },
+        {
+          "pip": [
+            "coqui-tts==0.28.0",
+            "six==1.17.0",
+            "transformers==4.57.3",
+            "soundfile==0.14.0",
+            "aiohttp==3.14.5"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "cpu": [
+        {
+          "pip": [
+            "torch==2.8.0",
+            "torchaudio==2.8.0"
+          ],
+          "args": [
+            "--index-url",
+            "https://download.pytorch.org/whl/cpu"
+          ]
+        },
+        {
+          "pip": [
+            "coqui-tts==0.28.0",
+            "six==1.17.0",
+            "transformers==4.57.3",
+            "soundfile==0.14.0",
+            "aiohttp==3.14.5"
+          ]
+        }
+      ],
+      "cuda": [
+        {
+          "pip": [
+            "torch==2.8.0",
+            "torchaudio==2.8.0"
+          ],
+          "args": [
+            "--index-url",
+            "https://download.pytorch.org/whl/cu126"
+          ]
+        },
+        {
+          "pip": [
+            "coqui-tts==0.28.0",
+            "six==1.17.0",
+            "transformers==4.57.3",
+            "soundfile==0.14.0",
+            "aiohttp==3.14.5"
+          ]
+        }
+      ]
+    }
+  },
+  "notes": {
+    "windows": "Нужен драйвер NVIDIA с поддержкой CUDA 12.6.",
+    "linux": "Нужен драйвер NVIDIA с поддержкой CUDA 12.6."
+  },
+  "models": [
+    {
+      "url": "https://huggingface.co/coqui/XTTS-v2/resolve/main/config.json"
+    },
+    {
+      "url": "https://huggingface.co/coqui/XTTS-v2/resolve/main/model.pth"
+    },
+    {
+      "url": "https://huggingface.co/coqui/XTTS-v2/resolve/main/vocab.json"
+    },
+    {
+      "url": "https://huggingface.co/coqui/XTTS-v2/resolve/main/dvae.pth"
+    },
+    {
+      "url": "https://huggingface.co/coqui/XTTS-v2/resolve/main/mel_stats.pth"
+    },
+    {
+      "url": "https://huggingface.co/coqui/XTTS-v2/resolve/main/speakers_xtts.pth"
+    }
+  ],
+  "reinstall_on": [
+    "device"
+  ]
+}

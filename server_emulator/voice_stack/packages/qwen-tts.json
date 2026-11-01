@@ -1,0 +1,250 @@
+{
+  "id": "qwen-tts",
+  "service": "tts",
+  "title": "Qwen3-TTS 1.7B (GPU)",
+  "order": 50,
+  "description": "Qwen3-TTS 1.7B (Alibaba, Apache-2.0), русский поддерживается: свой голос из эталона 3–30 с (запекается один раз) или голос по текстовому описанию. Нужна видеокарта NVIDIA (~6 ГБ); на процессоре работает, но очень медленно. Модели (~4,5 ГБ каждая) скачиваются при первом запуске: Base — для эталона, VoiceDesign — для описания.",
+  "requirements": {
+    "gpu": true,
+    "vram_gb": 6,
+    "disk_gb": 14
+  },
+  "adapter": "openai",
+  "config": {
+    "url": "http://127.0.0.1:{port}/v1/audio/speech",
+    "model": "qwen3-tts-1.7b",
+    "voice": "reference",
+    "response_format": "pcm_f32le"
+  },
+  "voice_modes": [
+    "preset",
+    "baked"
+  ],
+  "bake": {
+    "audio": "ref_audio",
+    "text": "ref_text",
+    "mode": "baked"
+  },
+  "fields": [
+    {
+      "key": "ref_audio",
+      "label": "Эталонная запись голоса (WAV, 3–30 с)",
+      "type": "file",
+      "accept": ".wav",
+      "required": true,
+      "transcribe_to": "ref_text",
+      "when": {
+        "voice_mode": "baked"
+      }
+    },
+    {
+      "key": "ref_text",
+      "label": "Текст эталонной записи (пусто — распознаётся при сохранении)",
+      "type": "textarea",
+      "when": {
+        "voice_mode": "baked"
+      }
+    },
+    {
+      "key": "instruct",
+      "label": "Описание голоса (лучше на английском: young woman, calm, warm voice)",
+      "type": "text",
+      "when": {
+        "voice_mode": "preset"
+      }
+    },
+    {
+      "key": "device",
+      "label": "Устройство",
+      "type": "select",
+      "options": [
+        {
+          "value": "cpu",
+          "label": "Процессор (CPU)"
+        },
+        {
+          "value": "cuda",
+          "label": "Видеокарта NVIDIA (CUDA)"
+        }
+      ]
+    },
+    {
+      "key": "gpu",
+      "label": "Видеокарта",
+      "type": "select",
+      "options_from": "gpus",
+      "when": {
+        "device": "cuda"
+      }
+    },
+    {
+      "key": "language",
+      "label": "Язык текста (Russian, English, Chinese… или Auto)",
+      "type": "text",
+      "group": "advanced"
+    },
+    {
+      "key": "temperature",
+      "label": "Температура (больше — разнообразнее)",
+      "type": "number",
+      "step": 0.1,
+      "group": "advanced"
+    },
+    {
+      "key": "top_k",
+      "label": "Top-k выборки",
+      "type": "number",
+      "step": 1,
+      "group": "advanced"
+    },
+    {
+      "key": "threads",
+      "label": "Потоков процессора",
+      "type": "number",
+      "step": 1,
+      "group": "advanced"
+    },
+    {
+      "key": "priority",
+      "label": "Приоритет процесса",
+      "type": "select",
+      "options": [
+        {
+          "value": "normal",
+          "label": "Обычный"
+        },
+        {
+          "value": "low",
+          "label": "Низкий (фоновый)"
+        }
+      ],
+      "group": "advanced"
+    },
+    {
+      "key": "port",
+      "label": "Порт",
+      "type": "number",
+      "step": 1,
+      "group": "advanced"
+    }
+  ],
+  "defaults": {
+    "device": "cuda",
+    "gpu": "0",
+    "ref_audio": "",
+    "ref_text": "",
+    "instruct": "A calm adult woman with a clear, warm voice",
+    "language": "Russian",
+    "temperature": 0.9,
+    "top_k": 50,
+    "threads": 4,
+    "priority": "normal",
+    "port": 5021
+  },
+  "server": {
+    "script": "tools/qwen_tts_server.py",
+    "health": "/health",
+    "env": {
+      "HF_HOME": "{dir}/hf",
+      "QW_DEVICE": "{device}",
+      "QW_THREADS": "{threads}",
+      "QW_REF_AUDIO": "{ref_audio}",
+      "QW_REF_TEXT": "{ref_text}",
+      "QW_INSTRUCT": "{instruct}",
+      "QW_LANGUAGE": "{language}",
+      "QW_TEMPERATURE": "{temperature}",
+      "QW_TOP_K": "{top_k}",
+      "CUDA_VISIBLE_DEVICES": "{gpu}"
+    }
+  },
+  "platforms": {
+    "windows": {
+      "cpu": [
+        {
+          "pip": [
+            "torch==2.9.1",
+            "torchaudio==2.9.1"
+          ],
+          "args": [
+            "--index-url",
+            "https://download.pytorch.org/whl/cpu"
+          ]
+        },
+        {
+          "pip": [
+            "qwen-tts==0.1.1",
+            "soundfile==0.14.0",
+            "aiohttp==3.14.5"
+          ]
+        }
+      ],
+      "cuda": [
+        {
+          "pip": [
+            "torch==2.9.1",
+            "torchaudio==2.9.1"
+          ],
+          "args": [
+            "--index-url",
+            "https://download.pytorch.org/whl/cu126"
+          ]
+        },
+        {
+          "pip": [
+            "qwen-tts==0.1.1",
+            "soundfile==0.14.0",
+            "aiohttp==3.14.5"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "cpu": [
+        {
+          "pip": [
+            "torch==2.9.1",
+            "torchaudio==2.9.1"
+          ],
+          "args": [
+            "--index-url",
+            "https://download.pytorch.org/whl/cpu"
+          ]
+        },
+        {
+          "pip": [
+            "qwen-tts==0.1.1",
+            "soundfile==0.14.0",
+            "aiohttp==3.14.5"
+          ]
+        }
+      ],
+      "cuda": [
+        {
+          "pip": [
+            "torch==2.9.1",
+            "torchaudio==2.9.1"
+          ],
+          "args": [
+            "--index-url",
+            "https://download.pytorch.org/whl/cu126"
+          ]
+        },
+        {
+          "pip": [
+            "qwen-tts==0.1.1",
+            "soundfile==0.14.0",
+            "aiohttp==3.14.5"
+          ]
+        }
+      ]
+    }
+  },
+  "notes": {
+    "windows": "Нужен драйвер NVIDIA с поддержкой CUDA 12.6.",
+    "linux": "Нужен драйвер NVIDIA с поддержкой CUDA 12.6. Для эталона в mp3 нужен ffmpeg."
+  },
+  "models": [],
+  "reinstall_on": [
+    "device"
+  ]
+}

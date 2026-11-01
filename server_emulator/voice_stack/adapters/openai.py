@@ -4,37 +4,80 @@ from aiohttp import ClientTimeout, FormData
 from ...auth import secret
 
 TITLE = "OpenAI-совместимый"
-DESCRIPTION = "Любой сервер с OpenAI API: OpenAI, Groq, Ollama, vLLM, speaches, свой."
-URL = {"key": "url", "label": "URL", "type": "text"}
-KEY = {"key": "api_key", "label": "API-ключ", "type": "password"}
-MODEL = {"key": "model", "label": "Модель", "type": "text"}
+DESCRIPTION = "Любой сервер с OpenAI API: OpenAI, Groq, DeepSeek, OpenRouter, Gemini, Ollama, vLLM, speaches, свой."
+URL = {"key": "url", "label": "Адрес сервиса", "type": "text", "required": True,
+       "help": "Полный адрес запроса, например https://api.openai.com/v1/chat/completions"}
+KEY = {"key": "api_key", "label": "API-ключ", "type": "password", "link": "https://platform.openai.com/api-keys",
+       "help": "Ключ сервиса: OpenAI, Groq (console.groq.com/keys), DeepSeek, OpenRouter, Google AI Studio; у локальных серверов не нужен"}
+MODEL = {"key": "model", "label": "Модель", "type": "text", "required": True}
+OPENAI_VOICES = "alloy, ash, ballad, cedar, coral, echo, fable, marin, nova, onyx, sage, shimmer, verse"
 SERVICES = {
     "llm": {
-        "fields": [URL, KEY, MODEL, {"key": "temperature", "label": "Температура", "type": "number", "step": 0.1}],
-        "defaults": {"url": "https://api.openai.com/v1/chat/completions", "model": "gpt-4o-mini", "temperature": 0.3},
+        "fields": [URL, KEY, MODEL,
+                   {"key": "temperature", "label": "Температура", "type": "number", "step": 0.1, "group": "advanced"},
+                   {"key": "reasoning_effort", "label": "Глубина размышления", "type": "select", "group": "advanced",
+                    "options": [{"value": "", "label": "Не передавать"}, {"value": "none", "label": "Нет (для инструментов в OpenAI)"},
+                                {"value": "low", "label": "Малая"}, {"value": "medium", "label": "Средняя"},
+                                {"value": "high", "label": "Большая"}],
+                    "help": "Только для моделей-«рассуждающих» (OpenAI, Gemini); остальным серверам не передаётся"}],
+        "defaults": {"url": "https://api.openai.com/v1/chat/completions", "model": "gpt-4o-mini", "temperature": 0.3,
+                     "reasoning_effort": ""},
         "examples": {
-            "Ollama": {"url": "http://127.0.0.1:11434/v1/chat/completions", "model": "qwen2.5:7b", "temperature": 0.5},
-            "Groq": {"url": "https://api.groq.com/openai/v1/chat/completions", "model": "llama-3.3-70b-versatile", "temperature": 0.6},
-            "vLLM": {"url": "http://127.0.0.1:8000/v1/chat/completions", "model": "Qwen/Qwen2.5-7B-Instruct", "temperature": 0.6},
-            "OpenRouter": {"url": "https://openrouter.ai/api/v1/chat/completions", "model": "openai/gpt-4o-mini", "temperature": 0.5},
+            "OpenAI (Online)": {"url": "https://api.openai.com/v1/chat/completions", "model": "gpt-6-luna",
+                                "temperature": 0.3, "reasoning_effort": "none"},
+            "Groq Llama (Online Free)": {"url": "https://api.groq.com/openai/v1/chat/completions",
+                                         "model": "llama-3.3-70b-versatile", "temperature": 0.6, "reasoning_effort": ""},
+            "Groq GPT-OSS (Online Free)": {"url": "https://api.groq.com/openai/v1/chat/completions",
+                                           "model": "openai/gpt-oss-20b", "temperature": 0.6, "reasoning_effort": ""},
+            "DeepSeek (Online)": {"url": "https://api.deepseek.com/chat/completions", "model": "deepseek-v4-flash",
+                                  "temperature": 0.5, "reasoning_effort": ""},
+            "OpenRouter бесплатные модели (Online Free)": {"url": "https://openrouter.ai/api/v1/chat/completions",
+                                                           "model": "google/gemma-4-31b-it:free", "temperature": 0.5,
+                                                           "reasoning_effort": ""},
+            "OpenRouter (Online)": {"url": "https://openrouter.ai/api/v1/chat/completions",
+                                    "model": "google/gemini-3.8-flash", "temperature": 0.5, "reasoning_effort": ""},
+            "Gemini, OpenAI-совместимый (Online Free)": {
+                "url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+                "model": "gemini-3.8-flash", "temperature": 0.5, "reasoning_effort": "low"},
+            "Ollama": {"url": "http://127.0.0.1:11434/v1/chat/completions", "model": "qwen2.5:7b", "temperature": 0.5,
+                       "reasoning_effort": ""},
+            "vLLM": {"url": "http://127.0.0.1:8000/v1/chat/completions", "model": "Qwen/Qwen2.5-7B-Instruct",
+                     "temperature": 0.6, "reasoning_effort": ""},
         },
     },
     "asr": {
-        "fields": [URL, KEY, MODEL, {"key": "language", "label": "Язык", "type": "text"}],
+        "fields": [URL, KEY, MODEL,
+                   {"key": "language", "label": "Язык", "type": "text", "help": "Код языка: ru, en… Пусто — определить автоматически"}],
         "defaults": {"url": "https://api.openai.com/v1/audio/transcriptions", "model": "whisper-1", "language": "ru"},
         "examples": {
-            "Groq Whisper": {"url": "https://api.groq.com/openai/v1/audio/transcriptions", "model": "whisper-large-v3-turbo"},
-            "faster-whisper (speaches)": {"url": "http://127.0.0.1:8000/v1/audio/transcriptions", "model": "Systran/faster-whisper-small"},
+            "OpenAI gpt-transcribe (Online)": {"url": "https://api.openai.com/v1/audio/transcriptions",
+                                               "model": "gpt-transcribe", "language": "ru"},
+            "OpenAI gpt-4o-transcribe (Online)": {"url": "https://api.openai.com/v1/audio/transcriptions",
+                                                  "model": "gpt-4o-transcribe", "language": "ru"},
+            "OpenAI gpt-4o-mini-transcribe (Online)": {"url": "https://api.openai.com/v1/audio/transcriptions",
+                                                       "model": "gpt-4o-mini-transcribe", "language": "ru"},
+            "Groq Whisper large-v3 (Online Free)": {"url": "https://api.groq.com/openai/v1/audio/transcriptions",
+                                                    "model": "whisper-large-v3", "language": "ru"},
+            "Groq Whisper large-v3-turbo (Online Free)": {"url": "https://api.groq.com/openai/v1/audio/transcriptions",
+                                                          "model": "whisper-large-v3-turbo", "language": "ru"},
+            "faster-whisper (speaches)": {"url": "http://127.0.0.1:8000/v1/audio/transcriptions",
+                                          "model": "Systran/faster-whisper-small", "language": "ru"},
         },
     },
     "tts": {
-        "fields": [URL, KEY, MODEL, {"key": "voice", "label": "Голос", "type": "text"},
-                   {"key": "response_format", "label": "Формат аудио", "type": "select", "options": [
+        "voice_modes": ["preset"],
+        "fields": [URL, KEY, MODEL,
+                   {"key": "voice", "label": "Голос", "type": "text", "required": True,
+                    "help": "Голоса OpenAI: " + OPENAI_VOICES + "; у других серверов — их названия голосов"},
+                   {"key": "response_format", "label": "Формат аудио", "type": "select", "group": "advanced", "options": [
                        {"value": "opus", "label": "Ogg Opus (целиком)"},
                        {"value": "pcm_f32le", "label": "PCM float32 (потоком)"},
                        {"value": "wav", "label": "WAV (потоком)"}]}],
         "defaults": {"url": "https://api.openai.com/v1/audio/speech", "model": "tts-1", "voice": "alloy", "response_format": "opus"},
-        "examples": {"OpenAI": {"url": "https://api.openai.com/v1/audio/speech", "model": "gpt-4o-mini-tts", "voice": "alloy"}},
+        "examples": {
+            "OpenAI gpt-4o-mini-tts (Online)": {"url": "https://api.openai.com/v1/audio/speech", "model": "gpt-4o-mini-tts",
+                                                "voice": "coral", "response_format": "opus"},
+        },
     },
 }
 MATCH = {"llm": r"", "asr": r"/audio/transcriptions", "tts": r"/audio/speech"}
@@ -63,6 +106,8 @@ async def _post(runtime, config, kind, **kwargs):
 
 async def complete(runtime, config, payload):
     import json
+    if config.get("reasoning_effort") and "reasoning_effort" not in payload:
+        payload = {**payload, "reasoning_effort": config["reasoning_effort"]}
     raw, _ = await _post(runtime, config, "model", json=payload)
     return json.loads(raw)
 

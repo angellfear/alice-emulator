@@ -1,0 +1,297 @@
+{
+  "id": "faster-whisper",
+  "service": "asr",
+  "title": "Whisper, faster-whisper (GPU)",
+  "order": 30,
+  "description": "Распознавание речи Whisper на faster-whisper (CTranslate2, MIT): large-v3-turbo — быстрая и почти такая же точная, как large-v3; medium и small — для слабых видеокарт. Нужна видеокарта NVIDIA (turbo ~3 ГБ, large-v3 ~5 ГБ); на процессоре работает в int8, но заметно медленнее речи. Модель (0,5–3 ГБ) скачивается при установке.",
+  "requirements": {
+    "gpu": true,
+    "vram_gb": 3,
+    "disk_gb": 7
+  },
+  "adapter": "openai",
+  "config": {
+    "url": "http://127.0.0.1:{port}/v1/audio/transcriptions",
+    "model": "whisper-{model}",
+    "language": "{language}"
+  },
+  "fields": [
+    {
+      "key": "model",
+      "label": "Модель",
+      "type": "select",
+      "options": [
+        {
+          "value": "large-v3-turbo",
+          "label": "large-v3-turbo: быстрая, точная (1,6 ГБ)"
+        },
+        {
+          "value": "large-v3",
+          "label": "large-v3: самая точная (3,1 ГБ)"
+        },
+        {
+          "value": "medium",
+          "label": "medium (1,5 ГБ)"
+        },
+        {
+          "value": "small",
+          "label": "small: самая лёгкая (0,5 ГБ)"
+        }
+      ]
+    },
+    {
+      "key": "device",
+      "label": "Устройство",
+      "type": "select",
+      "options": [
+        {
+          "value": "cpu",
+          "label": "Процессор (CPU)"
+        },
+        {
+          "value": "cuda",
+          "label": "Видеокарта NVIDIA (CUDA)"
+        }
+      ]
+    },
+    {
+      "key": "gpu",
+      "label": "Видеокарта",
+      "type": "select",
+      "options_from": "gpus",
+      "when": {
+        "device": "cuda"
+      }
+    },
+    {
+      "key": "language",
+      "label": "Язык распознавания (ru, en…; пусто — определяет сам)",
+      "type": "text",
+      "group": "advanced"
+    },
+    {
+      "key": "compute",
+      "label": "Точность вычислений",
+      "type": "select",
+      "options": [
+        {
+          "value": "auto",
+          "label": "Авто: float16 на видеокарте, int8 на процессоре"
+        },
+        {
+          "value": "float16",
+          "label": "float16"
+        },
+        {
+          "value": "int8_float16",
+          "label": "int8_float16: меньше видеопамяти"
+        },
+        {
+          "value": "int8",
+          "label": "int8"
+        },
+        {
+          "value": "float32",
+          "label": "float32"
+        }
+      ],
+      "group": "advanced"
+    },
+    {
+      "key": "beam",
+      "label": "Ширина луча (1 — быстрее, 5 — точнее)",
+      "type": "number",
+      "step": 1,
+      "group": "advanced"
+    },
+    {
+      "key": "vad",
+      "label": "Вырезать паузы (VAD): меньше ложных слов в тишине",
+      "type": "select",
+      "options": [
+        {
+          "value": "1",
+          "label": "Включено"
+        },
+        {
+          "value": "0",
+          "label": "Выключено"
+        }
+      ],
+      "group": "advanced"
+    },
+    {
+      "key": "threads",
+      "label": "Потоков процессора",
+      "type": "number",
+      "step": 1,
+      "group": "advanced"
+    },
+    {
+      "key": "workers",
+      "label": "Параллельных запросов",
+      "type": "number",
+      "step": 1,
+      "group": "advanced"
+    },
+    {
+      "key": "priority",
+      "label": "Приоритет процесса",
+      "type": "select",
+      "options": [
+        {
+          "value": "normal",
+          "label": "Обычный"
+        },
+        {
+          "value": "low",
+          "label": "Низкий (фоновый)"
+        }
+      ],
+      "group": "advanced"
+    },
+    {
+      "key": "port",
+      "label": "Порт",
+      "type": "number",
+      "step": 1,
+      "group": "advanced"
+    }
+  ],
+  "defaults": {
+    "model": "large-v3-turbo",
+    "device": "cuda",
+    "gpu": "0",
+    "language": "ru",
+    "compute": "auto",
+    "beam": 5,
+    "vad": "1",
+    "threads": 4,
+    "workers": 1,
+    "priority": "normal",
+    "port": 5017
+  },
+  "server": {
+    "script": "tools/whisper_server.py",
+    "health": "/health",
+    "env": {
+      "WHISPER_MODEL": "{model}",
+      "WHISPER_MODEL_DIR": "{dir}/whisper-{model}",
+      "WHISPER_DEVICE": "{device}",
+      "WHISPER_COMPUTE": "{compute}",
+      "WHISPER_BEAM": "{beam}",
+      "WHISPER_VAD": "{vad}",
+      "WHISPER_LANGUAGE": "{language}",
+      "WHISPER_THREADS": "{threads}",
+      "WHISPER_WORKERS": "{workers}",
+      "CUDA_VISIBLE_DEVICES": "{gpu}"
+    }
+  },
+  "platforms": {
+    "windows": {
+      "cpu": [
+        {
+          "pip": [
+            "faster-whisper==1.2.1",
+            "ctranslate2==4.8.4",
+            "numpy==2.5.4",
+            "aiohttp==3.14.5",
+            "soundfile==0.14.0",
+            "soxr==1.1.0"
+          ]
+        },
+        {
+          "run": [
+            "{python}",
+            "-c",
+            "import sys\nfrom faster_whisper import download_model\ndownload_model(sys.argv[1], output_dir=sys.argv[2])",
+            "{model}",
+            "{dir}/whisper-{model}"
+          ],
+          "title": "Загрузка модели Whisper"
+        }
+      ],
+      "cuda": [
+        {
+          "pip": [
+            "faster-whisper==1.2.1",
+            "ctranslate2==4.8.4",
+            "numpy==2.5.4",
+            "aiohttp==3.14.5",
+            "soundfile==0.14.0",
+            "soxr==1.1.0",
+            "nvidia-cublas-cu12==12.8.4.1",
+            "nvidia-cudnn-cu12==9.10.2.21"
+          ]
+        },
+        {
+          "run": [
+            "{python}",
+            "-c",
+            "import sys\nfrom faster_whisper import download_model\ndownload_model(sys.argv[1], output_dir=sys.argv[2])",
+            "{model}",
+            "{dir}/whisper-{model}"
+          ],
+          "title": "Загрузка модели Whisper"
+        }
+      ]
+    },
+    "linux": {
+      "cpu": [
+        {
+          "pip": [
+            "faster-whisper==1.2.1",
+            "ctranslate2==4.8.4",
+            "numpy==2.5.4",
+            "aiohttp==3.14.5",
+            "soundfile==0.14.0",
+            "soxr==1.1.0"
+          ]
+        },
+        {
+          "run": [
+            "{python}",
+            "-c",
+            "import sys\nfrom faster_whisper import download_model\ndownload_model(sys.argv[1], output_dir=sys.argv[2])",
+            "{model}",
+            "{dir}/whisper-{model}"
+          ],
+          "title": "Загрузка модели Whisper"
+        }
+      ],
+      "cuda": [
+        {
+          "pip": [
+            "faster-whisper==1.2.1",
+            "ctranslate2==4.8.4",
+            "numpy==2.5.4",
+            "aiohttp==3.14.5",
+            "soundfile==0.14.0",
+            "soxr==1.1.0",
+            "nvidia-cublas-cu12==12.8.4.1",
+            "nvidia-cudnn-cu12==9.10.2.21"
+          ]
+        },
+        {
+          "run": [
+            "{python}",
+            "-c",
+            "import sys\nfrom faster_whisper import download_model\ndownload_model(sys.argv[1], output_dir=sys.argv[2])",
+            "{model}",
+            "{dir}/whisper-{model}"
+          ],
+          "title": "Загрузка модели Whisper"
+        }
+      ]
+    }
+  },
+  "notes": {
+    "windows": "Windows и Linux: драйвер NVIDIA с поддержкой CUDA 12.8 (библиотеки CUDA и cuDNN ставятся из pip).",
+    "linux": "Windows и Linux: драйвер NVIDIA с поддержкой CUDA 12.8 (библиотеки CUDA и cuDNN ставятся из pip)."
+  },
+  "models": [],
+  "reinstall_on": [
+    "device",
+    "model"
+  ]
+}

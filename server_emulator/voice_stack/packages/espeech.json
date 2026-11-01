@@ -1,0 +1,362 @@
+{
+  "id": "espeech",
+  "service": "tts",
+  "title": "ESpeech TTS-1 (CPU | GPU)",
+  "order": 40,
+  "description": "Русская модель ESpeech TTS-1 на основе F5-TTS (Apache-2.0): клонирование голоса по эталону до 12 с и автоматическая расстановка ударений (RUAccent). Тяжёлая: нужна видеокарта NVIDIA (~4 ГБ), на процессоре синтез в разы медленнее речи. Модель ~2,7 ГБ скачивается при установке. Без эталона сервер не запускается.",
+  "requirements": {
+    "gpu": false,
+    "vram_gb": 4,
+    "disk_gb": 9
+  },
+  "adapter": "openai",
+  "config": {
+    "url": "http://127.0.0.1:{port}/v1/audio/speech",
+    "model": "espeech-tts-1",
+    "voice": "reference",
+    "response_format": "pcm_f32le"
+  },
+  "voice_modes": [
+    "clone"
+  ],
+  "fields": [
+    {
+      "key": "ref_audio",
+      "label": "Эталонная запись голоса (WAV, до 12 с)",
+      "type": "file",
+      "accept": ".wav",
+      "required": true,
+      "transcribe_to": "ref_text"
+    },
+    {
+      "key": "ref_text",
+      "label": "Текст эталонной записи (пусто — распознаётся при сохранении; «+» перед ударной гласной)",
+      "type": "textarea"
+    },
+    {
+      "key": "device",
+      "label": "Устройство",
+      "type": "select",
+      "options": [
+        {
+          "value": "cpu",
+          "label": "Процессор (CPU)"
+        },
+        {
+          "value": "cuda",
+          "label": "Видеокарта NVIDIA (CUDA)"
+        }
+      ]
+    },
+    {
+      "key": "gpu",
+      "label": "Видеокарта",
+      "type": "select",
+      "options_from": "gpus",
+      "when": {
+        "device": "cuda"
+      }
+    },
+    {
+      "key": "speed",
+      "label": "Скорость речи",
+      "type": "number",
+      "step": 0.1
+    },
+    {
+      "key": "steps",
+      "label": "Шагов синтеза (качество/время)",
+      "type": "number",
+      "step": 1,
+      "group": "advanced"
+    },
+    {
+      "key": "seed",
+      "label": "Seed (0 — случайный)",
+      "type": "number",
+      "step": 1,
+      "group": "advanced"
+    },
+    {
+      "key": "accent",
+      "label": "Автоматические ударения (RUAccent)",
+      "type": "select",
+      "options": [
+        {
+          "value": "1",
+          "label": "Включено"
+        },
+        {
+          "value": "0",
+          "label": "Выключено"
+        }
+      ],
+      "group": "advanced"
+    },
+    {
+      "key": "variant",
+      "label": "Версия модели",
+      "type": "select",
+      "options": [
+        {
+          "value": "RL-V2",
+          "label": "RL-V2 (по умолчанию)"
+        },
+        {
+          "value": "RL-V1",
+          "label": "RL-V1"
+        },
+        {
+          "value": "SFT-256K",
+          "label": "SFT-256K"
+        },
+        {
+          "value": "podcaster",
+          "label": "Podcaster"
+        }
+      ],
+      "group": "advanced"
+    },
+    {
+      "key": "threads",
+      "label": "Потоков процессора",
+      "type": "number",
+      "step": 1,
+      "group": "advanced"
+    },
+    {
+      "key": "priority",
+      "label": "Приоритет процесса",
+      "type": "select",
+      "options": [
+        {
+          "value": "normal",
+          "label": "Обычный"
+        },
+        {
+          "value": "low",
+          "label": "Низкий (фоновый)"
+        }
+      ],
+      "group": "advanced"
+    },
+    {
+      "key": "port",
+      "label": "Порт",
+      "type": "number",
+      "step": 1,
+      "group": "advanced"
+    }
+  ],
+  "defaults": {
+    "device": "cpu",
+    "gpu": "0",
+    "ref_audio": "",
+    "ref_text": "",
+    "speed": 1.0,
+    "steps": 32,
+    "seed": 0,
+    "accent": "1",
+    "variant": "RL-V2",
+    "threads": 4,
+    "priority": "normal",
+    "port": 5020
+  },
+  "server": {
+    "script": "tools/espeech_server.py",
+    "health": "/health",
+    "env": {
+      "ES_MODEL": "ESpeech-TTS-1_{variant}",
+      "ES_MODEL_DIR": "{dir}/espeech-{variant}",
+      "ES_VOCODER_DIR": "{dir}",
+      "ES_RUACCENT_DIR": "{dir}/ruaccent",
+      "ES_ACCENT": "{accent}",
+      "ES_DEVICE": "{device}",
+      "ES_THREADS": "{threads}",
+      "ES_REF_AUDIO": "{ref_audio}",
+      "ES_REF_TEXT": "{ref_text}",
+      "ES_SPEED": "{speed}",
+      "ES_STEPS": "{steps}",
+      "ES_SEED": "{seed}",
+      "CUDA_VISIBLE_DEVICES": "{gpu}"
+    }
+  },
+  "platforms": {
+    "windows": {
+      "cpu": [
+        {
+          "pip": [
+            "torch==2.9.1",
+            "torchaudio==2.9.1"
+          ],
+          "args": [
+            "--index-url",
+            "https://download.pytorch.org/whl/cpu"
+          ]
+        },
+        {
+          "pip": [
+            "f5-tts==1.1.22",
+            "ruaccent==1.5.8.3",
+            "soundfile==0.14.0",
+            "aiohttp==3.14.5"
+          ]
+        },
+        {
+          "run": [
+            "{python}",
+            "-c",
+            "import sys\nfrom huggingface_hub import snapshot_download\nsnapshot_download('ESpeech/ESpeech-TTS-1_' + sys.argv[1], local_dir=sys.argv[2], allow_patterns=['*.pt', 'vocab.txt'])",
+            "{variant}",
+            "{dir}/espeech-{variant}"
+          ],
+          "title": "Загрузка модели ESpeech"
+        },
+        {
+          "run": [
+            "{python}",
+            "-c",
+            "import os, sys\nfrom ruaccent import RUAccent\nos.makedirs(sys.argv[1], exist_ok=True)\nRUAccent().load(omograph_model_size='turbo3.1', use_dictionary=True, tiny_mode=False, workdir=sys.argv[1])",
+            "{dir}/ruaccent"
+          ],
+          "title": "Загрузка словарей ударений RUAccent"
+        }
+      ],
+      "cuda": [
+        {
+          "pip": [
+            "torch==2.9.1",
+            "torchaudio==2.9.1"
+          ],
+          "args": [
+            "--index-url",
+            "https://download.pytorch.org/whl/cu126"
+          ]
+        },
+        {
+          "pip": [
+            "f5-tts==1.1.22",
+            "ruaccent==1.5.8.3",
+            "soundfile==0.14.0",
+            "aiohttp==3.14.5"
+          ]
+        },
+        {
+          "run": [
+            "{python}",
+            "-c",
+            "import sys\nfrom huggingface_hub import snapshot_download\nsnapshot_download('ESpeech/ESpeech-TTS-1_' + sys.argv[1], local_dir=sys.argv[2], allow_patterns=['*.pt', 'vocab.txt'])",
+            "{variant}",
+            "{dir}/espeech-{variant}"
+          ],
+          "title": "Загрузка модели ESpeech"
+        },
+        {
+          "run": [
+            "{python}",
+            "-c",
+            "import os, sys\nfrom ruaccent import RUAccent\nos.makedirs(sys.argv[1], exist_ok=True)\nRUAccent().load(omograph_model_size='turbo3.1', use_dictionary=True, tiny_mode=False, workdir=sys.argv[1])",
+            "{dir}/ruaccent"
+          ],
+          "title": "Загрузка словарей ударений RUAccent"
+        }
+      ]
+    },
+    "linux": {
+      "cpu": [
+        {
+          "pip": [
+            "torch==2.9.1",
+            "torchaudio==2.9.1"
+          ],
+          "args": [
+            "--index-url",
+            "https://download.pytorch.org/whl/cpu"
+          ]
+        },
+        {
+          "pip": [
+            "f5-tts==1.1.22",
+            "ruaccent==1.5.8.3",
+            "soundfile==0.14.0",
+            "aiohttp==3.14.5"
+          ]
+        },
+        {
+          "run": [
+            "{python}",
+            "-c",
+            "import sys\nfrom huggingface_hub import snapshot_download\nsnapshot_download('ESpeech/ESpeech-TTS-1_' + sys.argv[1], local_dir=sys.argv[2], allow_patterns=['*.pt', 'vocab.txt'])",
+            "{variant}",
+            "{dir}/espeech-{variant}"
+          ],
+          "title": "Загрузка модели ESpeech"
+        },
+        {
+          "run": [
+            "{python}",
+            "-c",
+            "import os, sys\nfrom ruaccent import RUAccent\nos.makedirs(sys.argv[1], exist_ok=True)\nRUAccent().load(omograph_model_size='turbo3.1', use_dictionary=True, tiny_mode=False, workdir=sys.argv[1])",
+            "{dir}/ruaccent"
+          ],
+          "title": "Загрузка словарей ударений RUAccent"
+        }
+      ],
+      "cuda": [
+        {
+          "pip": [
+            "torch==2.9.1",
+            "torchaudio==2.9.1"
+          ],
+          "args": [
+            "--index-url",
+            "https://download.pytorch.org/whl/cu126"
+          ]
+        },
+        {
+          "pip": [
+            "f5-tts==1.1.22",
+            "ruaccent==1.5.8.3",
+            "soundfile==0.14.0",
+            "aiohttp==3.14.5"
+          ]
+        },
+        {
+          "run": [
+            "{python}",
+            "-c",
+            "import sys\nfrom huggingface_hub import snapshot_download\nsnapshot_download('ESpeech/ESpeech-TTS-1_' + sys.argv[1], local_dir=sys.argv[2], allow_patterns=['*.pt', 'vocab.txt'])",
+            "{variant}",
+            "{dir}/espeech-{variant}"
+          ],
+          "title": "Загрузка модели ESpeech"
+        },
+        {
+          "run": [
+            "{python}",
+            "-c",
+            "import os, sys\nfrom ruaccent import RUAccent\nos.makedirs(sys.argv[1], exist_ok=True)\nRUAccent().load(omograph_model_size='turbo3.1', use_dictionary=True, tiny_mode=False, workdir=sys.argv[1])",
+            "{dir}/ruaccent"
+          ],
+          "title": "Загрузка словарей ударений RUAccent"
+        }
+      ]
+    }
+  },
+  "notes": {
+    "windows": "Нужен драйвер NVIDIA с поддержкой CUDA 12.6.",
+    "linux": "Нужен драйвер NVIDIA с поддержкой CUDA 12.6."
+  },
+  "models": [
+    {
+      "url": "https://huggingface.co/charactr/vocos-mel-24khz/resolve/main/config.yaml"
+    },
+    {
+      "url": "https://huggingface.co/charactr/vocos-mel-24khz/resolve/main/pytorch_model.bin"
+    }
+  ],
+  "reinstall_on": [
+    "device",
+    "variant"
+  ]
+}
