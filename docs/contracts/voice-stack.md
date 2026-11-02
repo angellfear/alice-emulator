@@ -10,6 +10,8 @@ module: "server_emulator/voice_stack/"
 ## 1. Обзор
 Для каждого сервиса (asr / tts / llm) активный источник выбирается в `settings["voice_stack"][service]` — это либо **пресет** `p:<id>`, либо **пакет** `k:<id>`. Применение (`apply`) записывает конфигурацию в `settings[stt|tts|model]` с ключом `"adapter"`. Конвейер (`Runtime.provider`, `recognize_stream`, `speech_stream`, `asr_streaming`, `tts_streaming`) вызывает адаптер, указанный в этом ключе. Профили устройств продолжают работать — они переопределяют те же настройки.
 
+`apply` меняет общие настройки, поэтому UI голосовой вкладки перечитывает их после применения (TASK-088), а полное сохранение устаревшей копии формы сервер отклоняет по ревизии: `GET /api/settings` добавляет поле `_rev`, сохранение с чужой `_rev` отвечает 409 (форма перечитывает базу и сохраняет заново; запросы без `_rev` — внешние клиенты — сохраняются как раньше). Смена режима «Интеллект» — отдельный `PUT /api/intelligence`, сохраняющий только ключ `intelligence`: прежний полный PUT откатывал выбранный источник ASR и распознавание замолкало. Готовность источников показывает строка состояния в шапке панели — `GET /api/live` (см. `docs/architecture.md`, раздел «Переключение режима „Интеллект“ и строка состояния»).
+
 ## 2. Пресеты
 **Файл:** `state/voice_stack/presets/<service>/<id>.json`
 ```json
@@ -190,6 +192,7 @@ async def complete(runtime, config, payload):
 | POST | `/voice-stack-preset` | `{service, adapter, title, values, id?}` создать/обновить пресет |
 | DELETE | `/voice-stack-preset?service=&id=` | удалить пресет |
 | POST | `/voice-stack-apply` | `{service, ref: "p:<пресет>\|k:<пакет>"}` → применить (пишет settings) |
+| GET | `/live` | строка состояния шапки (домен `live.py`, TASK-088): `{intelligence, services: {asr\|tts\|llm: {status: ok\|warn\|err\|off, hint, source, kind, ref}}}, agent: {state, tool, error}` |
 | POST | `/voice-stack-package` | `{id, values}` сохранить параметры запуска пакета |
 | POST | `/voice-stack-install` | `{id}` фоновая установка (прогресс в GET) |
 | POST | `/voice-stack-transcribe` | `?id=&key=` текст загруженного эталона WAV текущим ASR → `{text}` (кнопка «Распознать текст»; поле с `transcribe_to`) |

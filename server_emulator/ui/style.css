@@ -51,6 +51,24 @@ nav .active{background:rgba(109,176,255,.22);color:#eaf4ff;border-color:#6db0ff;
 .update-btn.pulse{animation:update-pulse 1.4s ease-out 1}
 @keyframes update-pulse{from{box-shadow:0 0 0 0 var(--accent-bg)}to{box-shadow:0 0 0 14px transparent}}
 @media (prefers-reduced-motion:reduce){.update-btn.pulse{animation:none}}
+/* Строка состояния слева от переключателя режимов (TASK-088): значки ASR / TTS / Модель +
+   микросостояние агента (только в режиме «AI агент»). По одному title на элементе, подписей нет;
+   на 400px чип с многоточием — полоса навигации прокручивается внутри себя, страница нет. */
+.live-status{display:flex;align-items:center;gap:7px;flex:0 0 auto;margin-left:auto;padding:0 4px}
+.update-btn:not([hidden])+.live-status{margin-left:0}
+.live-dot{flex:0 0 auto;width:14px;height:14px;min-height:0;padding:0;border:1px solid var(--border-strong);
+  border-radius:50%;background:var(--faint);cursor:pointer}
+.live-dot:hover{border-color:var(--accent)}
+.live-dot.ok{background:#4cc38a;border-color:#4cc38a}
+.live-dot.warn{background:var(--accent);border-color:var(--accent)}
+.live-dot.err{background:var(--danger);border-color:var(--danger)}
+.live-dot.off{background:transparent}
+.live-agent{flex:0 1 auto;min-width:0;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:12px;color:var(--muted);border:1px solid var(--border-strong);border-radius:999px;padding:3px 10px;min-height:24px}
+.live-agent.listening,.live-agent.thinking,.live-agent.tool{color:var(--text);border-color:var(--accent)}
+.live-agent.responding{color:var(--ok);border-color:#4cc38a}
+.live-agent.error{color:var(--danger);border-color:var(--danger)}
+@media (max-width:600px){.live-agent{max-width:96px}}
 .update-notes{white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;overflow-y:auto}
 /* Маршрут и запись устройства (TASK-044/054): сегменты на широкой ширине, select на узкой —
    два переключателя в строке таблицы помещаются в страницу только от ~1240px */

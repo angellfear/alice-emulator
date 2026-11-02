@@ -150,11 +150,13 @@ class ProviderManager:
         from . import mcp_hub
         function = call.get("function") or {}
         name = function.get("name", "")
+        runtime.note_tool_call(name)  # TASK-088: микросостояние legacy-цикла, то же, что в graph (api/live)
         try:
             arguments = json.loads(function.get("arguments") or "{}")
             text = mcp_hub.result_text(await mcp_hub.call(runtime, name, arguments, context))
         except Exception as exc:  # инструмент не должен ронять ответ модели
             arguments, text = function.get("arguments"), "Ошибка инструмента: " + (str(exc) or type(exc).__name__)
+        runtime.note_tool_done()
         run = {"name": name, "arguments": arguments, "result": text, "ts": time.time()}
         runtime.tool_log.append(run)  # на месте: сессионная копия runtime делит журнал с панелью
         del runtime.tool_log[:-100]

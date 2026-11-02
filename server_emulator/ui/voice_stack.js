@@ -22,6 +22,11 @@
     const r = await fetch('api/' + action, { method, headers: { 'Content-Type': 'application/json', 'X-Emulator': '1' }, body: value === undefined ? undefined : JSON.stringify(value) });
     const v = await r.json().catch(() => ({}));
     if (!r.ok) throw Error(v.error || r.statusText);
+    // TASK-088: применение источника, правка применённого пресета и параметров пакета пишут
+    // общие настройки на сервере — перечитываем их, иначе сохранение другой вкладки пришлёт
+    // устаревшую копию (сервер сверит ревизию, но форма edits потеряются)
+    if (method !== 'GET' && ['voice-stack-apply', 'voice-stack-preset', 'voice-stack-package'].includes(action.split('?')[0]))
+      window.refreshSettings?.().catch(() => {});
     return v;
   };
 

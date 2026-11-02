@@ -2,7 +2,10 @@ const embedded=new URLSearchParams(location.search).get('embedded')==='1';docume
 const $=id=>document.getElementById(id);let settings,objectUrl,standalone=false;
 // Сообщения — тосты (toast.js): стек справа сверху, автоскрытие; errors — {error:true}
 const message=(text,error=false)=>{notify(text,{error})};
-async function api(action,method='GET',value){const r=await fetch('api/'+action,{method,headers:{'Content-Type':'application/json','X-Emulator':'1'},body:value===undefined?undefined:JSON.stringify(value)});const result=await readJson(r,action);if(!r.ok)throw Error(result.error||r.statusText);return result}
+async function api(action,method='GET',value){const r=await fetch('api/'+action,{method,headers:{'Content-Type':'application/json','X-Emulator':'1'},body:value===undefined?undefined:JSON.stringify(value)});const result=await readJson(r,action);if(!r.ok){const e=Error(result.error||r.statusText);if(r.status===409&&action.split('?')[0]==='settings')e.stale=true;throw e}return result}
+// TASK-088: точечное сохранение отдельных ключей настроек (полная копия при этом — с _rev).
+// 409 «копия устарела» — перечитать настройки и собрать запрос заново (одна повторная попытка).
+const putPatch=async patch=>{for(let tries=0;;tries++){const next=structuredClone(settings);Object.assign(next,patch);next._rev=settings._rev;try{return await api('settings','PUT',next)}catch(e){if(!e.stale||tries>=1)throw e;settings=await api('settings')}}};
 // Ответ не JSON: 404 от aiohttp («404: Not Found») — работающий сервер старее UI с диска (UI
 // читается с диска, Python-код — только при запуске), поэтому вместо ошибки разбора — подсказка.
 async function readJson(r,action){const text=await r.text();try{return text?JSON.parse(text):{}}catch(e){if(r.status===404)throw Error('Сервер не знает этот адрес (api/'+action.split('?')[0]+') — перезапустите сервер: интерфейс уже обновлён, а сервер работает со старым кодом.');throw Error('Ответ сервера не JSON ('+r.status+'): '+text.slice(0,120))}}
@@ -11,7 +14,11 @@ const fieldSpec={};
 const labels={url:'Полный URL операции',model:'Модель',api_key:'API-ключ',temperature:'Температура',language:'Язык',voice:'Голос',response_format:'Формат аудио',stub_text:'Ответ заглушки (пусто — использовать AI)'};
 function fields(){for(const [kind,keys] of Object.entries(fieldSpec)){const root=$(kind+'-fields');root.replaceChildren();for(const key of keys){const label=document.createElement('label');label.textContent=labels[key];const input=document.createElement('input');input.id=kind+'-'+key;input.type=key==='api_key'?'password':key==='temperature'?'number':'text';if(key==='temperature'){input.min='0';input.max='2';input.step='0.1'}input.value=settings[kind][key]??'';label.append(input);root.append(label)}}}
 function setField(id,prop,value){const e=$(id);if(e)e[prop]=value}function readField(id,prop,fallback){const e=$(id);return e?e[prop]:fallback}function renderSettings(){fields();setField('system-prompt','value',settings.system_prompt);setField('device-context','value',JSON.stringify(settings.device_context,null,2));setField('aapi-model','checked',settings.aapi_model);setField('model-actions','checked',!!settings.model_actions);setField('aapi-voice','checked',!!settings.aapi_voice);setField('aapi-tts','checked',!!settings.aapi_tts);$('mcp-servers').value=JSON.stringify(settings.mcp_servers,null,2);$('tool-list').value=JSON.stringify(settings.tools,null,2)}
-async function saveSettings(){const next=structuredClone(settings);next.system_prompt=readField('system-prompt','value',settings.system_prompt);next.device_context=$('device-context')?JSON.parse($('device-context').value):settings.device_context;next.aapi_model=readField('aapi-model','checked',settings.aapi_model);next.model_actions=readField('model-actions','checked',settings.model_actions);next.aapi_voice=readField('aapi-voice','checked',settings.aapi_voice);next.aapi_tts=readField('aapi-tts','checked',settings.aapi_tts);next.mcp_servers=JSON.parse($('mcp-servers').value);next.tools=JSON.parse($('tool-list').value);for(const [kind,keys] of Object.entries(fieldSpec))for(const key of keys)next[kind][key]=key==='temperature'?Number($(kind+'-'+key).value):$(kind+'-'+key).value;settings=await api('settings','PUT',next);message('Настройки сохранены и применены.');renderSettings()}
+async function saveSettings(){const build=()=>{const next=structuredClone(settings);next.system_prompt=readField('system-prompt','value',settings.system_prompt);next.device_context=$('device-context')?JSON.parse($('device-context').value):settings.device_context;next.aapi_model=readField('aapi-model','checked',settings.aapi_model);next.model_actions=readField('model-actions','checked',settings.model_actions);next.aapi_voice=readField('aapi-voice','checked',settings.aapi_voice);next.aapi_tts=readField('aapi-tts','checked',settings.aapi_tts);next.mcp_servers=JSON.parse($('mcp-servers').value);next.tools=JSON.parse($('tool-list').value);for(const [kind,keys] of Object.entries(fieldSpec))for(const key of keys)next[kind][key]=key==='temperature'?Number($(kind+'-'+key).value):$(kind+'-'+key).value;return next};
+// TASK-088: если «Голос» или другая вкладка сохранили раньше, сервер отвечает 409 — базу
+// перечитываем, запрос собираем заново из значений формы (они в DOM) и сохраняем ещё раз.
+for(let tries=0;;tries++){const next=build();next._rev=settings._rev;try{settings=await api('settings','PUT',next);break}catch(e){if(!e.stale||tries>=1)throw e;settings=await api('settings')}}
+message('Настройки сохранены и применены.');renderSettings()}
 // Разделы по областям (вариант A): группа → подвкладки; min — с какого режима «Интеллект» виден пункт.
 // Хеш — id подвкладки (#scenarios, #mcp…); у секции тот же id, поэтому переход — goTab (pushState
 // + hashchange), а не location.hash: иначе браузер прокручивает страницу к секции как к якорю.
@@ -58,7 +65,9 @@ function renderLevel(){const value=levelValue(),mode=extMode();
 // Сегменты режимов расширений — строятся из /api/intelligence справа от встроенных трёх.
 const renderExtSegments=()=>{const bar=document.querySelector('.segmented');if(!bar)return;bar.querySelectorAll('[data-ext]').forEach(b=>b.remove());
   for(const m of extModes){const b=document.createElement('button');b.type='button';b.setAttribute('role','radio');b.dataset.level='ext:'+m.id;b.dataset.ext=m.id;b.textContent=m.title;b.onclick=()=>setLevel('ext:'+m.id);bar.append(b)}};
-const setLevel=value=>work(async()=>{const next=structuredClone(settings);next.intelligence=value;settings=await api('settings','PUT',next);renderSettings();showTab();message('Режим сохранён.')});
+// TASK-088: смена режима — PUT api/intelligence, только ключ `intelligence`. Прежняя полная
+// копия настроек откатывала ASR/TTS/модель, выбранные во вкладке «Голос», к значениям страницы.
+const setLevel=value=>work(async()=>{settings=await api('intelligence','PUT',{intelligence:value});renderSettings();showTab();message('Режим сохранён.')});
 document.querySelectorAll('.segmented [data-level]').forEach(b=>b.onclick=()=>setLevel(b.dataset.level));
 if($('ext-mode-open'))$('ext-mode-open').onclick=()=>goTab('extensions');
 // Вкладка «Расширения» (extensions.js): после установки/включения/набора перечитать настройки и режимы, иначе сохранение из этой страницы затрёт серверное состояние
@@ -206,7 +215,7 @@ function renderScenarios(){const list=$('scenario-list');list.replaceChildren();
 		gc.disabled=!toggleable.length;gc.checked=states.length>0&&states.every(Boolean);gc.indeterminate=!gc.checked&&states.some(Boolean);
 		const title=depth===0?catTitle(n.name):n.name;
 		gc.onchange=()=>work(async()=>{if(!settings)settings=await api('settings');
-			if(gc.checked&&items.some(it=>it.kind==='builtin')&&!scenarioBuiltinEnabled){const next=structuredClone(settings);next.builtin_scenarios=true;settings=await api('settings','PUT',next)}
+			if(gc.checked&&items.some(it=>it.kind==='builtin')&&!scenarioBuiltinEnabled)settings=await putPatch({builtin_scenarios:true})  // TASK-088: точечно, с перечитыванием устаревшей копии
 			for(const it of toggleable)await api('scenarios','PUT',{id:(it.s||it.b).id,enabled:gc.checked});
 			await loadScenarios();message('Раздел «'+title+'» '+(gc.checked?'включён':'выключен')+'.')});
 		gl.append(gc);

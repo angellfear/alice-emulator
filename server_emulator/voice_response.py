@@ -95,6 +95,10 @@ async def spoken_reply(conv, incoming, text, trace=None, request_id='', force_tt
 
             try:
 
+                if trace:  # TASK-088: начался синтез — ход в состоянии «отвечает» (строка шапки, api/live)
+
+                    trace.event('tts_start', 'server')
+
                 # стандартные/готовые реплики — через звуковой кеш (tts_cache): повтор без синтеза
 
                 pages, speech = await conv._synthesize_cached([speech_text or text])
@@ -176,6 +180,10 @@ async def model_reply(conv, incoming, request, text, answer, trace=None, screen=
     elif conv.runtime.settings.get('aapi_tts') and spoken:
 
         try:
+
+            if trace:  # TASK-088: начался синтез — ход в состоянии «отвечает» (строка шапки, api/live)
+
+                trace.event('tts_start', 'server')
 
             # режим «сценарии»: фраза из пакета озвучки (кеш), как реплики сценариев
             pages, speech = await (conv._synthesize_cached([spoken]) if answer.get('source') == 'scenarios'

@@ -971,6 +971,10 @@ class Conversation:
 
         try:
 
+            if trace:  # TASK-088: начался синтез — ход в состоянии «отвечает» (строка шапки, api/live)
+
+                trace.event('tts_start', 'server')
+
             pages, speech = await self._synthesize_speech(plain)
 
             if trace:
@@ -1053,6 +1057,8 @@ class Conversation:
         if not (self.runtime.settings.get('aapi_tts') and spoken):
             return
         try:
+            if trace:  # TASK-088: pre-render звука отложенного ответа — тоже «отвечает» (api/live)
+                trace.event('tts_start', 'server')
             pages, speech = await self._synthesize_cached([spoken], wait=OPEN_TTS_WAIT_S)
             answer['audio'] = await collect_pages(pages, speech)
         except Exception as exc:
@@ -1337,6 +1343,10 @@ class Conversation:
 
                         try:
 
+                            if trace:  # TASK-088: синтез ответа сценария — «отвечает»
+
+                                trace.event('tts_start', 'server')
+
                             pages, speech = await self._synthesize_cached(report.get('speech_parts') or [plain])
 
                             if trace:
@@ -1423,7 +1433,7 @@ class Conversation:
 
             if trace:
 
-                trace.event('pipeline_error', 'server', error=type(exc).__name__+': '+str(exc)[:120])
+                trace.event('pipeline_error', 'server', error=type(exc).__name__+': '+str(exc)[:120], stage=stage)
 
             self.runtime.recent = (self.runtime.recent + [{'kind': 'voice-pipeline', 'error': type(exc).__name__+': '+str(exc)[:160]}])[-30:]
 

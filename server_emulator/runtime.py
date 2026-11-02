@@ -40,6 +40,24 @@ ROOT = Path(__file__).resolve().parent
 log = logging.getLogger(__name__)
 STANDALONE_KEY = web.AppKey("emulator_standalone", bool)
 
+# TASK-088: событие SpeechTrace → микросостояние текущего хода для строки состояния в шапке
+# (GET api/live). Событий нет в списке — состояние не меняется; «вызывает инструмент»
+# пишет agent/tools.py (инструменты исполняются внутри графа, трассы там нет).
+ACTIVITY_STATES = {
+    "voice_input_start": "listening", "asr_partial": "listening",
+    "run_start": "thinking", "asr_final": "thinking", "endpoint": "thinking", "async_wait": "thinking",
+    "model_done": "thinking",
+    "tts_start": "responding", "tts_done": "responding", "tts_audio": "responding", "async_answer": "responding",
+    "scenario_handled": "idle", "alice_response": "idle", "spoken_reply": "idle", "no_speech_retry": "idle",
+    "async_wait_reply": "idle", "async_push": "idle", "standard_reply": "idle", "server_action_handled": "idle",
+    "callback_default_ack": "idle",
+    "stream_close": "idle", "client_close": "idle", "run_cancelled": "idle", "cancel": "idle",
+    "no_speech": "idle", "asr_abandoned": "idle",
+    "pipeline_error": "error", "tts_failed": "error", "async_push_failed": "error", "failure_reply": "error",
+}
+# этап сбоя конвейера (stage в pipeline_error) → речевой сервис красной строки шапки
+SERVICE_BY_STAGE = {"asr": "asr", "model": "llm", "tts": "tts"}
+
 
 class Runtime:
     def __init__(self, directory=None, catalog_root=None):
@@ -61,6 +79,13 @@ class Runtime:
         self.recent = []
         self.pending_calls = []
         self.speech_log = []
+        # TASK-088: состояние для строки панели — микросостояние текущего хода («ожидает/
+        # слушает/думает/вызывает инструмент/отвечает/ошибка») и последний сбой речевого
+        # сервиса. Оба — общие изменяемые объекты: scoped-копии runtime (copy.copy) делят их
+        # с корнем и пишут in-place, как в speech_log/tool_log.
+        self.agent_activity = {"state": "idle", "tool": None, "error": None, "ts": 0.0}
+        self.voice_errors = {}  # asr | tts | llm → {"error", "ts"} — красный значок в шапке
+        self.settings_rev = time.time()  # ревизия настроек: сервер отвергает устаревшую копию формы (409)
         import itertools
         self.sequence = itertools.count(1)  # SequenceNumber ответов (реальный счётчик сервера)
         self.lock = asyncio.Lock()
@@ -672,6 +697,34 @@ class Runtime:
         from .speech_trace import SPEECH_LOG_LIMIT
         self.speech_log.append(record)
         del self.speech_log[:-SPEECH_LOG_LIMIT]
+        self._note_activity(record)  # TASK-088: из тех же событий — состояние строки шапки
+
+    def _note_activity(self, record):
+        """Микросостояние хода и сбои речевых сервисов — в одной точке, на существующем
+        механизме событий (SpeechTrace). Состояние и флаги ошибок — общие dict'ы,
+        scoped-копии runtime пишут их in-place."""
+        name = record.get("name")
+        if name in ("asr_final", "tts_done", "model_done"):  # сервис ответил — флаг ошибки снимаем
+            self.voice_errors.pop({"asr_final": "asr", "tts_done": "tts", "model_done": "llm"}[name], None)
+        elif name == "pipeline_error":
+            service = SERVICE_BY_STAGE.get(record.get("stage"))
+            if service:
+                self.voice_errors[service] = {"error": str(record.get("error") or ""), "ts": time.time()}
+        elif name == "tts_failed":
+            self.voice_errors["tts"] = {"error": str(record.get("error") or ""), "ts": time.time()}
+        state = ACTIVITY_STATES.get(name)
+        if state:
+            error = record.get("error") or (self.agent_activity.get("error") if state == "error" else None)
+            self.agent_activity.update(state=state, tool=None, error=error or None, ts=time.time())
+
+    def note_tool_call(self, name):
+        """Ход агента вызвал инструмент (agent/tools.py) — имя в микросостоянии."""
+        self.agent_activity.update(state="tool", tool=str(name), error=None, ts=time.time())
+
+    def note_tool_done(self):
+        """Инструмент вернул результат — агент продолжает думать (следующий вызов или ответ)."""
+        if self.agent_activity.get("state") == "tool":
+            self.agent_activity.update(state="thinking", tool=None, ts=time.time())
 
     def start_background(self):
         """Фоновые задачи runtime (задания агента, голосовой стек); идемпотентно.
@@ -686,7 +739,9 @@ class Runtime:
             self.warm_sound_cache(delay=20)  # локальный TTS поднимается autostart'ом
 
     def public(self):
-        return self.settings_service.public(self.settings)
+        value = self.settings_service.public(self.settings)
+        value["_rev"] = self.settings_rev  # TASK-088: форма возвращает её же — сервер сверит при сохранении
+        return value
 
     @staticmethod
     def masked_secret(value):
@@ -697,15 +752,19 @@ class Runtime:
             device=self.identities.resolve(session.get('device_id',''))
             session['runtime'].settings=self.identities.settings_for(self.settings,device)
 
-    async def save_settings(self, value):
+    async def save_settings(self, value, warm=True):
+        """Сохранение настроек. warm=False — не прогревать звуковой кеш (смена режима
+        «Интеллект» не должна нагружать локальный TTS-сервер, TASK-088)."""
         value = self.settings_service.validate(value, self.settings)
         tts_changed = value.get("tts") != self.settings.get("tts")
         async with self.lock:
             self.write("settings.json", value)
             self.settings = value
+            self.settings_rev = time.time()  # устаревшие копии форм (с открытой вкладкой) отклоняются
             self.refresh_profiles()
         self.prune_sound_cache()
-        self.warm_sound_cache()
+        if warm:
+            self.warm_sound_cache()
         if tts_changed:  # значения переменных озвучены прежним голосом — не копим их под новым движком
             self.tts_cache.drop_dynamic()
         return self.public()
@@ -945,7 +1004,7 @@ def mount_ui(app, runtime, prefix="/emulator"):
 
     # Каталог картинок устройств (модель по SN): только существующие
     # PNG/WebP из каталога картинок (device_images.images_dir) — путь проверяется на выход за пределы папки.
-    ASSETS = ("index.html", "toast.js", "ws.js", "app.js", "style.css", "users.js", "backend.js", "updates.js", "catalog.js", "replies.js", "animations.js", "endpoints.js", "misses.js", "endpoints.css", "devices_common.js", "device_cards.js", "mcp.js", "agent.js", "memory.js", "routines.js", "scenario_drafts.js", "params.js", "voice_stack.js", "sound_cache.js", "extensions.js", "setup.js", "server_config.js", "server_log.js", "traffic.js")
+    ASSETS = ("index.html", "toast.js", "ws.js", "app.js", "style.css", "users.js", "backend.js", "updates.js", "catalog.js", "replies.js", "animations.js", "endpoints.js", "misses.js", "endpoints.css", "devices_common.js", "device_cards.js", "mcp.js", "agent.js", "memory.js", "routines.js", "scenario_drafts.js", "params.js", "voice_stack.js", "live_status.js", "sound_cache.js", "extensions.js", "setup.js", "server_config.js", "server_log.js", "traffic.js")
     GENERIC_IMAGES = ROOT / "ui" / "img" / "generic"
     VENDOR = ROOT / "ui" / "vendor"
 

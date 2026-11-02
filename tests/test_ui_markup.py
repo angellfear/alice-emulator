@@ -24,7 +24,7 @@ def test_setup_section_and_dialog_are_in_index():
     assert re.search(r'<dialog id="setup-dialog".*?</dialog>', HTML, re.S)
 
 
-@pytest.mark.parametrize("script", ["setup.js", "server_config.js"])
+@pytest.mark.parametrize("script", ["setup.js", "server_config.js", "live_status.js"])
 def test_ids_required_by_script_exist_in_index(script):
     missing = sorted(required_ids(script) - html_ids())
     assert not missing, f"{script}: в index.html нет элементов {missing}"

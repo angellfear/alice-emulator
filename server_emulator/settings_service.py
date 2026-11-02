@@ -272,6 +272,8 @@ class SettingsService:
         value.pop("default_route_mode", None)
         value.pop("mode", None)
         value.pop("emulation_excluded", None)
+        # TASK-088: служебное поле ревизии (сверка устаревшей копии формы) — не настройка
+        value.pop("_rev", None)
         from .intelligence import LEVELS, ext_id
         # Встроенный уровень или "ext:<id>" (режим расширения, TASK-034). Валидатор
         # проверяет только формат: включённость расширения с modes/ знает менеджер
