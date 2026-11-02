@@ -581,12 +581,25 @@ class LocalSpeech:
 
     # --- процесс -----------------------------------------------------------------
     async def start(self, package):
-        if not self.installed(package) or await self.healthy(package):
-            return
-        process = self.processes.get(package["id"])
-        if process is not None and process.poll() is None:
+        if not self.installed(package):
             return
         folder = self.folder(package)
+        process = self.processes.get(package["id"])
+        own = (process is not None and process.poll() is None) or (folder / "server.pid").exists()
+        if await self.healthy(package):
+            if own:
+                return
+            for _ in range(6):  # только что остановленный сервер освобождает порт не мгновенно
+                await asyncio.sleep(0.5)
+                if not await self.healthy(package):
+                    break
+            else:
+                # порт отвечает, но сервер не наш (осиротевший процесс другой панели): его параметры
+                # не совпадают с выбранными — молча им пользоваться нельзя
+                raise ValueError(f"Порт {self.options(package)['port']} занят другим процессом — "
+                                 "остановите его или смените порт пакета в «Дополнительно»")
+        if process is not None and process.poll() is None:
+            return
         options = {**self.options(package), "dir": str(folder), "python": str(self.python(package))}
         bake = package.get("bake")
         if bake and options.get("voice_mode") != bake.get("mode", "baked"):
@@ -615,23 +628,32 @@ class LocalSpeech:
         except (OSError, ValueError):
             return
         pid_file.unlink(missing_ok=True)
-        try:
-            if os.name == "nt":
-                subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, timeout=15,
-                               creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-            else:
-                os.kill(pid, 15)
-        except (OSError, subprocess.SubprocessError):
-            pass
+        kill_tree(pid)
 
     def stop_key(self, identifier):
         process = self.processes.pop(identifier, None)
         if process is not None and process.poll() is None:
-            process.terminate()
+            if os.name == "nt":
+                kill_tree(process.pid)  # venv\Scripts\python.exe — пускатель: сервер — его дочерний процесс
+            else:
+                process.terminate()
             try:
                 process.wait(5)
             except subprocess.TimeoutExpired:
                 process.kill()
+
+
+def kill_tree(pid):
+    """Остановить процесс вместе с дочерними. На Windows python.exe из venv запускает настоящий
+    интерпретатор дочерним процессом: убить только родителя — оставить сервер сиротой на порту."""
+    try:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, timeout=15,
+                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        else:
+            os.kill(pid, 15)
+    except (OSError, subprocess.SubprocessError):
+        pass
 
 
 class VoiceStack:

@@ -87,12 +87,164 @@
       }
     },
     {
-      "key": "instruct",
-      "label": "Описание голоса, если нет эталона (англ.: female, low pitch)",
-      "type": "text",
+      "key": "voice_gender",
+      "label": "Пол голоса",
+      "type": "select",
+      "options": [
+        {
+          "value": "female",
+          "label": "Женский"
+        },
+        {
+          "value": "male",
+          "label": "Мужской"
+        }
+      ],
       "when": {
         "voice_mode": "preset"
       }
+    },
+    {
+      "key": "voice_age",
+      "label": "Возраст",
+      "type": "select",
+      "options": [
+        {
+          "value": "",
+          "label": "Любой"
+        },
+        {
+          "value": "child",
+          "label": "Ребёнок"
+        },
+        {
+          "value": "teenager",
+          "label": "Подросток"
+        },
+        {
+          "value": "young adult",
+          "label": "Молодой"
+        },
+        {
+          "value": "middle-aged",
+          "label": "Средних лет"
+        },
+        {
+          "value": "elderly",
+          "label": "Пожилой"
+        }
+      ],
+      "when": {
+        "voice_mode": "preset"
+      }
+    },
+    {
+      "key": "voice_pitch",
+      "label": "Высота голоса",
+      "type": "select",
+      "options": [
+        {
+          "value": "",
+          "label": "Обычная"
+        },
+        {
+          "value": "very low pitch",
+          "label": "Очень низкая"
+        },
+        {
+          "value": "low pitch",
+          "label": "Низкая"
+        },
+        {
+          "value": "moderate pitch",
+          "label": "Средняя"
+        },
+        {
+          "value": "high pitch",
+          "label": "Высокая"
+        },
+        {
+          "value": "very high pitch",
+          "label": "Очень высокая"
+        }
+      ],
+      "when": {
+        "voice_mode": "preset"
+      }
+    },
+    {
+      "key": "voice_accent",
+      "label": "Акцент",
+      "type": "select",
+      "options": [
+        {
+          "value": "",
+          "label": "Без акцента"
+        },
+        {
+          "value": "russian accent",
+          "label": "Русский"
+        },
+        {
+          "value": "british accent",
+          "label": "Британский"
+        },
+        {
+          "value": "american accent",
+          "label": "Американский"
+        },
+        {
+          "value": "australian accent",
+          "label": "Австралийский"
+        },
+        {
+          "value": "canadian accent",
+          "label": "Канадский"
+        },
+        {
+          "value": "indian accent",
+          "label": "Индийский"
+        },
+        {
+          "value": "chinese accent",
+          "label": "Китайский"
+        },
+        {
+          "value": "japanese accent",
+          "label": "Японский"
+        },
+        {
+          "value": "korean accent",
+          "label": "Корейский"
+        },
+        {
+          "value": "portuguese accent",
+          "label": "Португальский"
+        }
+      ],
+      "when": {
+        "voice_mode": "preset"
+      },
+      "group": "advanced"
+    },
+    {
+      "key": "voice_style",
+      "label": "Манера",
+      "type": "select",
+      "options": [
+        {
+          "value": "",
+          "label": "Обычная"
+        },
+        {
+          "value": "whisper",
+          "label": "Шёпот"
+        }
+      ],
+      "when": {
+        "voice_mode": "preset"
+      },
+      "group": "advanced"
     },
     {
       "key": "language",
@@ -128,11 +280,15 @@
     "priority": "normal",
     "ref_audio": "",
     "ref_text": "",
-    "instruct": "female",
     "language": "ru",
     "speed": 1.0,
     "steps": 32,
-    "port": 8778
+    "port": 8778,
+    "voice_gender": "female",
+    "voice_age": "",
+    "voice_pitch": "",
+    "voice_accent": "",
+    "voice_style": ""
   },
   "server": {
     "script": "tools/omnivoice_server.py",
@@ -142,7 +298,7 @@
       "OV_THREADS": "{threads}",
       "OV_REF_AUDIO": "{ref_audio}",
       "OV_REF_TEXT": "{ref_text}",
-      "OV_INSTRUCT": "{instruct}",
+      "OV_INSTRUCT": "{voice_gender}, {voice_age}, {voice_pitch}, {voice_accent}, {voice_style}",
       "OV_LANGUAGE": "{language}",
       "OV_SPEED": "{speed}",
       "OV_STEPS": "{steps}",

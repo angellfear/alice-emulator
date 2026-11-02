@@ -4,7 +4,7 @@
   OV_MODEL    k2-fsa/OmniVoice        OV_DEVICE  cuda|cpu      OV_THREADS  потоков процессора
   OV_REF_AUDIO эталон wav — запекается один раз в <эталон>.<хеш>.pt рядом с ним
   OV_REF_TEXT его текст (пусто — распознает модель)             OV_LANGUAGE язык (ru)
-  OV_INSTRUCT описание голоса («female, low pitch») — только без эталона
+  OV_INSTRUCT описание голоса («female, low pitch»; пустые пункты отбрасываются) — только без эталона
   OV_SPEED, OV_STEPS                    скорость речи и шаги генерации (качество/время)
   CUDA_VISIBLE_DEVICES                 какая видеокарта видна процессу (её выбирает пакет)
 """
@@ -66,7 +66,9 @@ async def main():
     accepted = set(inspect.signature(model.generate).parameters)
     rate = int(getattr(model, "sampling_rate", 0) or getattr(model, "sample_rate", 0) or 24000)
     voice, mode = await asyncio.to_thread(load_voice, model, VoiceClonePrompt)
-    options = {"voice_clone_prompt": voice, "instruct": None if voice else os.environ.get("OV_INSTRUCT") or None,
+    # описание из списков пакета «female, , low pitch, , » — пустые пункты убираются
+    instruct = ", ".join(item.strip() for item in (os.environ.get("OV_INSTRUCT") or "").split(",") if item.strip())
+    options = {"voice_clone_prompt": voice, "instruct": None if voice else instruct or None,
                "language": os.environ.get("OV_LANGUAGE") or None,
                "speed": float(os.environ.get("OV_SPEED") or 1.0), "num_step": int(os.environ.get("OV_STEPS") or 32)}
     # num_step и прочие поля OmniVoiceGenerationConfig идут через **kwargs generate
@@ -88,7 +90,10 @@ async def main():
         if not isinstance(text, str) or not text.strip() or len(text) > 2000:
             raise web.HTTPBadRequest(text="input: 1..2000 characters")
         async with lock:
-            audio = await asyncio.to_thread(model.generate, text=text.strip(), **options)
+            try:
+                audio = await asyncio.to_thread(model.generate, text=text.strip(), **options)
+            except ValueError as exc:  # неподдерживаемое описание голоса и т. п. — причина клиенту, не 500
+                raise web.HTTPBadRequest(text=str(exc).splitlines()[0][:300])
         completed += 1
         wave = audio[0] if isinstance(audio, (list, tuple)) else audio
         if hasattr(wave, "detach"):
