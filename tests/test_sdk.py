@@ -327,8 +327,8 @@ def ctx_of(text="", executor=None, **inner):
     return ScenarioContext(runtime_of(executor or Executor(lexicons=LEXICONS)), base)
 
 
-def test_sdk_version_is_2_0_0():
-    assert SDK_VERSION == "2.0.0"
+def test_sdk_version_is_2_1_0():
+    assert SDK_VERSION == "2.1.0"  # 2.1.0: ctx.data (TASK-080)
 
 
 def test_devices_come_from_home_and_are_read_only_copy():

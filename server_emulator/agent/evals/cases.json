@@ -1,18 +1,76 @@
 [
-  {"phrase": "включи свет на кухне", "scenario": "smart_home.light"},
-  {"phrase": "выключи свет", "scenario": "smart_home.light"},
-  {"phrase": "какая погода", "scenario": "informers.weather"},
-  {"phrase": "сколько сейчас времени", "scenario": "informers.clock"},
-  {"phrase": "поставь таймер на пять минут", "scenario": "timers.timer.set"},
-  {"phrase": "будильник на 7:30", "scenario": "timers.alarm.set"},
-  {"phrase": "громче", "scenario": "device.volume"},
-  {"phrase": "пауза", "scenario": "device.player.pause"},
-  {"phrase": "включи блютуз", "scenario": "device.bluetooth.on"},
-  {"phrase": "забудь всё", "scenario": "system.dialog.reset"},
-  {"phrase": "расскажи анекдот про программиста", "scenario": null},
-  {"phrase": "что ты умеешь", "scenario": null},
-  {"phrase": "включи свет и поставь таймер на десять минут", "llm": true, "tools": ["scenario_run"]},
-  {"phrase": "напоминай мне каждый день в девять утра пить воду", "llm": true, "tools": ["routine_create"]},
-  {"phrase": "запомни, что я люблю тёплый свет", "llm": true, "tools": ["manage_memory"]},
-  {"phrase": "сколько будет семь умножить на восемь", "llm": true, "answer": "56"}
+ {
+  "phrase": "включи свет на кухне",
+  "scenario": "smart_home.light"
+ },
+ {
+  "phrase": "выключи свет",
+  "scenario": "smart_home.light"
+ },
+ {
+  "phrase": "какая погода",
+  "scenario": "informers.weather"
+ },
+ {
+  "phrase": "сколько сейчас времени",
+  "scenario": "informers.clock"
+ },
+ {
+  "phrase": "поставь таймер на пять минут",
+  "scenario": "timers.timer.set"
+ },
+ {
+  "phrase": "будильник на 7:30",
+  "scenario": "timers.alarm.set"
+ },
+ {
+  "phrase": "громче",
+  "scenario": "device.volume"
+ },
+ {
+  "phrase": "пауза",
+  "scenario": "device.player.pause"
+ },
+ {
+  "phrase": "включи блютуз",
+  "scenario": "device.bluetooth.on"
+ },
+ {
+  "phrase": "забудь всё",
+  "scenario": "system.dialog.reset"
+ },
+ {
+  "phrase": "расскажи анекдот про программиста",
+  "scenario": null
+ },
+ {
+  "phrase": "что ты умеешь",
+  "scenario": "chat.chat"
+ },
+ {
+  "phrase": "включи свет и поставь таймер на десять минут",
+  "llm": true,
+  "tools": [
+   "scenario_run"
+  ]
+ },
+ {
+  "phrase": "напоминай мне каждый день в девять утра пить воду",
+  "llm": true,
+  "tools": [
+   "routine_create"
+  ]
+ },
+ {
+  "phrase": "запомни, что я люблю тёплый свет",
+  "llm": true,
+  "tools": [
+   "manage_memory"
+  ]
+ },
+ {
+  "phrase": "сколько будет семь умножить на восемь",
+  "llm": true,
+  "answer": "56"
+ }
 ]

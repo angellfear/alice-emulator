@@ -10,7 +10,8 @@ import hashlib
 import re
 from pathlib import Path
 
-CATEGORIES = {"system", "informers", "device", "smart_home", "timers", "media", "custom"}
+CATEGORIES = {"system", "informers", "device", "smart_home", "timers", "media", "chat", "games",
+              "lists", "custom"}
 TRIGGER_KINDS = {"phrase", "event", "protocol_event", "provide", "intent", "schedule", "state_change", "template"}
 EVENT_FILTER_KEYS = {"callback", "purpose", "frame"}
 BINDING_SOURCES = {"constant", "input", "generated", "slot", "clock", "computed", "state", "media",

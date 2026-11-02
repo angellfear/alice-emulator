@@ -574,11 +574,11 @@
    "phrases": [
     {
      "text": "как дела",
-     "expect": null
+     "expect": "chat.chat"
     },
     {
      "text": "кто тебя создал",
-     "expect": null
+     "expect": "chat.chat"
     },
     {
      "text": "какое твое любимое приложение",
@@ -586,31 +586,31 @@
     },
     {
      "text": "что ты умеешь",
-     "expect": null
+     "expect": "chat.chat"
     },
     {
      "text": "расскажи скороговорку",
-     "expect": null
+     "expect": "chat.chat"
     },
     {
      "text": "спой что-нибудь",
-     "expect": null
+     "expect": "chat.chat"
     },
     {
      "text": "расскажи свое стихотворение",
-     "expect": null
+     "expect": "chat.chat"
     },
     {
      "text": "скажи тост",
-     "expect": null
+     "expect": "chat.chat"
     },
     {
      "text": "расскажи кричалку",
-     "expect": null
+     "expect": "chat.chat"
     },
     {
      "text": "повтори за мной привет",
-     "expect": null
+     "expect": "chat.chat"
     }
    ]
   },
@@ -625,19 +625,19 @@
     },
     {
      "text": "точное время в москве",
-     "expect": null
+     "expect": "informers.clock.date"
     },
     {
      "text": "какой сегодня день",
-     "expect": null
+     "expect": "informers.clock.date"
     },
     {
      "text": "в какой день недели будет 8 марта",
-     "expect": null
+     "expect": "informers.clock.date"
     },
     {
      "text": "понедельник это какое число",
-     "expect": null
+     "expect": "informers.clock.date"
     }
    ]
   },
@@ -648,23 +648,23 @@
    "phrases": [
     {
      "text": "добавь в список покупок йогурт хлеб кефир и шампунь",
-     "expect": null
+     "expect": "lists.shopping"
     },
     {
      "text": "добавь в список покупок масло",
-     "expect": null
+     "expect": "lists.shopping"
     },
     {
      "text": "покажи список покупок",
-     "expect": null
+     "expect": "lists.shopping"
     },
     {
      "text": "удали из списка покупок конфеты",
-     "expect": null
+     "expect": "lists.shopping"
     },
     {
      "text": "очисти список покупок",
-     "expect": null
+     "expect": "lists.shopping"
     }
    ]
   },
@@ -679,7 +679,7 @@
     },
     {
      "text": "давай погадаем",
-     "expect": null
+     "expect": "games.games"
     },
     {
      "text": "давай сыграем в верю не верю",
@@ -695,7 +695,7 @@
     },
     {
      "text": "давай сыграем в шар судьбы",
-     "expect": null
+     "expect": "games.games"
     },
     {
      "text": "давай сыграем в слова",

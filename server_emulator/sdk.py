@@ -35,7 +35,7 @@ from .extensions.context import ExtensionContext, action_context  # ExtensionCon
 from .scenario_engine import bindings as _bindings
 from .scenario_engine import parsers as _parsers
 
-SDK_VERSION = "2.0.0"  # TASK-087: удалены ctx.media/library/media_base, добавлен ctx.player; TASK-083: ctx.volume
+SDK_VERSION = "2.1.0"  # 2.1.0: ctx.data (хранилище данных сценария по пользователю); 2.0.0: ctx.player, ctx.volume
 DATASET_REFRESH_TIMEOUT_S = 10.0  # как у шага refresh без timeout
 
 
@@ -376,6 +376,30 @@ class _ActionExecution:
         self.extension = extension
 
 
+class _ScenarioData:
+    """Хранилище данных сценария (2.1.0): get/set поверх data_store.scenario_data
+    по владельцу-пользователю, переживает перезапуск. В dry-run set не пишет —
+    проверка сценария данные не меняет."""
+
+    def __init__(self, store, scenario_id, owner, dry_run):
+        self._store = store
+        self._scenario_id = scenario_id
+        self._owner = owner
+        self._dry_run = dry_run
+
+    def get(self, key, default=None):
+        if self._store is None:
+            return default
+        record = self._store.scenario_data_record(self._scenario_id, "data", self._owner, str(key))
+        return record[0] if record is not None else default
+
+    def set(self, key, value):
+        if self._dry_run or self._store is None:
+            return False
+        self._store.scenario_data_set(self._scenario_id, "data", self._owner, str(key), value)
+        return True
+
+
 class ScenarioContext:
     """Контекст py-сценария — единственный аргумент handle(ctx) (TASK-019).
 
@@ -587,6 +611,18 @@ class ScenarioContext:
         if fetcher is None:
             raise SDKError("fetch недоступен: у Executor нет fetcher")
         return await fetcher(str(url), {}, int(ttl or 0))
+
+    @property
+    def data(self):
+        """Данные сценария (2.1.0): ctx.data.get(key, default) / ctx.data.set(key, value) —
+        по владельцу-пользователю (user.id, без него SN), переживают перезапуск
+        (state_store.scenario_data, scope «data», scenario_id = id сценария).
+        В dry-run set не пишет (проверка данные не меняет)."""
+        executor = self._executor()
+        scenario = self._ctx.get("scenario")
+        scenario_id = str((scenario or {}).get("id") or (self._ctx.get("input") or {}).get("message_id") or "scenario")
+        owner = str((self.user or {}).get("id") or self.sn or "")
+        return _ScenarioData(getattr(executor, "data_store", None), scenario_id, owner, self.dry_run)
 
     async def dataset(self, name, key, max_age=0, args=None):
         """Данные плагина (датасет): свежая запись из БД (age ≤ max_age секунд) — сразу;

@@ -8,15 +8,19 @@
     "now": "2026-10-27T21:07:00",
     "owner": "owner",
     "scenarios": [
+      "chat.chat",
       "device.app.open",
       "device.bluetooth.off",
       "device.bluetooth.on",
       "device.led.emotion",
       "device.player.pause",
       "device.volume",
+      "games.games",
       "informers.clock",
+      "informers.clock.date",
       "informers.weather",
       "informers.weather.widget",
+      "lists.shopping",
       "smart_home.light",
       "system.agent_say",
       "system.dialog.reset",
@@ -32,6 +36,10 @@
     "timezone": "Asia/Tashkent"
   },
   "scenarios": [
+    {
+      "cases": [],
+      "id": "chat.chat"
+    },
     {
       "cases": [
         {
@@ -946,6 +954,10 @@
       "id": "device.volume"
     },
     {
+      "cases": [],
+      "id": "games.games"
+    },
+    {
       "cases": [
         {
           "effects": [],
@@ -1078,6 +1090,226 @@
         }
       ],
       "id": "informers.clock"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "какое сегодня число"
+          },
+          "name": "informers.clock.date-trigger0-0",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Сегодня 27 октября.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Сегодня 27 октября."
+                }
+              ],
+              "reason": "template",
+              "scenario": "informers.clock.date",
+              "speech": "Сегодня 27 октября.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "какое сегодня число"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "какое число сегодня"
+          },
+          "name": "informers.clock.date-trigger0-1",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Сегодня 27 октября.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Сегодня 27 октября."
+                }
+              ],
+              "reason": "template",
+              "scenario": "informers.clock.date",
+              "speech": "Сегодня 27 октября.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "какое число сегодня"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "какой сегодня день"
+          },
+          "name": "informers.clock.date-trigger0-2",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Сегодня вторник.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Сегодня вторник."
+                }
+              ],
+              "reason": "template",
+              "scenario": "informers.clock.date",
+              "speech": "Сегодня вторник.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "какой сегодня день"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "какой день недели сегодня"
+          },
+          "name": "informers.clock.date-trigger0-3",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Сегодня вторник.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Сегодня вторник."
+                }
+              ],
+              "reason": "template",
+              "scenario": "informers.clock.date",
+              "speech": "Сегодня вторник.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "какой день недели сегодня"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "какой сегодня день недели"
+          },
+          "name": "informers.clock.date-trigger0-4",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Сегодня вторник.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Сегодня вторник."
+                }
+              ],
+              "reason": "template",
+              "scenario": "informers.clock.date",
+              "speech": "Сегодня вторник.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "какой сегодня день недели"
+            }
+          ]
+        }
+      ],
+      "id": "informers.clock.date"
     },
     {
       "cases": [
@@ -1337,6 +1569,10 @@
         }
       ],
       "id": "informers.weather.widget"
+    },
+    {
+      "cases": [],
+      "id": "lists.shopping"
     },
     {
       "cases": [
