@@ -20,6 +20,7 @@
       "informers.clock.date",
       "informers.weather",
       "informers.weather.widget",
+      "knowledge.knowledge",
       "lists.shopping",
       "smart_home.light",
       "system.agent_say",
@@ -391,6 +392,49 @@
     },
     {
       "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "расскажи новости"
+          },
+          "name": "knowledge.no-plugin",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Для этого нет источника данных.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Для этого нет источника данных."
+                }
+              ],
+              "reason": "template",
+              "scenario": "knowledge.knowledge",
+              "speech": "Для этого нет источника данных.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "расскажи новости"
+            }
+          ]
+        },
         {
           "effects": [],
           "input": {
@@ -1656,6 +1700,10 @@
         }
       ],
       "id": "informers.weather.widget"
+    },
+    {
+      "cases": [],
+      "id": "knowledge.knowledge"
     },
     {
       "cases": [],

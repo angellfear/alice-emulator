@@ -742,23 +742,23 @@
    "phrases": [
     {
      "text": "что приготовить на обед",
-     "expect": null
+     "expect": "knowledge.knowledge"
     },
     {
      "text": "какие есть рецепты салата",
-     "expect": null
+     "expect": "knowledge.knowledge"
     },
     {
      "text": "какие рецепты есть с курицей",
-     "expect": null
+     "expect": "knowledge.knowledge"
     },
     {
      "text": "найди рецепт шарлотки",
-     "expect": null
+     "expect": "knowledge.knowledge"
     },
     {
      "text": "давай приготовим лазанью",
-     "expect": null
+     "expect": "knowledge.knowledge"
     },
     {
      "text": "тут дальше",
@@ -816,19 +816,19 @@
    "phrases": [
     {
      "text": "какова высота эвереста",
-     "expect": null
+     "expect": "knowledge.knowledge"
     },
     {
      "text": "кто такой александр флеминг",
-     "expect": null
+     "expect": "knowledge.knowledge"
     },
     {
      "text": "сколько калорий в горьком шоколаде",
-     "expect": null
+     "expect": "knowledge.knowledge"
     },
     {
      "text": "значение имени александр",
-     "expect": null
+     "expect": "knowledge.knowledge"
     }
    ]
   },
@@ -839,15 +839,15 @@
    "phrases": [
     {
      "text": "где тут рядом бассейн",
-     "expect": null
+     "expect": "knowledge.knowledge"
     },
     {
      "text": "куда сходить в кино",
-     "expect": null
+     "expect": "knowledge.knowledge"
     },
     {
      "text": "найди кафе поближе",
-     "expect": null
+     "expect": "knowledge.knowledge"
     }
    ]
   },
@@ -858,15 +858,15 @@
    "phrases": [
     {
      "text": "сколько идти до работы",
-     "expect": null
+     "expect": "knowledge.knowledge"
     },
     {
      "text": "долго ли ехать на автобусе до работы",
-     "expect": null
+     "expect": "knowledge.knowledge"
     },
     {
      "text": "как пройти в библиотеку",
-     "expect": null
+     "expect": "knowledge.knowledge"
     }
    ]
   },
@@ -877,11 +877,11 @@
    "phrases": [
     {
      "text": "как там на дорогах",
-     "expect": null
+     "expect": "knowledge.knowledge"
     },
     {
      "text": "где сейчас пробки",
-     "expect": null
+     "expect": "knowledge.knowledge"
     }
    ]
   },
@@ -892,11 +892,11 @@
    "phrases": [
     {
      "text": "расскажи новости",
-     "expect": null
+     "expect": "knowledge.knowledge"
     },
     {
      "text": "включи новости",
-     "expect": null
+     "expect": "knowledge.knowledge"
     }
    ]
   },
@@ -907,19 +907,19 @@
    "phrases": [
     {
      "text": "92 евро сколько в рублях",
-     "expect": null
+     "expect": "knowledge.knowledge"
     },
     {
      "text": "какой курс биткоина",
-     "expect": null
+     "expect": "knowledge.knowledge"
     },
     {
      "text": "сколько стоит нефть",
-     "expect": null
+     "expect": "knowledge.knowledge"
     },
     {
      "text": "сколько стоит ноутбук",
-     "expect": null
+     "expect": "knowledge.knowledge"
     },
     {
      "text": "подскажи квадратный корень из восьми",
@@ -934,11 +934,11 @@
    "phrases": [
     {
      "text": "как по-английски искусственный интеллект",
-     "expect": null
+     "expect": "knowledge.knowledge"
     },
     {
      "text": "переведи на французский воскресенье",
-     "expect": null
+     "expect": "knowledge.knowledge"
     }
    ]
   },
@@ -949,19 +949,19 @@
    "phrases": [
     {
      "text": "скажи программу на вечер",
-     "expect": null
+     "expect": "knowledge.knowledge"
     },
     {
      "text": "скажи программу на 8 февраля",
-     "expect": null
+     "expect": "knowledge.knowledge"
     },
     {
      "text": "какие фильмы сегодня по тв",
-     "expect": null
+     "expect": "knowledge.knowledge"
     },
     {
      "text": "скажи программу планета hd",
-     "expect": null
+     "expect": "knowledge.knowledge"
     }
    ]
   },

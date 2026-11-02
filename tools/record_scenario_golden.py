@@ -360,6 +360,7 @@ CASES = {
         {"name": "bluetooth.on-latin", "kind": "text", "phrase": "включи bluetooth"},
     ],
     "device.led.emotion": [
+        {"name": "knowledge.no-plugin", "kind": "text", "phrase": "расскажи новости"},
         {"name": "unavailable.simple", "kind": "text", "phrase": "покажи фильм дюна"},
         {"name": "unavailable.game", "kind": "text", "phrase": "давай сыграем в города"},
         {"name": "led.emotion-joy", "kind": "text", "phrase": "покажи глазки"},
