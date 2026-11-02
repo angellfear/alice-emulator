@@ -134,37 +134,72 @@ class Runtime:
         from .scenario_engine.executor import Executor
         from .scenario_engine import library
         from .scenario_engine.library import LEXICONS
-        from .scenario_engine.scheduler import TimerScheduler
-        # M08: сервер — владелец расписания таймеров; просроченные после рестарта — missed
-        self.timer_scheduler = TimerScheduler(self.store, fire=self._fire_timer)
-        self.timer_scheduler.recover_missed()
+        # TASK-079: серверных таймеров больше нет — состояние колонки в её запросе,
+        # директивы timer/alarm уходят колонке штатно (station_state, clock_directives)
         self.fetch_cache = {}  # (url, query) → (ts, json): кеш GET JSON (ctx.fetch_json, плагины)
-        self.media_state = {}  # TASK-071: плеер колонки — очереди по SN (только память)
 
         # --- эффекты-примитивы сценариев: без текстов, словарей и выбора веток ---
         def _input(execution):
             return (getattr(execution, "ctx", None) or {}).get("input") or {}
 
-        def timer_start(arguments, execution):
+        async def timer_start(arguments, execution):
+            """TASK-079: timer.start — не серверное расписание, а штатные директивы
+            колонке (open_screen + timer_set_directive): таймер живёт у колонки."""
+            from . import clock_directives
             source = _input(execution)
-            timer, _created = self.timer_scheduler.schedule(
-                sn=arguments.get("sn") or source.get("sn") or "", seconds=int(arguments["seconds"]),
-                label=arguments.get("label"), user_id=source.get("user_id"),
-                dialog_id=source.get("dialog_id"))
-            return {"id": timer["id"], "seconds": timer["duration_s"], "label": timer["label"]}
+            sn = arguments.get("sn") or source.get("sn") or ""
+            seconds = int(arguments["seconds"])
+            screens = ((getattr(execution, "ctx", None) or {}).get("station") or {}).get("screens") or {}
+            timer_id = clock_directives.new_clock_id()
+            items = clock_directives.timer_set_items(timer_id, seconds, screen_open=bool(screens))
+            message = clock_directives.push_message(ROOT / "schemas", items)
+            sent = await self.send_message(sn, message)
+            return {"id": timer_id, "seconds": seconds, "label": arguments.get("label"),
+                    "delivery": "sent" if sent else "no_session"}
 
-        def alarm_start(arguments, execution):
+        async def alarm_start(arguments, execution):
+            """TASK-079: alarm.start — директива alarm_add_directive колонке (образец
+            2026-10-22 05:47:24); ближайшая дата — сегодня/завтра по времени колонки."""
+            import zoneinfo
+            from . import clock_directives
             source = _input(execution)
-            alarm = self.timer_scheduler.schedule_alarm(
-                sn=arguments.get("sn") or source.get("sn") or "", hhmm=str(arguments["time"]),
-                label=arguments.get("label"), tz=arguments.get("timezone") or None,
-                user_id=source.get("user_id"), dialog_id=source.get("dialog_id"))
-            alarm = alarm[0] if isinstance(alarm, tuple) else alarm
-            return {"id": alarm.get("id"), "time": arguments["time"]}
+            sn = arguments.get("sn") or source.get("sn") or ""
+            hhmm = str(arguments["time"])
+            hours, minutes = (int(part) for part in hhmm.split(":"))
+            now = datetime.datetime.now()
+            tz_name = str(arguments.get("timezone") or "")
+            if tz_name:
+                try:
+                    now = now.astimezone(zoneinfo.ZoneInfo(tz_name))
+                except ValueError:
+                    tz_name = ""
+            when = now.replace(hour=hours, minute=minutes, second=0, microsecond=0)
+            if when <= now:
+                when += datetime.timedelta(days=1)
+            offset = int(now.utcoffset().total_seconds()) if now.utcoffset() is not None else 0
+            alarm_id = clock_directives.new_clock_id()
+            items = clock_directives.alarm_add_items(
+                alarm_id, when, hours, minutes, tz_name or str(now.tzname() or ""), offset)
+            message = clock_directives.push_message(ROOT / "schemas", items)
+            sent = await self.send_message(sn, message)
+            return {"id": alarm_id, "time": hhmm, "delivery": "sent" if sent else "no_session"}
 
-        def timer_cancel(arguments, execution):
-            return self.timer_scheduler.cancel(sn=arguments.get("sn") or _input(execution).get("sn") or "",
-                                               kind=arguments.get("kind") or "timer")
+        async def timer_cancel(arguments, execution):
+            """TASK-079: отмена — по состоянию колонки из контекста запроса (своего
+            хранилища нет): активный таймер → timer_cancel_directive, else 0.
+            Будильники — 0: образца TAlarmCancelDirective в журнале нет (БЛОКЕР)."""
+            from . import clock_directives, station_state
+            if (arguments.get("kind") or "timer") != "timer":
+                return 0
+            station = (getattr(execution, "ctx", None) or {}).get("station") or {}
+            timers = station_state.active_timers(station.get("timers") or [],
+                                                 datetime.datetime.now().timestamp())
+            if not timers:
+                return 0
+            sn = arguments.get("sn") or _input(execution).get("sn") or ""
+            items = clock_directives.timer_cancel_items(timers[0]["timer_id"])
+            message = clock_directives.push_message(ROOT / "schemas", items)
+            return 1 if await self.send_message(sn, message) else 0
 
         async def device_push(arguments, execution):
             item = await self.push_action(arguments.get("sn") or _input(execution).get("sn") or "", arguments["action"],
@@ -638,37 +673,11 @@ class Runtime:
         self.speech_log.append(record)
         del self.speech_log[:-SPEECH_LOG_LIMIT]
 
-    def _fire_timer(self, timer):
-        """Срабатывание таймера/будильника → служебное событие @@timer_fired в живую
-        WS-сессию устройства: ответ (текст, директивы) описывает JSON-сценарий."""
-        for session in list(self.sessions.values()):
-            if session.get("device_sn") != timer.get("sn") or not session.get("send"):
-                continue
-            ctx = {"input": {"message_id": uuid.uuid4().hex, "request_id": uuid.uuid4().hex,
-                             "dialog_id": "", "sn": timer.get("sn") or "", "text": "",
-                             "event_name": "@@timer_fired", "purpose": timer.get("kind") or "timer",
-                             "callback": "", "frame": "", "label": timer.get("label") or "",
-                             "kind": timer.get("kind") or "timer", "timer_id": timer.get("id")},
-                   "clock": {"now": datetime.datetime.now()}, "sequence": next(self.sequence)}
-            ctx.update(self._scenario_context(sn=timer.get("sn") or ""))
-            from .aapi_handlers import route as callback_route  # TASK-058: событие → запрос данных
-            self.lifecycle.spawn(self.dialog.handle_event(callback_route("@@timer_fired", None), ctx,
-                                                          uuid.uuid4().hex, session["send"]))
-            return True
-        return False  # сессии нет — факт срабатывания остаётся в инвентаре таймеров
-
-    async def _timer_loop(self):
-        while True:
-            await asyncio.sleep(1)
-            try:
-                self.timer_scheduler.poll()
-            except Exception as exc:  # планировщик не должен умирать от одной итерации
-                self.recent = (self.recent + [{"kind": "timer", "error": type(exc).__name__ + ": " + str(exc)[:120]}])[-30:]
-
     def start_background(self):
-        """Фоновые задачи runtime (планировщик таймеров, задания агента); идемпотентно."""
-        if not getattr(self, "_timer_task", None):
-            self._timer_task = self.lifecycle.spawn(self._timer_loop())
+        """Фоновые задачи runtime (задания агента, голосовой стек); идемпотентно.
+        TASK-079: планировщика таймеров больше нет — сигнал отдаёт сама колонка."""
+        if not getattr(self, "_background_started", None):
+            self._background_started = True
             self.lifecycle.spawn(self.voice_stack.autostart())
             if not self.self_update.task:
                 self.self_update.start()  # TASK-040: проверка релизов с задержкой и по интервалу
@@ -936,7 +945,7 @@ def mount_ui(app, runtime, prefix="/emulator"):
 
     # Каталог картинок устройств (модель по SN): только существующие
     # PNG/WebP из каталога картинок (device_images.images_dir) — путь проверяется на выход за пределы папки.
-    ASSETS = ("index.html", "toast.js", "ws.js", "app.js", "style.css", "users.js", "backend.js", "updates.js", "catalog.js", "replies.js", "animations.js", "endpoints.js", "misses.js", "endpoints.css", "devices_common.js", "device_cards.js", "mcp.js", "agent.js", "memory.js", "routines.js", "scenario_drafts.js", "params.js", "voice_stack.js", "sound_cache.js", "extensions.js", "setup.js", "server_config.js", "server_log.js", "media.js", "traffic.js")
+    ASSETS = ("index.html", "toast.js", "ws.js", "app.js", "style.css", "users.js", "backend.js", "updates.js", "catalog.js", "replies.js", "animations.js", "endpoints.js", "misses.js", "endpoints.css", "devices_common.js", "device_cards.js", "mcp.js", "agent.js", "memory.js", "routines.js", "scenario_drafts.js", "params.js", "voice_stack.js", "sound_cache.js", "extensions.js", "setup.js", "server_config.js", "server_log.js", "traffic.js")
     GENERIC_IMAGES = ROOT / "ui" / "img" / "generic"
     VENDOR = ROOT / "ui" / "vendor"
 
@@ -974,19 +983,6 @@ def mount_ui(app, runtime, prefix="/emulator"):
         raise web.HTTPNotFound()
 
     app.router.add_get("/favicon.ico", icon)
-    # TASK-071: раздача медиа-библиотеки колонке (state/media/<kind>/<путь>) —
-    # перемотку (Range) делает aiohttp FileResponse; выход за папку исключён.
-    media_root = (runtime.directory / "media").resolve()
-
-    async def media(request):
-        relative = request.match_info.get("tail", "")
-        target = (media_root / relative).resolve()
-        if media_root not in target.parents or not target.is_file():
-            raise web.HTTPNotFound()
-        return web.FileResponse(target, headers={"Accept-Ranges": "bytes", "Cache-Control": "no-cache"},
-                                chunk_size=64 * 1024)
-
-    app.router.add_get("/media/{tail:.*}", media)
     app.router.add_post(prefix + "/api/setup/protocol", guarded(lambda request: setup_api.upload(request, runtime)))
     app.router.add_post(prefix + "/api/setup/images", guarded(lambda request: setup_api.refresh_images(request, runtime)))
     app.router.add_route("PUT", prefix + "/api/catalog/apps/{id}", guarded(runtime.catalog.edit))

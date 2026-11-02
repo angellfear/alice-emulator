@@ -17,22 +17,15 @@
       "informers.clock",
       "informers.weather",
       "informers.weather.widget",
-      "media.buttons",
-      "media.music",
-      "media.playback",
-      "media.player",
-      "media.radio",
-      "media.sounds",
-      "media.tales",
       "smart_home.light",
       "system.agent_say",
       "system.dialog.reset",
       "system.service_ack",
       "system.timesync",
-      "timers.alarm.cancel",
       "timers.alarm.set",
-      "timers.fired",
+      "timers.ringing.stop",
       "timers.timer.cancel",
+      "timers.timer.list",
       "timers.timer.set"
     ],
     "sn": "SN-GOLDEN",
@@ -96,7 +89,12 @@
               "handled": true,
               "messages": [
                 {
-                  "cards": [],
+                  "cards": [
+                    {
+                      "text": "Приложение «спотифай» найдено. Запуск пока не поддерживается: директива запуска не восстановлена в схеме.",
+                      "type": "simple_text"
+                    }
+                  ],
                   "directives": [
                     {
                       "analytics": "tts_play_placeholder",
@@ -110,12 +108,12 @@
                   ],
                   "event": "AliceResponse",
                   "has_voice": false,
-                  "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
+                  "speech": "Приложение «спотифай» найдено. Запуск пока не поддерживается: директива запуска не восстановлена в схеме."
                 }
               ],
               "reason": "template",
-              "scenario": "media.music",
-              "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
+              "scenario": "device.app.open",
+              "speech": "Приложение «спотифай» найдено. Запуск пока не поддерживается: директива запуска не восстановлена в схеме.",
               "speech_parts": [],
               "status": "finished",
               "text": "запусти спотифай"
@@ -523,16 +521,45 @@
                         "channel": "Dialog"
                       },
                       "type": "client_action"
+                    },
+                    {
+                      "analytics": "divui_hide_view",
+                      "is_led_silent": true,
+                      "name": "divui_hide_view",
+                      "payload_raw": "Cg9kaXZ1aV9oaWRlX3ZpZXc=",
+                      "type": "client_action"
+                    },
+                    {
+                      "analytics": "draw_animation_directive",
+                      "is_led_silent": true,
+                      "name": "draw_animation_directive",
+                      "payload_raw": "CjkSNwocaHR0cHM6Ly9xdWFzYXIuczMueWFuZGV4Lm5ldBIXYW5pbWF0aW9ucy9wbGF5ZXJfcGF1c2XCPhhkcmF3X2FuaW1hdGlvbl9kaXJlY3RpdmU=",
+                      "type": "client_action"
+                    },
+                    {
+                      "analytics": "general_conversation_player_pause",
+                      "is_led_silent": true,
+                      "name": "player_pause",
+                      "payload": {
+                        "smooth": false
+                      },
+                      "type": "client_action"
+                    },
+                    {
+                      "analytics": "general_conversation_player_pause",
+                      "is_led_silent": true,
+                      "name": "clear_queue",
+                      "type": "client_action"
                     }
                   ],
                   "event": "AliceResponse",
                   "has_voice": false,
-                  "speech": "Сейчас ничего не играет."
+                  "speech": ""
                 }
               ],
               "reason": "template",
               "scenario": "device.player.pause",
-              "speech": "Сейчас ничего не играет.",
+              "speech": "",
               "speech_parts": [],
               "status": "finished",
               "text": "пауза"
@@ -561,16 +588,45 @@
                         "channel": "Dialog"
                       },
                       "type": "client_action"
+                    },
+                    {
+                      "analytics": "divui_hide_view",
+                      "is_led_silent": true,
+                      "name": "divui_hide_view",
+                      "payload_raw": "Cg9kaXZ1aV9oaWRlX3ZpZXc=",
+                      "type": "client_action"
+                    },
+                    {
+                      "analytics": "draw_animation_directive",
+                      "is_led_silent": true,
+                      "name": "draw_animation_directive",
+                      "payload_raw": "CjkSNwocaHR0cHM6Ly9xdWFzYXIuczMueWFuZGV4Lm5ldBIXYW5pbWF0aW9ucy9wbGF5ZXJfcGF1c2XCPhhkcmF3X2FuaW1hdGlvbl9kaXJlY3RpdmU=",
+                      "type": "client_action"
+                    },
+                    {
+                      "analytics": "general_conversation_player_pause",
+                      "is_led_silent": true,
+                      "name": "player_pause",
+                      "payload": {
+                        "smooth": false
+                      },
+                      "type": "client_action"
+                    },
+                    {
+                      "analytics": "general_conversation_player_pause",
+                      "is_led_silent": true,
+                      "name": "clear_queue",
+                      "type": "client_action"
                     }
                   ],
                   "event": "AliceResponse",
                   "has_voice": false,
-                  "speech": "Сейчас ничего не играет."
+                  "speech": ""
                 }
               ],
               "reason": "template",
               "scenario": "device.player.pause",
-              "speech": "Сейчас ничего не играет.",
+              "speech": "",
               "speech_parts": [],
               "status": "finished",
               "text": "останови музыку"
@@ -583,18 +639,7 @@
     {
       "cases": [
         {
-          "effects": [
-            {
-              "arguments": {
-                "action": "sound_set_level",
-                "arguments": {
-                  "level": 5
-                }
-              },
-              "ref": "device.push",
-              "result": "no_session"
-            }
-          ],
+          "effects": [],
           "input": {
             "kind": "text",
             "phrase": "громкость 5"
@@ -605,13 +650,17 @@
               "handled": true,
               "messages": [
                 {
-                  "cards": [
-                    {
-                      "text": "Громкость 5 из 10.",
-                      "type": "simple_text"
-                    }
-                  ],
+                  "cards": [],
                   "directives": [
+                    {
+                      "is_led_silent": true,
+                      "name": "sound_set_level",
+                      "payload": {
+                        "new_level": 5.0,
+                        "new_percent_level": 50.0
+                      },
+                      "type": "client_action"
+                    },
                     {
                       "analytics": "tts_play_placeholder",
                       "is_led_silent": true,
@@ -624,12 +673,12 @@
                   ],
                   "event": "AliceResponse",
                   "has_voice": false,
-                  "speech": "Громкость 5 из 10."
+                  "speech": ""
                 }
               ],
               "reason": "template",
               "scenario": "device.volume",
-              "speech": "Громкость 5 из 10.",
+              "speech": "",
               "speech_parts": [],
               "status": "finished",
               "text": "громкость 5"
@@ -637,18 +686,7 @@
           ]
         },
         {
-          "effects": [
-            {
-              "arguments": {
-                "action": "sound_set_level",
-                "arguments": {
-                  "level": "5"
-                }
-              },
-              "ref": "device.push",
-              "result": "no_session"
-            }
-          ],
+          "effects": [],
           "input": {
             "kind": "text",
             "phrase": "громкость 50"
@@ -659,13 +697,17 @@
               "handled": true,
               "messages": [
                 {
-                  "cards": [
-                    {
-                      "text": "Громкость 5 из 10.",
-                      "type": "simple_text"
-                    }
-                  ],
+                  "cards": [],
                   "directives": [
+                    {
+                      "is_led_silent": true,
+                      "name": "sound_set_level",
+                      "payload": {
+                        "new_level": 5.0,
+                        "new_percent_level": 50.0
+                      },
+                      "type": "client_action"
+                    },
                     {
                       "analytics": "tts_play_placeholder",
                       "is_led_silent": true,
@@ -678,12 +720,12 @@
                   ],
                   "event": "AliceResponse",
                   "has_voice": false,
-                  "speech": "Громкость 5 из 10."
+                  "speech": ""
                 }
               ],
               "reason": "template",
               "scenario": "device.volume",
-              "speech": "Громкость 5 из 10.",
+              "speech": "",
               "speech_parts": [],
               "status": "finished",
               "text": "громкость 50"
@@ -1297,1369 +1339,6 @@
       "id": "informers.weather.widget"
     },
     {
-      "cases": [],
-      "id": "media.buttons"
-    },
-    {
-      "cases": [
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "включи музыку"
-          },
-          "name": "media.music-trigger0-0",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.music",
-              "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "включи музыку"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "включи песню"
-          },
-          "name": "media.music-trigger0-1",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.music",
-              "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "включи песню"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "включи трек"
-          },
-          "name": "media.music-trigger0-2",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.music",
-              "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "включи трек"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "включи композицию"
-          },
-          "name": "media.music-trigger0-3",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.music",
-              "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "включи композицию"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "поставь музыку"
-          },
-          "name": "media.music-trigger0-4",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.music",
-              "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "поставь музыку"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "поставь песню"
-          },
-          "name": "media.music-trigger0-5",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.music",
-              "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "поставь песню"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "включай музыку"
-          },
-          "name": "media.music-trigger0-6",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.music",
-              "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "включай музыку"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "послушать музыку"
-          },
-          "name": "media.music-trigger0-7",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
-                }
-              ],
-              "reason": "phrase:exact",
-              "scenario": "media.music",
-              "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "послушать музыку"
-            }
-          ]
-        }
-      ],
-      "id": "media.music"
-    },
-    {
-      "cases": [],
-      "id": "media.playback"
-    },
-    {
-      "cases": [
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "следующий трек"
-          },
-          "name": "media.player-trigger0-0",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Это последний трек в очереди."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.player",
-              "speech": "Это последний трек в очереди.",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "следующий трек"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "следующий"
-          },
-          "name": "media.player-trigger0-1",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Это последний трек в очереди."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.player",
-              "speech": "Это последний трек в очереди.",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "следующий"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "дальше"
-          },
-          "name": "media.player-trigger0-2",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Это последний трек в очереди."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.player",
-              "speech": "Это последний трек в очереди.",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "дальше"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "предыдущий трек"
-          },
-          "name": "media.player-trigger0-3",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Это первый трек в очереди."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.player",
-              "speech": "Это первый трек в очереди.",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "предыдущий трек"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "предыдущий"
-          },
-          "name": "media.player-trigger0-4",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Это первый трек в очереди."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.player",
-              "speech": "Это первый трек в очереди.",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "предыдущий"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "назад"
-          },
-          "name": "media.player-trigger0-5",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Это первый трек в очереди."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.player",
-              "speech": "Это первый трек в очереди.",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "назад"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "продолжи"
-          },
-          "name": "media.player-trigger0-6",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Ничего не играет — включите музыку или сказку."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.player",
-              "speech": "Ничего не играет — включите музыку или сказку.",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "продолжи"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "продолжить"
-          },
-          "name": "media.player-trigger0-7",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Ничего не играет — включите музыку или сказку."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.player",
-              "speech": "Ничего не играет — включите музыку или сказку.",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "продолжить"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "что играет"
-          },
-          "name": "media.player-trigger0-8",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Сейчас ничего не играет."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.player",
-              "speech": "Сейчас ничего не играет.",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "что играет"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "что сейчас играет"
-          },
-          "name": "media.player-trigger0-9",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Сейчас ничего не играет."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.player",
-              "speech": "Сейчас ничего не играет.",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "что сейчас играет"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "какая песня играет"
-          },
-          "name": "media.player-trigger0-10",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Сейчас ничего не играет."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.player",
-              "speech": "Сейчас ничего не играет.",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "какая песня играет"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "какой трек играет"
-          },
-          "name": "media.player-trigger0-11",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Сейчас ничего не играет."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.player",
-              "speech": "Сейчас ничего не играет.",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "какой трек играет"
-            }
-          ]
-        }
-      ],
-      "id": "media.player"
-    },
-    {
-      "cases": [
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "включи радио"
-          },
-          "name": "media.radio-trigger0-0",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Список радиостанций пуст — добавьте потоки во вкладке «Голос → Медиа»."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.radio",
-              "speech": "Список радиостанций пуст — добавьте потоки во вкладке «Голос → Медиа».",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "включи радио"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "включи радио *"
-          },
-          "name": "media.radio-trigger0-1",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Станции «*» нет в списке радио. Скажите: включи радио — и я перечислю."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.radio",
-              "speech": "Станции «*» нет в списке радио. Скажите: включи радио — и я перечислю.",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "включи радио *"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "поставь радио"
-          },
-          "name": "media.radio-trigger0-2",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Список радиостанций пуст — добавьте потоки во вкладке «Голос → Медиа»."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.radio",
-              "speech": "Список радиостанций пуст — добавьте потоки во вкладке «Голос → Медиа».",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "поставь радио"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "поставь радио *"
-          },
-          "name": "media.radio-trigger0-3",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Станции «*» нет в списке радио. Скажите: включи радио — и я перечислю."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.radio",
-              "speech": "Станции «*» нет в списке радио. Скажите: включи радио — и я перечислю.",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "поставь радио *"
-            }
-          ]
-        }
-      ],
-      "id": "media.radio"
-    },
-    {
-      "cases": [
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "включи звуки природы"
-          },
-          "name": "media.sounds-trigger0-0",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»)."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.music",
-              "speech": "Музыки в библиотеке нет — добавьте файлы в state/media/music (вкладка «Голос → Медиа»).",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "включи звуки природы"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "звуки природы"
-          },
-          "name": "media.sounds-trigger0-1",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Звуков природы в библиотеке нет — добавьте файлы в state/media/sounds (вкладка «Голос → Медиа»)."
-                }
-              ],
-              "reason": "phrase:exact",
-              "scenario": "media.sounds",
-              "speech": "Звуков природы в библиотеке нет — добавьте файлы в state/media/sounds (вкладка «Голос → Медиа»).",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "звуки природы"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "включи шум дождя"
-          },
-          "name": "media.sounds-trigger0-2",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Звуков природы в библиотеке нет — добавьте файлы в state/media/sounds (вкладка «Голос → Медиа»)."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.sounds",
-              "speech": "Звуков природы в библиотеке нет — добавьте файлы в state/media/sounds (вкладка «Голос → Медиа»).",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "включи шум дождя"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "включи пение птиц"
-          },
-          "name": "media.sounds-trigger0-3",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Звуков природы в библиотеке нет — добавьте файлы в state/media/sounds (вкладка «Голос → Медиа»)."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.sounds",
-              "speech": "Звуков природы в библиотеке нет — добавьте файлы в state/media/sounds (вкладка «Голос → Медиа»).",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "включи пение птиц"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "включи шум океана"
-          },
-          "name": "media.sounds-trigger0-4",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Звуков природы в библиотеке нет — добавьте файлы в state/media/sounds (вкладка «Голос → Медиа»)."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.sounds",
-              "speech": "Звуков природы в библиотеке нет — добавьте файлы в state/media/sounds (вкладка «Голос → Медиа»).",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "включи шум океана"
-            }
-          ]
-        }
-      ],
-      "id": "media.sounds"
-    },
-    {
-      "cases": [
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "включи сказку"
-          },
-          "name": "media.tales-trigger0-0",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»)."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.tales",
-              "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»).",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "включи сказку"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "включи сказку *"
-          },
-          "name": "media.tales-trigger0-1",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»)."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.tales",
-              "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»).",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "включи сказку *"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "расскажи сказку"
-          },
-          "name": "media.tales-trigger0-2",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»)."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.tales",
-              "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»).",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "расскажи сказку"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "расскажи сказку *"
-          },
-          "name": "media.tales-trigger0-3",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»)."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.tales",
-              "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»).",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "расскажи сказку *"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "включи аудиосказку"
-          },
-          "name": "media.tales-trigger0-4",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»)."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.tales",
-              "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»).",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "включи аудиосказку"
-            }
-          ]
-        },
-        {
-          "effects": [],
-          "input": {
-            "kind": "text",
-            "phrase": "включи аудиосказку *"
-          },
-          "name": "media.tales-trigger0-5",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»)."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.tales",
-              "speech": "Сказок в библиотеке нет — добавьте файлы в state/media/tales (вкладка «Голос → Медиа»).",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "включи аудиосказку *"
-            }
-          ]
-        }
-      ],
-      "id": "media.tales"
-    },
-    {
       "cases": [
         {
           "effects": [],
@@ -3188,14 +1867,24 @@
               "messages": [
                 {
                   "cards": [],
-                  "directives": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
                   "event": "AliceResponse",
                   "has_voice": false,
                   "speech": ""
                 }
               ],
               "reason": "event:@@mm_stack_engine_get_next",
-              "scenario": "media.playback",
+              "scenario": "system.service_ack",
               "speech": "",
               "speech_parts": [],
               "status": "finished"
@@ -3292,125 +1981,7 @@
     {
       "cases": [
         {
-          "effects": [
-            {
-              "arguments": {
-                "kind": "alarm"
-              },
-              "ref": "timer.cancel",
-              "result": 0
-            }
-          ],
-          "input": {
-            "kind": "text",
-            "phrase": "отмени будильник"
-          },
-          "name": "alarm.cancel-none",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [
-                    {
-                      "text": "Активных будильников нет.",
-                      "type": "simple_text"
-                    }
-                  ],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Активных будильников нет."
-                }
-              ],
-              "reason": "template",
-              "scenario": "timers.alarm.cancel",
-              "speech": "Активных будильников нет.",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "отмени будильник"
-            }
-          ]
-        },
-        {
-          "effects": [
-            {
-              "arguments": {
-                "kind": "alarm"
-              },
-              "ref": "timer.cancel",
-              "result": 1
-            }
-          ],
-          "input": {
-            "kind": "text",
-            "phrase": "отмени будильник"
-          },
-          "name": "alarm.cancel-here",
-          "runs": [
-            {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [
-                    {
-                      "text": "Будильник отменён.",
-                      "type": "simple_text"
-                    }
-                  ],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Будильник отменён."
-                }
-              ],
-              "reason": "template",
-              "scenario": "timers.alarm.cancel",
-              "speech": "Будильник отменён.",
-              "speech_parts": [],
-              "status": "finished",
-              "text": "отмени будильник"
-            }
-          ]
-        }
-      ],
-      "id": "timers.alarm.cancel"
-    },
-    {
-      "cases": [
-        {
-          "effects": [
-            {
-              "arguments": {
-                "time": "07:30",
-                "timezone": "Europe/Moscow"
-              },
-              "ref": "alarm.start",
-              "result": {
-                "time": "07:30"
-              }
-            }
-          ],
+          "effects": [],
           "input": {
             "kind": "text",
             "phrase": "будильник на 7:30"
@@ -3423,11 +1994,23 @@
                 {
                   "cards": [
                     {
-                      "text": "Будильник на 7:30.",
+                      "text": "Будильник на 7:30 поставил на завтра.",
                       "type": "simple_text"
                     }
                   ],
                   "directives": [
+                    {
+                      "is_led_silent": true,
+                      "name": "open_screen_alarm_list_directive",
+                      "payload_raw": "GAE=",
+                      "type": "client_action"
+                    },
+                    {
+                      "is_led_silent": true,
+                      "name": "alarm_add_directive",
+                      "payload_raw": "ChNhbGFybV9hZGRfZGlyZWN0aXZlEkwKIzBiMDAwMDAwLTAwMDA0MDAwLTgwMDAwMDAwLTAwMDAwMDAwEgQIBxAeKgkSBwjqDxAKGBw6EgoNRXVyb3BlL01vc2NvdxCwVGAK",
+                      "type": "client_action"
+                    },
                     {
                       "analytics": "tts_play_placeholder",
                       "is_led_silent": true,
@@ -3440,12 +2023,12 @@
                   ],
                   "event": "AliceResponse",
                   "has_voice": false,
-                  "speech": "Будильник на 7:30."
+                  "speech": "Будильник на 7:30 поставил на завтра."
                 }
               ],
               "reason": "template",
               "scenario": "timers.alarm.set",
-              "speech": "Будильник на 7:30.",
+              "speech": "Будильник на 7:30 поставил на завтра.",
               "speech_parts": [],
               "status": "finished",
               "text": "будильник на 7:30"
@@ -3453,18 +2036,7 @@
           ]
         },
         {
-          "effects": [
-            {
-              "arguments": {
-                "time": "07:00",
-                "timezone": "Europe/Moscow"
-              },
-              "ref": "alarm.start",
-              "result": {
-                "time": "07:00"
-              }
-            }
-          ],
+          "effects": [],
           "input": {
             "answer": "в 7 утра",
             "kind": "text",
@@ -3511,11 +2083,23 @@
                 {
                   "cards": [
                     {
-                      "text": "Будильник на 7:00.",
+                      "text": "Будильник на 7:00 поставил на завтра.",
                       "type": "simple_text"
                     }
                   ],
                   "directives": [
+                    {
+                      "is_led_silent": true,
+                      "name": "open_screen_alarm_list_directive",
+                      "payload_raw": "GAE=",
+                      "type": "client_action"
+                    },
+                    {
+                      "is_led_silent": true,
+                      "name": "alarm_add_directive",
+                      "payload_raw": "ChNhbGFybV9hZGRfZGlyZWN0aXZlEkoKIzBiMDAwMDAwLTAwMDA0MDAwLTgwMDAwMDAwLTAwMDAwMDAwEgIIByoJEgcI6g8QChgcOhIKDUV1cm9wZS9Nb3Njb3cQsFRgCg==",
+                      "type": "client_action"
+                    },
                     {
                       "analytics": "tts_play_placeholder",
                       "is_led_silent": true,
@@ -3528,12 +2112,12 @@
                   ],
                   "event": "AliceResponse",
                   "has_voice": false,
-                  "speech": "Будильник на 7:00."
+                  "speech": "Будильник на 7:00 поставил на завтра."
                 }
               ],
               "reason": "continuation",
               "scenario": "timers.alarm.set",
-              "speech": "Будильник на 7:00.",
+              "speech": "Будильник на 7:00 поставил на завтра.",
               "speech_parts": [],
               "status": "finished",
               "text": "в 7 утра"
@@ -3541,19 +2125,7 @@
           ]
         },
         {
-          "effects": [
-            {
-              "arguments": {
-                "sn": "SN-DUO32",
-                "time": "06:30",
-                "timezone": "Europe/Moscow"
-              },
-              "ref": "alarm.start",
-              "result": {
-                "time": "06:30"
-              }
-            }
-          ],
+          "effects": [],
           "input": {
             "kind": "text",
             "phrase": "заведи будильник на дуо 32 на 6:30"
@@ -3566,7 +2138,7 @@
                 {
                   "cards": [
                     {
-                      "text": "Будильник на 6:30 на колонке «Дуо 32».",
+                      "text": "Пока не ставлю будильник на другой колонке — только на этой.",
                       "type": "simple_text"
                     }
                   ],
@@ -3583,12 +2155,12 @@
                   ],
                   "event": "AliceResponse",
                   "has_voice": false,
-                  "speech": "Будильник на 6:30 на колонке «Дуо 32»."
+                  "speech": "Пока не ставлю будильник на другой колонке — только на этой."
                 }
               ],
               "reason": "phrase:contains",
               "scenario": "timers.alarm.set",
-              "speech": "Будильник на 6:30 на колонке «Дуо 32».",
+              "speech": "Пока не ставлю будильник на другой колонке — только на этой.",
               "speech_parts": [],
               "status": "finished",
               "text": "заведи будильник на дуо 32 на 6:30"
@@ -3603,27 +2175,28 @@
         {
           "effects": [],
           "input": {
-            "event": "@@timer_fired",
-            "fields": {
-              "kind": "timer",
-              "label": "Таймер 5 мин",
-              "timer_id": "golden-timer-1"
-            },
-            "kind": "event"
+            "kind": "text",
+            "phrase": "хватит"
           },
-          "name": "fired-timer",
+          "name": "ringing.stop-alarm",
           "runs": [
             {
               "handled": true,
               "messages": [
                 {
-                  "cards": [
-                    {
-                      "text": "Таймер 5 мин сработал.",
-                      "type": "simple_text"
-                    }
-                  ],
+                  "cards": [],
                   "directives": [
+                    {
+                      "is_led_silent": true,
+                      "name": "alarm_stop_directive",
+                      "payload_raw": "Ch9zdG9wX2FsYXJtX2NhcGFiaWxpdHlfZGlyZWN0aXZlEAE=",
+                      "type": "client_action"
+                    },
+                    {
+                      "is_led_silent": true,
+                      "name": "close_screen_alarm_active_directive",
+                      "type": "client_action"
+                    },
                     {
                       "analytics": "tts_play_placeholder",
                       "is_led_silent": true,
@@ -3636,79 +2209,73 @@
                   ],
                   "event": "AliceResponse",
                   "has_voice": false,
-                  "speech": "Таймер 5 мин сработал."
+                  "speech": "Будильник выключил."
                 }
               ],
-              "reason": "event:@@timer_fired",
-              "scenario": "timers.fired",
-              "speech": "Таймер 5 мин сработал.",
+              "reason": "template",
+              "scenario": "timers.ringing.stop",
+              "speech": "Будильник выключил.",
               "speech_parts": [],
-              "status": "finished"
+              "status": "finished",
+              "text": "хватит"
             }
           ]
         },
         {
           "effects": [],
           "input": {
-            "event": "@@timer_fired",
-            "fields": {
-              "kind": "alarm",
-              "label": "Будильник 7:00",
-              "timer_id": "golden-alarm-1"
-            },
-            "kind": "event"
+            "kind": "text",
+            "phrase": "хватит"
           },
-          "name": "fired-alarm",
+          "name": "ringing.stop-timer",
           "runs": [
             {
               "handled": true,
               "messages": [
                 {
-                  "cards": [
-                    {
-                      "text": "Будильник 7:00 сработал.",
-                      "type": "simple_text"
-                    }
-                  ],
+                  "cards": [],
                   "directives": [
                     {
-                      "analytics": "tts_play_placeholder",
                       "is_led_silent": true,
                       "name": "tts_play_placeholder",
                       "payload": {
                         "channel": "Dialog"
                       },
                       "type": "client_action"
+                    },
+                    {
+                      "is_led_silent": true,
+                      "name": "timer_stop_directive",
+                      "payload_raw": "EiM5OTk5OTk5OS1hYWFhYWFhYS1iYmJiYmJiYi1jY2NjY2NjYw==",
+                      "type": "client_action"
+                    },
+                    {
+                      "is_led_silent": true,
+                      "name": "close_screen_timer_active_directive",
+                      "type": "client_action"
                     }
                   ],
                   "event": "AliceResponse",
                   "has_voice": false,
-                  "speech": "Будильник 7:00 сработал."
+                  "speech": ""
                 }
               ],
-              "reason": "event:@@timer_fired",
-              "scenario": "timers.fired",
-              "speech": "Будильник 7:00 сработал.",
+              "reason": "template",
+              "scenario": "timers.ringing.stop",
+              "speech": "",
               "speech_parts": [],
-              "status": "finished"
+              "status": "finished",
+              "text": "хватит"
             }
           ]
         }
       ],
-      "id": "timers.fired"
+      "id": "timers.ringing.stop"
     },
     {
       "cases": [
         {
-          "effects": [
-            {
-              "arguments": {
-                "kind": "timer"
-              },
-              "ref": "timer.cancel",
-              "result": 0
-            }
-          ],
+          "effects": [],
           "input": {
             "kind": "text",
             "phrase": "отмени таймер"
@@ -3751,15 +2318,7 @@
           ]
         },
         {
-          "effects": [
-            {
-              "arguments": {
-                "kind": "timer"
-              },
-              "ref": "timer.cancel",
-              "result": 1
-            }
-          ],
+          "effects": [],
           "input": {
             "kind": "text",
             "phrase": "отмени таймер"
@@ -3777,6 +2336,18 @@
                     }
                   ],
                   "directives": [
+                    {
+                      "is_led_silent": true,
+                      "name": "open_screen_timer_list_directive",
+                      "payload_raw": "IAE=",
+                      "type": "client_action"
+                    },
+                    {
+                      "is_led_silent": true,
+                      "name": "timer_cancel_directive",
+                      "payload_raw": "CiFjYW5jZWxfdGltZXJfY2FwYWJpbGl0eV9kaXJlY3RpdmUSIzExMTExMTExLTIyMjIyMjIyLTMzMzMzMzMzLTQ0NDQ0NDQ0",
+                      "type": "client_action"
+                    },
                     {
                       "analytics": "tts_play_placeholder",
                       "is_led_silent": true,
@@ -3802,21 +2373,12 @@
           ]
         },
         {
-          "effects": [
-            {
-              "arguments": {
-                "kind": "timer",
-                "sn": "SN-DUO32"
-              },
-              "ref": "timer.cancel",
-              "result": 1
-            }
-          ],
+          "effects": [],
           "input": {
             "kind": "text",
-            "phrase": "отмени таймер на дуо 32"
+            "phrase": "выключи второй таймер"
           },
-          "name": "timer.cancel-remote",
+          "name": "timer.cancel-second",
           "runs": [
             {
               "handled": true,
@@ -3829,6 +2391,18 @@
                     }
                   ],
                   "directives": [
+                    {
+                      "is_led_silent": true,
+                      "name": "open_screen_timer_list_directive",
+                      "payload_raw": "IAE=",
+                      "type": "client_action"
+                    },
+                    {
+                      "is_led_silent": true,
+                      "name": "timer_cancel_directive",
+                      "payload_raw": "CiFjYW5jZWxfdGltZXJfY2FwYWJpbGl0eV9kaXJlY3RpdmUSIzU1NTU1NTU1LTY2NjY2NjY2LTc3Nzc3Nzc3LTg4ODg4ODg4",
+                      "type": "client_action"
+                    },
                     {
                       "analytics": "tts_play_placeholder",
                       "is_led_silent": true,
@@ -3844,38 +2418,22 @@
                   "speech": "Таймер отменён."
                 }
               ],
-              "reason": "phrase:contains",
+              "reason": "template",
               "scenario": "timers.timer.cancel",
               "speech": "Таймер отменён.",
               "speech_parts": [],
               "status": "finished",
-              "text": "отмени таймер на дуо 32"
+              "text": "выключи второй таймер"
             }
           ]
-        }
-      ],
-      "id": "timers.timer.cancel"
-    },
-    {
-      "cases": [
+        },
         {
-          "effects": [
-            {
-              "arguments": {
-                "seconds": 300
-              },
-              "ref": "timer.start",
-              "result": {
-                "label": "Таймер 5 мин",
-                "seconds": 300
-              }
-            }
-          ],
+          "effects": [],
           "input": {
             "kind": "text",
-            "phrase": "таймер на 5 минут"
+            "phrase": "отмени таймер на дуо 32"
           },
-          "name": "timer.set-duration",
+          "name": "timer.cancel-remote",
           "runs": [
             {
               "handled": true,
@@ -3883,7 +2441,7 @@
                 {
                   "cards": [
                     {
-                      "text": "Таймер на 5 минут.",
+                      "text": "Пока не отменяю таймер на другой колонке — только на этой.",
                       "type": "simple_text"
                     }
                   ],
@@ -3900,12 +2458,169 @@
                   ],
                   "event": "AliceResponse",
                   "has_voice": false,
-                  "speech": "Таймер на 5 минут."
+                  "speech": "Пока не отменяю таймер на другой колонке — только на этой."
+                }
+              ],
+              "reason": "phrase:contains",
+              "scenario": "timers.timer.cancel",
+              "speech": "Пока не отменяю таймер на другой колонке — только на этой.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "отмени таймер на дуо 32"
+            }
+          ]
+        }
+      ],
+      "id": "timers.timer.cancel"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "сколько осталось до таймера"
+          },
+          "name": "timer.list-remaining",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Активных таймеров 2, до ближайшего — 47 минут 12 секунд.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "is_led_silent": true,
+                      "name": "open_screen_timer_list_directive",
+                      "payload_raw": "EiMxMTExMTExMS0yMjIyMjIyMi0zMzMzMzMzMy00NDQ0NDQ0NBIjNTU1NTU1NTUtNjY2NjY2NjYtNzc3Nzc3NzctODg4ODg4ODg=",
+                      "type": "client_action"
+                    },
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Активных таймеров 2, до ближайшего — 47 минут 12 секунд."
+                }
+              ],
+              "reason": "template",
+              "scenario": "timers.timer.list",
+              "speech": "Активных таймеров 2, до ближайшего — 47 минут 12 секунд.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "сколько осталось до таймера"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "какие таймеры установлены"
+          },
+          "name": "timer.list-none",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Активных таймеров нет.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Активных таймеров нет."
+                }
+              ],
+              "reason": "template",
+              "scenario": "timers.timer.list",
+              "speech": "Активных таймеров нет.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "какие таймеры установлены"
+            }
+          ]
+        }
+      ],
+      "id": "timers.timer.list"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "таймер на 5 минут"
+          },
+          "name": "timer.set-duration",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Хорошо. 5 минут. Отсчёт пошёл.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "is_led_silent": true,
+                      "name": "open_screen_timer_info_directive",
+                      "payload_raw": "EiMwYjAwMDAwMC0wMDAwNDAwMC04MDAwMDAwMC0wMDAwMDAwMA==",
+                      "type": "client_action"
+                    },
+                    {
+                      "is_led_silent": true,
+                      "name": "timer_set_directive",
+                      "payload_raw": "Ch5zZXRfdGltZXJfY2FwYWJpbGl0eV9kaXJlY3RpdmUSMQojMGIwMDAwMDAtMDAwMDQwMDAtODAwMDAwMDAtMDAwMDAwMDAQpJiD1wYYrAIgrAI=",
+                      "type": "client_action"
+                    },
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Хорошо. 5 минут. Отсчёт пошёл."
                 }
               ],
               "reason": "phrase:contains",
               "scenario": "timers.timer.set",
-              "speech": "Таймер на 5 минут.",
+              "speech": "Хорошо. 5 минут. Отсчёт пошёл.",
               "speech_parts": [],
               "status": "finished",
               "text": "таймер на 5 минут"
@@ -3913,18 +2628,7 @@
           ]
         },
         {
-          "effects": [
-            {
-              "arguments": {
-                "seconds": 90
-              },
-              "ref": "timer.start",
-              "result": {
-                "label": "Таймер 1 мин",
-                "seconds": 90
-              }
-            }
-          ],
+          "effects": [],
           "input": {
             "answer": "на 90 секунд",
             "kind": "text",
@@ -3971,11 +2675,23 @@
                 {
                   "cards": [
                     {
-                      "text": "Таймер на 1 минуту 30 секунд.",
+                      "text": "Хорошо. 1 минуту 30 секунд. Отсчёт пошёл.",
                       "type": "simple_text"
                     }
                   ],
                   "directives": [
+                    {
+                      "is_led_silent": true,
+                      "name": "open_screen_timer_info_directive",
+                      "payload_raw": "EiMwYjAwMDAwMC0wMDAwNDAwMC04MDAwMDAwMC0wMDAwMDAwMA==",
+                      "type": "client_action"
+                    },
+                    {
+                      "is_led_silent": true,
+                      "name": "timer_set_directive",
+                      "payload_raw": "Ch5zZXRfdGltZXJfY2FwYWJpbGl0eV9kaXJlY3RpdmUSLwojMGIwMDAwMDAtMDAwMDQwMDAtODAwMDAwMDAtMDAwMDAwMDAQpJiD1wYYWiBa",
+                      "type": "client_action"
+                    },
                     {
                       "analytics": "tts_play_placeholder",
                       "is_led_silent": true,
@@ -3988,12 +2704,12 @@
                   ],
                   "event": "AliceResponse",
                   "has_voice": false,
-                  "speech": "Таймер на 1 минуту 30 секунд."
+                  "speech": "Хорошо. 1 минуту 30 секунд. Отсчёт пошёл."
                 }
               ],
               "reason": "continuation",
               "scenario": "timers.timer.set",
-              "speech": "Таймер на 1 минуту 30 секунд.",
+              "speech": "Хорошо. 1 минуту 30 секунд. Отсчёт пошёл.",
               "speech_parts": [],
               "status": "finished",
               "text": "на 90 секунд"
@@ -4001,19 +2717,7 @@
           ]
         },
         {
-          "effects": [
-            {
-              "arguments": {
-                "seconds": 300,
-                "sn": "SN-DUO32"
-              },
-              "ref": "timer.start",
-              "result": {
-                "label": "Таймер 5 мин",
-                "seconds": 300
-              }
-            }
-          ],
+          "effects": [],
           "input": {
             "kind": "text",
             "phrase": "поставь таймер на дуо 32 на 5 минут"
@@ -4026,7 +2730,7 @@
                 {
                   "cards": [
                     {
-                      "text": "Таймер на 5 минут на колонке «Дуо 32».",
+                      "text": "Пока не ставлю таймер на другой колонке — только на этой.",
                       "type": "simple_text"
                     }
                   ],
@@ -4043,15 +2747,70 @@
                   ],
                   "event": "AliceResponse",
                   "has_voice": false,
-                  "speech": "Таймер на 5 минут на колонке «Дуо 32»."
+                  "speech": "Пока не ставлю таймер на другой колонке — только на этой."
                 }
               ],
               "reason": "phrase:contains",
               "scenario": "timers.timer.set",
-              "speech": "Таймер на 5 минут на колонке «Дуо 32».",
+              "speech": "Пока не ставлю таймер на другой колонке — только на этой.",
               "speech_parts": [],
               "status": "finished",
               "text": "поставь таймер на дуо 32 на 5 минут"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "таймер на 1 минуту"
+          },
+          "name": "timer.set-screen-open",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Хорошо. 1 минуту. Отсчёт пошёл.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "is_led_silent": true,
+                      "name": "open_screen_timer_list_directive",
+                      "payload_raw": "IAE=",
+                      "type": "client_action"
+                    },
+                    {
+                      "is_led_silent": true,
+                      "name": "timer_set_directive",
+                      "payload_raw": "Ch5zZXRfdGltZXJfY2FwYWJpbGl0eV9kaXJlY3RpdmUSLwojMGIwMDAwMDAtMDAwMDQwMDAtODAwMDAwMDAtMDAwMDAwMDAQpJiD1wYYPCA8",
+                      "type": "client_action"
+                    },
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Хорошо. 1 минуту. Отсчёт пошёл."
+                }
+              ],
+              "reason": "phrase:contains",
+              "scenario": "timers.timer.set",
+              "speech": "Хорошо. 1 минуту. Отсчёт пошёл.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "таймер на 1 минуту"
             }
           ]
         }

@@ -8,95 +8,95 @@
    "phrases": [
     {
      "text": "включи майкла джексона",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "запусти наутилус помпилиус",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "поставь альбом группа крови",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "давай послушаем химеру",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "запусти песню ромашки",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "врубай трек вечно молодой",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "включи песню белые розы на повторе",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "поставь трек мое сердце на повторе",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "включи другую версию",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "включи аудиокнигу дюна",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "запусти книгу война и мир",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "замедли",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "ускорь в полтора раза",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "поставь скорость 2",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "какая скорость воспроизведения",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "продолжи книгу волшебник изумрудного города",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "давай послушаем дискотеку 80-х",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "запусти плейлист танго",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "включи шум дождя",
-     "expect": "media.sounds"
+     "expect": null
     },
     {
      "text": "поставь пение птиц",
-     "expect": "media.sounds"
+     "expect": null
     },
     {
      "text": "давай послушаем шум океана",
-     "expect": "media.sounds"
+     "expect": null
     },
     {
      "text": "продолжи",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "запусти музыку в спальне",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "открой список моих треков",
@@ -115,51 +115,51 @@
    "phrases": [
     {
      "text": "включи музыку",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "врубай новую музыку",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "включи музыкальные новинки",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "запусти самое популярное",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "давай послушаем популярную музыку",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "включи русскую поп-музыку",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "запусти диско",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "врубай индастриал",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "включи трек в жанре джаз",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "давай послушаем песню в жанре рок",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "включи радостное",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "давай послушаем грустное",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "поставь осеннее",
@@ -167,27 +167,27 @@
     },
     {
      "text": "поставь музыку для тренировки",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "давай послушаем фоновую музыку",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "врубай музыку для вечеринки",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "запусти вечные хиты",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "включи музыку 80-х",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "давай послушаем русскую музыку",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "поставь кельтскую музыку",
@@ -195,23 +195,23 @@
     },
     {
      "text": "включи музыку с мужским вокалом",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "давай послушаем инструментальную музыку",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "поставь музыку на русском языке",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "включи веселый рок для тренировки",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "включи что-нибудь новенькое",
-     "expect": "media.music"
+     "expect": null
     }
    ]
   },
@@ -222,39 +222,39 @@
    "phrases": [
     {
      "text": "включи мою музыку",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "включи плейлист мои избранные треки",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "давай послушаем плейлист дежавю",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "поставь плейлист премьера",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "нравится",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "лайк",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "классный трек",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "не нравится",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "дизлайк",
-     "expect": "media.player"
+     "expect": null
     }
    ]
   },
@@ -265,11 +265,11 @@
    "phrases": [
     {
      "text": "какой трек играет",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "что играет",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "включи режим диджей",
@@ -284,23 +284,23 @@
    "phrases": [
     {
      "text": "расскажи сказку",
-     "expect": "media.tales"
+     "expect": null
     },
     {
      "text": "включи сказку",
-     "expect": "media.tales"
+     "expect": null
     },
     {
      "text": "включи сказки",
-     "expect": "media.tales"
+     "expect": null
     },
     {
      "text": "расскажи сказку пряничный домик",
-     "expect": "media.tales"
+     "expect": null
     },
     {
      "text": "расскажи сказку от сергея лазарева",
-     "expect": "media.tales"
+     "expect": null
     }
    ]
   },
@@ -311,15 +311,15 @@
    "phrases": [
     {
      "text": "включи элвиса пресли вперемешку",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "запусти metallica вперемешку",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "врубай плейлист хорошее настроение вперемешку",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "поставь на паузу",
@@ -339,63 +339,63 @@
     },
     {
      "text": "продолжай играть",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "снова запусти",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "возобнови",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "верни музыку",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "следующий",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "хочу что-нибудь другое",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "пропустить",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "вперед",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "давай дальше",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "предыдущий трек",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "начни сначала",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "зациклить трек",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "включи песню по барам на повторе",
-     "expect": "media.music"
+     "expect": null
     },
     {
      "text": "на 10 секунд вперед",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "на 20 секунд назад",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "сделай громче",
@@ -423,7 +423,7 @@
     },
     {
      "text": "продолжи музыку везде",
-     "expect": "media.player"
+     "expect": null
     },
     {
      "text": "включи везде",
@@ -454,15 +454,15 @@
     },
     {
      "text": "сколько осталось до таймера",
-     "expect": null
+     "expect": "timers.timer.list"
     },
     {
      "text": "сколько до конца таймера",
-     "expect": null
+     "expect": "timers.timer.list"
     },
     {
      "text": "какие таймеры установлены",
-     "expect": null
+     "expect": "timers.timer.list"
     },
     {
      "text": "поставь первый таймер на паузу",

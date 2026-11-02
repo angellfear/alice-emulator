@@ -86,19 +86,28 @@ async def send_action(runtime, sn, action, arguments):
     return item
 
 
-def push_directive(server_type, name, payload=None):
+def push_directive(server_type, name, payload=None, items=None):
     """Push с одной произвольной директивой (TASK-059: sdk.send_directive) — тот же
-    конверт, что у push_message, без проверки каталога."""
+    конверт, что у push_message, без проверки каталога. items (TASK-079) — перечень
+    элементов [{"name", "payload"?, "payload_raw"?, "is_led_silent"?}]: несколько штатных
+    директив (таймеры/будильники) уходят одним Push-сообщением."""
     output = server_type()
     output.Event.Header.MessageId = uuid.uuid4().hex
     output.Event.Header.Ack = int(time.time() * 1000)
     push = output.Event.Push
     push.DeduplicationPushId = uuid.uuid4().hex
     push.PushIds.append(uuid.uuid4().hex)
-    directive = push.Directives.add()
-    directive.Name = str(name)
-    directive.Type = 'client_action'
-    if payload:
-        json_format.ParseDict(payload, directive.Payload, descriptor_pool=server_type.DESCRIPTOR.file.pool)
+    elements = items if items is not None else [{"name": name, "payload": payload}]
+    for element in elements:
+        directive = push.Directives.add()
+        directive.Name = str(element["name"])
+        directive.Type = 'client_action'
+        if element.get("is_led_silent") is not None:
+            directive.IsLedSilent = bool(element["is_led_silent"])
+        if element.get("payload"):
+            json_format.ParseDict(element["payload"], directive.Payload,
+                                  descriptor_pool=server_type.DESCRIPTOR.file.pool)
+        if element.get("payload_raw"):
+            directive.PayloadRaw = bytes(element["payload_raw"])
     output.Timings.SendingTime.seconds = int(time.time())
     return output

@@ -19,7 +19,7 @@ module: "server_emulator/sdk.py"
 
 ## Версия
 
-`SDK_VERSION = "1.3.0"` — semver. **Ломающие изменения API — только со сменой major**
+`SDK_VERSION = "2.0.0"` — semver. **Ломающие изменения API — только со сменой major**
 (удаление/переименование/смена сигнатур, смена формы построенных dict'ов). Добавление
 полей и новых функций — minor, исправления поведения — patch. Расширение объявляет, с
 какой версией SDK оно совместимо (поле `requires.sdk`).
@@ -74,6 +74,9 @@ module: "server_emulator/sdk.py"
 | `ctx.owner` | владелец: id, name, location (гео); комната колонки — `ctx.device.room` |
 | `ctx.now` | aware datetime в таймзоне устройства (params device → user → effective → input.timezone; без имени — таймзона сервера) |
 | `ctx.params` | параметры владельца/устройства/платформы/сервера + `effective` (docs/contracts/params-db.md) |
+| `ctx.timers` | таймеры колонки из состояния её запроса (`EnvironmentStateRaw`, AlarmCapability): `[{timer_id, start_ts, duration, paused, disabled, currently_playing, title}]`; пусто — если колонка ничего не сообщает (своего хранилища у сервера нет, TASK-079) |
+| `ctx.alarms` | будильники колонки из того же состояния: `[{alarm_id, time{hours,minutes,seconds}, dates, weekdays, disabled, currently_playing, snooze_time, timezone}]` |
+| `ctx.screens` | открытые экраны «Часов» колонки (ClockAppCapability): `timer_active/timer_info/timer_list/alarm_active/alarm_list/alarm_edit` — идентификатор или `true` |
 | `ctx.state` | **живой dict** состояния диалога — переживает шаги |
 | `ctx.extension` | `ExtensionContext` — настройки расширения: режимы расширений читают свои значения (`id`, `settings`, `get(key, default)`; строки `env:ИМЯ` раскрыты); у обычных py-сценариев `None`. Подробно — docs/contracts/extensions.md, «Настройки в коде расширения» |
 | `ctx.dry_run` | True в проверке сценария: действия не выполняются |
@@ -83,7 +86,7 @@ module: "server_emulator/sdk.py"
 
 | Вызов | Назначение |
 |---|---|
-| `await ctx.action(name, **arguments)` | действие реестра Executor (`timer.start`, `alarm.start`, `timer.cancel`, `device.push`, `light.set`). В dry_run не выполняется: запись `{kind, name, arguments}` в `ctx.effects`, вернётся `None` |
+| `await ctx.action(name, **arguments)` | действие реестра Executor (`timer.start`, `alarm.start`, `timer.cancel`, `device.push`, `light.set`). С TASK-079 `timer.start`/`alarm.start`/`timer.cancel` отправляют колонке штатные директивы (`open_screen_*` + `timer_set`/`alarm_add`/`timer_cancel`), своего расписания на сервере нет. В dry_run не выполняется: запись `{kind, name, arguments}` в `ctx.effects`, вернётся `None` |
 | `await ctx.fetch_json(url, ttl=0)` | GET JSON через общий fetcher движка (кеш TTL, лимит 512 КиБ, честная ошибка) |
 | `await ctx.dataset(name, key, max_age=0, args=None)` | данные плагина: свежая запись из БД (age ≤ max_age) — сразу; иначе пинок плагина, запись в БД делает executor. Нет плагина — устаревшая запись, без записи — `SDKError` |
 | `ctx.lexicon(name)` | общий словарь (`scenarios/lexicons.json`) с приоритетом словаря сценария; неизвестное имя → `{}` |
@@ -271,7 +274,11 @@ Minor: только добавления, форма построенных dict
   только `SDK_VERSION` и правило major.
 - Слоты из шаблонных триггеров (`ctx.slots`) наполняются диалоговым слоем.
 
-## 1.3.1 — медиа: плеер, библиотека, настройки
+## 1.3.1 — медиа: плеер, библиотека, настройки (удалено в 2.0.0)
+
+> **Удалено в 2.0.0 (TASK-087)**: своей медиатеки и очереди у эмулятора нет, музыка —
+> на штатном плеере колонки (см. `docs/contracts/player.md`). `ctx.media`, `ctx.library`,
+> `ctx.media_base` и раздача `/media` убраны.
 
 - `ctx.media` — плеер колонки (`server_emulator.media.Player`): очередь в памяти runtime
   (`media_state[sn]`), директивы `audio_play`. Методы: `play_library(library, kind, query, text)`
@@ -284,3 +291,58 @@ Minor: только добавления, форма построенных dict
 - `ctx.settings` — настройки эмулятора (только чтение); список радио — `settings["media"]["radio"]`.
 - `ctx.media_base` — база раздачи файлов для колонки: `http://<хост WS-соединения>/media`
   (файлы и обложки — по пути `/media/<kind>/<путь>`, Range поддержан).
+
+## 1.4.0 — состояние колонки: таймеры, будильники, экраны «Часов»
+
+- `ctx.timers` / `ctx.alarms` / `ctx.screens` — состояние колонки из **её запроса**
+  (`TextInput.Request.EnvironmentStateRaw`, capability-типы 21 `NAlice.TAlarmCapability`
+  и 144 `NAlice.TClockAppCapability` в `Endpoints[].AnyCapabilities[]`). Разбор —
+  `server_emulator/station_state.py`; своего хранилища и планировщика таймеров на
+  сервере больше нет (TASK-079): что колонка не сообщает — того нет.
+- Остаток таймера — арифметика состояния, как настоящий сервер:
+  `remaining = duration − (now − start_ts)` (сверено с ответом «Осталось 47 минут 48
+  секунд»). Сигнал (`ringing`) — `currently_playing` у будильника/таймера или истёкший
+  активный таймер (`disabled=false`).
+- Ответы сценариев раздела `timers` — те же директивы, что слал сервер (имена, payload,
+  `is_led_silent: true`, `type: client_action`; `payload_raw` по схеме станции):
+  `open_screen_timer_info_directive`/`open_screen_timer_list_directive` +
+  `timer_set_directive`, `timer_cancel_directive`, `timer_stop_directive`,
+  `open_screen_alarm_list_directive` + `alarm_add_directive` (таймзона колонки,
+  `SnoozeTime: 10`), `alarm_stop_directive` + `close_screen_alarm_active_directive`,
+  `close_screen_timer_active_directive`. Идентификаторы — 32 hex в четырёх группах
+  (`clock_directives.new_clock_id`). Обезличенные образцы —
+  `tests/fixtures/directives/` (плейсхолдеры `<…>` = «поле присутствует и непустое»).
+- «хватит» при сигнале таймера — ответ **без речи** (образец: `tts_play_placeholder`
+  первым кадром, пустой `OutputSpeech.Text`); при сигнале будильника — реплика +
+  `alarm_stop_directive{StopMedia: true}`. Если у колонки не звенит — сценарий
+  возвращает `None` (реплику забирает `device.player.pause`).
+- `ctx.action("timer.start"/"alarm.start"/"timer.cancel")` — отправка тех же директив
+  **Push'ем** в живую сессию (`clock_directives.push_message`); результат содержит
+  `delivery: "sent" | "no_session"`. Адресация директив другой колонке в образцах не
+  встречалась — сценарии отвечают отказом.
+
+## 2.0.0 — медиа на штатном плеере колонки, состояние из запроса (TASK-087, TASK-083)
+
+Ломающее: удалены `ctx.media`, `ctx.library`, `ctx.media_base` (своя медиатека, очередь
+и раздача `/media` убраны вместе с `server_emulator/media.py`; расширения, их использующие,
+требуют переработки).
+
+- `ctx.player` — состояние штатного плеера колонки из **её запроса** (capability 46
+  `NAlice.TAudioPlayerCapability`, есть в каждом `TextInput`):
+  `{state: idle|playing|paused|buffering|stopped|finished|unknown, playing, title,
+  subtitle, played_ms, duration_ms}`; пустой dict, если колонка ничего не сообщает.
+  Своей копии состояния у эмулятора нет.
+- Директивы паузы — `server_emulator/media_directives.py` (`pause_items()`), форма
+  настоящего сервера без речи: `tts_play_placeholder` первой + `divui_hide_view` +
+  `draw_animation_directive` (S3 `animations/player_pause`) + `player_pause{smooth:false}`
+  + `clear_queue` (образцы x20, `docs/contracts/player.md`, фикстура
+  `tests/fixtures/directives/media-pause.json`).
+- Колбэки `music_thin_client_on_started` / `on_stopped` / `@@mm_stack_engine_get_next`
+  маршрутизируются в `callbacks.ack` — тихий ответ, как в образцах (x112/x134/x4).
+  `audio_play` эмулятор больше не отправляет.
+- `ctx.volume` — громкость колонки из **её запроса** (capability 23
+  `NAlice.TVolumeCapability`, есть в каждом `TextInput`, TASK-083):
+  `{muted, level, max_level, percent_level}`; пустой dict, если колонка ничего не
+  сообщает — своего учёта громкости на сервере нет. Сценарий `device.volume` ставит
+  уровень тихим ответом по образцу: `sound_set_level{new_level, new_percent_level}`
+  (процент = level·100/MaxLevel, фикстура `tests/fixtures/directives/volume-level.json`).

@@ -25,13 +25,16 @@ module: "server_emulator/runtime.py"
 
 | Директива | Назначение | Evidence |
 |---|---|---|
-| sound_set_level | установка громкости по команде («громкость N») | fixture volume-set: AliceResponse.Response.Directives[] перед TtsSpeak ch=102 |
+| sound_set_level | установка громкости голосом («громкость N/два/на 50») — **тихий** ответ: payload `new_level` + `new_percent_level = level·100/MaxLevel` (шкала колонки, cap 23), без речи и карточек (`IsLedSilent=true`), `tts_play_placeholder` второй | volume-level (tests/fixtures/directives, журнал 2026-10-24 00:24:56/23:07:45, 10-29 22:14:24), tests/test_time_scenarios.py + tests/test_simple_commands.py (TASK-083); шаги «громче/тише» — ответного образца фраз нет, проводной Push из приложения (sound_louder/sound_quiter, журнал 10-23…29) |
 | divui_show_view | показать DivUI-карточку на экране | fixture screen-divui (+ Payload.div2_card.string_body — JSON-карточка) |
 | tts_play_placeholder | заглушка TTS-фразы | text-basic, screen-divui |
 | set_timezone, set_location, set_upper_shutter | контекст/занавес камеры | captures (не реализованы) |
-| audio_play, apply_player_playback_queue_directive, set_audio_player_sequence_state_directive | медиа-очередь | captures (не реализованы) |
-| update_all_informers_directive, update_informer_directive, draw_animation_directive, rotate_teasers_directive | инфоценры/анимация экрана | captures (не реализованы) |
+| audio_play, apply_player_playback_queue_directive, set_audio_player_sequence_state_directive | медиа-очередь Яндекса (контент и URL потока) | captures (не реализованы: своей очереди у эмулятора нет, 087) |
+| update_all_informers_directive, update_informer_directive, rotate_teasers_directive | инфоценры/ротация тизеров | captures (не реализованы) |
+| divui_hide_view, draw_animation_directive (S3 animations/player_pause), player_pause, clear_queue | пауза штатного плеера («стоп/пауза», без речи) | media-pause (tests/fixtures/directives), tests/test_media_scenarios.py (TASK-087); payload_raw по схеме станции |
 | iot_sync_endpoints_directive | IoT | captures (не реализован) |
+| open_screen_timer_info_directive, open_screen_timer_list_directive, open_screen_alarm_list_directive, close_screen_timer_active_directive, close_screen_alarm_active_directive | экраны «Часов» (ClockAppCapability, payload_raw по схеме станции) | timer-set / timer-list / timer-cancel / alarm-set / alarm-stop, tests/fixtures/directives |
+| timer_set_directive, timer_cancel_directive, timer_stop_directive, alarm_add_directive, alarm_stop_directive | таймеры/будильники (AlarmCapability, payload_raw; id 8-8-8-8 hex) | там же; сверка — tests/test_time_scenarios.py (TASK-079) |
 
 Полный `TDirective`: Type, Name, AnalyticsType, IgnoreAnswer, Payload(Struct), PayloadRaw(bytes), MultiroomSessionId, RoomDeviceIds, IsLedSilent, EndpointId, IsParallel, TimeBeforeDropMs, PersId, OnFinish, Id, SourceInfo, DirectiveType, Channel (descriptor). Multiroom/Endpoint поля не подтверждаются нашими устройствами — не заполнять без evidence.
 

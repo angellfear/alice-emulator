@@ -320,7 +320,6 @@ SNAPSHOT_TABLES = {
     "speakers": ("sn", "name", "room", "platform", "online", "current", "user_id"),
     "users": ("id", "name", "city", "latitude", "longitude"),
     "params": ("owner", "key", "title", "value"),
-    "timers": ("id", "kind", "sn", "label", "duration_s", "created", "due", "status", "time_hhmm", "weekdays"),
     "device_state": ("sn", "key", "value"),
     "scenario_data": ("scenario_id", "scope", "owner", "key", "value", "updated"),
 }
@@ -393,10 +392,7 @@ def snapshot(runtime, context):
                     continue  # служебный конфиг колонки — не для модели
                 db.execute("INSERT INTO device_state VALUES (?,?,?)", (device["sn"], key, json.dumps(value, ensure_ascii=False)[:2000]))
     source = runtime.store.db  # общее соединение хранилища, только чтение
-    for row in source.execute("SELECT id,kind,sn,label,duration_s,created_ts,due_ts,status,time_hhmm,weekdays,next_ts FROM timers"):
-        if row[2] in sns:
-            db.execute("INSERT INTO timers VALUES (?,?,?,?,?,?,?,?,?,?)",
-                       (row[0], row[1], row[2], row[3], row[4], _local(row[5], tz), _local(row[10] or row[6], tz), row[7], row[8], row[9]))
+    # TASK-079: таблица timers удалена — таймеры/будильники принадлежат колонке
     for row in source.execute("SELECT scenario_id,scope,owner,key,value,updated_ts FROM scenario_data"):
         if row[1] == "system" or row[2] in user_ids or row[2] in sns or context.get("user_id") is None:
             db.execute("INSERT INTO scenario_data VALUES (?,?,?,?,?,?)", (*tuple(row)[:4], str(row[4])[:4000], _local(row[5], tz)))

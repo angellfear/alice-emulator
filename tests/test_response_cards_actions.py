@@ -233,7 +233,7 @@ async def test_model_actions_off_keeps_tool_calls_manual(tmp_path):
     response = _response_of(sent)
     assert [c.Text for c in response.Response.Cards] == ['Готово.']  # без карточек-заметок
     assert runtime.pending_calls and runtime.pending_calls[-1]['function']['name'] == 'alice_action'
-    assert runtime.timer_scheduler.list_timers() == []  # ничего не исполнилось молча
+    assert not hasattr(runtime, "timer_scheduler")  # TASK-079: планировщика нет — не исполнилось молча
     await conv.shutdown()
 
 

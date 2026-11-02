@@ -4,7 +4,7 @@
   {"phrase": "какая погода", "scenario": "informers.weather"},
   {"phrase": "сколько сейчас времени", "scenario": "informers.clock"},
   {"phrase": "поставь таймер на пять минут", "scenario": "timers.timer.set"},
-  {"phrase": "отмени будильник", "scenario": "timers.alarm.cancel"},
+  {"phrase": "будильник на 7:30", "scenario": "timers.alarm.set"},
   {"phrase": "громче", "scenario": "device.volume"},
   {"phrase": "пауза", "scenario": "device.player.pause"},
   {"phrase": "включи блютуз", "scenario": "device.bluetooth.on"},

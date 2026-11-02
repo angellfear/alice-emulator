@@ -231,10 +231,15 @@ finish / error`; py-сценарии пишет администратор.
 `parsers.py` остались: `bindings` раскрывает `{{state.*}}`/фильтры/`$each` в ответах py-сценариев, `parsers` —
 это `ctx.parse_*` SDK.
 
-Эффекты (`action.ref`): `timer.start {seconds,label,sn?}`,
-`alarm.start {time,label?,timezone?,sn?}`, `timer.cancel {kind,sn?}` → число
-отменённых, `device.push {action,arguments,sn?}`, `light.set {room,on,brightness?}`
+Эффекты (`action.ref`): `timer.start {seconds,label,sn?}` → `{id,seconds,label,delivery}`,
+`alarm.start {time,label?,timezone?,sn?}` → `{id,time,delivery}`,
+`timer.cancel {kind,sn?}` → число отменённых (0|1),
+`device.push {action,arguments,sn?}`, `light.set {room,on,brightness?}`
 → `{on,brightness}`. `sn` — колонка-адресат (по умолчанию — та, что спросила).
+С TASK-079 `timer.*`/`alarm.*` — не серверное расписание, а отправка колонке штатных
+директив (`timer_set_directive`, `alarm_add_directive`, `timer_cancel_directive`):
+`delivery: "sent"` в живую WS-сессию, `"no_session"` без неё; состояние таймеров
+и будильников сервер не хранит (оно в запросе колонки).
 
 ## Исполнитель script (py-сценарии)
 

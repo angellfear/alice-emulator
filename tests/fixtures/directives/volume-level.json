@@ -1,0 +1,33 @@
+{
+ "format_version": 1,
+ "name": "volume-level",
+ "proves": "Ответ настоящего сервера голосовой «громкость два» (TASK-083): тихий ответ без речи и карточек — sound_set_level с обеими шкалами + tts_play_placeholder (журнал 2026-10-24 00:24:56, 23:07:45, 2026-10-29 22:14:24, форма x3 одинаковая).",
+ "source": {
+  "kind": "capture",
+  "database": "data/traffic.sqlite3",
+  "captured_at": "2026-10-24T00:24:56"
+ },
+ "anonymized": "Значения уровня свёрнуты в плейсхолдеры: «два» → new_level/percent зависят от фразы и MaxLevel колонки (capability 23: Level 4, MaxLevel 10, PercentLevel 40.0 в том же запросе). Отношение new_percent_level = new_level·100/MaxLevel проверяет тест отдельными фразами.",
+ "speech": "",
+ "cards": 0,
+ "directives": [
+  {
+   "name": "sound_set_level",
+   "type": "client_action",
+   "is_led_silent": true,
+   "payload": {
+    "new_level": "<level>",
+    "new_percent_level": "<percent>"
+   }
+  },
+  {
+   "name": "tts_play_placeholder",
+   "type": "client_action",
+   "is_led_silent": true,
+   "analytics": "tts_play_placeholder",
+   "payload": {
+    "channel": "Dialog"
+   }
+  }
+ ]
+}

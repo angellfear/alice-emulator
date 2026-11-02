@@ -1,0 +1,26 @@
+{
+ "format_version": 1,
+ "name": "timer-list",
+ "proves": "Ответ на «сколько осталось до таймера»: список таймеров на экран с TargetTimerIds (журнал 2026-10-25 16:13:09, речь «Осталось 47 минут 48 секунд»; остаток сервер считает из StartTimestamp/Duration состояния колонки).",
+ "source": {
+  "kind": "capture",
+  "database": "data/traffic.sqlite3",
+  "captured_at": "2026-10-25T16:13:09"
+ },
+ "anonymized": "TimerId свёрнут в плейсхолдер.",
+ "directives": [
+  {
+   "name": "open_screen_timer_list_directive",
+   "type": "client_action",
+   "is_led_silent": true,
+   "proto": "NAlice.TClockAppCapability.TOpenScreenTimerListDirective",
+   "decoded": {"TargetTimerIds": ["<timer-id>"]}
+  },
+  {
+   "name": "tts_play_placeholder",
+   "type": "client_action",
+   "is_led_silent": true,
+   "payload": {"channel": "Dialog"}
+  }
+ ]
+}

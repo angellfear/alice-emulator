@@ -18,7 +18,6 @@ Writers таблиц (RF-08 — инвариант: каждую таблицу 
                                       migrate_legacy;
 - executions                        → Executor._persist/_forget (scenario_engine);
 - param_defs / param_values         → ParamStore (params.py);
-- timers                            → TimerScheduler._save (scenario_engine/scheduler.py);
 - meta                              → set_meta (schema_version, legacy_migrated).
 """
 from __future__ import annotations
@@ -61,10 +60,8 @@ CREATE INDEX IF NOT EXISTS param_defs_scope ON param_defs(scope, category);
 CREATE TABLE IF NOT EXISTS param_values(owner TEXT NOT NULL, key TEXT NOT NULL,
                                      value TEXT NOT NULL, updated_ts REAL NOT NULL,
                                      PRIMARY KEY(owner, key));
-CREATE TABLE IF NOT EXISTS timers(id TEXT PRIMARY KEY, kind TEXT, sn TEXT, user_id TEXT,
-                                  dialog_id TEXT, label TEXT, duration_s INTEGER,
-                                  created_ts REAL, due_ts REAL, status TEXT, fired_ts REAL);
-CREATE INDEX IF NOT EXISTS timers_status ON timers(status);
+DROP TABLE IF EXISTS timers; -- TASK-079: таймеры/будильники живут у колонки (её
+--                                        состояние в запросе), серверного расписания больше нет
 CREATE TABLE IF NOT EXISTS scenario_data(scenario_id TEXT NOT NULL, scope TEXT NOT NULL,
                                          owner TEXT NOT NULL, key TEXT NOT NULL,
                                          value TEXT NOT NULL, updated_ts REAL NOT NULL,
@@ -107,11 +104,6 @@ class StateStore:
                 self.db.execute("ALTER TABLE devices ADD COLUMN route_mode TEXT")
             if "record" not in device_columns:  # TASK-054: опция записи устройства (off | on | misses)
                 self.db.execute("ALTER TABLE devices ADD COLUMN record TEXT")
-            # M08-будильники: абсолютное время/дни недели/таймзона/следующее срабатывание
-            timer_columns = {row[1] for row in self.db.execute("PRAGMA table_info(timers)")}
-            for column in ("time_hhmm", "weekdays", "tz", "next_ts"):
-                if column not in timer_columns:
-                    self.db.execute(f"ALTER TABLE timers ADD COLUMN {column}")
             row = self.db.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()
             if row is None:
                 self.db.execute("INSERT INTO meta(key,value) VALUES('schema_version',?)", (str(SCHEMA_VERSION),))

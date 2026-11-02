@@ -9,7 +9,6 @@ from google.protobuf import json_format
 
 from server_emulator.dispatcher import Dispatcher
 from server_emulator.endpoints import find_builtin
-from server_emulator.media import MediaLibrary, Player
 from server_emulator.runtime import ROOT, Runtime
 from server_emulator.schema import load_type
 from server_emulator.server import create_app
@@ -121,32 +120,23 @@ def directives_sent(sent):
 
 
 async def test_player_button_callbacks(tmp_path):
-    """Кнопки экрана плеера: player_next → следующий трек очереди, player_liked — тихо,
-    player_pause → audio_play с set_pause."""
+    """Кнопки экрана плеера (087): своей очереди у эмулятора больше нет — player_next/
+    player_liked/player_pause маршрутизируются в общий ack и отвечают тихо, как прочие
+    служебные колбэки (в образцах медиа-кнопок директив не было)."""
     runtime = Runtime(tmp_path)
-    (tmp_path / "media" / "music").mkdir(parents=True)
-    (tmp_path / "media" / "music" / "a.mp3").write_bytes(b"a" * 16)
-    (tmp_path / "media" / "music" / "b.mp3").write_bytes(b"b" * 16)
     sent = []
 
     async def send(data):
         sent.append(data)
 
     try:
-        from server_emulator.sdk import ScenarioContext
-        ctx = ctx_for(runtime, purpose="player_next")
-        ScenarioContext(runtime, ctx).media.play_library(MediaLibrary(tmp_path), "music")  # очередь: a, b
-        report = await dispatch_handle(runtime, "@@mm_typed_callback", ctx, "dg", send)
-        assert report["handled"] and "audio_play" in directives_sent(sent)
-        assert runtime.media_state["SN-A"]["index"] == 1  # следующий трек очереди
-        sent.clear()
-        ctx = ctx_for(runtime, purpose="player_liked")
-        report = await dispatch_handle(runtime, "@@mm_typed_callback", ctx, "dg", send)
-        assert report["handled"] and "audio_play" not in directives_sent(sent)  # тихое подтверждение
-        sent.clear()
-        ctx = ctx_for(runtime, purpose="player_pause")
-        report = await dispatch_handle(runtime, "@@mm_typed_callback", ctx, "dg", send)
-        assert report["handled"] and "audio_play" in directives_sent(sent)
+        for purpose in ("player_next", "player_liked", "player_pause"):
+            ctx = ctx_for(runtime, purpose=purpose)
+            report = await dispatch_handle(runtime, "@@mm_typed_callback", ctx, "dg", send)
+            assert report["handled"], purpose
+        names = directives_sent(sent)
+        assert "audio_play" not in names and "player_pause" not in names
+        assert all(name == "tts_play_placeholder" for name in names), names  # только каркас
     finally:
         await runtime.close()
 

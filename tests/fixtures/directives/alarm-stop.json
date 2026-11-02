@@ -1,0 +1,70 @@
+{
+ "format_version": 1,
+ "name": "alarm-stop",
+ "proves": "«хватит» при сигнале будильника: alarm_stop_directive + закрытие активного экрана; между ними сервер переставлял будильник alarm_add_directive (snooze: LocalTime +10 минут, SnoozeTime 600) — политика snooze по образцам неоднозначна (БЛОКЕР TASK-079), в ожидания эмулятора не входит (журнал 2026-10-27 19:05:13).",
+ "source": {
+  "kind": "capture",
+  "database": "data/traffic.sqlite3",
+  "captured_at": "2026-10-27T19:05:13"
+ },
+ "anonymized": "AlarmId/LocalTime/дата/EditTimestamp — плейсхолдеры; directive со status \"blocker-snooze\" тест не требует (перепостановка snooze не отправляется).",
+ "directives": [
+  {
+   "name": "alarm_stop_directive",
+   "type": "client_action",
+   "is_led_silent": true,
+   "proto": "NAlice.TAlarmCapability.TAlarmStopDirective",
+   "decoded": {
+    "Name": "stop_alarm_capability_directive",
+    "StopMedia": true
+   }
+  },
+  {
+   "name": "alarm_add_directive",
+   "type": "client_action",
+   "is_led_silent": true,
+   "status": "blocker-snooze",
+   "proto": "NAlice.TAlarmCapability.TAlarmAddDirective",
+   "decoded": {
+    "Name": "alarm_add_directive",
+    "Alarm": {
+     "AlarmId": "<alarm-id>",
+     "LocalTime": {
+      "Hours": "<hours>",
+      "Minutes": "<minutes>",
+      "Seconds": "<seconds>"
+     },
+     "ActivationDays": [
+      {
+       "Date": {
+        "Year": "<date>",
+        "Month": "<date>",
+        "Day": "<date>"
+       }
+      }
+     ],
+     "Timezone": {
+      "TimezoneName": "<timezone>",
+      "OffsetSeconds": "<offset>"
+     },
+     "EditTimestamp": "<unix-timestamp>",
+     "SnoozeTime": 600
+    }
+   }
+  },
+  {
+   "name": "close_screen_alarm_active_directive",
+   "type": "client_action",
+   "is_led_silent": true,
+   "proto": "NAlice.TClockAppCapability.TCloseScreenAlarmActiveDirective"
+  },
+  {
+   "name": "tts_play_placeholder",
+   "type": "client_action",
+   "is_led_silent": true,
+   "payload": {
+    "channel": "Dialog"
+   }
+  }
+ ]
+}

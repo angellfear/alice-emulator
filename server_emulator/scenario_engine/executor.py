@@ -174,6 +174,10 @@ class Executor:
         # TASK-022: сущности template-триггера приходят через ctx["slots"] (dialog.py) —
         # доступны шагам JSON ({{slots.*}}) так же, как слоты extract-шагов
         execution.slots.update(ctx.get("slots") or {})
+        # TASK-079: то же для ctx["state"] — стартовые значения state сценария от вызывающего
+        # (в диалоге voice.py state не приходит — поведение не меняется; прогон эталона
+        # задаёт им фиксированный id директив вместо случайного uuid)
+        execution.state.update(ctx.get("state") or {})
         execution.state["_store"] = self._load_store(scenario, ctx)
         execution.dry_run = bool((ctx or {}).get("dry_run"))  # флаг для on_error (TASK-019)
         if (scenario.get("executor") or {}).get("kind") == "script":

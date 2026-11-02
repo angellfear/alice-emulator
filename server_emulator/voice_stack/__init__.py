@@ -68,6 +68,7 @@ log = logging.getLogger(__name__)
 ROOT = Path(__file__).resolve().parent
 PROJECT = ROOT.parent.parent
 PACKAGES = ROOT / "packages"
+SPEECH_DIR = PROJECT / "data" / "speech"  # venv и модели локальных пакетов (тесты подменяют на временную)
 SERVICES = ("asr", "tts", "llm")
 SETTINGS_KEY = {"asr": "stt", "tts": "tts", "llm": "model"}
 FIELD_TYPES = ("text", "password", "number", "select", "textarea", "file")
@@ -638,7 +639,7 @@ class VoiceStack:
         self.runtime = runtime
         self.packages_dir = packages_dir
         self.state_dir = Path(state_dir or Path(runtime.directory) / "voice_stack")
-        self.local = LocalSpeech(speech_dir or PROJECT / "data" / "speech", self.state_dir / "packages")
+        self.local = LocalSpeech(speech_dir or SPEECH_DIR, self.state_dir / "packages")
         adapter_registry.configure(self.state_dir / "adapters",
                                    extension_dirs=lambda: self._extension_layers("voice/adapters"))
 

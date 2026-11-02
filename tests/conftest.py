@@ -33,13 +33,13 @@ SCHEMAS_READY = schemas_ready()
 # Модули, которым нужен протокол (WS/AAPI, сборка директив, фикстуры дескрипторов): без схем пропускаются.
 # Остальные модули от схем не зависят и идут всегда; test_protocol_import проверяет сам режим «без схем».
 PROTOCOL_MODULES = frozenset("""
-test_agent test_agent_ops test_agent_voice test_alarms test_animations test_async_reply test_builtin_scenarios
+test_agent test_agent_ops test_agent_voice test_animations test_async_reply test_builtin_scenarios
 test_cross_device test_device_resolver test_dialog_transport test_emulator_and_pcm test_emulator_fixtures
 test_emulator_identity test_emulator_runtime test_executor test_extension_actions test_extension_catalogs
 test_extensions_manager test_led_emotion test_light test_mcp_hub test_miss_journal test_normalize test_online_voice
 test_probe test_quasar_backend test_registry_migration test_response_cards_actions test_routines test_scenario_dialog
 test_scenario_edit test_scenario_golden test_scenario_json_power test_scenario_script test_scenario_voice test_sdk
-test_simple_commands test_speech_trace test_standard_replies test_template_triggers test_timers test_timesync_scenario
+test_simple_commands test_speech_trace test_standard_replies test_template_triggers test_time_scenarios test_timesync_scenario
 test_voice_e2e test_voice_failures test_voice_pipeline test_weather test_ws_section
 """.split())
 
@@ -99,7 +99,7 @@ def page(flags, packet, seq):
     return b'OggS\0' + bytes([flags]) + struct.pack('<QII', 960 if seq else 0, 123, seq) + b'\0' * 4 + bytes([1, len(packet)]) + packet
 
 
-async def _open_session(runtime, url, text_phrase, follow_up=None):
+async def _open_session(runtime, url, text_phrase, follow_up=None, env_state=None):
     client_type, server_type = types()
     runtime.identities.mutate({'operation': 'user', 'id': 'owner', 'name': 'O'})
     runtime.identities.mutate({'operation': 'device', 'sn': 'SN-T', 'user_id': 'owner',
@@ -118,6 +118,8 @@ async def _open_session(runtime, url, text_phrase, follow_up=None):
                 message.Event.TextInput.Header.RequestId = "rq"
                 message.Event.TextInput.Header.DialogId = "dg1"
                 message.Event.TextInput.Request.Event.Text = phrase
+                if env_state:  # TASK-079: состояние колонки в запросе (EnvironmentStateRaw)
+                    message.Event.TextInput.Request.EnvironmentStateRaw = env_state
                 await ws.send_bytes(b"AAPI" + message.SerializeToString())
                 for _ in range(3):
                     packet = await asyncio.wait_for(ws.receive(), 3)
@@ -138,3 +140,11 @@ CTX = {"input": {"request_id": "req-1", "message_id": "msg-1", "dialog_id": "dlg
 
 def step(sid, op, **kwargs):
     return dict(id=sid, op=op, **kwargs)
+
+
+@pytest.fixture(autouse=True)
+def isolated_speech_dir(tmp_path_factory, monkeypatch):
+    """Локальные речевые пакеты — во временной папке: установленные на машине (data/speech)
+    не влияют на тесты."""
+    from server_emulator import voice_stack
+    monkeypatch.setattr(voice_stack, "SPEECH_DIR", tmp_path_factory.mktemp("speech"))

@@ -1,0 +1,41 @@
+{
+ "format_version": 1,
+ "name": "timer-set-closes-open-list",
+ "proves": "Таймер ставится, когда у колонки уже открыт список таймеров: сервер закрывает экран вместо открытия карточки нового таймера (журнал 2026-10-25 19:21:30).",
+ "source": {
+  "kind": "capture",
+  "database": "data/traffic.sqlite3",
+  "captured_at": "2026-10-25T19:21:30"
+ },
+ "anonymized": "TimerId/StartTimestamp/длительность — плейсхолдеры (см. timer-set.json).",
+ "directives": [
+  {
+   "name": "open_screen_timer_list_directive",
+   "type": "client_action",
+   "is_led_silent": true,
+   "proto": "NAlice.TClockAppCapability.TOpenScreenTimerListDirective",
+   "decoded": {"ForceAutoClose": true}
+  },
+  {
+   "name": "timer_set_directive",
+   "type": "client_action",
+   "is_led_silent": true,
+   "proto": "NAlice.TAlarmCapability.TTimerSetDirective",
+   "decoded": {
+    "Name": "set_timer_capability_directive",
+    "Timer": {
+     "TimerId": "<timer-id>",
+     "StartTimestamp": "<unix-timestamp>",
+     "Duration": "<seconds>",
+     "Remaining": "<seconds>"
+    }
+   }
+  },
+  {
+   "name": "tts_play_placeholder",
+   "type": "client_action",
+   "is_led_silent": true,
+   "payload": {"channel": "Dialog"}
+  }
+ ]
+}

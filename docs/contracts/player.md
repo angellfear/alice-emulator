@@ -1,66 +1,102 @@
-# Плеер колонки: директивы и медиа-библиотека
+# Плеер колонки: директивы паузы и состояние
 
-Разбор по образцу рабочего сервера (журнал 2026-11-01, обмен 155: `AliceResponse` с директивами
-плеера; логкат колонки — gstreamer играет по `url=` из директивы через `souphttpsrc`).
+Музыка колонки играет штатным плеером (сценарий `HollywoodMusic` в состоянии колонки).
+С 087 своей медиатеки, очереди и избранного у эмулятора нет: музыкальные запросы
+(«включи …») в гибридном маршруте, где WS целиком эмулируется, остаются без обработчика —
+их отвечает настоящий сервер Яндекса (в proxy-режиме — тоже он). Эмулятор управляет
+плеером только там, где есть образец ответа настоящего сервера.
 
-## Директива audio_play (главная)
+Разбор по образцам журнала-захвата (2026-10-21…2026-10-27); обезличенный образец —
+`tests/fixtures/directives/media-pause.json`.
 
-`AliceResponse.Response.Directives` → `Type: client_action`, `Name: audio_play` (плюс
-`tts_play_placeholder` добавляет каркас диалогового слоя). Payload — Struct; минимальный набор,
-при котором колонка показывает плеер и играет поток:
+## Пауза/стоп («стоп», «пауза», «подожди», «замолчи», «ладно, стоп»)
 
-```json
-{"stream": {"url": "http://<адрес эмулятора>/media/music/<файл>", "type": "Track", "format": "MP3",
-            "duration_ms": 186580},
- "metadata": {"title": "Самый, самый", "subtitle": "Тутси",
-              "art_image_url": "http://<адрес>/media/music/обложка.jpg"},
- "screen_type": "Music", "background_mode": "Ducking", "set_pause": false, "playback_speed": 1.0}
-```
+Доминирующая форма, x20 из 23 медио-остановов журнала (2026-10-21 20:35:28,
+2026-10-22 12:00:59, 2026-10-26 16:52:41 и др.): тихий ответ без речи и карточек,
+`tts_play_placeholder` первой директивой (сервер не дополнял его — дубликат не добавляется):
 
-- `stream.type` — `Track` для файлов, `Radio` для потоков; `format` — MP3/OGG/OPUS/M4A/AAC/FLAC/WAV
-  (колонка определяет формат и сама, typefind).
-- `set_pause: true` той же директивой ставит воспроизведение на паузу, `false` — продолжает.
-- `playback_speed` — скорость воспроизведения («замедли», «поставь скорость 2»); поля позиции
-  (перемотка) в образце нет — «на 10 секунд вперед» честно отклоняется.
-- В образце Яндекса есть ещё `apply_player_playback_queue_directive` и
-  `set_audio_player_sequence_state_directive` (protobuf-очередь с провайдером
-  MUSIC_PROVIDER_YANDEX_MUSIC) и `show_audio_player_screen_directive` — для своего потока они не
-  нужны: очередь ведёт эмулятор (в памяти), экран открывается `screen_type` внутри audio_play.
+| # | `Name` | тип payload | `AnalyticsType` |
+|---|---|---|---|
+| 1 | `tts_play_placeholder` | Struct `{"channel": "Dialog"}` | `tts_play_placeholder` |
+| 2 | `divui_hide_view` | `NAlice.TLayeredDivUICapability.TDivUIHideViewDirective` `{Name}` | `divui_hide_view` |
+| 3 | `draw_animation_directive` | `NAlice.TAnimationCapability.TDrawAnimationDirective` `{Animations[{S3Directory{Bucket: "https://quasar.s3.yandex.net", Path: "animations/player_pause"}}], Name}` | `draw_animation_directive` |
+| 4 | `player_pause` | Struct `{"smooth": false}` | `general_conversation_player_pause` |
+| 5 | `clear_queue` | без payload | `general_conversation_player_pause` |
 
-## Очередь и колбэки
+Все `Type: client_action`, `IsLedSilent: true`. Собирает `server_emulator/media_directives.py`,
+сценарий — `device.player.pause` (script).
 
-Очередь плеера — в памяти runtime (`media_state[sn]`), сценарии управляют через `ctx.media`
-(sdk 1.3.1: `play_library`/`play_radio`/`start`/`step`/`pause`/`resume`/`now_playing`).
+- Форма **не зависит от состояния плеера**: typed-«стоп» на Idle-колонке тоже получала
+  полную форму x20 (2026-10-23 16:52:41 и ещё 4 запроса, `(StateType=Idle)` → x20).
+- Минорные варианты в журнале: x2 без `player_pause` (`placeholder + divui_hide_view +
+  draw_animation + clear_queue`, Idle-плеер) и останов с `draw_led_screen_directive`
+  (x1, колонка с LED-экраном). Не реализуем: выбор между ними по образцам не выводится,
+  основная форма покрывает 20/23.
+- «хватит» на играющей колонке без сигнала таймера/будильника — та же пауза
+  (`ringing.stop` при ringing приоритетнее, см. `tasks/review/079-time-scenarios.md`).
 
-Колбэки плеера колонки (маршруты в `aapi_handlers.py`) → сценарий-поставщик `media.playback`
-(scenarios/media/playback.json, `kind: provide`):
+## Состояние плеера в запросе (capability 46)
 
-| Колбэк колонки | Внутреннее событие | Поведение поставщика |
+Колонка приносит состояние плеера в КАЖДОМ `TextInput` (замер журнала: cap 46 — 4174×,
+92 — 4173×, 95 — 4172× из 4174): `Request.EnvironmentStateRaw.Endpoints[].AnyCapabilities[]`
+`CapabilityType=46` (`AudioPlayerCapabilityType`) → `NAlice.TAudioPlayerCapability`:
+
+- `State.StateType` — enum `EStateType`: 0 Unknown, 1 Idle, 2 Playing, 3 Paused,
+  4 Buffering, 5 Stopped, 6 Finished;
+- `State.Title` / `State.SubTitle` — что играет;
+- `State.CommonPlayerState` — `IsPlaying`, `PlayedMs`, `DurationMs`,
+  `ScenarioMeta` (`owner: "music"`, `@scenario_name: "HollywoodMusic"`,
+  `__musicmeta_id`, `playback_context` — внутренние идентификаторы очереди Яндекса).
+
+Разбирает `server_emulator/station_state.py` (SDK 2.0.0: `ctx.player` —
+`{state, playing, title, subtitle, played_ms, duration_ms}`). Своей копии состояния у
+эмулятора нет: что колонка не сообщает — того нет.
+
+## Колбэки `HollywoodMusic`
+
+Колбэки приходят служебным `TextInput` (`Event.Type=server_action`, `Text` пустой,
+`Name` — имя колбэка). Ответ настоящего сервера — всегда **тихий**: пустой
+`OutputSpeech.Text`, без карточек, только `tts_play_placeholder {channel: "Dialog"}`
+(замер паринга: `music_thin_client_on_stopped` x134 → placeholder, x1 → голос;
+`on_started` x112 → placeholder; `@@mm_stack_engine_get_next` x4 → placeholder).
+Эмулятор отвечает на них `callbacks.ack` (маршруты в `aapi_handlers.py`,
+сценарий `system.service_ack`) — та же форма.
+
+| Колбэк колонки | Ответ настоящего сервера | Эмулятор |
 |---|---|---|
-| `music_thin_client_on_stopped` | `media.playback_ended` | следующий трек очереди (`audio_play`); очередь кончилась — тихий ответ |
-| `@@mm_stack_engine_get_next` | `media.next_requested` | тот же поставщик |
-| `music_thin_client_on_started/failed` | `callbacks.ack` | тихое подтверждение |
+| `music_thin_client_on_started` | x112: только `tts_play_placeholder` | `callbacks.ack` |
+| `music_thin_client_on_stopped` | x134: только `tts_play_placeholder` | `callbacks.ack` |
+| `@@mm_stack_engine_get_next` | x92: очередь Яндекса (см. ниже), x4: только placeholder | `callbacks.ack` |
+| кнопки экрана плеера (`@@mm_typed_callback`, `purpose=player_*`) | — | `callbacks.ack` |
 
-Фразы: «включи музыку [что-то]», «включи сказку [про …]», «включи радио [имя]», «шум дождя»
-(сценарии `media.music`/`media.tales`/`media.radio`/`media.sounds`), «следующий/предыдущий/
-продолжи/что играет/лайк/начни сначала/другая версия/замедли/зациклить трек» (`media.player`),
-«пауза/стоп/замолчи» (`device.player.pause` — audio_play с `set_pause: true`).
+- `music_thin_client_on_paused` / `on_resumed` / `on_progress` в журнале **не встречались**
+  (проход по всем блокам: только on_started/on_stopped/on_finished/on_failed/recovery).
+- `@@mm_stack_engine_get_next` x92 сервер отвечал полной формой продолжения очереди:
+  `apply_player_playback_queue_directive` (`TApplyMusicPlatformQueueDirective` — сущности
+  треков, `MusicPlatformMetaStorage`, провайдер `MUSIC_PROVIDER_YANDEX_MUSIC`) +
+  `set_audio_player_sequence_state_directive` + `tts_play_placeholder` + `audio_play`
+  (URL потока Яндекса) + сам `@@mm_stack_engine_get_next`. Повторить её эмулятор не может:
+  контент и URL очереди принадлежат Яндекс.Музыке — **БЛОКЕР, нужна запись** (в proxy
+  эти колбэки уходят настоящему серверу).
 
-## Библиотека и раздача
+## Что NOT воспроизводимо (БЛОКЕР — нужна запись)
 
-- Файлы: `state/media/music/`, `state/media/tales/`, `state/media/sounds/` — подпапки считаются
-  плейлистами; название — тег файла (ID3v2 у mp3, Vorbis-комментарии у ogg/flac, без зависимостей),
-  иначе имя файла; поиск — по тегам и путям с склонением по основе («майкла» найдёт «Майкл»);
-  обложка — `<имя>.jpg/png/webp` или `cover.*` рядом с файлом.
-- Режимы очереди: вся библиотека без запроса и «вперемешку» играются в случайном порядке;
-  «на повторе»/«зациклить трек» — очередь из одного трека; «что-нибудь новенькое» — давно
-  не игранное (история в памяти runtime); дизлайки не предлагаются.
-- Избранное — `state/media/likes.json` ({пользователь: {kind: {like/dislike: [путь]}}}):
-  «нравится» во время песни добавляет трек, «включи мою музыку»/«включи плейлист» играет
-  отмеченное вперемешку.
-- Раздача — маршрут `/media/<kind>/<путь>` (runtime.py, `web.FileResponse`): Range поддержан
-  (перемотка), выход за папку закрыт; адрес колонке — хост её WS-соединения (`ctx.media_base`).
-- Радио — `settings.media.radio` `[{name, url}]`, правка во вкладке «Голос → Медиа».
-- Загрузка/удаление — вкладка «Голос → Медиа» (`ui/media.js`, API `ui/api/media.py`):
-  POST с телом файла и `X-Filename` (до 200 МБ), DELETE по имени.
-- Яндекс.Музыка через свой токен — не входит (отдельное решение владельца).
+Фразы «следующий/предыдущий трек», «продолжи», «на повторе», «вперемешку», «нравится»,
+перемотка в журнале либо отсутствуют («что играет», «продолжить» — 0 запросов), либо их
+ответы содержат контент и URL очереди Яндекса (`apply_player_playback_queue_directive`,
+`audio_play` со ссылкой на поток), которые эмулятор взять неоткуда. Примеры форм
+ответов (для будущих записей): x132 — очередь + `audio_play`; x10 — `player_resume`;
+x5 — `set_audio_player_sequence_state_directive` (повтор/перемешивание:
+`TSetSequenceStateDirective{RepeatType, ShuffleSeed}`); x17 — `draw_animation`
+(`animations/player_like`) + like. Директивы без образца не отправляются.
+
+## Что удалено (было в 071/072)
+
+`server_emulator/media.py` (медиатека, `Player`, очередь `runtime.media_state`),
+вкладка «Голос → Медиа» (`ui/media.js`, `ui/api/media.py`), маршрут раздачи `/media/…`,
+`ctx.media` / `ctx.library` / `ctx.media_base` (SDK 2.0.0), сценарии `media.*`
+(music/tales/radio/sounds/player/buttons/playback). Формат Struct-payload `audio_play`
+(обмен 155) был верифицирован на живых колонках и остаётся справочным:
+`{"stream": {url, type: Track|Radio, format, duration_ms}, "metadata": {title, subtitle,
+art_image_url}, "screen_type": "Music", "background_mode": "Ducking", "set_pause": bool,
+"playback_speed": 1.0}` — сам эмулятор `audio_play` с 087 не отправляет.

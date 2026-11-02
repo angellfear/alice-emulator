@@ -68,7 +68,7 @@ async def dispatch(runtime, ctx):
 
 
 def test_route_table_maps_callbacks():
-    """Маршруты: информеры/timesync по фильтрам, прочие — тихое подтверждение, таймер/агент — свои события."""
+    """Маршруты: информеры/timesync по фильтрам, прочие — тихое подтверждение, агент — своё событие."""
     fields = {'callback': 'NAlice.TGetInformersTypedCallback', 'purpose': '', 'frame': ''}
     assert aapi_handlers.route('@@mm_typed_callback', fields) == 'informers.requested'
     fields = {'callback': '', 'purpose': 'get_informers', 'frame': ''}
@@ -77,7 +77,7 @@ def test_route_table_maps_callbacks():
     assert aapi_handlers.route('@@mm_typed_callback', fields) == 'timesync.requested'
     fields = {'callback': '', 'purpose': 'collect_upper_shutter', 'frame': ''}
     assert aapi_handlers.route('@@mm_typed_callback', fields) == 'callbacks.ack'
-    assert aapi_handlers.route('@@timer_fired', None) == 'timer_fired.requested'
+    assert aapi_handlers.route('@@timer_fired', None) is None  # TASK-079: планировщика нет
     assert aapi_handlers.route('@@unknown_event', None) is None
 
 

@@ -5,7 +5,7 @@
 
 Исполнители по видам (v9 §5: без фиктивных успехов):
 - light {room, on, brightness?} → adapter state.light (реальное изменение состояния);
-- timer {seconds} → серверный планировщик;
+- timer {seconds} → штатные директивы колонке (timer_set_directive, TASK-079);
 - volume {level 0..10} → директива sound_set_level (wire из перехвата volume-set);
 - app {package}/music {query}/activity {name} → исполнитель НЕ подключён:
   вызов попадает в pending_calls (ручная панель) и получает честную карточку-заметку.
@@ -54,6 +54,31 @@ def parse_calls(tool_calls):
     return selected
 
 
+def _push_timer(runtime, sn, seconds):
+    """TASK-079: timer из действий модели — штатными директивами колонке (Push),
+    fire-and-forget: execute() синхронный; ошибка отправки — в runtime.recent."""
+    import asyncio
+    from pathlib import Path
+    from . import clock_directives
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return False
+    schemas = Path(__file__).resolve().parent / "schemas"
+    items = clock_directives.timer_set_items(clock_directives.new_clock_id(), seconds)
+    message = clock_directives.push_message(schemas, items)
+
+    def _log_failure(task):
+        try:
+            task.result()
+        except Exception as exc:
+            runtime.recent = (runtime.recent + [{
+                "kind": "timer", "error": type(exc).__name__ + ": " + str(exc)[:120]}])[-30:]
+
+    loop.create_task(runtime.send_message(sn, message)).add_done_callback(_log_failure)
+    return True
+
+
 def execute(runtime, calls, sn, response, directives=None):
     """Исполняет выбранные моделью действия. response — Event.AliceResponse (мутируется:
     директивы громкости); response=None (цикл агента, ответа ещё нет) — директивы
@@ -84,9 +109,14 @@ def execute(runtime, calls, sn, response, directives=None):
                 executed.append(call)
             elif kind == "timer":
                 seconds = int(call.get("seconds") or 0)
-                runtime.timer_scheduler.schedule(sn=sn, seconds=seconds)
-                notes.append(f"Таймер на {seconds} с поставлен.")
-                executed.append(call)
+                if seconds <= 0:
+                    notes.append("Таймер: некорректная длительность.")
+                    continue
+                if _push_timer(runtime, sn, seconds):
+                    notes.append(f"Таймер на {seconds} с — директива отправлена колонке.")
+                    executed.append(call)
+                else:
+                    notes.append("Таймер: нет работающего цикла событий — директива не отправлена.")
             elif kind == "volume":
                 level = max(0.0, min(10.0, float(call.get("level") or 0)))
                 if response is not None:

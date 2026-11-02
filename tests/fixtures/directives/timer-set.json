@@ -1,0 +1,41 @@
+{
+ "format_version": 1,
+ "name": "timer-set",
+ "proves": "Ответ настоящего сервера «поставь таймер на N минут»: экран нового таймера + timer_set_directive (журнал 2026-10-23 14:41:52, речь «Хорошо. 6 минут. Отсчёт пошёл.»).",
+ "source": {
+  "kind": "capture",
+  "database": "data/traffic.sqlite3",
+  "captured_at": "2026-10-23T14:41:52"
+ },
+ "anonymized": "TimerId/AlarmId заменены, StartTimestamp — плейсхолдер; значения длительности (Duration/Remaining) зависят от фразы и тоже свёрнуты в плейсхолдер. Значения-плейсхолдеры вида \"<…>\" тест проверяет как «поле присутствует и непустое».",
+ "directives": [
+  {
+   "name": "open_screen_timer_info_directive",
+   "type": "client_action",
+   "is_led_silent": true,
+   "proto": "NAlice.TClockAppCapability.TOpenScreenTimerInfoDirective",
+   "decoded": {"TimerId": "<timer-id>"}
+  },
+  {
+   "name": "timer_set_directive",
+   "type": "client_action",
+   "is_led_silent": true,
+   "proto": "NAlice.TAlarmCapability.TTimerSetDirective",
+   "decoded": {
+    "Name": "set_timer_capability_directive",
+    "Timer": {
+     "TimerId": "<timer-id>",
+     "StartTimestamp": "<unix-timestamp>",
+     "Duration": "<seconds>",
+     "Remaining": "<seconds>"
+    }
+   }
+  },
+  {
+   "name": "tts_play_placeholder",
+   "type": "client_action",
+   "is_led_silent": true,
+   "payload": {"channel": "Dialog"}
+  }
+ ]
+}

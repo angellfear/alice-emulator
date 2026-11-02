@@ -1,14 +1,25 @@
-"""Поставить будильник: «будильник на 7:30», «поставь будильник на дуо 32 на 7 утра».
+"""Поставить будильник (TASK-079): директивы по образцам настоящего сервера.
 
-Адресат (колонка владельца) ищется по name/aliases, его алиасы вырезаются из фразы до
-разбора времени. Время — сначала слоты template-триггера ({hour}/{minute}/{day_period},
-{time_word}), иначе разбор фразы; {date_word}/{weekday}/{day} {month} пока только
-запоминаются (будильники по датам — отдельное задание). Нет времени — уточнение;
-ответ разбирает on_time.
+Время — слоты template-триггера ({time_word} или {hour}/{minute}/{day_period}), иначе
+разбор фразы; нет времени — уточнение (on_time). Дата: {date_word} («сегодня», «завтра»,
+«послезавтра») или ближайшее будущее (время сегодня уже прошло — ставим на завтра).
+
+Образцы журнала 2026-10-22 05:47:24 и 2026-10-27 19:00:37: open_screen_alarm_list_directive
+(ForceAutoClose) + alarm_add_directive (TAlarmAddDirective: AlarmId, LocalTime, одна дата
+в ActivationDays, Timezone колонки, SnoozeTime 10). Будильник по дню недели ({weekday}) и
+адресация другой колонке — БЛОКЕР (образцов нет, см. tasks/079). Своего хранилища нет:
+будильник живёт у колонки, мы лишь отправляем директиву добавления.
 """
+import datetime
+
+from server_emulator import clock_directives
 from server_emulator.sdk import ask, format_hhmm, say
 
 QUESTION = "На какое время поставить будильник?"
+
+LIST_PROTO = "NAlice.TClockAppCapability.TOpenScreenAlarmListDirective"
+ADD_PROTO = "NAlice.TAlarmCapability.TAlarmAddDirective"
+SNOOZE_MINUTES = 10  # SnoozeTime в обоих образцах alarm_add_directive
 
 
 def _slots_time(slots):
@@ -57,14 +68,46 @@ async def on_time(ctx, answer):
 
 async def _start(ctx, target, time_value):
     target = target or {}
-    arguments = {"time": time_value}
-    if target.get("sn"):
-        arguments["sn"] = target["sn"]
-    timezone = (ctx.params.get("effective") or {}).get("timezone")
-    if timezone:
-        arguments["timezone"] = timezone
-    await ctx.action("alarm.start", **arguments)
-    text = f"Будильник на {format_hhmm(time_value)}"
     if target.get("sn") and target.get("current") is not True:
-        text += f" на колонке «{target.get('name')}»"
-    return say(text + ".")
+        return say("Пока не ставлю будильник на другой колонке — только на этой.")
+    if ctx.slots.get("weekday") or (ctx.slots.get("day") and ctx.slots.get("month")):
+        # ActivationDays с Weekday/выборочной датой в образцах не встречался
+        return say("Будильник на конкретный день недели пока не ставлю — только на ближайшие дни.")
+    hours, minutes = (int(part) for part in time_value.split(":"))
+    alarm_id = clock_directives.new_clock_id(ctx.state.get("clock_id"))
+    now = ctx.now  # aware datetime в таймзоне колонки
+    date_word = ctx.slots.get("date_word")
+    days = {"завтра": 1, "послезавтра": 2}.get(str(date_word), 0)
+    when = now.replace(hour=hours, minute=minutes, second=0, microsecond=0)
+    if not days and when <= now:
+        days = 1  # время сегодня уже прошло — будильник на завтра
+    when = when + datetime.timedelta(days=days)
+    timezone_name = (ctx.input_timezone
+                     or (ctx.params.get("effective") or {}).get("timezone")
+                     or str(now.tzname() or ""))
+    offset_seconds = int(now.utcoffset().total_seconds()) if now.utcoffset() is not None else 0
+    when_suffix = {1: " на завтра", 2: " на послезавтра"}.get(days, "")
+    spec = say(f"Будильник на {format_hhmm(time_value)} поставил{when_suffix}.")
+    spec["directives"] = [
+        {"name": "open_screen_alarm_list_directive", "type": "client_action", "is_led_silent": True,
+         "proto": LIST_PROTO, "fields": {"ForceAutoClose": True}},
+        {"name": "alarm_add_directive", "type": "client_action", "is_led_silent": True,
+         "proto": ADD_PROTO,
+         "fields": {"Name": "alarm_add_directive",
+                    "Alarm": _alarm_fields(alarm_id, when, hours, minutes,
+                                          timezone_name, offset_seconds)}},
+    ]
+    return spec
+
+
+def _alarm_fields(alarm_id, when, hours, minutes, timezone_name, offset_seconds):
+    """TAlarm в alarm_add_directive по образцу: LocalTime без нулевых полей, одна дата
+    активации (одноразовый), таймзона колонки, SnoozeTime 10 минут."""
+    local_time = {"Hours": hours}
+    if minutes:
+        local_time["Minutes"] = minutes
+    return {"AlarmId": alarm_id,
+            "LocalTime": local_time,
+            "ActivationDays": [{"Date": {"Year": when.year, "Month": when.month, "Day": when.day}}],
+            "Timezone": {"TimezoneName": timezone_name, "OffsetSeconds": offset_seconds},
+            "SnoozeTime": SNOOZE_MINUTES}

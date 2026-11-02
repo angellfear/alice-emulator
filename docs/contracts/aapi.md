@@ -245,3 +245,8 @@ WS heartbeat 30 с; max_msg_size 16 MiB; провайдеры model/stt/tts — 
 play/liked/unliked/dislike/repeat/shuffle/speed) маршрутизируются на сценарий-поставщик
 `media.player_button` (scenarios/media/buttons.json): next/previous двигают очередь эмулятора, pause/play — `audio_play` с `set_pause`, лайки/повтор/шаффл/скорость — тихое
 подтверждение (без аккаунта Яндекса состояние кнопки показывает колонка).
+
+Обновление 2026-11-02 (TASK-087): своей очереди больше нет — `media.player_button` удалён,
+`purpose=player_*` попадает в общий `callbacks.ack` (тихое подтверждение, как в образцах
+журнала). Тот же итог у `music_thin_client_on_started/on_stopped` и
+`@@mm_stack_engine_get_next` (`docs/contracts/player.md`).

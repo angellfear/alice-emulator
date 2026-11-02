@@ -1,6 +1,6 @@
 {
  "format_version": 2,
- "version": "2.0.0",
+ "version": "2.1.0",
  "category": "device",
  "id": "device.volume",
  "title": {
@@ -8,7 +8,7 @@
   "en": "Volume"
  },
  "description": {
-  "ru": "«громче», «тише», «громкость на 5», «выключи звук», «максимальная громкость» → Push в колонку"
+  "ru": "«громкость 5/на семь/на 50» — тихий ответ директивой образца sound_set_level{new_level, new_percent_level}; шкала — из состояния колонки. «громче/тише/выключи звук/на всю» — проводной Push (ответного образца фраз в журнале нет)"
  },
  "priority": 100,
  "triggers": [
@@ -52,6 +52,6 @@
   }
  },
  "provenance": {
-  "source": "wire Push sound_set_level/sound_louder/sound_quiter (actions.CATALOG, панель «Действия устройства»); шкала колонки 0..10"
+  "source": "ответ директивой — журнал 2026-10-24 00:24:56/23:07:45, 2026-10-29 22:14:24 (голосовое «громкость два», тихо: new_level + new_percent_level); шаги sound_louder/sound_quiter — проводной Push из приложения (журнал 2026-10-23…29, TASK-025); шкала колонки — capability 23 из её состояния"
  }
 }

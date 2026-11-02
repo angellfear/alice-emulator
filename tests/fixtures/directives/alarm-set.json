@@ -1,0 +1,60 @@
+{
+ "format_version": 1,
+ "name": "alarm-set",
+ "proves": "Ответ на «поставь будильник на …»: экран списка будильников + alarm_add_directive с одной датой активации, таймзоной колонки и SnoozeTime 10 (журнал 2026-10-27 19:00:37; то же в 2026-10-22 05:47:24, где LocalTime без Minutes — минуты нулевые). Речь — голосом, text в proto пуст (has_voice_response=true).",
+ "source": {
+  "kind": "capture",
+  "database": "data/traffic.sqlite3",
+  "captured_at": "2026-10-27T19:00:37"
+ },
+ "anonymized": "AlarmId, значения LocalTime, дата активации и таймзона — плейсхолдеры; Minutes присутствует только при ненулевых минутах (как в образцах).",
+ "directives": [
+  {
+   "name": "open_screen_alarm_list_directive",
+   "type": "client_action",
+   "is_led_silent": true,
+   "proto": "NAlice.TClockAppCapability.TOpenScreenAlarmListDirective",
+   "decoded": {
+    "ForceAutoClose": true
+   }
+  },
+  {
+   "name": "alarm_add_directive",
+   "type": "client_action",
+   "is_led_silent": true,
+   "proto": "NAlice.TAlarmCapability.TAlarmAddDirective",
+   "decoded": {
+    "Name": "alarm_add_directive",
+    "Alarm": {
+     "AlarmId": "<alarm-id>",
+     "LocalTime": {
+      "Hours": "<hours>",
+      "Minutes": "<minutes>"
+     },
+     "ActivationDays": [
+      {
+       "Date": {
+        "Year": "<date>",
+        "Month": "<date>",
+        "Day": "<date>"
+       }
+      }
+     ],
+     "Timezone": {
+      "TimezoneName": "<timezone>",
+      "OffsetSeconds": "<offset>"
+     },
+     "SnoozeTime": 10
+    }
+   }
+  },
+  {
+   "name": "tts_play_placeholder",
+   "type": "client_action",
+   "is_led_silent": true,
+   "payload": {
+    "channel": "Dialog"
+   }
+  }
+ ]
+}

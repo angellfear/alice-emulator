@@ -142,11 +142,6 @@ def _is_timesync(fields):
     return fields.get("callback") == "NAlice.TDeviceControlTimesyncTypedCallback" or fields.get("purpose") == "sync_timezone"
 
 
-def _is_player_button(fields):
-    """purpose=player_* (кнопки экрана плеера колонки: next/previous/pause/play/liked/…, TASK-072)"""
-    return str(fields.get("purpose") or "").startswith("player_")
-
-
 # Маршруты колбэков (TASK-058): порядок проверки значим — именованные раньше общего ack.
 # as_reason — форма причины прежнего event-триггера: эталон scenarios.json и отчёты не меняются
 callback_route('@@mm_typed_callback', 'informers.requested', _is_informers, 'информеры/виджет погоды',
@@ -155,27 +150,26 @@ callback_route('@@mm_typed_callback', 'informers.requested', _is_informers, 'и�
 callback_route('@@mm_typed_callback', 'timesync.requested', _is_timesync, 'синхронизация времени',
                lambda fields: "event:@@mm_typed_callback[" +
                               ("callback=%s" % fields["callback"] if fields.get("callback") else "purpose=sync_timezone") + "]")
-# Кнопки экрана плеера колонки (TASK-072): поставщик media.buttons — очередь эмулятора
-callback_route('@@mm_typed_callback', 'media.player_button', _is_player_button, 'кнопки экрана плеера',
-               lambda fields: "event:@@mm_typed_callback[purpose=%s]" % (fields.get("purpose") or "player_*"))
 callback_route('@@mm_typed_callback', 'callbacks.ack', None, 'прочие колбэки приложения — тихое подтверждение',
                'event:@@mm_typed_callback')
 callback_route('@@mm_semantic_frame', 'weather.opened', _is_weather_tap, 'тап по виджету погоды',
                'event:@@mm_semantic_frame[purpose=weather_informer_tap_action]')
 callback_route('@@mm_semantic_frame', 'callbacks.ack', None, 'семантический фрейм — тихое подтверждение',
                'event:@@mm_semantic_frame')
-# Плеер колонки (TASK-071): конец трека и запрос следующего — поставщику медиа
-# (сценарий media.playback: следующий трек очереди или тихое подтверждение)
-callback_route('@@mm_stack_engine_get_next', 'media.next_requested', None, 'стек плеера — включить следующий',
+# Колбэки штатного плеера колонки (TASK-087): своей очереди у эмулятора нет — на
+# on_started/on_stopped и «включи следующий» настоящий сервер отвечал тихим
+# подтверждением (журнал 2026-10-21…26: пустой диалоговый ответ, только
+# tts_play_placeholder; кнопки экрана плеера — тоже общий ack).
+callback_route('@@mm_stack_engine_get_next', 'callbacks.ack', None, 'стек плеера — запрос следующего',
                'event:@@mm_stack_engine_get_next')
-callback_route('music_thin_client_on_started', 'callbacks.ack', None, 'плеер колонки — тихое подтверждение',
+callback_route('music_thin_client_on_started', 'callbacks.ack', None, 'плеер колонки — трек начался',
                'event:music_thin_client_on_started')
-callback_route('music_thin_client_on_stopped', 'media.playback_ended', None, 'плеер колонки — трек закончился',
+callback_route('music_thin_client_on_stopped', 'callbacks.ack', None, 'плеер колонки — трек остановлен',
                'event:music_thin_client_on_stopped')
 callback_route('@@agent_say', 'agent_say.requested', None, 'сообщение агента (задания по расписанию)',
                'event:@@agent_say')
-callback_route('@@timer_fired', 'timer_fired.requested', None, 'срабатывание таймера/будильника',
-               'event:@@timer_fired')
+# TASK-079: @@timer_fired убран — серверный планировщик удалён, сигнал таймера/
+# будильника отдаёт колонка (directives из её состояния: timers/ringing.stop)
 
 
 # --- обработчики и наблюдатели расширений (TASK-059, sdk.aapi_handler / sdk.on_event) ---

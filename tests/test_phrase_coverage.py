@@ -48,7 +48,7 @@ def test_corpus_expect_refs_existing_scenarios(corpus):
             if expect is not None:
                 assert expect in known, (phrase["text"], expect)
                 filled += 1
-    assert filled >= 40  # 077–083 будут добавлять свои
+    assert filled >= 20  # 087: медиатека снята (media.* → null), 077–083 будут добавлять свои
 
 
 async def test_expected_phrases_still_match(corpus):

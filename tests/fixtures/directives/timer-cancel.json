@@ -1,0 +1,33 @@
+{
+ "format_version": 1,
+ "name": "timer-cancel",
+ "proves": "Отмена таймера: сервер закрывает открытый список экранов и снимает таймер по TimerId (журнал 2026-10-25 17:00:33; в тот же ответ голос произносит «Таймер отменён.» — text в proto пуст, has_voice_response=true).",
+ "source": {
+  "kind": "capture",
+  "database": "data/traffic.sqlite3",
+  "captured_at": "2026-10-25T17:00:33"
+ },
+ "anonymized": "TimerId свёрнут в плейсхолдер.",
+ "directives": [
+  {
+   "name": "open_screen_timer_list_directive",
+   "type": "client_action",
+   "is_led_silent": true,
+   "proto": "NAlice.TClockAppCapability.TOpenScreenTimerListDirective",
+   "decoded": {"ForceAutoClose": true}
+  },
+  {
+   "name": "timer_cancel_directive",
+   "type": "client_action",
+   "is_led_silent": true,
+   "proto": "NAlice.TAlarmCapability.TTimerCancelDirective",
+   "decoded": {"Name": "cancel_timer_capability_directive", "TimerId": "<timer-id>"}
+  },
+  {
+   "name": "tts_play_placeholder",
+   "type": "client_action",
+   "is_led_silent": true,
+   "payload": {"channel": "Dialog"}
+  }
+ ]
+}

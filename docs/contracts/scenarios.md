@@ -39,10 +39,15 @@ module: "server_emulator/scenario_engine/"
 | id | фразы | исполнение | тесты |
 |---|---|---|---|
 | builtin.clock.get_time | «сколько времени», «который час» | local_time_phrase, карточка | test_builtin_scenarios |
-| builtin.timer.set | «поставь таймер на N…» | планировщик (persist, dedupe, missed-after-restart), уточнение при отсутствии длительности | test_timers |
-| builtin.timer.cancel | «отмени таймер» | отмена таймеров SN (будильники не трогает) | test_timers |
-| builtin.alarm.set | «поставь будильник на HH:MM» | zoneinfo/DST, rollover, snooze, пропуски | test_alarms |
-| builtin.alarm.cancel | «отмени будильник» | отмена будильников SN | test_alarms |
+| builtin.timer.set | «поставь таймер на N…» | директивы колонке: `open_screen_timer_info_directive` (или `open_screen_timer_list_directive{ForceAutoClose}`, если список уже открыт) + `timer_set_directive` по образцу; таймер ведёт колонка, уточнение при отсутствии длительности | test_time_scenarios |
+| builtin.timer.list | «сколько осталось до таймера», «какие таймеры установлены» | остаток из состояния колонки (`Duration − (now − StartTimestamp)`), `open_screen_timer_list_directive{TargetTimerIds}` | test_time_scenarios |
+| builtin.timer.cancel | «отмени таймер» | `open_screen_timer_list_directive{ForceAutoClose}` (если список открыт) + `timer_cancel_directive{TimerId}`; список — из EnvironmentStateRaw запроса | test_time_scenarios |
+| builtin.alarm.set | «поставь будильник на HH:MM» | `open_screen_alarm_list_directive{ForceAutoClose}` + `alarm_add_directive` (одна дата активации, таймзона колонки, SnoozeTime 10) | test_time_scenarios |
+| builtin.ringing.stop | «хватит» | гасит сигнал: у колонки `CurrentlyPlaying`/истёкший активный таймер → `timer_stop_directive`/`alarm_stop_directive{StopMedia}` + закрытие активного экрана; не звенит — отказ (реплику берёт `device.player.pause`) | test_time_scenarios |
+
+Таймеры и будильники ведёт колонка: сервер не хранит и не считает их (своего планировщика
+нет с TASK-079), состояние берётся из `EnvironmentStateRaw` её запроса, ответы — штатные
+директивы «Часов» (`tests/fixtures/directives/` — обезличенные образцы журнала).
 | builtin.light.switch | «включи/выключи свет (комната)» | state.light устройства; нет ламп — честный отказ | test_light |
 | builtin.volume.set | «громче/тише/громкость на N/максимум/выключи звук» | Push sound_set_level/louder/quiter в сессию SN | test_simple_commands |
 | builtin.app.open | «открой/запусти X» | резолв по state.apps; запуск НЕ поддержан (wire не восстановлен) — честная карточка | test_simple_commands |
@@ -148,13 +153,17 @@ API: `GET scenario-drafts` → `{drafts}`; `POST {op: test|activate|discard|hist
 
 - Исполнение `executor.kind = mcp_stdio|script|app` — поле декларативное, привязка хранится, но не запускается (будущая работа, см. plan-index).
 - Запуск приложений физически (TSendAndroidAppIntentDirective не восстановлен).
-- TTS-озвучка срабатываний таймеров/будильников при выключенном aapi_tts.
-- Дни недели будильника голосом; snooze голосом (API планировщика есть).
+- Сигналит и снимает сигнал колонка: срабатываний на сервере больше нет (TASK-079),
+  сценарий «сработало» снят. Snooze-перепостановка будильника, отмена и изменение
+  будильника, дни недели будильника, пауза/продолжить таймера, таймер сна,
+  напоминания, календарь — по образцам не восстановлены (БЛОКЕР TASK-079, нужна запись).
 - Прогноз погоды на дни (только current); локация по GPS устройства.
 
-## 9. Медиа: музыка, сказки, радио, плеер
+## 9. Медиа: штатный плеер колонки
 
-Сценарии раздела `media` включают файлы из библиотеки (`state/media/music|tales`) и радио из
-настроек, управляют плеером; директива `audio_play` (Struct) и очередь с колбэками плеера —
-в отдельном контракте `docs/contracts/player.md`. SDK для py-сценариев — `ctx.media`,
-`ctx.library`, `ctx.media_base` (scripts-sdk.md, 1.3.1).
+Своей медиатеки, очереди и избранного у эмулятора нет (087): раздел `media` удалён,
+музыкальные фразы отвечает настоящий сервер Яндекса. Из плеера эмулятор держит только
+то, что есть в образцах: «стоп/пауза» — директивы настоящего сервера (`device.player.pause`),
+колбэки `HollywoodMusic` — тихий `callbacks.ack`. Состояние плеера — из запроса колонки
+(`ctx.player`, capability 46). Директивы, состояние и список БЛОКЕРов — в отдельном
+контракте `docs/contracts/player.md`.

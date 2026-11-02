@@ -1,0 +1,61 @@
+{
+ "format_version": 1,
+ "name": "media-pause",
+ "proves": "Ответ настоящего сервера «стоп/подожди/ладно, стоп» (TASK-087): скрыть экран плеера, анимация паузы, player_pause{smooth:false}, очистка очереди — без речи. Доминирующая форма, x20 (журнал 2026-10-21 20:35:28, 2026-10-22 12:00:59, 2026-10-26 16:52:41; текстовый «стоп» на Idle-плеере — та же форма, 2026-10-23 16:52:41). Личного нет: все значения — константы формы.",
+ "source": {
+  "kind": "capture",
+  "database": "data/traffic.sqlite3",
+  "captured_at": "2026-10-21T20:35:28"
+ },
+ "anonymized": "Идентификаторов и меток времени в форме нет; payload'ы приведены как в образце. AnalyticsType в фикстуру не входит (сверяется тестом отдельно): draw_animation_directive → draw_animation_directive, player_pause и clear_queue → general_conversation_player_pause, divui_hide_view → divui_hide_view.",
+ "speech": "",
+ "directives": [
+  {
+   "name": "tts_play_placeholder",
+   "type": "client_action",
+   "is_led_silent": true,
+   "payload": {
+    "channel": "Dialog"
+   }
+  },
+  {
+   "name": "divui_hide_view",
+   "type": "client_action",
+   "is_led_silent": true,
+   "proto": "NAlice.TLayeredDivUICapability.TDivUIHideViewDirective",
+   "decoded": {
+    "Name": "divui_hide_view"
+   }
+  },
+  {
+   "name": "draw_animation_directive",
+   "type": "client_action",
+   "is_led_silent": true,
+   "proto": "NAlice.TAnimationCapability.TDrawAnimationDirective",
+   "decoded": {
+    "Name": "draw_animation_directive",
+    "Animations": [
+     {
+      "S3Directory": {
+       "Bucket": "https://quasar.s3.yandex.net",
+       "Path": "animations/player_pause"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "name": "player_pause",
+   "type": "client_action",
+   "is_led_silent": true,
+   "payload": {
+    "smooth": false
+   }
+  },
+  {
+   "name": "clear_queue",
+   "type": "client_action",
+   "is_led_silent": true
+  }
+ ]
+}

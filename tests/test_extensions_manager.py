@@ -29,7 +29,7 @@ def manifest(ext_id="coffee", version="1.0.0", **overrides):
         "id": ext_id, "name": "Кофемашина", "version": version,
         "description": "Сценарий «сделай кофе».",
         "author": "Ivan <ivan@example.com>", "license": "MIT",
-        "requires": {"emulator": f">={EMULATOR_VERSION}", "sdk": f">={SDK_VERSION} <2.0.0"},
+        "requires": {"emulator": f">={EMULATOR_VERSION}", "sdk": f">={SDK_VERSION} <3.0.0"},
         "permissions": {},
     }
     data.update(overrides)

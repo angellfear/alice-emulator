@@ -24,7 +24,7 @@ MANIFEST = {
     "id": "greeter", "name": "Greeter", "version": "1.0.0",
     "description": "Обработчик AAPI из расширения.",
     "author": "Ivan <ivan@example.com>", "license": "MIT",
-    "requires": {"emulator": ">=0", "sdk": f">={SDK_VERSION} <2.0.0"},
+    "requires": {"emulator": ">=0", "sdk": f">={SDK_VERSION} <3.0.0"},
     "permissions": {"aapi": ["@@mm_custom"]},
 }
 

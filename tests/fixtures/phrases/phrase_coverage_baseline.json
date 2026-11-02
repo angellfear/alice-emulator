@@ -1,211 +1,211 @@
 {
- "generated": "2026-11-01T22:08:37",
+ "generated": "2026-11-02T17:21:27",
  "results": [
   {
    "group": "media",
    "section": "track",
    "text": "включи майкла джексона",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "track",
    "text": "запусти наутилус помпилиус",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.app.open",
    "reason": "template"
   },
   {
    "group": "media",
    "section": "track",
    "text": "поставь альбом группа крови",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "track",
    "text": "давай послушаем химеру",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "track",
    "text": "запусти песню ромашки",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.app.open",
    "reason": "template"
   },
   {
    "group": "media",
    "section": "track",
    "text": "врубай трек вечно молодой",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "track",
    "text": "включи песню белые розы на повторе",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "track",
    "text": "поставь трек мое сердце на повторе",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "track",
    "text": "включи другую версию",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "track",
    "text": "включи аудиокнигу дюна",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "track",
    "text": "запусти книгу война и мир",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.app.open",
    "reason": "template"
   },
   {
    "group": "media",
    "section": "track",
    "text": "замедли",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "track",
    "text": "ускорь в полтора раза",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "track",
    "text": "поставь скорость 2",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "track",
    "text": "какая скорость воспроизведения",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "track",
    "text": "продолжи книгу волшебник изумрудного города",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "phrase:contains"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "track",
    "text": "давай послушаем дискотеку 80-х",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "track",
    "text": "запусти плейлист танго",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.app.open",
    "reason": "template"
   },
   {
    "group": "media",
    "section": "track",
    "text": "включи шум дождя",
-   "expect": "media.sounds",
-   "verdict": "ok",
-   "scenario": "media.sounds",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "track",
    "text": "поставь пение птиц",
-   "expect": "media.sounds",
-   "verdict": "ok",
-   "scenario": "media.sounds",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "track",
    "text": "давай послушаем шум океана",
-   "expect": "media.sounds",
-   "verdict": "ok",
-   "scenario": "media.sounds",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "track",
    "text": "продолжи",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "track",
    "text": "запусти музыку в спальне",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.app.open",
    "reason": "template"
   },
   {
@@ -230,109 +230,109 @@
    "group": "media",
    "section": "recommended",
    "text": "включи музыку",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "recommended",
    "text": "врубай новую музыку",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "recommended",
    "text": "включи музыкальные новинки",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "recommended",
    "text": "запусти самое популярное",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.app.open",
    "reason": "template"
   },
   {
    "group": "media",
    "section": "recommended",
    "text": "давай послушаем популярную музыку",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "recommended",
    "text": "включи русскую поп-музыку",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "recommended",
    "text": "запусти диско",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.app.open",
    "reason": "template"
   },
   {
    "group": "media",
    "section": "recommended",
    "text": "врубай индастриал",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "recommended",
    "text": "включи трек в жанре джаз",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "recommended",
    "text": "давай послушаем песню в жанре рок",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "recommended",
    "text": "включи радостное",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "recommended",
    "text": "давай послушаем грустное",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
@@ -347,55 +347,55 @@
    "group": "media",
    "section": "recommended",
    "text": "поставь музыку для тренировки",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "recommended",
    "text": "давай послушаем фоновую музыку",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "recommended",
    "text": "врубай музыку для вечеринки",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "recommended",
    "text": "запусти вечные хиты",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.app.open",
    "reason": "template"
   },
   {
    "group": "media",
    "section": "recommended",
    "text": "включи музыку 80-х",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "recommended",
    "text": "давай послушаем русскую музыку",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
@@ -410,145 +410,145 @@
    "group": "media",
    "section": "recommended",
    "text": "включи музыку с мужским вокалом",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "recommended",
    "text": "давай послушаем инструментальную музыку",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "recommended",
    "text": "поставь музыку на русском языке",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "recommended",
    "text": "включи веселый рок для тренировки",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "recommended",
    "text": "включи что-нибудь новенькое",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "your-playlist",
    "text": "включи мою музыку",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "your-playlist",
    "text": "включи плейлист мои избранные треки",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "your-playlist",
    "text": "давай послушаем плейлист дежавю",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "your-playlist",
    "text": "поставь плейлист премьера",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "your-playlist",
    "text": "нравится",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "your-playlist",
    "text": "лайк",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "your-playlist",
    "text": "классный трек",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "your-playlist",
    "text": "не нравится",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "your-playlist",
    "text": "дизлайк",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "recognize-track",
    "text": "какой трек играет",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "recognize-track",
    "text": "что играет",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
@@ -557,79 +557,79 @@
    "expect": null,
    "verdict": "miss",
    "scenario": null,
-   "reason": "script_declined:media.music"
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "tales",
    "text": "расскажи сказку",
-   "expect": "media.tales",
-   "verdict": "ok",
-   "scenario": "media.tales",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "tales",
    "text": "включи сказку",
-   "expect": "media.tales",
-   "verdict": "ok",
-   "scenario": "media.tales",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "tales",
    "text": "включи сказки",
-   "expect": "media.tales",
-   "verdict": "ok",
-   "scenario": "media.tales",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "tales",
    "text": "расскажи сказку пряничный домик",
-   "expect": "media.tales",
-   "verdict": "ok",
-   "scenario": "media.tales",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "tales",
    "text": "расскажи сказку от сергея лазарева",
-   "expect": "media.tales",
-   "verdict": "ok",
-   "scenario": "media.tales",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "audio-settings",
    "text": "включи элвиса пресли вперемешку",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "audio-settings",
    "text": "запусти metallica вперемешку",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.app.open",
    "reason": "template"
   },
   {
    "group": "media",
    "section": "audio-settings",
    "text": "врубай плейлист хорошее настроение вперемешку",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
@@ -671,136 +671,136 @@
    "group": "media",
    "section": "audio-settings",
    "text": "продолжай играть",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "audio-settings",
    "text": "снова запусти",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "other",
+   "scenario": "device.app.open",
+   "reason": "phrase:contains"
   },
   {
    "group": "media",
    "section": "audio-settings",
    "text": "возобнови",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "audio-settings",
    "text": "верни музыку",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "audio-settings",
    "text": "следующий",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "audio-settings",
    "text": "хочу что-нибудь другое",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "audio-settings",
    "text": "пропустить",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "audio-settings",
    "text": "вперед",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "audio-settings",
    "text": "давай дальше",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "audio-settings",
    "text": "предыдущий трек",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "audio-settings",
    "text": "начни сначала",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "audio-settings",
    "text": "зациклить трек",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "audio-settings",
    "text": "включи песню по барам на повторе",
-   "expect": "media.music",
-   "verdict": "ok",
-   "scenario": "media.music",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "audio-settings",
    "text": "на 10 секунд вперед",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
    "section": "audio-settings",
    "text": "на 20 секунд назад",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "template"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
@@ -860,10 +860,10 @@
    "group": "media",
    "section": "audio-settings",
    "text": "продолжи музыку везде",
-   "expect": "media.player",
-   "verdict": "ok",
-   "scenario": "media.player",
-   "reason": "phrase:contains"
+   "expect": null,
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "media",
@@ -872,7 +872,7 @@
    "expect": null,
    "verdict": "miss",
    "scenario": null,
-   "reason": "script_declined:media.music"
+   "reason": "no_match"
   },
   {
    "group": "media",
@@ -914,28 +914,28 @@
    "group": "time",
    "section": "timer",
    "text": "сколько осталось до таймера",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "timers.timer.list",
+   "verdict": "ok",
+   "scenario": "timers.timer.list",
+   "reason": "template"
   },
   {
    "group": "time",
    "section": "timer",
    "text": "сколько до конца таймера",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "timers.timer.list",
+   "verdict": "ok",
+   "scenario": "timers.timer.list",
+   "reason": "phrase:exact"
   },
   {
    "group": "time",
    "section": "timer",
    "text": "какие таймеры установлены",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "timers.timer.list",
+   "verdict": "ok",
+   "scenario": "timers.timer.list",
+   "reason": "template"
   },
   {
    "group": "time",
@@ -1484,7 +1484,7 @@
    "expect": null,
    "verdict": "miss",
    "scenario": null,
-   "reason": "script_declined:media.player"
+   "reason": "no_match"
   },
   {
    "group": "unavailable",
@@ -1689,9 +1689,9 @@
    "section": "news",
    "text": "включи новости",
    "expect": null,
-   "verdict": "other",
-   "scenario": "media.music",
-   "reason": "template"
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "knowledge",
@@ -1799,7 +1799,7 @@
    "expect": null,
    "verdict": "miss",
    "scenario": null,
-   "reason": "script_declined:media.music"
+   "reason": "no_match"
   },
   {
    "group": "device",
@@ -1808,7 +1808,7 @@
    "expect": null,
    "verdict": "miss",
    "scenario": null,
-   "reason": "script_declined:media.music"
+   "reason": "no_match"
   },
   {
    "group": "device",
@@ -1817,7 +1817,7 @@
    "expect": null,
    "verdict": "miss",
    "scenario": null,
-   "reason": "script_declined:media.music"
+   "reason": "no_match"
   },
   {
    "group": "device",
@@ -1844,7 +1844,7 @@
    "expect": null,
    "verdict": "miss",
    "scenario": null,
-   "reason": "script_declined:media.music"
+   "reason": "no_match"
   },
   {
    "group": "unavailable",
@@ -1871,7 +1871,7 @@
    "expect": null,
    "verdict": "miss",
    "scenario": null,
-   "reason": "script_declined:media.music"
+   "reason": "no_match"
   },
   {
    "group": "unavailable",
@@ -1914,9 +1914,9 @@
    "section": "film",
    "text": "продолжить смотреть",
    "expect": null,
-   "verdict": "other",
-   "scenario": "media.player",
-   "reason": "phrase:contains"
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "unavailable",
@@ -1925,7 +1925,7 @@
    "expect": null,
    "verdict": "miss",
    "scenario": null,
-   "reason": "script_declined:media.music"
+   "reason": "no_match"
   },
   {
    "group": "unavailable",
@@ -1952,7 +1952,7 @@
    "expect": null,
    "verdict": "miss",
    "scenario": null,
-   "reason": "script_declined:media.music"
+   "reason": "no_match"
   },
   {
    "group": "unavailable",
@@ -1970,7 +1970,7 @@
    "expect": null,
    "verdict": "miss",
    "scenario": null,
-   "reason": "script_declined:media.music"
+   "reason": "no_match"
   },
   {
    "group": "unavailable",
@@ -2013,9 +2013,9 @@
    "section": "video-search",
    "text": "включи музыкальный клип в сети",
    "expect": null,
-   "verdict": "other",
-   "scenario": "media.music",
-   "reason": "template"
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "unavailable",
@@ -2024,7 +2024,7 @@
    "expect": null,
    "verdict": "miss",
    "scenario": null,
-   "reason": "script_declined:media.music"
+   "reason": "no_match"
   },
   {
    "group": "unavailable",
@@ -2033,25 +2033,25 @@
    "expect": null,
    "verdict": "miss",
    "scenario": null,
-   "reason": "script_declined:media.music"
+   "reason": "no_match"
   },
   {
    "group": "unavailable",
    "section": "video-settings",
    "text": "перемотай на 10 минут вперед",
    "expect": null,
-   "verdict": "other",
-   "scenario": "media.player",
-   "reason": "template"
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "unavailable",
    "section": "video-settings",
    "text": "перемотай на 20 минут назад",
    "expect": null,
-   "verdict": "other",
-   "scenario": "media.player",
-   "reason": "template"
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "unavailable",
@@ -2087,7 +2087,7 @@
    "expect": null,
    "verdict": "miss",
    "scenario": null,
-   "reason": "script_declined:media.music"
+   "reason": "no_match"
   },
   {
    "group": "unavailable",
@@ -2105,7 +2105,7 @@
    "expect": null,
    "verdict": "miss",
    "scenario": null,
-   "reason": "script_declined:media.music"
+   "reason": "no_match"
   },
   {
    "group": "unavailable",
@@ -2141,16 +2141,16 @@
    "expect": null,
    "verdict": "miss",
    "scenario": null,
-   "reason": "script_declined:media.music"
+   "reason": "no_match"
   },
   {
    "group": "unavailable",
    "section": "karaoke",
    "text": "включи песню штиль в караоке",
    "expect": null,
-   "verdict": "other",
-   "scenario": "media.music",
-   "reason": "template"
+   "verdict": "miss",
+   "scenario": null,
+   "reason": "no_match"
   },
   {
    "group": "unavailable",
@@ -2186,7 +2186,7 @@
    "expect": null,
    "verdict": "miss",
    "scenario": null,
-   "reason": "script_declined:media.music"
+   "reason": "no_match"
   },
   {
    "group": "unavailable",
@@ -2222,7 +2222,7 @@
    "expect": null,
    "verdict": "miss",
    "scenario": null,
-   "reason": "script_declined:media.music"
+   "reason": "no_match"
   },
   {
    "group": "unavailable",
@@ -2411,7 +2411,7 @@
    "expect": null,
    "verdict": "miss",
    "scenario": null,
-   "reason": "script_declined:media.music"
+   "reason": "no_match"
   },
   {
    "group": "unavailable",
@@ -2429,7 +2429,7 @@
    "expect": null,
    "verdict": "miss",
    "scenario": null,
-   "reason": "script_declined:media.music"
+   "reason": "no_match"
   },
   {
    "group": "unavailable",

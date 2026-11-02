@@ -1,376 +1,229 @@
-"""TASK-071: медиа-сценарии — «включи музыку/сказку», радио, управление плеером,
-поставщик колбэков плеера, раздача /media с Range, API библиотеки."""
-import asyncio
+"""TASK-087: медиа на штатном плеере колонки.
+
+Своей медиатеки/очереди у эмулятора нет: «стоп/пауза» отвечает теми же директивами,
+что настоящий сервер (обезличенный образец tests/fixtures/directives/media-pause.json,
+журнал 2026-10-21…2026-10-26), состояние плеера читается из запроса колонки
+(capability 46, station_state), колбэки HollywoodMusic (on_started/on_stopped/
+@@mm_stack_engine_get_next) — тихий ответ, как в образце (только tts_play_placeholder,
+без речи; журнал 2026-10-21…26).
+"""
 import datetime
+import json
+from pathlib import Path
 
-from aiohttp import ClientSession, web
+import pytest
+from google.protobuf import json_format
 
+from server_emulator import station_state
+from server_emulator.aapi_handlers import route as callback_route
+from server_emulator.media_directives import PLAYER_PAUSE_ANIMATION, S3_BUCKET
 from server_emulator.runtime import Runtime
+from server_emulator.schema import load_type, schemas_dir, station_file
 from server_emulator.server import create_app
-from server_emulator.media import MediaLibrary, Player
-from tests.conftest import listen
+from server_emulator.voice import service_event_fields
+from tests.conftest import _open_session, listen, types
 
-COVER = bytes(range(256)) * 8
-SONG = b"ID3" + b"music-bytes" * 64
-
-
-def make_library(tmp_path):
-    music = tmp_path / "media" / "music"
-    (music / "Джаз").mkdir(parents=True)
-    (music / "song one.mp3").write_bytes(SONG)
-    (music / "Джаз" / "smooth.mp3").write_bytes(b"ID3jazz" * 32)
-    (music / "song one.jpg").write_bytes(COVER)
-    (tmp_path / "media" / "tales").mkdir()
-    (tmp_path / "media" / "tales" / "kolobok.mp3").write_bytes(b"ID3tale" * 32)
+CLIENT, SERVER = types()
+ANIMATION_PROTO = "NAlice.TAnimationCapability.TDrawAnimationDirective"
+HIDE_VIEW_PROTO = "NAlice.TLayeredDivUICapability.TDivUIHideViewDirective"
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "directives"
 
 
-async def ctx_for(runtime, text, sn="SN-T", media_base="http://127.0.0.1/media"):
-    ctx = {'input': {'message_id': 'm1', 'request_id': 'rq', 'dialog_id': 'dg', 'sn': sn, 'text': text},
-           'clock': {'now': datetime.datetime.now()}, 'sequence': next(runtime.sequence)}
-    ctx.update(runtime._scenario_context(sn=sn))
-    ctx['media_base'] = media_base
-    return ctx
+def _station_type(full_name):
+    return load_type(schemas_dir(), station_file(), full_name)
 
 
-async def reply_for(runtime, phrase, sn="SN-T"):
-    ctx = await ctx_for(runtime, phrase, sn)
-    report = await runtime.dialog.handle_text(phrase, ctx, "dg", lambda data: None, deliver=False)
-    return report
+def _state_raw(state_type="playing", title="Ромашки", subtitle="Смешарики",
+               is_playing=True, played_ms=30_000, duration_ms=186_000):
+    """EnvironmentStateRaw колонки с capability 46 — как в журнале (2026-10-21 20:55):
+    State.StateType (Idle/Playing/Paused) + CommonPlayerState с прогрессом."""
+    env = load_type(schemas_dir(), "alice-api.pb", "NAlice.NAliceApi.TEnvironmentState")()
+    endpoint = env.Endpoints.add()
+    endpoint.Id = "dev-t"
+    cap = _station_type("NAlice.TAudioPlayerCapability")()
+    cap.State.StateType = {"idle": 1, "playing": 2, "paused": 3}[state_type]
+    if state_type != "idle":
+        cap.State.Title = title
+        cap.State.SubTitle = subtitle
+        cap.State.CommonPlayerState.IsPlaying = bool(is_playing)
+        cap.State.CommonPlayerState.PlayedMs = int(played_ms)
+        cap.State.CommonPlayerState.DurationMs = int(duration_ms)
+    holder = endpoint.AnyCapabilities.add()
+    holder.CapabilityType = station_state.PLAYER_CAPABILITY
+    holder.RawCapability = cap.SerializeToString()
+    return env.SerializeToString()
 
 
-def directives_of(report):
-    """(имя, payload-словарь) директив первого сообщения отчёта."""
-    from google.protobuf import json_format
-    found = []
-    for message in report.get("messages") or []:
-        if message.WhichOneof("Message") != "Event":
-            continue
-        for directive in message.Event.AliceResponse.Response.Directives:
-            found.append((directive.Name, json_format.MessageToDict(directive.Payload)))
-    return found
+# --- состояние плеера из запроса (station_state) ------------------------------------
 
 
-def _spoken(message):
-    """Реплика ответа: текст карточки, если она есть, иначе озвучка (OutputSpeech)."""
-    alice = message.Event.AliceResponse
-    cards = [card.Text for card in alice.Response.Cards]
-    spoken = alice.VoiceResponse.OutputSpeech.Text if alice.HasField("VoiceResponse") else ""
-    return [text for text in (cards or [spoken]) if text]
+def test_station_state_player_playing_and_idle():
+    state = station_state.parse(_state_raw())
+    assert state["player"] == {"state": "playing", "playing": True, "title": "Ромашки",
+                               "subtitle": "Смешарики", "played_ms": 30_000,
+                               "duration_ms": 186_000}
+    assert station_state.parse(_state_raw("paused", is_playing=False))["player"]["state"] == "paused"
+    idle = station_state.parse(_state_raw("idle"))
+    assert idle["player"] == {"state": "idle", "playing": False, "title": "", "subtitle": "",
+                              "played_ms": 0, "duration_ms": 0}
+    # запрос без cap 46 — пустое состояние, не ошибка
+    assert station_state.parse(b"")["player"] == {}
 
 
-def cards_of(report):
-    texts = []
-    for message in report.get("messages") or []:
-        if message.WhichOneof("Message") == "Event" and message.Event.WhichOneof("Event") == "AliceResponse":
-            texts += _spoken(message)
-    return texts
+def test_pause_scenario_does_not_keep_its_own_queue():
+    """Очереди плеера в runtime больше нет — состояние только из запроса (087)."""
+    assert not hasattr(Runtime.__new__(Runtime), "media_state")
+    from server_emulator import sdk
+    props = {name for name in dir(sdk.ScenarioContext) if not name.startswith("_")}
+    assert {"media", "library", "media_base"}.isdisjoint(props)
+    assert "player" in props
 
 
-def directives_of_sent(sent):
-    """(имя, payload) директив из отправленных байт AAPI."""
-    from google.protobuf import json_format
-    from tests.conftest import types
-    _client, server = types()
-    found = []
-    for raw in sent:
-        if not raw.startswith(b"AAPI"):
-            continue
-        message = server.FromString(raw[4:])
-        if message.WhichOneof("Message") == "Event" and message.Event.WhichOneof("Event") == "AliceResponse":
-            for directive in message.Event.AliceResponse.Response.Directives:
-                found.append((directive.Name, json_format.MessageToDict(directive.Payload)))
-    return found
+# --- WS: «стоп» — директивы образца --------------------------------------------------
 
 
-def test_library_scan_search_and_art(tmp_path):
-    make_library(tmp_path)
-    library = MediaLibrary(tmp_path)
-    assert [name for name, _size in library.list("music")] == ["song one.mp3", "Джаз/smooth.mp3"]
-    assert library.folders("music") == ["Джаз"]
-    assert [(name) for name, _s in library.search("music", "smooth")] == ["Джаз/smooth.mp3"]
-    assert [name for name, _s in library.search("music", "SMOOTH")] == ["Джаз/smooth.mp3"]  # регистр
-    art = library.art_for("music", "song one.mp3")
-    assert art is not None and art.name == "song one.jpg"
-    assert library.art_for("music", "Джаз/smooth.mp3") is None
-    assert library.resolve("music", "../settings.json") is None  # выход за папку закрыт
-    assert library.resolve("music", "song one.mp3") is not None
-
-
-async def test_play_music_scenario_and_range_serving(tmp_path):
-    """«включи музыку» → директива audio_play с адресом /media/…; файл с Range → 206."""
+async def _ask(tmp_path, phrase, env_state=None):
     runtime = Runtime(tmp_path)
-    make_library(tmp_path)
+    runtime.settings.update(aapi_model=True, builtin_scenarios=True)
+
+    async def chat(*args, **kwargs):
+        raise AssertionError("модель не должна вызываться")
+
+    runtime.chat = chat
     runner, url = await listen(create_app(runtime=runtime))
     try:
-        report = await reply_for(runtime, "включи музыку")
-        assert report["handled"] and report["scenario"] == "media.music"
-        directives = directives_of(report)
-        play = next(payload for name, payload in directives if name == "audio_play")
-        assert play["stream"]["type"] == "Track" and play["stream"]["format"] == "MP3"
-        # вся библиотека вперемешку: любой из двух файлов первым
-        assert play["metadata"]["title"] in {"song one", "smooth"}
-        assert play["metadata"]["art_image_url"].endswith("/media/music/song%20one.jpg")
-        # файл раздаётся; Range — частичный ответ
-        async with ClientSession() as client:
-            async with client.get(url + "/media/music/song%20one.mp3") as response:
-                assert response.status == 200
-                assert response.headers["Content-Type"] == "audio/mpeg"
-                assert await response.read() == SONG
-            async with client.get(url + "/media/music/song%20one.mp3",
-                                  headers={"Range": "bytes=0-9"}) as response:
-                assert response.status == 206
-                assert await response.read() == SONG[:10]
-            async with client.get(url + "/media/../settings.json") as response:
-                assert response.status == 404  # выход за папку закрыт
-        # очередь запомнена: вся библиотека, порядок вперемешку
-        state = runtime.media_state["SN-T"]
-        assert sorted(track["name"] for track in state["queue"]) == ["smooth", "song one"]
+        reply, _, ws = await _open_session(runtime, url, phrase, env_state=env_state)
+        await ws.close()
+        return reply
     finally:
         await runner.cleanup()
         await runtime.close()
 
 
-async def test_play_with_query_folder_and_empty_library(tmp_path):
+def _names(reply):
+    return [d.Name for d in reply.Event.AliceResponse.Response.Directives]
+
+
+def _directive(reply, name):
+    return next(d for d in reply.Event.AliceResponse.Response.Directives if d.Name == name)
+
+
+def _decoded(reply, name, proto):
+    message = _station_type(proto)()
+    message.ParseFromString(bytes(_directive(reply, name).PayloadRaw))
+    return json_format.MessageToDict(message, preserving_proto_field_name=True)
+
+
+def _check_sample(sample_name, reply):
+    """Как в test_time_scenarios: имена и порядок директив, type, is_led_silent, payload."""
+    sample = json.loads((FIXTURES / sample_name).read_text(encoding="utf-8"))
+    assert _names(reply) == [d["name"] for d in sample["directives"]], sample_name
+    for want in sample["directives"]:
+        directive = _directive(reply, want["name"])
+        assert directive.Type == want["type"], want["name"]
+        assert directive.IsLedSilent is bool(want["is_led_silent"]), want["name"]
+        if "decoded" in want:
+            got = _decoded(reply, want["name"], want["proto"])
+            assert got == want["decoded"], want["name"]
+        elif "payload" in want:
+            got = json_format.MessageToDict(directive.Payload, preserving_proto_field_name=True)
+            assert got == want["payload"], want["name"]
+        else:
+            assert bytes(directive.PayloadRaw) == b"", want["name"]
+
+
+PAUSE_ANALYTICS = {
+    "tts_play_placeholder": "tts_play_placeholder",
+    "divui_hide_view": "divui_hide_view",
+    "draw_animation_directive": "draw_animation_directive",
+    "player_pause": "general_conversation_player_pause",
+    "clear_queue": "general_conversation_player_pause",
+}
+
+
+@pytest.mark.parametrize("phrase", ["стоп", "пауза", "подожди"])
+async def test_stop_phrase_matches_sample_directives(tmp_path, phrase):
+    """На играющей колонке (cap 46 Playing) — форма x20 из образца, речь пустая."""
+    reply = await _ask(tmp_path, phrase, env_state=_state_raw())
+    _check_sample("media-pause.json", reply)
+    for name, analytics in PAUSE_ANALYTICS.items():
+        assert _directive(reply, name).AnalyticsType == analytics, name
+    alice = reply.Event.AliceResponse
+    speech = alice.VoiceResponse.OutputSpeech.Text if alice.HasField("VoiceResponse") else ""
+    assert speech == ""
+    assert not [c.Text for c in alice.Response.Cards]
+
+
+async def test_stop_form_does_not_depend_on_player_state(tmp_path):
+    """Сервер слал одну форму и на паузе, и на Idle (typed-«стоп» на Idle — x20,
+    журнал 2026-10-23 16:52:41 и ещё 4) — эмулятор тоже не ветвится."""
+    for state in ("paused", "idle", None):
+        env = _state_raw(state) if state else None
+        reply = await _ask(tmp_path, "стоп", env_state=env)
+        _check_sample("media-pause.json", reply)
+
+
+async def test_hvatit_without_ringing_gets_pause_form(tmp_path):
+    reply = await _ask(tmp_path, "хватит", env_state=_state_raw())
+    assert "player_pause" in _names(reply)
+    assert {"timer_stop_directive", "alarm_stop_directive"}.isdisjoint(_names(reply))
+
+
+# --- колбэки HollywoodMusic: тихий ответ как в образце --------------------------------
+
+
+def _service_ctx(runtime, name):
+    """Контекст server_action-ветки voice.py для колбэка плеера (журнал: Text пустой,
+    Event.Type=server_action, Name=music_thin_client_on_* / @@mm_stack_engine_get_next)."""
+    request = CLIENT()
+    request.Event.TextInput.Header.RequestId = "req-1"
+    request.Event.TextInput.Application.DeviceId = "SN-A"
+    event = request.Event.TextInput.Request.Event
+    event.Type = 6
+    event.Name = name
+    return {**{"input": {"message_id": "msg-1", "request_id": "req-1", "dialog_id": "dlg-1",
+                         "sn": "SN-A", "text": "",
+                         **service_event_fields(request.Event.TextInput, event)}},
+            "clock": {"now": datetime.datetime.now()}, "sequence": 1,
+            **runtime._scenario_context(sn="SN-A")}
+
+
+@pytest.mark.parametrize("name", ["music_thin_client_on_started",
+                                  "music_thin_client_on_stopped",
+                                  "@@mm_stack_engine_get_next"])
+async def test_player_callbacks_match_silent_sample(tmp_path, name):
+    """Ответ колбэку — как в образце (on_started x112, on_stopped x134, get_next без
+    очереди x4): пустой диалоговый ответ, только tts_play_placeholder {channel: Dialog},
+    без речи и других директив."""
+    assert callback_route(name, {}) == "callbacks.ack"
     runtime = Runtime(tmp_path)
-    make_library(tmp_path)
-    report = await reply_for(runtime, "включи музыку джаз")
-    play = next(payload for name, payload in directives_of(report) if name == "audio_play")
-    assert play["metadata"]["title"] == "smooth" and play["metadata"]["subtitle"] == "Джаз"
-    # сказки есть; запрос без совпадений — честный ответ
-    report = await reply_for(runtime, "включи сказку про дракона")
-    assert "нет" in " ".join(cards_of(report))
-    # пустая библиотека сказок — честный ответ
-    empty = Runtime(tmp_path / "empty")
-    try:
-        report = await reply_for(empty, "включи сказку", sn="SN-E")
-        assert "state/media/tales" in " ".join(cards_of(report))
-    finally:
-        await empty.close()
-
-
-async def test_player_control_and_radio(tmp_path):
-    runtime = Runtime(tmp_path)
-    make_library(tmp_path)
-    runtime.settings["media"] = {"radio": [{"name": "Джаз ФМ", "url": "http://stream.example/jazz"}]}
-    await reply_for(runtime, "включи музыку джаз", sn="SN-T")
-    # что играет / пауза на треке из папки Джаз
-    report = await reply_for(runtime, "что играет", sn="SN-T")
-    assert "smooth" in " ".join(cards_of(report))
-    report = await reply_for(runtime, "пауза", sn="SN-T")
-    play = next(payload for name, payload in directives_of(report) if name == "audio_play")
-    assert play["stream"]["url"].endswith("smooth.mp3") and play["set_pause"] is True
-    # вся библиотека вперемешку: следующий/предыдущий ходят по очереди из двух файлов
-    await reply_for(runtime, "включи музыку", sn="SN-T")
-    report = await reply_for(runtime, "следующий трек", sn="SN-T")
-    play = next(payload for name, payload in directives_of(report) if name == "audio_play")
-    assert play["metadata"]["title"] in {"song one", "smooth"}
-    report = await reply_for(runtime, "предыдущий трек", sn="SN-T")
-    play = next(payload for name, payload in directives_of(report) if name == "audio_play")
-    assert play["metadata"]["title"] in {"song one", "smooth"}
-    # радио по имени; неизвестная станция — честный ответ
-    report = await reply_for(runtime, "включи радио джаз", sn="SN-T")
-    play = next(payload for name, payload in directives_of(report) if name == "audio_play")
-    assert play["stream"]["url"] == "http://stream.example/jazz" and play["stream"]["type"] == "Radio"
-    report = await reply_for(runtime, "включи радио рок", sn="SN-T")
-    assert "нет в списке" in " ".join(cards_of(report))
-
-
-async def test_playback_provider_advances_queue(tmp_path):
-    """Колбэки плеера (трек закончился / колонка просит следующий) → следующий трек."""
-    runtime = Runtime(tmp_path)
-    make_library(tmp_path)
-    await reply_for(runtime, "включи музыку", sn="SN-T")
-    ctx = await ctx_for(runtime, "", sn="SN-T")
+    runtime.identities.mutate({"operation": "device", "sn": "SN-A", "device_ids": []})
     sent = []
 
     async def send(data):
         sent.append(data)
 
-    report = await runtime.dialog.handle_event("media.playback_ended", ctx, "dg", send)
-    assert report["handled"]
-    play = next(payload for name, payload in directives_of_sent(sent) if name == "audio_play")
-    titles = {track["name"] for track in runtime.media_state["SN-T"]["queue"]}
-    assert play["metadata"]["title"] in titles and runtime.media_state["SN-T"]["index"] == 1
-    sent.clear()
-    report = await runtime.dialog.handle_event("media.next_requested", ctx, "dg", send)
-    assert report["handled"] and not directives_of_sent(sent)  # очередь кончилась — тихий ответ
-
-
-async def test_media_api_upload_delete_and_radio(tmp_path):
-    """API библиотеки: загрузка файла (X-Filename), удаление, список радио в настройках."""
-    runtime = Runtime(tmp_path)
-    runner, url = await listen(create_app(runtime=runtime))
-    headers = {"X-Emulator": "1"}
     try:
-        async with ClientSession() as client:
-            async with client.post(url + "/emulator/api/media?kind=music&folder=Рок",
-                                   headers={**headers, "X-Filename": "hit song.mp3"}, data=b"MUSIC" * 32) as response:
-                assert response.status == 200
-                assert (await response.json())["saved"] == "Рок/hit song.mp3"
-            async with client.post(url + "/emulator/api/media?kind=music",
-                                   headers={**headers, "X-Filename": "../evil.mp3"}, data=b"x") as response:
-                assert response.status == 400  # имя чистится: ../ не проходит
-            async with client.get(url + "/emulator/api/media", headers=headers) as response:
-                body = await response.json()
-                assert body["music"]["count"] == 1 and body["music"]["folders"] == ["Рок"]
-                assert body["tales"]["count"] == 0 and body["radio"] == []
-            async with client.put(url + "/emulator/api/media", headers=headers,
-                                  json={"radio": [{"name": "Джаз", "url": "http://s.example/j"}]}) as response:
-                assert (await response.json())["saved"] is True
-            async with client.delete(url + "/emulator/api/media?kind=music&name=Рок/hit%20song.mp3",
-                                     headers=headers) as response:
-                assert (await response.json())["deleted"] == "Рок/hit song.mp3"
-            assert not list((runtime.directory / "media" / "music").rglob("*.mp3"))  # файл и папка удалены
-    finally:
-        await runner.cleanup()
-        await runtime.close()
-
-
-def _id3_file(path, title, artist, album="", genre=""):
-    """mp3-заглушка с ID3v2.4-тегами (кодировка utf-8)."""
-    def frame(fid, text):
-        payload = b"\x03" + text.encode("utf-8")
-        return fid + len(payload).to_bytes(4, "big") + b"\x00\x00" + payload
-    frames = frame(b"TIT2", title) + frame(b"TPE1", artist)
-    if album:
-        frames += frame(b"TALB", album)
-    if genre:
-        frames += frame(b"TCON", genre)
-    path.write_bytes(b"ID3\x04\x00\x00" + bytes(((len(frames) >> 21) & 0x7F, (len(frames) >> 14) & 0x7F,
-                                                 (len(frames) >> 7) & 0x7F, len(frames) & 0x7F)) + frames)
-
-
-def _payload_of(report):
-    play = next((payload for name, payload in directives_of(report) if name == "audio_play"), None)
-    assert play is not None, report.get("speech")
-    return play
-
-
-async def test_search_by_tags_and_stems(tmp_path):
-    """Поиск по тегам и путям с склонением по основе; название трека — из тега."""
-    runtime = Runtime(tmp_path)
-    music = tmp_path / "media" / "music" / "Тутси"
-    music.mkdir(parents=True)
-    _id3_file(music / "hit.mp3", "Самый, самый", "Тутси", album="Лучшее", genre="Поп")
-    (tmp_path / "media" / "music" / "Майкл Джексон" / "Beat It.mp3").parent.mkdir(parents=True)
-    (tmp_path / "media" / "music" / "Майкл Джексон" / "Beat It.mp3").write_bytes(b"ID3" + b"\x00" * 10)
-    try:
-        report = await reply_for(runtime, "включи музыку тутси", sn="SN-T")
-        play = _payload_of(report)
-        assert play["metadata"]["title"] == "Самый, самый" and play["metadata"]["subtitle"] == "Тутси"
-        report = await reply_for(runtime, "включи майкла джексона", sn="SN-T")
-        play = _payload_of(report)
-        assert play["stream"]["url"].endswith("Beat%20It.mp3")
-        report = await reply_for(runtime, "включи музыку металлика", sn="SN-T")
-        assert "В библиотеке нет музыки с названием «металлика»" in " ".join(cards_of(report))
-    finally:
-        await runtime.close()
-
-
-async def test_play_modes_repeat_and_favorites(tmp_path):
-    """«на повторе» — очередь из одного трека; «нравится» — избранное; «мою музыку» его играет;
-    дизлайк исключает трек из выдачи."""
-    runtime = Runtime(tmp_path)
-    make_library(tmp_path)
-    (tmp_path / "media" / "music" / "Белые розы.mp3").write_bytes(SONG)
-    try:
-        report = await reply_for(runtime, "включи песню белые розы на повторе", sn="SN-T")
-        play = _payload_of(report)
-        assert play["metadata"]["title"] == "Белые розы"
-        state = runtime.media_state["SN-T"]
-        assert len(state["queue"]) == 1  # один трек на повторе
-        # лайк текущего трека и включение избранного
-        await reply_for(runtime, "лайк", sn="SN-T")
-        report = await reply_for(runtime, "включи мою музыку", sn="SN-T")
-        assert "В избранном" not in " ".join(cards_of(report))
-        state = runtime.media_state["SN-T"]
-        assert [track["name"] for track in state["queue"]] == ["Белые розы"]
-        # дизлайк: трек пропускается и больше не предлагается
-        report = await reply_for(runtime, "не нравится", sn="SN-T")
+        report = await runtime.dialog.handle_event("callbacks.ack", _service_ctx(runtime, name),
+                                                   "dlg-1", send)
         assert report["handled"]
-        import json as _json
-        marks = _json.loads((tmp_path / "media" / "likes.json").read_text(encoding="utf-8"))
-        assert marks["SN-T"]["music"]["dislike"] == ["Белые розы.mp3"]
-        assert marks["SN-T"]["music"]["like"] == []  # «не нравится» сняло лайк
-        report = await reply_for(runtime, "включи мою музыку", sn="SN-T")
-        assert "В избранном" in " ".join(cards_of(report))
+        names = []
+        for raw in sent:
+            message = SERVER.FromString(raw[4:])
+            alice = message.Event.AliceResponse
+            names += [d.Name for d in alice.Response.Directives]
+            assert alice.VoiceResponse.OutputSpeech.Text == ""
+        assert names == ["tts_play_placeholder"]
+        placeholder = next(d for raw in sent for d in
+                           SERVER.FromString(raw[4:]).Event.AliceResponse.Response.Directives
+                           if d.Name == "tts_play_placeholder")
+        got = json_format.MessageToDict(placeholder.Payload, preserving_proto_field_name=True)
+        assert got == {"channel": "Dialog"}
     finally:
         await runtime.close()
 
 
-async def test_player_speed_restart_another_and_seek(tmp_path):
-    """Скорость (playback_speed из образца), «начни сначала», «другая версия»;
-    перемотка честно недоступна — в образце директивы нет поля позиции."""
-    runtime = Runtime(tmp_path)
-    make_library(tmp_path)
-    (tmp_path / "media" / "music" / "smooth remix.mp3").write_bytes(b"ID3remix" * 8)
-    try:
-        await reply_for(runtime, "включи музыку джаз", sn="SN-T")
-        report = await reply_for(runtime, "замедли", sn="SN-T")
-        assert _payload_of(report)["playback_speed"] == 0.75
-        report = await reply_for(runtime, "поставь скорость 2", sn="SN-T")
-        assert _payload_of(report)["playback_speed"] == 2.0
-        report = await reply_for(runtime, "какая скорость воспроизведения", sn="SN-T")
-        assert "2.0" in " ".join(cards_of(report))
-        report = await reply_for(runtime, "начни сначала", sn="SN-T")
-        assert _payload_of(report)["stream"]["url"].endswith("smooth.mp3")
-        report = await reply_for(runtime, "включи другую версию", sn="SN-T")
-        assert _payload_of(report)["stream"]["url"].endswith("smooth%20remix.mp3")
-        report = await reply_for(runtime, "перемотай на 10 минут вперед", sn="SN-T")
-        assert "Перемотку" in " ".join(cards_of(report))
-    finally:
-        await runtime.close()
-
-
-async def test_sounds_scenario(tmp_path):
-    """Звуки природы: файл из state/media/sounds играет; пустая папка — честный ответ."""
-    runtime = Runtime(tmp_path)
-    sounds = tmp_path / "media" / "sounds"
-    sounds.mkdir(parents=True)
-    (sounds / "Шум дождя.mp3").write_bytes(SONG)
-    try:
-        report = await reply_for(runtime, "включи шум дождя", sn="SN-T")
-        play = _payload_of(report)
-        assert play["stream"]["url"].endswith("sounds/%D0%A8%D1%83%D0%BC%20%D0%B4%D0%BE%D0%B6%D0%B4%D1%8F.mp3")
-    finally:
-        await runtime.close()
-    empty = Runtime(tmp_path / "empty")
-    try:
-        report = await reply_for(empty, "поставь пение птиц", sn="SN-E")
-        assert "state/media/sounds" in " ".join(cards_of(report))
-    finally:
-        await empty.close()
-
-
-async def test_least_played_and_dislike_filter(tmp_path):
-    """«что-нибудь новенькое» — давно не игранное; дизлайк не предлагается."""
-    from server_emulator import media as media_mod
-
-    runtime = Runtime(tmp_path)
-    library = MediaLibrary(tmp_path)
-    (tmp_path / "media" / "music").mkdir(parents=True)
-    (tmp_path / "media" / "music" / "a.mp3").write_bytes(SONG)
-    (tmp_path / "media" / "music" / "b.mp3").write_bytes(SONG)
-    media_mod.note_played(runtime, "u1", "music", "a.mp3")
-    assert media_mod.least_played(library, runtime, "u1", "music")[0] == "b.mp3"
-    # дизлайк исключается из выдачи play_library
-    media_mod.mark_track(library, "u1", "music", "a.mp3", "dislike")
-    found = library.search("music", "")
-    assert [posix for posix, _size in found if posix != "a.mp3"] == ["b.mp3"]
-    reply = runtime.media_state and None
-    player = Player(runtime, "SN-T", base="http://127.0.0.1/media")
-    assert player.play_library(library, "music", query="a", user="u1") is None
-    await runtime.close()
-
-
-async def test_repeat_current_track(tmp_path):
-    """«зациклить трек» — очередь из одного текущего трека."""
-    runtime = Runtime(tmp_path)
-    make_library(tmp_path)
-    try:
-        await reply_for(runtime, "включи музыку джаз", sn="SN-T")
-        report = await reply_for(runtime, "зациклить трек", sn="SN-T")
-        assert _payload_of(report)["metadata"]["title"] == "smooth"
-        assert [track["name"] for track in runtime.media_state["SN-T"]["queue"]] == ["smooth"]
-    finally:
-        await runtime.close()
+def test_pause_animation_constants_match_sample():
+    """Константы формы из расшифрованного payload_raw образца (20:35:28)."""
+    assert S3_BUCKET == "https://quasar.s3.yandex.net"
+    assert PLAYER_PAUSE_ANIMATION == "animations/player_pause"

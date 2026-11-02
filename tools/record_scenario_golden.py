@@ -65,6 +65,10 @@ OTHER_NAME = "Дуо 32"
 LAT, LON = 55.755826, 37.617326
 TIMEZONE = "Asia/Tashkent"
 NOW = datetime.datetime(2026, 10, 27, 21, 7)  # вторник, вечер, осень (сезон погоды)
+NOW_TS = int(NOW.replace(tzinfo=datetime.timezone(datetime.timedelta(hours=5)))
+             .timestamp())  # Asia/Tashkent (+5, DST нет) — start_ts таймеров колонки
+STATION = {"timers": [], "alarms": [], "screens": {}}  # применяет apply_setup
+CLOCK_ID = "0b000000-00004000-80000000-00000000"  # id нового таймера/будильника в прогоне
 FORECAST = {
     "current": {"temperature_2m": 12.4, "apparent_temperature": 10.1, "weather_code": 3, "is_day": 1},
     "hourly": {"time": [f"2026-10-27T{h % 24:02d}:00" for h in range(12, 36)],
@@ -151,18 +155,43 @@ def make_runtime(workdir):
 def apply_setup(runtime, name):
     """Состояние под кейс (порядок кейсов внутри сценария значим)."""
     if not name:
+        STATION.update({"timers": [], "alarms": [], "screens": {}})
         return
     if name == "no_lights":
         runtime.identities.mutate({"operation": "state", "sn": SN, "state": {}})
     elif name == "lights_kitchen_bedroom":
         runtime.identities.mutate({"operation": "state", "sn": SN, "state": {
             "light": {"кухня": {"on": False, "brightness": 70}, "спальня": {"on": True}}}})
-    elif name == "timer_here":
-        runtime.timer_scheduler.schedule(sn=SN, seconds=300)
-    elif name == "timer_remote":
-        runtime.timer_scheduler.schedule(sn=SN_OTHER, seconds=300)
-    elif name == "alarm_here":
-        runtime.timer_scheduler.schedule_alarm(sn=SN, hhmm="07:30")
+    elif name == "station_timers":  # TASK-079: колонка сообщает два активных таймера
+        STATION.update({
+            "timers": [{"timer_id": "11111111-22222222-33333333-44444444",
+                        "start_ts": NOW_TS - (75 * 60 - 47 * 60 - 12), "duration": 75 * 60,
+                        "paused": False, "disabled": False, "currently_playing": False,
+                        "title": ""},
+                       {"timer_id": "55555555-66666666-77777777-88888888",
+                        "start_ts": NOW_TS - 60, "duration": 90 * 60,
+                        "paused": False, "disabled": False, "currently_playing": False,
+                        "title": ""}],
+            "alarms": [], "screens": {}})
+    elif name == "station_ringing_alarm":  # «хватит» по сигналу будильника
+        STATION.update({"timers": [], "screens": {},
+                        "alarms": [{"alarm_id": "aaaaaaaa-bbbbbbbb-cccccccc-dddddddd",
+                                    "time": {"hours": 7, "minutes": 30, "seconds": 0},
+                                    "dates": [], "weekdays": [], "disabled": False,
+                                    "currently_playing": True, "snooze_time": 10,
+                                    "timezone": TIMEZONE}]})
+    elif name == "station_ringing_timer":  # истёкший активный таймер — сигнал звенит
+        STATION.update({"alarms": [], "screens": {},
+                        "timers": [{"timer_id": "99999999-aaaaaaaa-bbbbbbbb-cccccccc",
+                                    "start_ts": NOW_TS - 70, "duration": 60,
+                                    "paused": False, "disabled": False,
+                                    "currently_playing": False, "title": ""}]})
+    elif name == "screen_timer_list":  # у колонки откры экран списка таймеров
+        STATION.update({"timers": [], "alarms": [], "screens": {"timer_list": True}})
+    elif name == "station_idle":  # колонка ничего не сообщает, id для директив фиксирован
+        STATION.update({"timers": [], "alarms": [], "screens": {}, "clock_id": CLOCK_ID})
+    elif name == "station_alarm_evening":  # будильник на вечер: id фиксирован, экранов нет
+        STATION.update({"timers": [], "alarms": [], "screens": {}, "clock_id": CLOCK_ID})
     elif name == "weather_stub":
         runtime.scenario_plugins["weather"] = weather_stub
         runtime.store.scenario_data_set("dataset:weather", "system", "", WEATHER_KEY,
@@ -177,9 +206,15 @@ def apply_setup(runtime, name):
 # --- контексты запроса (повторяют voice.py / test_timesync_scenario.py) -------
 
 def base_ctx(runtime, dialog_id, sequence=1, text=""):
+    station = copy.deepcopy(STATION)
+    state = {}
+    if station.pop("clock_id", None):  # id нового таймера/будильника — из прогона, не uuid
+        state["clock_id"] = STATION["clock_id"]
     ctx = {"input": {"message_id": "golden-msg", "request_id": "golden-req",
                      "dialog_id": dialog_id, "sn": SN, "text": text},
-           "clock": {"now": NOW}, "sequence": sequence}
+           "clock": {"now": NOW}, "sequence": sequence,
+           "state": state,
+           "station": station}  # TASK-079: таймеры/будильники колонки
     ctx.update(runtime._scenario_context(sn=SN))
     animations = getattr(runtime, "animations", None)
     if animations is not None:
@@ -197,7 +232,7 @@ def callback_ctx(runtime, dialog_id, purpose="", timezone=TIMEZONE, name="@@mm_t
 
 
 def event_ctx(runtime, dialog_id, event_name, fields=None):
-    """Контекст служебного события без TextInput (@@timer_fired, @@agent_say)."""
+    """Контекст служебного события без TextInput (@@agent_say)."""
     ctx = base_ctx(runtime, dialog_id)
     ctx["input"].update({"event_name": event_name, "purpose": "", "callback": "", "frame": ""})
     ctx["input"].update(fields or {})
@@ -382,31 +417,41 @@ CASES = {
     "system.timesync": [
         {"name": "timesync-sync", "kind": "callback", "purpose": "sync_timezone"},
     ],
-    "timers.alarm.cancel": [
-        {"name": "alarm.cancel-none", "kind": "text", "phrase": "отмени будильник"},
-        {"name": "alarm.cancel-here", "kind": "text", "phrase": "отмени будильник", "setup": "alarm_here"},
-    ],
     "timers.alarm.set": [
-        {"name": "alarm.set-time", "kind": "text", "phrase": "будильник на 7:30"},
-        {"name": "alarm.set-ask", "kind": "text", "phrase": "разбуди меня", "answer": "в 7 утра"},
+        {"name": "alarm.set-time", "kind": "text", "phrase": "будильник на 7:30",
+         "setup": "station_alarm_evening"},
+        {"name": "alarm.set-ask", "kind": "text", "phrase": "разбуди меня", "answer": "в 7 утра",
+         "setup": "station_alarm_evening"},
         {"name": "alarm.set-remote", "kind": "text", "phrase": "заведи будильник на дуо 32 на 6:30"},
     ],
-    "timers.fired": [
-        {"name": "fired-timer", "kind": "event", "event": "@@timer_fired",
-         "fields": {"label": "Таймер 5 мин", "kind": "timer", "timer_id": "golden-timer-1"}},
-        {"name": "fired-alarm", "kind": "event", "event": "@@timer_fired",
-         "fields": {"label": "Будильник 7:00", "kind": "alarm", "timer_id": "golden-alarm-1"}},
+    "timers.ringing.stop": [
+        {"name": "ringing.stop-alarm", "kind": "text", "phrase": "хватит",
+         "setup": "station_ringing_alarm"},
+        {"name": "ringing.stop-timer", "kind": "text", "phrase": "хватит",
+         "setup": "station_ringing_timer"},
     ],
     "timers.timer.cancel": [
         {"name": "timer.cancel-none", "kind": "text", "phrase": "отмени таймер"},
-        {"name": "timer.cancel-here", "kind": "text", "phrase": "отмени таймер", "setup": "timer_here"},
+        {"name": "timer.cancel-here", "kind": "text", "phrase": "отмени таймер",
+         "setup": "station_timers"},
+        {"name": "timer.cancel-second", "kind": "text", "phrase": "выключи второй таймер",
+         "setup": "station_timers"},
         {"name": "timer.cancel-remote", "kind": "text", "phrase": "отмени таймер на дуо 32",
-         "setup": "timer_remote"},
+         "setup": "station_timers"},
+    ],
+    "timers.timer.list": [
+        {"name": "timer.list-remaining", "kind": "text", "phrase": "сколько осталось до таймера",
+         "setup": "station_timers"},
+        {"name": "timer.list-none", "kind": "text", "phrase": "какие таймеры установлены"},
     ],
     "timers.timer.set": [
-        {"name": "timer.set-duration", "kind": "text", "phrase": "таймер на 5 минут"},
-        {"name": "timer.set-ask", "kind": "text", "phrase": "поставь таймер", "answer": "на 90 секунд"},
+        {"name": "timer.set-duration", "kind": "text", "phrase": "таймер на 5 минут",
+         "setup": "station_idle"},
+        {"name": "timer.set-ask", "kind": "text", "phrase": "поставь таймер", "answer": "на 90 секунд",
+         "setup": "station_idle"},
         {"name": "timer.set-remote", "kind": "text", "phrase": "поставь таймер на дуо 32 на 5 минут"},
+        {"name": "timer.set-screen-open", "kind": "text", "phrase": "таймер на 1 минуту",
+         "setup": "screen_timer_list"},
     ],
 }
 
