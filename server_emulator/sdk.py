@@ -35,7 +35,7 @@ from .extensions.context import ExtensionContext, action_context  # ExtensionCon
 from .scenario_engine import bindings as _bindings
 from .scenario_engine import parsers as _parsers
 
-SDK_VERSION = "2.1.0"  # 2.1.0: ctx.data (хранилище данных сценария по пользователю); 2.0.0: ctx.player, ctx.volume
+SDK_VERSION = "2.2.0"  # 2.2.0: ctx.intelligence, ctx.no_data_source; 2.1.0: ctx.data; 2.0.0: ctx.player, ctx.volume
 DATASET_REFRESH_TIMEOUT_S = 10.0  # как у шага refresh без timeout
 
 
@@ -611,6 +611,28 @@ class ScenarioContext:
         if fetcher is None:
             raise SDKError("fetch недоступен: у Executor нет fetcher")
         return await fetcher(str(url), {}, int(ttl or 0))
+
+    @property
+    def intelligence(self):
+        """Режим «Интеллект» (только чтение): scenarios | model | agent — сценарий может
+        уступить фразу модели (090: system.unavailable отвечает только в «Простом»)."""
+        from .intelligence import LEVELS
+        value = (self.settings or {}).get("intelligence")
+        return value if value in LEVELS else "agent"
+
+    def no_data_source(self):
+        """Ответ сценария данных без плагина-источника (090): «Простой» — стандартный ответ
+        no_data_source (правка текста в настройках действует); «Модель/Агент» — None,
+        фраза уходит модели. Использование:
+        try:
+            record = await ctx.dataset_record("news", "top")
+        except SDKError:
+            return ctx.no_data_source()"""
+        if self.intelligence != "scenarios":
+            return None
+        from . import behavior
+        reply = behavior.standard_for(self.settings.get("standard_replies") or [], "no_data_source")
+        return say(reply["text"] if reply else "Для этого нет источника данных.")
 
     @property
     def data(self):

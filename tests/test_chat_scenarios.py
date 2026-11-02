@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from server_emulator.runtime import Runtime
+from server_emulator.sdk import ScenarioContext
 
 MONTHS_GEN = {1: "января", 2: "февраля", 3: "марта", 4: "апреля", 5: "мая", 6: "июня",
               7: "июля", 8: "августа", 9: "сентября", 10: "октября", 11: "ноября", 12: "декабря"}
@@ -42,8 +43,8 @@ async def _reply(runtime, phrase):
 
 
 async def test_date_number_and_weekday_today(tmp_path):
-    now = datetime.datetime.now(datetime.timezone.utc)
     runtime = Runtime(tmp_path)
+    now = ScenarioContext(runtime, _ctx(runtime, "x")).now  # тот же путь «сейчас», что у сценария
     try:
         report = await _reply(runtime, "Алиса, какое сегодня число")
         assert report["speech"] == f"Сегодня {now.day} {MONTHS_GEN[now.month]}."
@@ -72,10 +73,10 @@ async def test_weekday_of_month_day(tmp_path):
 
 
 async def test_weekday_number(tmp_path):
-    today = datetime.datetime.now(datetime.timezone.utc).date()
-    shift = (today.weekday()) % 7  # ближайший понедельник, сегодня тоже считается
-    date = today + datetime.timedelta(days=shift)
     runtime = Runtime(tmp_path)
+    today = ScenarioContext(runtime, _ctx(runtime, "x")).now.date()  # тот же путь «сейчас»
+    shift = (0 - today.weekday()) % 7  # ближайший понедельник, сегодня тоже считается
+    date = today + datetime.timedelta(days=shift)
     try:
         report = await _reply(runtime, "Алиса, понедельник — это какое число")
         assert report["speech"] == f"В понедельник {date.day} {MONTHS_GEN[date.month]}."

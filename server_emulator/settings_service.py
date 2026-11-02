@@ -45,6 +45,10 @@ DEFAULT = {
                  "Привяжите её в панели эмулятора, раздел «Устройства», и я заработаю."},
         {"id": "not_understood", "name": "Нет сценария", "case": "not_understood", "enabled": True,
          "text": "Я пока этого не умею."},
+        {"id": "simple_unavailable", "name": "Функция в простом режиме", "case": "simple_unavailable",
+         "enabled": True, "text": "В простом режиме это недоступно."},
+        {"id": "no_data_source", "name": "Нет источника данных", "case": "no_data_source",
+         "enabled": True, "text": "Для этого нет источника данных."},
     ],
     "weather": {"url": "", "latitude": "", "longitude": "", "ttl_min": 10},
     "scenarios": [],
@@ -126,6 +130,7 @@ class SettingsService:
         if missing or legacy_mode or stored is None:
             settings.update(missing)
             self.store.save_settings(settings)
+        self._migrate_standard_replies(settings)
         self._migrate_route_modes(settings)
         self._migrate_record_route(settings)
         self._migrate_default_route(settings)
@@ -133,6 +138,17 @@ class SettingsService:
         self._migrate_repo_name(settings)
         self.load_scenario_files(settings)
         return settings
+
+    def _migrate_standard_replies(self, settings):
+        """Новые стандартные ответы доходим по id: изменённые пользователем тексты не трогаем."""
+        replies = settings.get("standard_replies")
+        if not isinstance(replies, list):
+            return
+        known = {r.get("id") for r in replies if isinstance(r, dict)}
+        added = [copy.deepcopy(r) for r in DEFAULT["standard_replies"] if r["id"] not in known]
+        if added:
+            settings["standard_replies"] = replies + added
+            self.store.save_settings(settings)
 
     def _migrate_route_modes(self, settings):
         """TASK-044: старая режимная модель (settings.mode + emulation_excluded) →

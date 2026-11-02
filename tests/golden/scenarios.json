@@ -26,6 +26,7 @@
       "system.dialog.reset",
       "system.service_ack",
       "system.timesync",
+      "system.unavailable",
       "timers.alarm.set",
       "timers.ringing.stop",
       "timers.timer.cancel",
@@ -390,6 +391,92 @@
     },
     {
       "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "покажи фильм дюна"
+          },
+          "name": "unavailable.simple",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "В простом режиме это недоступно.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "В простом режиме это недоступно."
+                }
+              ],
+              "reason": "template",
+              "scenario": "system.unavailable",
+              "speech": "В простом режиме это недоступно.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "покажи фильм дюна"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "давай сыграем в города"
+          },
+          "name": "unavailable.game",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "В простом режиме это недоступно.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "В простом режиме это недоступно."
+                }
+              ],
+              "reason": "template",
+              "scenario": "system.unavailable",
+              "speech": "В простом режиме это недоступно.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "давай сыграем в города"
+            }
+          ]
+        },
         {
           "effects": [],
           "input": {
@@ -2213,6 +2300,10 @@
         }
       ],
       "id": "system.timesync"
+    },
+    {
+      "cases": [],
+      "id": "system.unavailable"
     },
     {
       "cases": [

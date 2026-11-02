@@ -328,7 +328,7 @@ def ctx_of(text="", executor=None, **inner):
 
 
 def test_sdk_version_is_2_1_0():
-    assert SDK_VERSION == "2.1.0"  # 2.1.0: ctx.data (TASK-080)
+    assert SDK_VERSION == "2.2.0"  # 2.2.0: ctx.intelligence, ctx.no_data_source (TASK-090)
 
 
 def test_devices_come_from_home_and_are_read_only_copy():

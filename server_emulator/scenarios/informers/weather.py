@@ -8,7 +8,7 @@ weather.assets/tables.json. Подстановку в карточку дела�
 Данные — датасет weather (ctx.dataset_record: свежая запись, иначе плагин с таймаутом,
 при сбое — старая запись с пометкой «Данные не актуальны»).
 """
-from server_emulator.sdk import format_duration
+from server_emulator.sdk import SDKError, format_duration
 
 
 def _lookup(table, key, outer=None):
@@ -62,15 +62,18 @@ async def handle(ctx):
         return {"text": "Не знаю, где вы: задайте координаты дома в параметрах пользователя."}
     settings = effective.get("weather") or {}
     key = f"{location['latitude']},{location['longitude']}"
-    record = await ctx.dataset_record(
-        "weather", key, max_age=_max_age(settings["max_age_hours"]),
+    try:
+        record = await ctx.dataset_record(
+            "weather", key, max_age=_max_age(settings["max_age_hours"]),
         args={"url": settings.get("url"), "timezone": effective.get("timezone"),
               "query": {"latitude": location["latitude"], "longitude": location["longitude"],
                         "current": "temperature_2m,apparent_temperature,weather_code,is_day",
                         "hourly": "temperature_2m,weather_code,is_day",
                         "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_max",
                         "forecast_hours": "24", "forecast_days": "1", "timezone": "auto"}},
-        timeout=settings.get("refresh_timeout"))
+            timeout=settings.get("refresh_timeout"))
+    except SDKError:  # ни записи, ни плагина — честный ответ вместо сбоя (090)
+        return ctx.no_data_source()
     if record is None:
         return {"text": "Нет данных о погоде: плагин погоды не ответил."}
     weather = record["value"]

@@ -139,6 +139,7 @@ def attach_effects_recorder(runtime):
 def make_runtime(workdir):
     """Владелец + две колонки + гео дома (params) + заглушка погоды."""
     runtime = Runtime(Path(workdir))
+    runtime.settings["intelligence"] = "scenarios"  # эталоны проверяют сценарии (090)
     runtime.identities.mutate({"operation": "user", "id": OWNER, "name": "Alex"})
     runtime.identities.mutate({"operation": "device", "sn": SN, "user_id": OWNER, "name": "Станция"})
     runtime.identities.mutate({"operation": "state", "sn": SN,
@@ -359,6 +360,8 @@ CASES = {
         {"name": "bluetooth.on-latin", "kind": "text", "phrase": "включи bluetooth"},
     ],
     "device.led.emotion": [
+        {"name": "unavailable.simple", "kind": "text", "phrase": "покажи фильм дюна"},
+        {"name": "unavailable.game", "kind": "text", "phrase": "давай сыграем в города"},
         {"name": "led.emotion-joy", "kind": "text", "phrase": "покажи глазки"},
         {"name": "led.emotion-wink", "kind": "text", "phrase": "подмигни"},
     ],

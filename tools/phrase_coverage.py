@@ -45,6 +45,8 @@ def make_runtime(directory):
     from server_emulator.runtime import Runtime
 
     runtime = Runtime(directory)
+    # корпус проверяет сценарии — режим «Простой»: system.unavailable отвечает, model не вызывается
+    runtime.settings["intelligence"] = "scenarios"
 
     async def _no_weather(key, args):
         return None

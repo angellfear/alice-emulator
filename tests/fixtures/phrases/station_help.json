@@ -675,7 +675,7 @@
    "phrases": [
     {
      "text": "давай поговорим с мудрым учителем",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "давай погадаем",
@@ -683,15 +683,15 @@
     },
     {
      "text": "давай сыграем в верю не верю",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "давай сыграем в угадай песню",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "давай сыграем в найди лишнее",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "давай сыграем в шар судьбы",
@@ -699,39 +699,39 @@
     },
     {
      "text": "давай сыграем в слова",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "давай сыграем в города",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "давай сыграем в квест про космос",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "давай сыграем в зоологию",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "давай сыграем в виселицу",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "давай сыграем в угадай число",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "давай сыграем в загадки",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "расскажи про этот день в истории",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "выйти из игры",
-     "expect": null
+     "expect": "system.unavailable"
     }
    ]
   },
@@ -999,39 +999,39 @@
    "phrases": [
     {
      "text": "включи фильм обыкновенное чудо",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "запусти мультфильм король лев",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "поставь фильм побег из шоушенка",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "включи комедию",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "покажи что-нибудь романтическое",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "покажи новинки фильмов",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "запусти фильм 2012 года",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "посоветуй мультфильм",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "продолжить смотреть",
-     "expect": null
+     "expect": "system.unavailable"
     }
    ]
   },
@@ -1042,15 +1042,15 @@
    "phrases": [
     {
      "text": "включи сериал друзья",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "поставь сериал клиника",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "найди комедийный сериал",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "включи первый сезон пятую серию",
@@ -1058,7 +1058,7 @@
     },
     {
      "text": "посоветуй сериал",
-     "expect": null
+     "expect": "system.unavailable"
     }
    ]
   },
@@ -1069,15 +1069,15 @@
    "phrases": [
     {
      "text": "включи новогодний канал",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "запусти пятый канал",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "что идет по рбк",
-     "expect": null
+     "expect": "system.unavailable"
     }
    ]
   },
@@ -1088,23 +1088,23 @@
    "phrases": [
     {
      "text": "покажи видео с енотом в сети",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "запусти мультфильм про кота в сети",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "включи музыкальный клип в сети",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "включи хоккей",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "включи футбол",
-     "expect": null
+     "expect": "system.unavailable"
     }
    ]
   },
@@ -1115,47 +1115,47 @@
    "phrases": [
     {
      "text": "перемотай на 10 минут вперед",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "перемотай на 20 минут назад",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "пропусти заставку",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "пропусти титры",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "покажи список дорожек",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "включи русские субтитры",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "выключи субтитры",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "включи следующую серию",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "выключи колонку через 2 часа",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "выключись через 40 минут",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "выключи станцию в полночь",
-     "expect": null
+     "expect": "system.unavailable"
     }
    ]
   },
@@ -1172,23 +1172,23 @@
    "phrases": [
     {
      "text": "включи караоке",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "включи песню штиль в караоке",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "давай споем под караоке",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "покажи текст песни",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "показать слова песни",
-     "expect": null
+     "expect": "system.unavailable"
     }
    ]
   },
@@ -1199,15 +1199,15 @@
    "phrases": [
     {
      "text": "включи утреннее шоу",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "запусти утреннее шоу",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "поставь утреннее шоу",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "доброе утро",
@@ -1215,7 +1215,7 @@
     },
     {
      "text": "включи вечернее шоу",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "добрый вечер",
@@ -1230,15 +1230,15 @@
    "phrases": [
     {
      "text": "закажи продукты в лавке",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "добавь в корзину молоко",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "давай купим 2 пачки муки",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "все",
@@ -1253,19 +1253,19 @@
    "phrases": [
     {
      "text": "когда привезут продукты из лавки",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "где мои покупки из маркета",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "расскажи о статусе заказа из яндекс еды",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "где мой заказ из деливери",
-     "expect": null
+     "expect": "system.unavailable"
     }
    ]
   },
@@ -1276,7 +1276,7 @@
    "phrases": [
     {
      "text": "свяжись с поддержкой",
-     "expect": null
+     "expect": "system.unavailable"
     }
    ]
   },
@@ -1287,11 +1287,11 @@
    "phrases": [
     {
      "text": "мне грустно",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "ты супер",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "подмигни мне",
@@ -1303,7 +1303,7 @@
     },
     {
      "text": "улыбнись",
-     "expect": null
+     "expect": "system.unavailable"
     }
    ]
   },
@@ -1314,39 +1314,39 @@
    "phrases": [
     {
      "text": "вызови такси на работу",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "давай запишем капсулу времени",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "давай сочиним сказку",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "придумай стихотворение про зиму",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "шепот",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "включи метроном",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "найди мой телефон",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "включи радионяню в детской",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "выключись через 30 минут",
-     "expect": null
+     "expect": "system.unavailable"
     },
     {
      "text": "что за песня",
