@@ -908,6 +908,15 @@ class Runtime:
             async with send_lock:
                 await ws.send_bytes(data)
             tap.frame("server_to_client", True, data)
+            try:  # «Вместе» (091): свои плеерные директивы снимают флаг контента Яндекса
+                if data[:4] == b"AAPI" and hybrid.yandex_player:
+                    reply = server_type.FromString(data[4:])
+                    if reply.Event.WhichOneof("Event") == "AliceResponse":
+                        names = [d.Name for d in reply.Event.AliceResponse.Response.Directives]
+                        if "player_pause" in names or "clear_queue" in names or "audio_play" in names:
+                            hybrid.yandex_player = False
+            except Exception:
+                pass
             context.record({"original": data, "sent": data}, kind="ws", direction="server_to_client", binary=True, size=len(data), emulated=True,
                            device_sn=context.device_sn, user_id=context.user_id)
         session_id = uuid.uuid4().hex
@@ -922,6 +931,12 @@ class Runtime:
                     item['delivery'] = 'acknowledged'
         conversation = Conversation(scoped_runtime, server_type, send, trace_context=trace_context,
                                     delivered=delivered)
+        # «Вместе», фаза 2 (091): параллельная сессия Яндекса на этот WS — открывается лениво
+        # при первой пересылке промаха; режим читается при каждом использовании (меняется на лету)
+        from .upstream.hybrid import HybridSession
+        hybrid = HybridSession(self, request, send)
+        scoped_runtime.hybrid_session = hybrid
+        scoped_runtime.hybrid_mode = lambda: self.route_mode_for(request)[2]
         device = None
 
         def adopt(device_id, observed):
@@ -957,6 +972,7 @@ class Runtime:
                     incoming = client_type.FromString(data[4:])
                     trigger = incoming.Event.WhichOneof("Event") if incoming.WhichOneof("Message") == "Event" else "StreamControl"
                     if trigger == 'SynchronizeStateRequest':
+                        hybrid.keep(data)  # авторизация ветки «Вместе» — её кадр
                         # Re-identification requires a new connection: don't mix histories or channels.
                         # B03: sync — авторитетный источник, header — транспортная подсказка;
                         # расхождение независимых источников закрывает соединение (1008).
@@ -985,6 +1001,7 @@ class Runtime:
                     await ws.close(code=1011, message=b"Emulator handler error")
         finally:
             await conversation.shutdown()
+            await hybrid.close()
             self.sessions.pop(session_id, None)
             tap.close(ws.close_code)
             context.record({}, kind="ws", direction="lifecycle", event="close", close_code=ws.close_code, size=0, emulated=True)

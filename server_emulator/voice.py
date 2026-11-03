@@ -505,10 +505,47 @@ class Conversation:
 
 
 
+    PLAYER_CALLBACKS = ('music_thin_client_on_started', 'music_thin_client_on_stopped',
+                        'music_thin_client_on_finished', 'music_thin_client_on_failed',
+                        'music_thin_client_on_recovery', '@@mm_stack_engine_get_next',
+                        '@@mm_typed_callback')
+
+    async def _hybrid_forward(self, incoming, request, text, hybrid):
+        """«Вместе» (091): фраза наверх TextInput-ом с тем же Header (MessageId/RequestId),
+        чтобы ответ Яндекса лёг на ожидание колонки. True — переслано, ждём ответ."""
+        import copy as _copy
+        frame = _copy.deepcopy(incoming)
+        ev = frame.Event.TextInput.Request.Event
+        ev.Type = 2  # text_input
+        ev.Text = text
+        ev.EndOfUtterance = True
+        raw = b'AAPI' + frame.SerializeToString()
+        message_id = getattr(frame.Event.Header, 'MessageId', '') or ''
+        if not await hybrid.forward(raw, message_id):
+            self.runtime.recent = (self.runtime.recent + [
+                {"kind": "hybrid", "error": "Вместе: Яндекс недоступен — фраза ушла прежнему пути"}])[-30:]
+            return False
+        answered = await hybrid.wait_response(message_id, timeout=10)  # ответ ветки шлёт колонке сам _on_frame
+        if not answered:
+            self.runtime.recent = (self.runtime.recent + [
+                {"kind": "hybrid", "error": "Вместе: Яндекс не ответил вовремя — фраза ушла прежнему пути"}])[-30:]
+            return False
+        return True
+
     @aapi_handler('TextInput', enabled=lambda settings: bool(settings.get('aapi_model')))
 
     async def _on_text_input(self, incoming, trigger):
 
+
+        # «Вместе» (091): колбэки контента Яндекса — наверх, пока играет ветка Яндекса
+        hybrid = getattr(self.runtime, 'hybrid_session', None)
+        mode_fn = getattr(self.runtime, 'hybrid_mode', None)
+        name = incoming.Event.TextInput.Request.Event.Name
+        if (hybrid is not None and mode_fn is not None and mode_fn() == 'hybrid'
+                and getattr(hybrid, 'yandex_player', False) and name in self.PLAYER_CALLBACKS):
+            await hybrid.forward(b'AAPI' + incoming.SerializeToString(),
+                                 getattr(incoming.Event.Header, 'MessageId', '') or '')
+            return
 
         await self.cancel()
 
@@ -1307,6 +1344,14 @@ class Conversation:
 
                 ctx['station'] = station_state.from_request(request)
 
+                # «Вместе» (091): режим маршрута и владелец плеера — сценариям и контрактам SDK
+                hybrid = getattr(self.runtime, 'hybrid_session', None)
+                mode_fn = getattr(self.runtime, 'hybrid_mode', None)
+                if hybrid is not None and mode_fn is not None:
+                    ctx['route_mode'] = mode_fn()
+                    if hybrid.yandex_player:
+                        ctx['player_owner'] = 'yandex' 
+
                 context = getattr(self.runtime, '_scenario_context', None)
 
                 if context is not None:  # guard/bindings: гео владельца, комната колонки
@@ -1387,6 +1432,13 @@ class Conversation:
                         await speech.aclose()
 
                     return
+
+                # «Вместе» (091): промах — настоящему Яндексу текстом; при отказе — прежний путь
+                hybrid = getattr(self.runtime, 'hybrid_session', None)
+                mode_fn = getattr(self.runtime, 'hybrid_mode', None)
+                if hybrid is not None and mode_fn is not None and mode_fn() == 'hybrid':
+                    if await self._hybrid_forward(incoming, request, text, hybrid):
+                        return
 
                 # сценария нет — фраза в очередь «Эмулятор → Без ответа» (в любом режиме «Интеллект»)
 

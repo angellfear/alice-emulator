@@ -9,7 +9,7 @@ from server_emulator.sdk import say
 
 
 def handle(ctx):
-    if ctx.intelligence != "scenarios":
-        return None  # фраза уходит модели
+    if ctx.route_mode == "hybrid" or ctx.intelligence != "scenarios":
+        return None  # «Вместе»: промах уходит Яндексу; «Модель/Агент»: фраза уходит модели
     reply = behavior.standard_for(ctx.settings.get("standard_replies") or [], "simple_unavailable")
     return say(reply["text"] if reply else "В простом режиме это недоступно.")
