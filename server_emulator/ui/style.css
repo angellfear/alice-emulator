@@ -130,15 +130,20 @@ section.narrow{max-width:880px}
 .panel>h3:first-child{margin-top:0}
 
 /* ── Кнопки ─────────────────────────────────────────────────────── */
-button{font:inherit;font-size:14px;background:var(--accent);color:#081120;border:1px solid transparent;
-  border-radius:var(--radius-s);min-height:40px;padding:9px 16px;cursor:pointer;font-weight:600}
-button:hover{background:var(--accent-strong)}
+button{font:inherit;font-size:14px;font-weight:600;color:#081120;min-height:38px;padding:8px 18px;cursor:pointer;
+  background:linear-gradient(180deg,var(--accent) 0%,var(--accent-strong) 100%);
+  border:1px solid var(--accent-border);border-radius:var(--radius-s);
+  box-shadow:0 1px 2px #00000059, inset 0 1px 0 #ffffff26;
+  transition:background .15s ease,border-color .15s ease,box-shadow .15s ease,color .15s ease}
+button:hover{background:linear-gradient(180deg,var(--accent-strong) 0%,var(--accent) 100%);
+  border-color:var(--accent);box-shadow:0 2px 10px #00000073, inset 0 1px 0 #ffffff26}
+button:active{transform:translateY(1px);box-shadow:inset 0 2px 4px #0000004d}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.secondary{background:var(--surface-2);color:var(--text);border-color:var(--border-strong)}
-.secondary:hover{background:var(--surface-3);border-color:var(--accent-border);color:var(--accent-strong)}
-.danger{background:transparent;color:var(--danger);border-color:var(--danger-border)}
-.danger:hover{background:var(--danger-bg)}
-button:disabled{opacity:.45;cursor:wait;filter:none}
+.secondary{background:var(--surface-2);color:var(--text);border-color:var(--border-strong);box-shadow:0 1px 2px #00000040}
+.secondary:hover{background:var(--surface-3);border-color:var(--accent-border);color:var(--accent-strong);box-shadow:0 2px 8px #00000059}
+.danger{background:transparent;color:var(--danger);border-color:var(--danger-border);box-shadow:none}
+.danger:hover{background:var(--danger-bg);color:var(--danger);box-shadow:none}
+button:disabled{opacity:.45;cursor:wait;filter:none;transform:none}
 
 /* ── Формы ──────────────────────────────────────────────────────── */
 label{display:flex;flex-direction:column;font-size:13px;color:#a3b4ca;gap:6px;margin-bottom:14px}
@@ -552,17 +557,48 @@ small.warn{color:#e8d06a}
 .upd-cards h3{margin:18px 0 10px}
 .upd-cards h3:first-child{margin-top:0}
 .upd-policy{margin-top:18px}
-.upd-catalog,.upd-log-wrap{margin-top:22px}
-.upd-catalog .sc-toolbar h3,.upd-log-wrap .sc-toolbar h3{margin:0}
-.upd-catalog .upd-group{margin:14px 0 8px;font-size:13px;color:var(--muted);font-weight:600}
-.upd-catalog .dc-grid{--dc-min:200px;--dc-height:108px;--dc-pic:40px}
+/* Секция «Каталог прошивок»: платформы (20%) — каталог-список — журнал (30%, справа) */
+.upd-cat-section{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
+.upd-platforms{flex:0 0 20%;min-width:170px}
+.upd-cat-main{flex:1 1 340px;min-width:0}
+.upd-log-wrap{flex:0 0 30%;min-width:330px;margin-left:auto}
+.upd-platforms h3,.upd-log-wrap h3{margin:0 0 8px;font-size:14px}
+.upd-catalog .sc-toolbar h3{margin:0}
+.upd-platforms .hint{margin:2px 0 8px}
+.upd-pl-row{display:flex;align-items:center;gap:6px;width:100%;text-align:left;padding:7px 9px;margin:0 0 4px;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-s);cursor:pointer;color:var(--text);font-size:13px}
+.upd-pl-row:hover{border-color:var(--border-strong)}
+.upd-pl-row.active{border-color:var(--accent)}
+.upd-pl-row .n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.upd-pl-row .c{color:var(--muted);font-size:12px}
+.upd-cat-list{display:flex;flex-direction:column;gap:6px}
+.upd-cat-row{display:grid;grid-template-columns:120px minmax(0,1fr) 80px 80px auto;gap:10px;align-items:center;
+  text-align:left;padding:9px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-s);
+  cursor:pointer;color:var(--text);font-size:13px}
+.upd-cat-row:hover{border-color:var(--border-strong)}
+.upd-cat-row.iss{border-color:var(--accent)}
+.upd-cat-row .vc{font-family:ui-monospace,"Cascadia Code",Consolas,monospace;font-weight:600}
+.upd-cat-row .vn,.upd-cat-row .d,.upd-cat-row .s{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.upd-cat-row .tag{font-size:11px;line-height:1;padding:2px 6px;border-radius:8px;border:1px solid var(--border-strong);color:var(--danger)}
+.upd-cat-row .tag.iss{color:var(--accent);border-color:var(--accent)}
+.upd-cat-row .upd-group{grid-column:1/-1}
+.upd-catalog .upd-group{margin:8px 0 2px;font-size:13px;color:var(--muted);font-weight:600}
 .log-console{height:280px;overflow:auto;padding:10px 12px;background:#05080d;border:1px solid var(--border);border-radius:var(--radius-s);
   font:12.5px/1.6 ui-monospace,"Cascadia Code",Consolas,monospace;color:#b9c6d8}
-.upd-log-line{display:grid;grid-template-columns:105px 200px 70px 36px 56px minmax(0,1fr);gap:12px;white-space:nowrap}
-.upd-log-line>span{overflow:hidden;text-overflow:ellipsis}
-.upd-log-line .t{color:#5d6e86}.upd-log-line .e{color:#8cc2ff}.upd-log-line .x{color:var(--danger)}
+.upd-log-list{height:520px;font-size:11px}
+.upd-log-group{margin:0 0 10px}
+.upd-log-dev{font-weight:600;color:#d6e0ee;padding:3px 0;border-bottom:1px solid var(--border);margin-bottom:3px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.upd-log-list .upd-log-line{display:flex;gap:5px;white-space:nowrap;padding:1px 0;align-items:baseline}
+.upd-log-list .upd-log-line>span{overflow:hidden;text-overflow:ellipsis;flex:0 1 auto;min-width:0}
+.upd-log-list .upd-log-line .t{width:92px;flex-shrink:0;color:#5d6e86}
+.upd-log-list .upd-log-line .ip{width:80px;color:var(--muted)}
+.upd-log-list .upd-log-line .v{width:68px;color:#8cc2ff}
+.upd-log-list .upd-log-line .dv{width:68px;color:#d6e0ee}
+.upd-log-list .upd-log-line .p{flex:0 1 auto;min-width:44px;margin-left:auto;text-align:right}
+.upd-log-line .e{color:#8cc2ff}.upd-log-line .x{color:var(--danger)}
 .upd-log-line .p.deny{color:#ff9a9a}.upd-log-line .p.allow{color:#8fe0a8}.upd-log-line .p.custom{color:#c7a6ff}
-.upd-log-line.bad .s{color:var(--danger)}
+.upd-log-list .upd-log-line.bad .p{color:var(--danger)}
 .log-console-empty{color:#5d6e86}
 .upd-firmware{border:1px solid var(--border-strong);border-radius:var(--radius);background:var(--surface);color:var(--text);padding:16px 22px;width:min(720px,calc(100vw - 40px))}
 .upd-firmware::backdrop{background:#0009}

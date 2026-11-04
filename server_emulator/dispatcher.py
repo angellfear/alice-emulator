@@ -329,7 +329,8 @@ class Dispatcher:
         device = runtime.identities.observe(device_id, source=id_report['resolved_from'], ip=self.client_ip(request),
                                             register=True) if device_id else None
         status, output, headers, original, attempt = await runtime.updates.handle(
-            endpoint, request.query_string, request.headers, body, device, device_id, runtime.update_fetch)
+            endpoint, request.query_string, request.headers, body, device, device_id, runtime.update_fetch,
+            client_ip=self.client_ip(request))
         if record:
             record({'request_original': body, 'request_sent': body, 'response_original': original, 'response_sent': output},
                    kind='http', direction='exchange', status=status, size=len(body) + len(output), request_size=len(body),

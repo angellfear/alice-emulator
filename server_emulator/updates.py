@@ -66,6 +66,7 @@ class Updates:
     def __init__(self, directory, extension_dirs=None):
         self.path = directory/'updates.sqlite3'
         self.extension_dirs = extension_dirs  # callable → [(origin, Path)] — слои updates/, TASK-032
+        self._poll_task = None
         with self.connect() as db:
             db.executescript('''
                 CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY, value TEXT NOT NULL);
@@ -73,7 +74,13 @@ class Updates:
                 CREATE TABLE IF NOT EXISTS urls (url TEXT PRIMARY KEY, first_seen REAL, last_seen REAL, hits INTEGER, metadata TEXT);
                 CREATE TABLE IF NOT EXISTS sightings (attempt_id TEXT, url TEXT, PRIMARY KEY(attempt_id,url));
                 CREATE INDEX IF NOT EXISTS attempts_ts ON attempts(ts);
+                CREATE TABLE IF NOT EXISTS last_requests (endpoint TEXT, device_sn TEXT, method TEXT, target TEXT,
+                    headers TEXT, body BLOB, ts REAL, PRIMARY KEY(endpoint, device_sn));
             ''')
+            try:  # миграция: IP устройства в попытках (для старых баз колонки нет)
+                db.execute('ALTER TABLE attempts ADD COLUMN ip TEXT')
+            except sqlite3.OperationalError:
+                pass
             if not db.execute('SELECT 1 FROM settings').fetchone():
                 db.execute('INSERT INTO settings VALUES (1,?)',(json.dumps({'policy':'deny','devices':{},'custom':{'updates':[]},'endpoints':DEFAULT_ENDPOINTS}),))
 
@@ -232,15 +239,17 @@ class Updates:
                 for v in value:walk(v,metadata)
         walk(payload)
         with self.connect() as db:
-            inserted=db.execute('INSERT OR IGNORE INTO attempts VALUES (?,?,?,?,?,?,?,?,?)',tuple(attempt[k] for k in ('id','ts','endpoint','device_sn','user_id','device_id','policy','status','error')))
+            inserted=db.execute('INSERT OR IGNORE INTO attempts (id,ts,endpoint,device_sn,user_id,device_id,policy,status,error,ip) VALUES (?,?,?,?,?,?,?,?,?,?)',tuple(attempt.get(k) for k in ('id','ts','endpoint','device_sn','user_id','device_id','policy','status','error','ip')))
             if not inserted.rowcount:
-                db.execute('UPDATE attempts SET device_id=COALESCE(device_id,?),device_sn=COALESCE(device_sn,?),user_id=COALESCE(user_id,?) WHERE id=?',(attempt['device_id'],attempt['device_sn'],attempt['user_id'],attempt['id']))
+                db.execute('UPDATE attempts SET device_id=COALESCE(device_id,?),device_sn=COALESCE(device_sn,?),user_id=COALESCE(user_id,?),ip=COALESCE(ip,?) WHERE id=?',(attempt['device_id'],attempt['device_sn'],attempt['user_id'],attempt.get('ip'),attempt['id']))
                 return
             for url,meta in found.items():
                 db.execute('INSERT INTO urls VALUES (?,?,?,?,?) ON CONFLICT(url) DO UPDATE SET last_seen=excluded.last_seen,hits=urls.hits+1,metadata=excluded.metadata',(url,attempt['ts'],attempt['ts'],1,json.dumps(meta,ensure_ascii=False)))
                 db.execute('INSERT INTO sightings VALUES (?,?)',(attempt['id'],url))
 
-    async def handle(self,endpoint,query,headers,body,device,device_id,fetch=None):
+    async def handle(self,endpoint,query,headers,body,device,device_id,fetch=None,client_ip=None):
+        if not self._poll_task:  # суточный опрос сервера, когда устройство молчит
+            self._poll_task=asyncio.create_task(self.poll_loop())
         settings=self.with_extension_rules(self.settings())  # + правила updates/ расширений (TASK-032)
         policy,custom=self.effective(settings,device)
         target=(endpoint.get('upstream') or 'https://'+endpoint['host']).rstrip('/')+endpoint['path']+('?' + query if query else '')
@@ -256,7 +265,10 @@ class Updates:
             except (ValueError,UnicodeError):error='non_json_response' if raw else None
         except (ClientError,OSError,asyncio.TimeoutError,ValueError) as exc:
             error=type(exc).__name__
-        attempt={'id':uuid.uuid4().hex,'ts':time.time(),'endpoint':endpoint['id'],'device_sn':device['sn'] if device else None,'user_id':device.get('user_id') if device else None,'device_id':device_id or None,'policy':policy,'status':status,'error':error}
+        attempt={'id':uuid.uuid4().hex,'ts':time.time(),'endpoint':endpoint['id'],'device_sn':device['sn'] if device else None,'user_id':device.get('user_id') if device else None,'device_id':device_id or None,'policy':policy,'status':status,'error':error,'ip':client_ip}
+        if device_id or (device and device.get('sn')):  # последний запрос устройства — источник суточного опроса
+            await asyncio.to_thread(self.note_request,endpoint,target,endpoint['method'],headers,body,
+                                    device['sn'] if device else device_id)
         await asyncio.to_thread(self.record,attempt,payload)
         original=raw
         if policy=='deny':
@@ -270,6 +282,47 @@ class Updates:
         elif error and not original:
             raw=b'{"error":"update_upstream_unavailable"}'
         return status,raw,{k:v for k,v in reply_headers.items() if k.lower() in ('content-type','retry-after')},original,attempt
+
+    def note_request(self,endpoint,target,method,headers,body,device_sn):
+        """Последний реальный запрос устройства к OTA-эндпойнту: из него суточный
+        таймер переспрашивает реальный сервер, когда устройство молчит."""
+        with self.connect() as db:
+            db.execute('INSERT OR REPLACE INTO last_requests VALUES (?,?,?,?,?,?,?)',
+                       (endpoint['id'],device_sn,method,target,json.dumps(dict(headers)),
+                        sqlite3.Binary(body or b''),time.time()))
+
+    def due_requests(self):
+        """Запросы устройств, не стучавшихся к OTA-эндпойнту более суток."""
+        now=time.time()
+        with self.connect() as db:
+            return [dict(r) for r in db.execute('SELECT * FROM last_requests') if now-r['ts']>=86400]
+
+    def mark_polled(self,row):
+        with self.connect() as db:
+            db.execute('UPDATE last_requests SET ts=? WHERE endpoint=? AND device_sn=?',(time.time(),row['endpoint'],row['device_sn']))
+
+    async def poll_loop(self):
+        """Раз в 10 минут: если устройство не обращалось к эндпойнту более суток —
+        эмулятор сам повторяет его последний запрос к реальному серверу и
+        пополняет каталог ответом (независимо от политики устройства)."""
+        while True:
+            await asyncio.sleep(600)
+            try:
+                for row in await asyncio.to_thread(self.due_requests):
+                    try:
+                        status,reply,raw=await self.fetch(row['target'],row['method'],json.loads(row['headers'] or '{}'),bytes(row['body'] or b''))
+                        try:payload=json.loads(raw)
+                        except (ValueError,UnicodeError):payload=None
+                        attempt={'id':uuid.uuid4().hex,'ts':time.time(),'endpoint':row['endpoint'],
+                                 'device_sn':row['device_sn'],'user_id':None,'device_id':None,
+                                 'policy':'auto','status':status,'error':None,'ip':None}
+                        await asyncio.to_thread(self.record,attempt,payload)
+                        await asyncio.to_thread(self.mark_polled,row)
+                        log.info('Суточный опрос обновлений: %s (%s) — ответ записан в каталог',row['device_sn'],row['endpoint'])
+                    except Exception as exc:
+                        log.warning('Суточный опрос обновлений не удался (%s): %s',row['device_sn'],exc)
+            except Exception:
+                log.exception('Цикл суточного опроса обновлений')
 
     @staticmethod
     def effective(settings,device):
@@ -298,6 +351,16 @@ class Updates:
                 attempts=db.execute('SELECT * FROM attempts ORDER BY ts DESC LIMIT 100').fetchall()
             # Каталог — все найденные URL (коллекция не зависит от области) и SN, у кого встречены
             catalog=db.execute('SELECT u.*,GROUP_CONCAT(DISTINCT a.device_sn) sns FROM urls u LEFT JOIN sightings s ON s.url=u.url LEFT JOIN attempts a ON a.id=s.attempt_id GROUP BY u.url ORDER BY u.last_seen DESC LIMIT 500').fetchall()
+            # Версии, предложенные в каждой попытке (sightings → urls → metadata.version_code)
+            offered={}
+            ids=[a['id'] for a in attempts]
+            if ids:
+                marks=','.join('?'*len(ids))
+                for s in db.execute(f'SELECT s.attempt_id aid,u.metadata FROM sightings s JOIN urls u ON u.url=s.url WHERE s.attempt_id IN ({marks})',ids):
+                    try:vc=json.loads(s['metadata']).get('version_code')
+                    except (ValueError,TypeError):vc=None
+                    if vc:offered.setdefault(s['aid'],[]).append(int(vc))
             return {'settings':self.settings(),'urls':[{**dict(r),'metadata':json.loads(r['metadata'])} for r in urls],'attempts':[dict(r) for r in attempts],
                     'catalog':[{**dict(r),'metadata':json.loads(r['metadata']),'sns':[x for x in (r['sns'] or '').split(',') if x]} for r in catalog],
+                    'offered_versions':{k:sorted(set(v),reverse=True) for k,v in offered.items()},
                     'extensions':self.extension_rules()}  # правила updates/ расширений (TASK-032)
