@@ -318,3 +318,83 @@ async def test_put_transparent_validates_and_get_returns_it(tmp_path):
             assert "quasar_direct_transparent" not in state_of(runtime)
     finally:
         await stop(runtime, upstream_runner, runner)
+
+
+# --- TASK-103: сохранённые правила сразу прогоняются по сохранённому оригиналу --------------------------------
+# Текст превью — компактный JSON (без пробелов), поэтому правила здесь без пробелов вокруг «:».
+
+
+async def put_replace(url, rules):
+    async with ClientSession() as client:
+        async with client.put(url + "/emulator/api/quasar_source", headers=API,
+                              json={"sn": "SN-Q", "replace": rules}) as r:
+            assert r.status == 200
+
+
+async def test_put_replace_previews_against_saved_original(tmp_path):
+    """Сохранение правил обновляет «После замен» сразу, без запроса колонки; оригинал не тронут."""
+    runtime, upstream_runner, runner, url = await start(tmp_path)  # правил нет
+    try:
+        await sync(url)
+        last = state_of(runtime)["quasar_direct_last"]
+        assert last["body"] == BODY and "body_sent" not in last
+        await put_replace(url, [rule('"volume":5', '"volume":9')])
+        last = state_of(runtime)["quasar_direct_last"]
+        assert last["body_sent"]["config"]["volume"] == 9
+        assert last["replaced"] == 1 and last["preview"] is True
+        assert last["body"] == BODY
+        async with ClientSession() as client:
+            async with client.get(url + "/emulator/api/quasar_source?sn=SN-Q") as r:
+                data = await r.json()
+        assert data["direct_last"]["body_sent"]["config"]["volume"] == 9
+    finally:
+        await stop(runtime, upstream_runner, runner)
+
+
+async def test_put_replace_no_match_clears_stale_body_sent(tmp_path):
+    """Правила не совпали — «После замен» нет, устаревшая отметка (реальная или превью) убирается."""
+    runtime, upstream_runner, runner, url = await start(tmp_path, [rule('"volume": 5', '"volume": 9')])
+    try:
+        await sync(url)
+        assert "body_sent" in state_of(runtime)["quasar_direct_last"]
+        await put_replace(url, [rule("no-such-text", "x")])
+        last = state_of(runtime)["quasar_direct_last"]
+        for key in ("body_sent", "replaced", "preview", "replace_error"):
+            assert key not in last
+        assert last["body"] == BODY
+    finally:
+        await stop(runtime, upstream_runner, runner)
+
+
+async def test_put_replace_broken_json_stores_error(tmp_path):
+    """Правило, ломающее JSON, видно в превью: replace_error в state и в GET, «После замен» нет."""
+    runtime, upstream_runner, runner, url = await start(tmp_path)
+    try:
+        await sync(url)
+        await put_replace(url, [rule('"volume":5', '"volume":9'), rule('"config":\\{', "")])
+        last = state_of(runtime)["quasar_direct_last"]
+        assert "сломали JSON" in last["replace_error"] and "2" in last["replace_error"]
+        assert "body_sent" not in last
+        async with ClientSession() as client:
+            async with client.get(url + "/emulator/api/quasar_source?sn=SN-Q") as r:
+                data = await r.json()
+        assert "сломали JSON" in data["direct_last"]["replace_error"]
+    finally:
+        await stop(runtime, upstream_runner, runner)
+
+
+async def test_real_request_overwrites_preview(tmp_path):
+    """Настоящий запрос перезаписывает превью — отметка preview уходит."""
+    runtime, upstream_runner, runner, url = await start(tmp_path)
+    try:
+        await sync(url)
+        await put_replace(url, [rule("yandex-station", "my-station")])
+        assert state_of(runtime)["quasar_direct_last"]["preview"] is True
+        status, _headers, body = await sync(url)
+        assert status == 200 and json.loads(body)["config"]["name"] == "my-station"
+        last = state_of(runtime)["quasar_direct_last"]
+        assert last["body_sent"]["config"]["name"] == "my-station" and last["replaced"] == 1
+        for key in ("preview", "replace_error"):
+            assert key not in last
+    finally:
+        await stop(runtime, upstream_runner, runner)

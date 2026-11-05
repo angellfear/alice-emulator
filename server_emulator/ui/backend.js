@@ -394,13 +394,14 @@
       p.className='hint';root.append(p);return;
     }
     const info=make('p','Получен: '+new Date(last.ts*1000).toLocaleString('ru-RU')+' · статус '+last.status
-      +(last.body_sent?' · замен сработало: '+last.replaced:''));
+      +(last.body_sent?' · замен сработало: '+last.replaced+(last.preview?' (превью)':''):'')
+      +(last.replace_error?' · ошибка замен: '+last.replace_error:''));
     info.className='hint';root.append(info);
     const holder=make('div');holder.className='panel';
     const ed=makeCM(holder,{value:JSON.stringify(last.body_sent||last.body,null,2),readOnly:true,height:'520px'});
     if(last.body_sent){
       const seg=make('div');seg.className='segmented';seg.style.margin='0 0 8px';
-      for(const [label,value] of [['После замен',last.body_sent],['До замен',last.body]]){
+      for(const [label,value] of [['После замен'+(last.preview?' (превью)':''),last.body_sent],['До замен',last.body]]){
         const b=make('button',label);b.type='button';
         if(value===last.body_sent)b.classList.add('active');
         b.onclick=()=>{seg.querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b));
@@ -419,7 +420,7 @@
     const dlg=document.createElement('dialog');dlg.className='catalog-dialog replace-dialog';
     const form=document.createElement('form');dlg.append(form);document.body.append(dlg);
     const head=make('h3','Замены в ответе · '+device.sn);
-    const hint=make('p','Python regex, правила применяются сверху вниз к тексту ответа перед отправкой колонке; группы — \\1, \\g<name>. Обычные символы . ? [ ( экранируются обратной косой чертой. Ответ — компактный JSON, без пробелов: «subscription» матчится, «subscription»: — нет.');
+    const hint=make('p','Python regex, правила применяются сверху вниз к тексту ответа перед отправкой колонке; группы — \\1, \\g<name>. Обычные символы . ? [ ( экранируются обратной косой чертой. Ответ — компактный JSON, без пробелов: «subscription» матчится, «subscription»: — нет. Правила при сохранении сразу прогоняются по последнему оригинальному ответу — «После замен» обновится без запроса колонки.');
     hint.className='hint';
     const list=make('div');list.className='rp-list';
     const generalErr=make('p');generalErr.className='sc-err';generalErr.hidden=true;

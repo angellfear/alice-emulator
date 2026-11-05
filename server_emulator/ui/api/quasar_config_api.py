@@ -14,7 +14,7 @@ import copy
 from aiohttp import web
 
 from ...quasar_config import account_layer, compose, poll_period_warnings
-from ...quasar_replace import validate_rules
+from ...quasar_replace import preview_replacements, validate_rules
 from ...upstream import UpstreamError, forward_headers
 from ...upstream.forward import decoded_json
 
@@ -121,7 +121,9 @@ async def quasar_source(request, runtime, app):
 
     GET ?sn= → {mode, direct_last, custom, replace, transparent, can_fetch}; PUT {sn, mode?, custom?,
     replace?, transparent?} — сохранение режима, своего ответа, замен regexp «Напрямую» (TASK-063) и/или
-    галочки «И в прозрачном маршруте» (TASK-065, bool) в state устройства
+    галочки «И в прозрачном маршруте» (TASK-065, bool) в state устройства; сохранённые replace сразу
+    прогоняются по последнему оригинальному ответу (TASK-103): в direct_last обновляются body_sent/replaced
+    с отметкой preview или replace_error, до ближайшего запроса колонки
     (под runtime.lock; custom — JSON-объект с объектом config; replace — [{enabled, pattern, replace}],
     невалидный regex — 400 с номером строки, ничего не сохраняется); POST {sn, action} — generate (ответ
     compose, ничего не сохраняет) и fetch (запрос оригинальному серверу с
@@ -175,6 +177,17 @@ async def quasar_source(request, runtime, app):
                     state['quasar_direct_replace'] = rules
                 else:
                     state.pop('quasar_direct_replace', None)
+                # TASK-103: правила прогоняются по сохранённому оригиналу сразу — «После замен»
+                # в UI обновляется без запроса колонки; прошлая отметка (реальная или превью) не актуальна
+                last = state.get('quasar_direct_last')
+                if isinstance(last, dict) and isinstance(last.get('body'), dict):
+                    for key in ('body_sent', 'replaced', 'preview', 'replace_error'):
+                        last.pop(key, None)
+                    preview = preview_replacements(rules, last['body'])
+                    if preview and 'error' in preview:
+                        last['replace_error'] = preview['error']
+                    elif preview:
+                        last.update(body_sent=preview['body'], replaced=preview['applied'], preview=True)
             if 'transparent' in value:
                 if transparent:
                     state['quasar_direct_transparent'] = True
