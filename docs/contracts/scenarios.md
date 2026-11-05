@@ -75,7 +75,8 @@ Passport provenance — `scenario_engine/builtin.py::BUILTIN_PROVENANCE` (пер
 (точечный путь: `location.latitude`, `fields.city`). У пользователя — `location`
 ({latitude, longitude, city}, профиль) и произвольный `fields` (≤16 КиБ); у устройства —
 `room` (комната колонки: «включи свет» без уточнения) и `fields`. Погода берёт координаты
-из гео пользователя, при его отсутствии — из settings.weather.
+из гео пользователя, при его отсутствии — из параметров пользователя
+(параметры погоды, поля широты/долготы).
 
 **compose.reply — ответ без кода**: `{text|speech (строка|binding), speech_prefix, card,
 directives:[{name, type?, analytics_type?, is_led_silent?, payload (Struct; в листьях

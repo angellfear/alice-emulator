@@ -14,6 +14,12 @@
     if (!r.ok) throw Error(v.error || r.statusText);
     return v;
   };
+  const callFront = async (method, body) => {
+    const r = await fetch('api/server-front', { method, headers: { 'X-Emulator': '1', 'Content-Type': 'application/json' }, body: body && JSON.stringify(body) });
+    const v = await r.json().catch(() => ({}));
+    if (!r.ok) throw Error(v.error || r.statusText);
+    return v;
+  };
   const apiSettings = async (method, body) => {
     const r = await fetch('api/settings', { method: method || 'GET', headers: { 'X-Emulator': '1', 'Content-Type': 'application/json' }, body: body && JSON.stringify(body) });
     const v = await r.json().catch(() => ({}));
@@ -80,21 +86,23 @@
       field('Ключ', inputs.key, { kind: 'key', done: uploaded }));
     const frontRow = make('label', { className: 'srv-check' }, inputs.front,
       make('span', {}, 'Фронт TLS (SNI)', make('small', { className: 'hint' },
-        ' — домены вне сертификата идут туннелем к настоящему серверу (музыка в «Прозрачно»)')));
+        ' — режимы для доменов вне сертификата выбираются ниже')));
     const dnsRow = field('DNS туннелей (через запятую)', inputs.front_dns);
+    const policyBox = frontPolicyBox();
     const syncSsl = () => {
       certBox.hidden = !inputs.ssl.checked;
       frontRow.hidden = !inputs.ssl.checked;
       dnsRow.hidden = !inputs.ssl.checked;  // DNS нужен только туннелям фронта
+      policyBox.hidden = !(inputs.ssl.checked && inputs.front.checked);  // политика — часть блока фронта
     };
-    inputs.ssl.onchange = syncSsl; syncSsl();
+    inputs.ssl.onchange = syncSsl; inputs.front.onchange = syncSsl; syncSsl();
     const error = make('p', { className: 'sc-err', hidden: true, role: 'alert' });
     const save = make('button', { type: 'submit' }, 'Сохранить и перезапустить');
     const listeners = (state.listeners || []).map(l => (l.ok ? '' : '✕ ') + l.scheme + '://' + l.host + ':' + l.port + (l.ok ? '' : ' — ' + l.error)).join(' · ');
     const version = state.version ? 'Версия: ' + state.version.version + (state.version.commit ? ' · ' + state.version.commit : '') + (state.version.dirty ? ' (есть правки)' : '') : '';
     const form = make('form', { className: 'panel srv-form' },
       field('Адрес', inputs.host), field('Порт', inputs.port), sslRow, certBox,
-      field('HTTP-порт (0 — выключен)', inputs.http_port), frontRow, dnsRow,
+      field('HTTP-порт (0 — выключен)', inputs.http_port), frontRow, dnsRow, policyBox,
       error, make('div', { className: 'actions' }, save));
     form.onsubmit = async event => {
       event.preventDefault();
@@ -120,6 +128,67 @@
       make('p', { className: 'hint' }, 'Колонки подключаются к основному порту 443 по TLS и к HTTP-порту 80 (quasar.yandex.net); сертификат должен быть тем, которому доверяют колонки. Путь к файлу указывается на компьютере с эмулятором либо файл загружается кнопкой — он сохранится в папке данных (certs/). Изменения применяются перезапуском сервера; если с новыми настройками он не поднимется, вернутся прежние.'),
       make('p', { className: 'hint' }, [version, 'Сейчас: ' + (listeners || '—') + (notes.length ? ' ' + notes.join(' ') : '')].filter(Boolean).join(' · ')),
       form, selfUpdatePanel());
+  }
+
+  // Политика доменов вне сертификата (TASK-093): три режима; для «по листу» — поле (1 домен на строку)
+  // и список зафиксированных с кнопкой «Добавить». Применяется сразу, без перезапуска сервера —
+  // фронт читает server.json на каждое соединение. API — api/server-front; API нет (или старый
+  // сервер) — блок не показывается.
+  function frontPolicyBox() {
+    const fp = state.front_policy;
+    if (!fp) return make('div', { hidden: true });
+    const modes = [['tunnel', 'Пропускать прозрачно', 'слепой туннель к настоящему серверу — как сейчас'],
+                   ['allowlist', 'Пропускать только по листу', 'туннель доменам из списка, остальные отклонять'],
+                   ['block', 'Блокировать', 'отклонять все домены, которых нет в сертификате']];
+    const radio = {};
+    const rows = modes.map(([value, label, hint]) => {
+      const input = make('input', { type: 'radio', name: 'front-uncovered', value: value,
+                                    checked: (fp.front_uncovered || 'tunnel') === value });
+      radio[value] = input;
+      return make('label', { className: 'srv-check' }, input,
+        make('span', {}, label, make('small', { className: 'hint' }, ' — ' + hint)));
+    });
+    const listArea = make('textarea', { rows: 6, spellcheck: false, placeholder: '*.strm.yandex.net',
+                                        value: (fp.front_allow || []).join('\n') });
+    const observed = make('div', { className: 'srv-observed' });
+    function addLine(host) {
+      const lines = listArea.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      if (!lines.includes(host)) lines.push(host);
+      listArea.value = lines.join('\n');
+    }
+    function renderObserved() {
+      const seen = fp.observed || [];
+      observed.replaceChildren(...(seen.length
+        ? seen.map(item => make('div', { className: 'srv-observed-row' },
+            make('span', {}, item.host + ' ', make('small', { className: 'hint' }, '×' + item.count)),
+            make('button', { type: 'button', className: 'secondary', onclick: () => addLine(item.host) }, 'Добавить')))
+        : [make('p', { className: 'hint' }, 'Домены, которые фронт видел после запуска сервера, появятся здесь.')]));
+    }
+    renderObserved();
+    const listBox = make('div', {},
+      make('label', {}, 'Домены вне сертификата (1 домен на строку)', listArea), observed);
+    const syncMode = () => { listBox.hidden = !radio.allowlist.checked; };
+    modes.forEach(([value]) => { radio[value].onchange = syncMode; });
+    syncMode();
+    const error = make('p', { className: 'sc-err', hidden: true, role: 'alert' });
+    const apply = make('button', { type: 'button' }, 'Применить');
+    apply.onclick = async () => {
+      if (busy) return;
+      busy = true; apply.disabled = true; error.hidden = true;
+      try {
+        const mode = modes.find(([value]) => radio[value].checked)[0];
+        const saved = await callFront('PUT', { front_uncovered: mode,
+          front_allow: listArea.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean) });
+        fp.front_uncovered = saved.front_uncovered;
+        fp.front_allow = saved.front_allow;
+        notify('Применено без перезапуска');
+      } catch (e) { error.textContent = e.message; error.hidden = false; }
+      finally { busy = false; apply.disabled = false; }
+    };
+    return make('div', { className: 'panel' },
+      make('h3', {}, 'Домены вне сертификата'),
+      make('p', { className: 'hint' }, 'Как фронт поступает с доменами, отсутствующими в сертификате. Применяется сразу, без перезапуска сервера; уже открытые соединения не затрагиваются.'),
+      ...rows, listBox, error, make('div', { className: 'actions' }, apply));
   }
 
   // Обновление (TASK-040): настройки проверки релизов — настройки эмулятора, а не server.json,
@@ -189,6 +258,7 @@
   async function load() {
     try {
       state = await call('GET');
+      try { state.front_policy = await callFront('GET'); } catch (e) { /* блок политики не покажется */ }
       try { state.self_update = (await apiSettings()).self_update; } catch (e) { /* блок просто не покажется */ }
       render();
     } catch (e) { section.replaceChildren(make('h2', {}, 'Сервер'), make('p', { className: 'sc-err' }, e.message)); }

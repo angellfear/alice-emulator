@@ -408,9 +408,14 @@ class Dispatcher:
                                                        device_sn=observed['sn'] if observed else sn,
                                                        device_id=device_id)
             handled = upstream.record_mode(sn) == 'off' or self.local_handler(canonical, request.method, path or request.path)
-            return await upstream.serve(request, target, host=host, path=path,
-                                        journal=upstream.recording(sn, handled), unhandled=not handled,
-                                        device_sn=sn, device_id=device_id)
+            try:
+                return await upstream.serve(request, target, host=host, path=path,
+                                            journal=upstream.recording(sn, handled), unhandled=not handled,
+                                            device_sn=sn, device_id=device_id)
+            except UpstreamError as exc:
+                # TASK-095: как в остальных ветках пересылки — 502, а не 500 от aiohttp
+                # (дубль записи в журнал сервера); сбой наверхом уже записан forward.py
+                return web.json_response({'error': 'upstream_unavailable', 'detail': str(exc)[:200]}, status=502)
         if is_ws:
             # emulate/hybrid (фаза 1): WS целиком эмулируется — необработанные AAPI-сообщения
             # попадают в «Без ответа», как сейчас; пересылка отдельных сообщений наверх —
@@ -511,7 +516,7 @@ class Dispatcher:
                 silencer_used = True
                 status, output, headers = silencer
             elif route_mode == "hybrid" and upstream is not None and not catalog_covered:
-                # Гибрид: обработчика нет — промах уходит в Яндекс (журнал пишет upstream)
+                # Вместе: обработчика нет — промах уходит в Яндекс (журнал пишет upstream)
                 # и остаётся в «Без ответа» с отметкой «ушёл в Яндекс» (UI — misses.js).
                 try:
                     miss_path = path or request.path

@@ -100,11 +100,6 @@ def decode_audio(data, rate=ASR_RATE):
     return np.ascontiguousarray(mono, dtype=np.float32)
 
 
-def read_reference(path, rate):
-    """Эталон голоса (WAV) → float32 моно в частоте rate."""
-    with open(path, "rb") as handle:
-        return decode_audio(handle.read(), rate)
-
 
 def wav_bytes(samples, rate):
     """float32 → WAV 16 бит."""

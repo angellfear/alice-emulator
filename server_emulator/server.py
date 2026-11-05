@@ -90,7 +90,9 @@ async def serve(app, state, config):
         plan.append(("http", config["http_port"], None))
     if not plan:  # SSL не настроен и HTTP выключен: основной порт без TLS, чтобы открыть панель и поправить
         plan.append(("http", config["port"], None))
-    runner = web.AppRunner(app, access_log=None)
+    # TASK-095: колонка присылает заголовки 16–19 КиБ (Cookie разрастается), дефолт aiohttp
+    # 8190 байт отбивал их с 400 ещё до диспетчера; настоящий Яндекс такие принимает
+    runner = web.AppRunner(app, access_log=None, max_field_size=65536, max_line_size=65536)
     await runner.setup()
     try:
         listeners = []

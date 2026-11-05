@@ -23,6 +23,7 @@ from .endpoints import EndpointCatalog
 from .params import ParamStore
 from .quasar_config import PlatformStore
 from . import aapi_handlers
+from . import music as music_providers
 from .aapi_handlers import has_handler as aapi_has_handler
 from .voice import Conversation
 from .identity import IdentityRegistry, collect_device_id
@@ -108,7 +109,6 @@ class Runtime:
         self.agent = agent.create(self.directory)  # None — LangChain не установлен, только legacy
         self.routines = agent.create_routines(self)  # задания по расписанию (agent/routines.py) или None
         self.mcp_errors = {}  # последняя ошибка tools/list по серверу mcp.json (вкладка MCP)
-        self.disconnect_proxy = None
         from .catalog import Catalog
         self.catalog = Catalog(catalog_root or self.directory,  # TASK-032: catalog/ расширений
                                extension_dirs=lambda: self._extension_layers("catalog"))
@@ -144,6 +144,8 @@ class Runtime:
         from .scenario_engine import templates as scenario_templates
         scenario_templates.set_extension_sources(self._extension_lexicon_sources)
         self.client_peer = None  # внедряет встроенный прокси: резолвер реального пира фронта
+        self.front_observed = None  # внедряет фронт TLS: домены вне сертификата (имя → {count, first}), TASK-093
+        self.front_sans = None  # внедряет фронт TLS: DNS-SAN сертификата, который он видит (api/server-front)
         self.update_fetch = None
         # Скрипты-расширения UI от хоста (прокси подключает свои кнопки);
         # standalone-эмулятор их не имеет — список пуст.
@@ -374,6 +376,9 @@ class Runtime:
         await self.upstream.close()  # TASK-043: доработать очередь журнала, закрыть клиента прохода
         await self.lifecycle.close()
         self.store.close()
+        # TASK-095: доработать отменённые фоновые задачи (батчи stора памяти langgraph
+        # отменяются в __del__ без ожидания) — иначе «Task was destroyed but it is pending!»
+        await asyncio.sleep(0)
 
     # --- каталоги точек подключения расширений (TASK-030) ---------------------------
 
@@ -487,7 +492,8 @@ class Runtime:
             from .scripting import ScriptRunner
             runners = self._extension_runners = (ScriptRunner(prefix="ext_actions"),
                                                  ScriptRunner(prefix="ext_datasets"),
-                                                 ScriptRunner(prefix="ext_aapi"))
+                                                 ScriptRunner(prefix="ext_aapi"),
+                                                 ScriptRunner(prefix="ext_music"))
 
         def folders(kind):
             found = {}
@@ -513,11 +519,13 @@ class Runtime:
 
         action_dirs, dataset_dirs = folders("actions"), folders("datasets")
         aapi_dirs = folders("aapi")  # TASK-059: обработчики событий колонки из расширений
+        music_dirs = folders("music")  # TASK-099: поставщики музыки (music/*.py)
         actions, plugins = dict(self._builtin_actions), dict(self._builtin_plugins)
         action_owner = {name: "" for name in self._builtin_actions}  # "" — встроенное
         dataset_owner = {name: "" for name in self._builtin_plugins}
         bad = {}
         aapi_handlers.drop_extensions()  # TASK-059: пересборка — расширения регистрируются заново
+        music_providers.reset()  # TASK-099: реестр поставщиков собирается заново
         for ext_id in sorted(extensions.loaded):
             manifest = extensions.loaded[ext_id]["manifest"]
             prefix = str(extensions.action_prefix(ext_id)).rstrip(".")
@@ -594,6 +602,13 @@ class Runtime:
                         aapi_handlers.register_extension(str(trigger), registration["handler"],
                                                          registration["enabled"], ext_id,
                                                          observer=registration["observer"])
+            if error is None:
+                # TASK-099: music/*.py — поставщики музыки (PROVIDER + search/neighbor/rate);
+                # ошибка модуля или конфликт имени — расширение не включается, как у actions
+                try:
+                    music_providers.collect(ext_id, music_dirs.get(ext_id, []), runners[3])
+                except ValueError as exc:
+                    error = str(exc)
             if error:
                 bad[ext_id] = error
                 continue
@@ -607,6 +622,7 @@ class Runtime:
             extensions.loaded.pop(ext_id, None)  # «не включается»: без сценариев, режимов и т.д.
             extensions.warnings.append({"id": ext_id, "error": error[:200]})
             log.warning("Расширение %s не подключено к реестрам: %s", ext_id, error)
+        music_providers.apply()  # TASK-099: реестр поставщиков = успешный проход
         executor.actions.clear()
         executor.actions.update(actions)
         executor.plugins.clear()
@@ -757,11 +773,16 @@ class Runtime:
         «Интеллект» не должна нагружать локальный TTS-сервер, TASK-088)."""
         value = self.settings_service.validate(value, self.settings)
         tts_changed = value.get("tts") != self.settings.get("tts")
+        upstream_changed = value.get("upstream") != self.settings.get("upstream")
         async with self.lock:
             self.write("settings.json", value)
             self.settings = value
             self.settings_rev = time.time()  # устаревшие копии форм (с открытой вкладкой) отклоняются
             self.refresh_profiles()
+        if upstream_changed:  # смена DNS/пинов резолвинга — кеш не ждёт TTL (PLAN-code-audit)
+            resolver = getattr(getattr(self, "upstream", None), "resolver", None)
+            if resolver is not None:
+                resolver.invalidate()
         self.prune_sound_cache()
         if warm:
             self.warm_sound_cache()
@@ -836,9 +857,6 @@ class Runtime:
     # инструментов — в provider_manager.ProviderManager. Вызовы идут с self-аргументом:
     # scoped-копии runtime в WS-сессиях несут настройки профиля устройства.
     # provider/chat — публичные имена (voice.py, ui/api, тесты подменяют их заглушками).
-    def voice_adapter(self, kind):
-        return self.provider_manager.adapter(self, kind)
-
     async def provider(self, kind, payload=None, audio=None, filename="input.wav"):
         return await self.provider_manager.call(self, kind, payload, audio, filename)
 
@@ -967,13 +985,20 @@ class Runtime:
                            device_sn=device['sn'] if device else None, user_id=device.get('user_id') if device else None)
                 try:
                     if not data.startswith(b"AAPI"):
+                        hybrid.observe("audio", data)  # 098: аудио хода — в копилку ветки
                         await conversation.receive_audio(data)
                         continue
                     incoming = client_type.FromString(data[4:])
                     trigger = incoming.Event.WhichOneof("Event") if incoming.WhichOneof("Message") == "Event" else "StreamControl"
+                    # «Вместе», фаза 3 (098): кадры голосового хода колонки — в копилку
+                    # для релея ветке (VoiceInput открывает ход, аудио и StreamControl копятся)
+                    hybrid.observe(trigger, data)
+                    # «Вместе» (097): протокольные ответы колонки (StreamControl по потоку
+                    # ветки, Ack, RequestStat) — копией в ветку Яндекса, иначе её диалог
+                    # «подвисает» после первого обмена
+                    hybrid.relay(incoming, data)
                     if trigger == 'SynchronizeStateRequest':
-                        hybrid.keep(data)  # авторизация ветки «Вместе» — её кадр
-                        # Re-identification requires a new connection: don't mix histories or channels.
+                        hybrid.keep(data)  # авторизация ветки «Вместе» — её кадр                        # Re-identification requires a new connection: don't mix histories or channels.
                         # B03: sync — авторитетный источник, header — транспортная подсказка;
                         # расхождение независимых источников закрывает соединение (1008).
                         resolved, id_report = collect_device_id(

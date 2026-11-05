@@ -153,8 +153,11 @@ class DialogManager:
         execution = self.executor._execution_for(dialog_id) if hasattr(self.executor, "_execution_for") else None
         if execution is not None and execution.awaiting:
             outcome = await self.executor.answer(dialog_id, text, ctx)  # слот-ответ — сырая реплика
-            return await self._finish(outcome, ctx, send, deliver, "continuation",
-                                      execution.scenario.get("id"))
+            if outcome is not None:
+                return await self._finish(outcome, ctx, send, deliver, "continuation",
+                                          execution.scenario.get("id"))
+            # TASK-097: TTL ожидания истёк и снят — реплика не съедается, а идёт
+            # обычным путём (сценарии → «Вместе» → модель)
         # Нормализация только для выбора сценария (S01): ASR-финалы бывают
         # склеенными и с wake-словом; ctx.input.text остаётся исходным.
         catalog = self.scenarios()

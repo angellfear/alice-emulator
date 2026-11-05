@@ -35,7 +35,7 @@ from .extensions.context import ExtensionContext, action_context  # ExtensionCon
 from .scenario_engine import bindings as _bindings
 from .scenario_engine import parsers as _parsers
 
-SDK_VERSION = "2.3.0"  # 2.3.0: ctx.route_mode, ctx.player_owner; 2.2.0: ctx.intelligence, no_data_source; 2.1.0: ctx.data
+SDK_VERSION = "2.4.0"  # 2.4.0: ctx.music (TASK-099); 2.3.0: ctx.route_mode, ctx.player_owner; 2.2.0: ctx.intelligence, no_data_source; 2.1.0: ctx.data
 DATASET_REFRESH_TIMEOUT_S = 10.0  # как у шага refresh без timeout
 
 
@@ -624,6 +624,17 @@ class ScenarioContext:
         """Чей контент играет в колонке (только чтение, 091): «yandex» — ветка Яндекса
         (колбэки плеера идут наверх), иначе None. Сценарии плеера при «yandex» отказываются."""
         return self._ctx.get("player_owner")
+
+    @property
+    def music(self):
+        """Поставщик музыки (2.4.0, TASK-099): выбранный music/*.py включённого расширения —
+        запись {"id", "title", "search", "neighbor", "rate"} или None (источника нет).
+        Выбранный id — настройка settings["music"]["provider"] (пусто — первый включённый).
+        Функции поставщика вызываются через server_emulator.music.search/neighbor/rate:
+        они дают коду поставщика его настройки (ctx.extension) и приводят Track к контракту
+        (docs/contracts/player.md, «Поставщик контента»)."""
+        from . import music as _music
+        return _music.selected(self.settings)
 
     @property
     def intelligence(self):

@@ -22,6 +22,7 @@
       "informers.weather.widget",
       "knowledge.knowledge",
       "lists.shopping",
+      "media.music",
       "smart_home.light",
       "system.agent_say",
       "system.dialog.reset",
@@ -1715,6 +1716,159 @@
           "effects": [],
           "input": {
             "kind": "text",
+            "phrase": "включи музыку"
+          },
+          "name": "music.no-provider",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Для этого нет источника данных.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Для этого нет источника данных."
+                }
+              ],
+              "reason": "template",
+              "scenario": "media.music",
+              "speech": "Для этого нет источника данных.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "включи музыку"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "включи музыку хороший день"
+          },
+          "name": "music.no-provider-query",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Для этого нет источника данных.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Для этого нет источника данных."
+                }
+              ],
+              "reason": "template",
+              "scenario": "media.music",
+              "speech": "Для этого нет источника данных.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "включи музыку хороший день"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "включи сказку"
+          },
+          "name": "music.no-provider-tale",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Для этого нет источника данных.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Для этого нет источника данных."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "media.music",
+              "speech": "Для этого нет источника данных.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "включи сказку"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "event": "@@mm_stack_engine_get_next",
+            "kind": "callback"
+          },
+          "name": "music.stack-next-no-provider",
+          "runs": [
+            {
+              "handled": false,
+              "messages": [],
+              "reason": "no_match",
+              "scenario": null,
+              "speech": "",
+              "speech_parts": [],
+              "status": null
+            }
+          ]
+        }
+      ],
+      "id": "media.music"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
             "phrase": "включи свет"
           },
           "name": "light-no-lights",
@@ -2234,31 +2388,13 @@
           "name": "service_ack-stack-engine",
           "runs": [
             {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": ""
-                }
-              ],
-              "reason": "event:@@mm_stack_engine_get_next",
-              "scenario": "system.service_ack",
+              "handled": false,
+              "messages": [],
+              "reason": "no_match",
+              "scenario": null,
               "speech": "",
               "speech_parts": [],
-              "status": "finished"
+              "status": null
             }
           ]
         },

@@ -510,18 +510,16 @@ class Conversation:
                         'music_thin_client_on_recovery', '@@mm_stack_engine_get_next',
                         '@@mm_typed_callback')
 
-    async def _hybrid_forward(self, incoming, request, text, hybrid):
-        """«Вместе» (091): фраза наверх TextInput-ом с тем же Header (MessageId/RequestId),
-        чтобы ответ Яндекса лёг на ожидание колонки. True — переслано, ждём ответ."""
-        import copy as _copy
-        frame = _copy.deepcopy(incoming)
-        ev = frame.Event.TextInput.Request.Event
-        ev.Type = 2  # text_input
-        ev.Text = text
-        ev.EndOfUtterance = True
-        raw = b'AAPI' + frame.SerializeToString()
-        message_id = getattr(frame.Event.Header, 'MessageId', '') or ''
-        if not await hybrid.forward(raw, message_id):
+    async def _hybrid_relay_voice(self, incoming, request, hybrid):
+        """«Вместе», фаза 3 (098): промах — ветке уходит исходный голосовой ход колонки
+        (VoiceInput + аудио + StreamControl, кадры как пришли, без перекодировки): Яндекс
+        сам делает ASR и отвечает как в «Прозрачно». Текстовая пересылка удалена —
+        мегамайнд не отвечает содержанием на текст станции (доказательство — «Итог» 097).
+        True — обмен ушёл и ответ получен (колонке его доставил цикл приёма ветки)."""
+        hybrid.sn = self.trace_context.get('sn') or hybrid.sn
+        message_id = getattr(incoming.Event.Header, 'MessageId', '') or ''
+        stream_id = incoming.Event.Header.StreamId
+        if not await hybrid.relay_voice(message_id, stream_id):
             self.runtime.recent = (self.runtime.recent + [
                 {"kind": "hybrid", "error": "Вместе: Яндекс недоступен — фраза ушла прежнему пути"}])[-30:]
             return False
@@ -980,62 +978,6 @@ class Conversation:
 
         self.output_channel = None
 
-
-
-    async def speak_audio(self, incoming, text, trace=None):
-
-        """Озвучка уже отправленной реплики: TtsSpeak + аудиоканал + close.
-
-
-
-        Теги <speaker …>/<[pause …]> в синтез не идут — провайдер читает их
-
-        буквально. Если ответ ещё не отправлен, поднимайте HasVoiceResponse
-
-        перед отправкой (как облако) — иначе станция ждёт голоса зря."""
-
-        if not self.runtime.settings.get('aapi_tts'):
-
-            return
-
-        plain = re.sub(r'<[^>]+>', '', text or '').strip()
-
-        if not plain:
-
-            return
-
-        speech = None
-
-        try:
-
-            if trace:  # TASK-088: начался синтез — ход в состоянии «отвечает» (строка шапки, api/live)
-
-                trace.event('tts_start', 'server')
-
-            pages, speech = await self._synthesize_speech(plain)
-
-            if trace:
-
-                trace.event('tts_done', 'server', first_page_bytes=len(pages[0]) if pages else 0)
-
-            await self._stream_tts_channel(incoming, pages, speech, trace)
-
-        except Exception as exc:
-
-            if trace:
-
-                trace.event('tts_failed', 'server', error=type(exc).__name__)
-
-            self.runtime.recent = (self.runtime.recent + [{'kind': 'tts', 'error': type(exc).__name__ + ': ' + str(exc)[:120]}])[-30:]
-
-        finally:
-
-            if speech:
-
-                await speech.aclose()
-
-
-
     async def spoken_reply(self, incoming, text, trace=None, request_id='', force_tts=False,
                            event_name='spoken_reply', speech_text=None):
         """Готовая реплика без модели: карточка AliceResponse + озвучка тем же конвейером
@@ -1433,11 +1375,13 @@ class Conversation:
 
                     return
 
-                # «Вместе» (091): промах — настоящему Яндексу текстом; при отказе — прежний путь
+                # «Вместе», фаза 3 (098): промах — ветке уходит голосовой ход колонки;
+                # при отказе — прежний путь. TextInput-промахи (голоса нет) — сразу прежний путь
                 hybrid = getattr(self.runtime, 'hybrid_session', None)
                 mode_fn = getattr(self.runtime, 'hybrid_mode', None)
-                if hybrid is not None and mode_fn is not None and mode_fn() == 'hybrid':
-                    if await self._hybrid_forward(incoming, request, text, hybrid):
+                if hybrid is not None and mode_fn is not None and mode_fn() == 'hybrid' \
+                        and kind == 'VoiceInput':
+                    if await self._hybrid_relay_voice(incoming, request, hybrid):
                         return
 
                 # сценария нет — фраза в очередь «Эмулятор → Без ответа» (в любом режиме «Интеллект»)

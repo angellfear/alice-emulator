@@ -10,10 +10,6 @@ from .settings_service import RECORD_MODES, ROUTE_MIGRATION_KEY, ROUTE_MODES
 from .state_store import StateStore
 
 
-class DeviceMismatch(ValueError):
-    """Разные DeviceId из независимых транспортных источников одного запроса."""
-
-
 def collect_device_id(*candidates):
     """B03: единый resolver транспортных DeviceId.
 

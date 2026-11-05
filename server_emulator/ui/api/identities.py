@@ -12,12 +12,24 @@ from aiohttp import web
 from . import route
 
 
+def _session_public(session):
+    # TASK-095: capabilities.raw — bytes протокольного кадра (TASK-069 кладёт в сессию
+    # для диагностики); в JSON-ответе достаточно длины (bytes) и printable-превью —
+    # с raw сериализация падала и вкладка «Устройства» не грузилась
+    row = {k: v for k, v in session.items() if k not in ('runtime', 'send', 'ws', 'transport')}
+    caps = row.get('capabilities')
+    if isinstance(caps, dict):
+        row['capabilities'] = {name: {k: v for k, v in entry.items() if k != 'raw'}
+                               for name, entry in caps.items() if isinstance(entry, dict)}
+    return row
+
+
 @route("identities", methods=("GET", "POST"))
 async def identities(request, runtime, app):
     if request.method == 'GET':
         # activity — оперативная сводка «виден/последний IP» для таблицы устройств
         return web.json_response({**runtime.identities.public(),
-                                  'sessions': [{k:v for k,v in s.items() if k not in ('runtime','send','ws','transport')} for s in runtime.sessions.values()],
+                                  'sessions': [_session_public(s) for s in runtime.sessions.values()],
                                   'activity': copy.deepcopy(runtime.identities.activity)})
     if request.method != 'POST':
         raise web.HTTPMethodNotAllowed(request.method, ['GET', 'POST'])

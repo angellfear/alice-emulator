@@ -12,9 +12,9 @@ from pathlib import Path
 
 CATEGORIES = {"system", "informers", "device", "smart_home", "timers", "media", "chat", "games", "knowledge",
               "lists", "custom"}
-TRIGGER_KINDS = {"phrase", "event", "protocol_event", "provide", "intent", "schedule", "state_change", "template"}
+TRIGGER_KINDS = {"phrase", "event", "protocol_event", "provide", "intent", "template"}
 EVENT_FILTER_KEYS = {"callback", "purpose", "frame"}
-BINDING_SOURCES = {"constant", "input", "generated", "slot", "clock", "computed", "state", "media",
+BINDING_SOURCES = {"constant", "input", "generated", "slot", "clock", "computed", "state",
                    "user", "device", "animation", "template", "path"}
 COMPUTED_FNS = {"timezone_offset_seconds", "slot_value"}
 GENERATED_KINDS = {"uuid4_hex", "hex32", "uuid4_dash"}

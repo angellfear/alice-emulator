@@ -38,10 +38,6 @@ def level(runtime):
     return value if value in LEVELS else "agent"
 
 
-def at_least(runtime, minimum):
-    return LEVELS.index(level(runtime)) >= LEVELS.index(minimum)
-
-
 def migrate(settings):
     """Настройки до появления режима: включённый агент (engine graph) — agent, иначе model.
     Значение "ext:<id>" (режим расширения) — не мигрируем, живёт до отката в chat."""

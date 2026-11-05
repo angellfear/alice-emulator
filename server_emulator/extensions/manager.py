@@ -45,7 +45,7 @@ MANIFEST = "extension.json"
 HOOK_TIMEOUT = 10.0  # таймаут хука hooks.py (ScriptRunner)
 MAX_ZIP_BYTES = 50 * 1024 * 1024  # лимит архива расширения (модели тяжелее — это класс install)
 FOLDERS = ("scenarios", "endpoints", "quasar", "voice", "lists", "modes", "mcp", "aapi", "actions",
-           "datasets", "animations", "params", "replies", "catalog", "updates", "sounds", "ui")
+           "datasets", "music", "animations", "params", "replies", "catalog", "updates", "sounds", "ui")
 
 SEMVER_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$")
 ID_RE = re.compile(r"^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$")

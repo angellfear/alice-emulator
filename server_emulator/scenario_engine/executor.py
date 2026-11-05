@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import logging
 import time
 from types import SimpleNamespace
 
@@ -27,6 +28,8 @@ from ..extensions.context import action_context as extension_for_action
 from ..scripting import ScriptRunner, failure
 from ..sdk import Ask, ScenarioContext
 from .bindings import BindingError, expand
+
+log = logging.getLogger(__name__)
 
 MAX_STEPS = 64
 DEFAULT_DEADLINE_S = 300.0
@@ -57,11 +60,6 @@ class Outcome:
         self.question = execution.awaiting_question
         self.error = execution.error
         self.effects = list(getattr(execution, "effects", []) or [])
-
-    def as_dict(self):
-        return {"status": self.status, "trace": self.trace, "slots": self.slots,
-                "composed": len(self.composed), "awaiting": self.awaiting,
-                "question": self.question, "error": self.error, "effects": self.effects}
 
 
 class Execution:
@@ -186,7 +184,8 @@ class Executor:
 
     async def answer(self, dialog_id, value, ctx):
         """Продолжение после ask: значение → слот (JSON) или вызов продолжения
-        py-сценария (TASK-020), исполнение дальше."""
+        py-сценария (TASK-020), исполнение дальше. None — ожидания нет или (JSON-ask)
+        оно истекло по TTL и снято: вызывающий обрабатывает реплику как новую."""
         execution = self._execution_for(dialog_id)
         if execution is None:
             return None
@@ -194,6 +193,17 @@ class Executor:
             return None
         if (execution.scenario.get("executor") or {}).get("kind") == "script":
             return await self._answer_script(execution, value, ctx)
+        # TASK-097: у JSON-ask не было ни отмены фразой, ни TTL — вопрос «На какое время
+        # поставить будильник?» висел вечно (восстановленный из БД — и после перезапусков)
+        # и съедал каждую реплику своего DialogId ещё до маршрутизации
+        if self._is_cancel(value):  # «отмена»/«стоп» — ожидание снято, реплики нет
+            execution.note(execution.awaiting, "cancel", "cancelled")
+            self._forget(dialog_id)
+            return Outcome("cancelled", execution)
+        if time.monotonic() > execution.deadline:
+            execution.note(execution.awaiting, "ask", "timeout", "deadline")
+            self._forget(dialog_id)
+            return None
         slot = execution.awaiting
         execution.slots[slot] = value
         execution.awaiting = None
@@ -251,8 +261,11 @@ class Executor:
         # dry-run — проверка сценария, её сбои в журнал не попадают
         if status == "errored" and not execution.dry_run and self.on_error is not None:
             try:
+                # TASK-095: последняя строка — тип и сообщение исключения; хвост трейсбека
+                # (первые строки срезались [-300:]) в журнале нечитаем
+                error = str(execution.error or "").strip()
                 self.on_error({"kind": "scenario", "id": execution.scenario.get("id", ""),
-                               "error": str(execution.error or "")[-300:]})
+                               "error": (error.splitlines() or [""])[-1][:300] or error[:300]})
             except Exception:  # сбой колбэка не должен ломать исполнение
                 pass
         self._forget(execution.dialog_id)
@@ -531,9 +544,17 @@ class Executor:
         job = (dataset, key)
         task = self._refreshing.get(job)
         if task is None or task.done():
+
+            def _reap(done, job=job):  # TASK-095: забрать позднюю ошибку плагина — после
+                # таймаута refresh_dataset задачу никто не ждёт, без этого её исключение
+                # терялось («Task exception was never retrieved»)
+                self._refreshing.pop(job, None)
+                if not done.cancelled() and done.exception() is not None:
+                    log.debug("Плагин датасета %s.%s упал: %s", job[0], job[1], done.exception())
+
             task = asyncio.ensure_future(self._run_plugin(plugin, dataset, key, dict(args or {})))
             self._refreshing[job] = task
-            task.add_done_callback(lambda _t, job=job: self._refreshing.pop(job, None))
+            task.add_done_callback(_reap)
         return await asyncio.wait_for(asyncio.shield(task), timeout)
 
     async def _run_plugin(self, plugin, dataset, key, args):

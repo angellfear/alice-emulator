@@ -196,10 +196,6 @@ def _lookup(ctx, path):
     return node
 
 
-def lookup_path(ctx, path):
-    """Публичный доступ к значению по пути (без приведения к строке)."""
-    return _lookup(ctx, path)
-
 
 def expand(value, ctx):
     """Раскрытие значения сценария: binding-словарь → evaluate; строка с {{…}} →
@@ -359,11 +355,6 @@ def evaluate(binding, ctx):
         if key not in ctx.get("state", {}):
             raise BindingError(f"state.{key} отсутствует")
         return ctx["state"][key]
-    if source == "media":
-        ref = binding.get("ref")
-        if ref not in ctx.get("media", {}):
-            raise BindingError(f"media.{ref} не синтезирована")
-        return ctx["media"][ref]
     if source in ("user", "device"):
         key = binding.get("field")
         node = ctx.get(source, {})

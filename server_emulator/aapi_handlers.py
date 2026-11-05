@@ -157,15 +157,20 @@ callback_route('@@mm_semantic_frame', 'weather.opened', _is_weather_tap, 'тап
 callback_route('@@mm_semantic_frame', 'callbacks.ack', None, 'семантический фрейм — тихое подтверждение',
                'event:@@mm_semantic_frame')
 # Колбэки штатного плеера колонки (TASK-087): своей очереди у эмулятора нет — на
-# on_started/on_stopped и «включи следующий» настоящий сервер отвечал тихим
-# подтверждением (журнал 2026-10-21…26: пустой диалоговый ответ, только
-# tts_play_placeholder; кнопки экрана плеера — тоже общий ack).
-callback_route('@@mm_stack_engine_get_next', 'callbacks.ack', None, 'стек плеера — запрос следующего',
-               'event:@@mm_stack_engine_get_next')
+# on_started/on_stopped настоящий сервер отвечал тихим подтверждением (журнал
+# 2026-10-21…26: пустой диалоговый ответ, только tts_play_placeholder; кнопки экрана
+# плеера — тоже общий ack).
 callback_route('music_thin_client_on_started', 'callbacks.ack', None, 'плеер колонки — трек начался',
                'event:music_thin_client_on_started')
 callback_route('music_thin_client_on_stopped', 'callbacks.ack', None, 'плеер колонки — трек остановлен',
                'event:music_thin_client_on_stopped')
+# «включи следующий» (TASK-099): при выбранном поставщике музыки сценарий media.music
+# отвечает следующей очередью + audio_play (образец «дальше» из захвата 2026-11-02);
+# поставщика нет — сценарий отказывается, колбэку идёт прежнее тихое подтверждение
+# (умолчание provide-маршрута). В «Вместе» при контенте Яндекса колбэки уходят наверх
+# до маршрута (voice.py PLAYER_CALLBACKS, 091) — сценарий их не видит.
+callback_route('@@mm_stack_engine_get_next', 'music.stack_next', None, 'стек плеера — следующий трек поставщика',
+               'event:@@mm_stack_engine_get_next')
 callback_route('@@agent_say', 'agent_say.requested', None, 'сообщение агента (задания по расписанию)',
                'event:@@agent_say')
 # TASK-079: @@timer_fired убран — серверный планировщик удалён, сигнал таймера/

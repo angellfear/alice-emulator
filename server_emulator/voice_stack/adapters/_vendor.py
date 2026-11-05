@@ -186,17 +186,6 @@ async def collect(source):
     return bytes(out)
 
 
-async def ogg_normalized(data):
-    """Ogg Opus поставщика → Ogg Opus с заголовком и EOS-страницей; иначе перекодируется."""
-    from ...audio_buffer import ogg_pages
-    from ...audio_stream import transcode
-    try:
-        ogg_pages(data)
-        return data
-    except ValueError:
-        return b"".join([page async for page in transcode(bytes_chunks(data), "audio/ogg", "opus")])
-
-
 def wav_pcm(data):
     """WAV (PCM16) → (PCM16 mono, частота): стерео сводится в моно."""
     try:

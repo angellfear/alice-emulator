@@ -4,6 +4,8 @@
 перекрывают файл (`effective`). Применение — перезапуском: `save` хранит прежний файл
 (`server.json.prev`) и метку `server.json.pending`; если сервер с новыми настройками не поднялся,
 `rollback` возвращает прежние. Колонкам нужны 443 (TLS) и 80 (HTTP, `quasar.yandex.net`).
+Кроме политики фронта для доменов вне сертификата (`front_uncovered`, `front_allow`): её фронт
+читает из файла на каждое соединение — она применяется без перезапуска (TASK-093).
 """
 from __future__ import annotations
 
@@ -18,7 +20,12 @@ from pathlib import Path
 
 FILE = "server.json"
 DEFAULTS = {"host": "0.0.0.0", "port": 443, "ssl": True, "cert": "", "key": "", "http_port": 80,
-            "front": True, "front_dns": ["8.8.8.8", "1.1.1.1"]}  # фронт TLS и DNS туннелей (TASK-067)
+            "front": True, "front_dns": ["8.8.8.8", "1.1.1.1"],  # фронт TLS и DNS туннелей (TASK-067)
+            "front_uncovered": "tunnel", "front_allow": []}  # домены вне сертификата: режимы фронта (TASK-093)
+# Применяются без перезапуска: фронт читает их из файла на каждое соединение (front.py::_policy).
+FRONT_MODES = ("tunnel", "allowlist", "block")
+_DOMAIN_LABEL = r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"
+DOMAIN_RE = re.compile(rf"^(?:\*\.)?{_DOMAIN_LABEL}(?:\.{_DOMAIN_LABEL})*$")  # wildcard — только первым ярлыком
 CERT_DIR = "certs"          # загруженные в интерфейсе сертификаты и ключи: <state>/certs/
 CERT_LIMIT = 1024 * 1024    # PEM-файл больше 1 МиБ — не сертификат
 RESTART_CODE = 75   # код выхода «перезапустить»: лаунчер (TASK-045) запускает сервер сразу
@@ -73,6 +80,37 @@ def _port(value, name, allow_zero=False):
     return number
 
 
+def front_policy(value):
+    """Политика доменов вне сертификата (TASK-093) из формы или файла → (режим, лист); ошибка — ValueError.
+
+    Лист — список или строка с одним доменом на строку (из textarea): нормализация (строчные,
+    без пробелов и завершающей точки), пустые строки и повторы убираются; разрешены ярлыки из
+    букв, цифр и `-`, wildcard `*.` — только первым ярлыком (на один уровень, как в TLS).
+    """
+    mode = str(value.get("front_uncovered", DEFAULTS["front_uncovered"]))
+    if mode not in FRONT_MODES:
+        raise ValueError("Домены вне сертификата: режим tunnel (прозрачно), allowlist (по листу) или block")
+    items = value.get("front_allow", DEFAULTS["front_allow"])
+    if isinstance(items, str):
+        items = items.splitlines()
+    if not isinstance(items, list):
+        raise ValueError("Домены вне сертификата: список или по домену на строку")
+    allow = []
+    for item in items:
+        name = str(item).strip().lower().strip(".")
+        if not name:
+            continue
+        if len(name) > 253:
+            raise ValueError(f"Домены вне сертификата: «{name[:40]}…» длиннее 253 символов")
+        if not DOMAIN_RE.match(name):
+            raise ValueError(f"Домены вне сертификата: «{name[:60]}» — не домен (`*` — только первым ярлыком)")
+        if name not in allow:
+            allow.append(name)
+    if len(allow) > 100:
+        raise ValueError("Домены вне сертификата: не больше 100 записей")
+    return mode, allow
+
+
 def ssl_context(state, config):
     """SSLContext по настройкам или None (SSL выключен); ошибка сертификата — ValueError по-русски."""
     if not config.get("ssl"):
@@ -105,12 +143,14 @@ def validate(state, value):
     if not isinstance(dns, list) or not dns or len(dns) > 4 \
             or not all(isinstance(item, str) and item.strip() for item in dns):
         raise ValueError("DNS туннелей: адреса через запятую (до 4)")
+    mode, allow = front_policy(value)
     config = {"host": host, "port": _port(value.get("port", DEFAULTS["port"]), "Порт"),
               "ssl": bool(value.get("ssl", DEFAULTS["ssl"])),
               "cert": clean_path(value.get("cert")), "key": clean_path(value.get("key")),
               "http_port": _port(value.get("http_port", DEFAULTS["http_port"]), "HTTP-порт", allow_zero=True),
               "front": bool(value.get("front", DEFAULTS["front"])),
-              "front_dns": [item.strip() for item in dns]}
+              "front_dns": [item.strip() for item in dns],
+              "front_uncovered": mode, "front_allow": allow}
     if config["port"] == config["http_port"]:
         raise ValueError("Порт и HTTP-порт должны различаться")
     ssl_context(state, config)

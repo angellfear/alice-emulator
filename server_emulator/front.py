@@ -8,16 +8,24 @@ ClientHello (до 32 КиБ, без расшифровки), из него — S
   (публично не резолвится) — соединение целиком передаётся внутреннему
   aiohttp-слушателю с тем же ssl_context (сплайс, накопленные байты идут
   первыми, ничего не теряется);
-- иначе (домен не покрыт — например strm-хосты музыки) — слепой TCP-туннель к
-  настоящему адресу хоста: A-записи у внешних DNS (настройка server.json
+- иначе (домен не покрыт — например strm-хосты музыки) — по настроенному
+  front_uncovered (TASK-093; режим и лист читаются живьём из server.json на каждое
+  соединение, применяются без перезапуска): "tunnel" (по умолчанию) — слепой TCP-туннель
+  к настоящему адресу хоста: A-записи у внешних DNS (настройка server.json
   front_dns, aiodns), порт тот же; настоящий TLS с настоящим сертификатом,
   содержимое фронту не видно. Адрес самого сервера в адреса туннеля не
   попадает (защита от петли — upstream.resolver.local_addresses).
+  "allowlist" — туннель только доменам из front_allow (wildcard на один уровень —
+  cert_covers), прочие отклоняются; "block" — все непокрытые отклоняются:
+  соединение закрывается сразу после чтения SNI, TLS не состоялся.
+- каждое непокрытое имя фиксируется в Front.seen (имя → счётчик, в памяти с запуска
+  фронта) — наружу через runtime.front_observed (api/server-front, «Дополнительно → Сервер»).
 
 Реальный адрес колонки сохраняется таблицей peers (исходящий сокет сплайса →
 оригинальный пир); dispatcher.client_ip получает его через runtime.client_peer.
 События — в журнал сервера (TASK-068): предупреждение о туннеле по домену
-(повторы склеивает журнал, адрес — в detail), ошибка открытия туннеля, старт
+(повторы склеивает журнал, адрес — в detail), предупреждение об отклонении
+непокрытого домена (режим в detail), ошибка открытия туннеля, старт
 фронта. Перенесено из реализаций фронтов прежних установок (dns_names_in_cert,
 cert_covers, разбор ClientHello, сплайс и помпа) и переписано под запуск
 эмулятора: одна конфигурация из server.json, журнал, защиты.
@@ -25,9 +33,11 @@ cert_covers, разбор ClientHello, сплайс и помпа) и переп
 from __future__ import annotations
 
 import asyncio
+import datetime
 import ipaddress
 import logging
 
+from . import server_config
 from .server_log import log_event
 from .upstream.resolver import local_addresses
 
@@ -118,6 +128,7 @@ class Front:
         self.peers = {}  # (исходящий ip, исходящий порт, внутренний порт) → оригинальный пир
         self.connections = set()
         self.tunnels = {}  # host → число туннелей (для статуса/журнала)
+        self.seen = {}  # домены вне сертификата с запуска фронта: host → {"count", "first"} (TASK-093)
         self._server = None
 
     def client_peer(self, request):
@@ -139,6 +150,8 @@ class Front:
         self.public_port = port
         self.dns_servers = [str(item).strip() for item in (dns_servers or DEFAULT_DNS) if str(item).strip()]
         self._server = await asyncio.start_server(self._connection, host, port)
+        self.runtime.front_observed = self.seen  # «Дополнительно → Сервер»: список с кнопкой «Добавить»
+        self.runtime.front_sans = self.sans  # имена сертификата, которые видит фронт (для того же API)
         log_event("info", "tls", f"Фронт TLS запущен на порту {port}: имён в сертификате {len(self.sans)}",
                   sans=", ".join(self.sans[:8]))
         return self._server
@@ -168,7 +181,14 @@ class Front:
             if name is None and not buffered.startswith(b"\x16"):
                 return  # не TLS (не handshake-запись) — тихо закрыть: handshake колонки не состоялся
             # TLS без SNI — тоже эмулятор: сертификат по умолчанию (TASK-067)
-            if not self._tunnel_needed(name):
+            mode, allow = self._policy()
+            decision = self._decision(name, mode, allow)
+            if decision == "block":
+                self._note_seen(name)
+                log_event("warning", "tls", f"Домен {name} не в сертификате — соединение отклонено",
+                          host=name, mode=mode)
+                return  # TLS не состоялся; поток закроет finally
+            if decision == "splice":
                 upstream_reader, upstream_writer = await asyncio.open_connection(
                     "127.0.0.1", self.internal_port, limit=PUMP_CHUNK * 4)
                 outgoing = upstream_writer.get_extra_info("sockname")
@@ -177,6 +197,7 @@ class Front:
                     peer_key = (outgoing[0], outgoing[1], self.internal_port)
                     self.peers[peer_key] = original  # реальный адрес колонки для dispatcher.client_ip
             else:
+                self._note_seen(name)
                 upstream_reader, upstream_writer = await self._tunnel(name)
                 if upstream_writer is None:
                     return  # причина уже в журнале
@@ -197,18 +218,35 @@ class Front:
                     pass
             self.connections.discard(writer)
 
-    def _tunnel_needed(self, name):
-        """Домен не покрыт сертификатом и публично резолвится — туннель; иначе сплайс."""
+    def _policy(self):
+        """Режим и лист — живьём из server.json: применяются без перезапуска (TASK-093)."""
+        config = server_config.load(self.runtime.directory)
+        return (config.get("front_uncovered") or "tunnel",
+                tuple(config.get("front_allow") or ()))
+
+    def _decision(self, name, mode, allow):
+        """Покрытое имя, отсутствие SNI, IP и `.local` — "splice" (как в TASK-067); прочее — по
+        front_uncovered: "tunnel" | "block" ("allowlist" туннелирует только лист)."""
         if not name:
-            return False  # SNI нет — решает aiohttp (сертификат по умолчанию)
+            return "splice"  # SNI нет — решает aiohttp (сертификат по умолчанию)
         try:
             ipaddress.ip_address(name)
-            return False  # литеральный IP публично не резолвится
+            return "splice"  # литеральный IP публично не резолвится
         except ValueError:
             pass
         if name.endswith(LOCAL_SUFFIXES):
-            return False
-        return bool(self.sans) and not cert_covers(name, self.sans)
+            return "splice"
+        if not self.sans or cert_covers(name, self.sans):
+            return "splice"  # сертификат не читается (всё сплайсом) или имя покрыто
+        if mode == "allowlist":
+            return "tunnel" if cert_covers(name, allow) else "block"
+        return "block" if mode == "block" else "tunnel"
+
+    def _note_seen(self, name):
+        """Зафиксировать непокрытый домен: api/server-front покажет его с кнопкой «Добавить»."""
+        entry = self.seen.setdefault(name, {"count": 0, "first": datetime.datetime.now(
+            datetime.timezone.utc).isoformat(timespec="seconds")})
+        entry["count"] += 1
 
     async def _tunnel(self, name):
         """Слепой туннель к настоящему адресу: внешний DNS, защита от петли, таймауты."""

@@ -279,3 +279,32 @@ async def test_unknown_then_errors_at_first_ask(tmp_path):
         assert len(entries) == 1 and "script_continuation_missing" in entries[0]["error"]
     finally:
         await runtime.close()
+
+
+async def test_expired_json_ask_lets_phrase_route_normally(tmp_path):
+    """TASK-097: истёкшее ожидание JSON-сценария не перехватывает следующую фразу —
+    она идёт обычным путём (роутер), а не съедается продолжением старого диалога."""
+    alarm = {"format_version": 2, "id": "timers.alarm.set", "version": "1.0.0",
+             "category": "custom", "priority": 100,
+             "triggers": [{"kind": "phrase", "phrases": ["поставь будильник"]}],
+             "flow": [{"id": "q", "op": "ask", "question": "На какое время поставить будильник?",
+                       "await": "on_time", "next": "done"},
+                      {"id": "done", "op": "finish"}],
+             "slots": {"on_time": {"type": "string"}}}
+    news = script_scenario(sid="knowledge.news", phrases=("расскажи новости",))
+    runtime = make_runtime(tmp_path, [(alarm, None), (news, None)])
+    (runtime.scenario_dir / (news["id"] + ".py")).write_text(
+        'from server_emulator.sdk import say\n\n\ndef handle(ctx):\n    return say("Новости дня")\n',
+        encoding="utf-8")
+    try:
+        first = await say_to(runtime, "поставь будильник")
+        assert first["handled"] and first["status"] == "awaiting"
+        payload = runtime.store.load_execution("dlg")
+        payload["deadline_remaining_s"] = 0  # вопрос истёк (два дня назад в бою)
+        runtime.store.save_execution("dlg", payload)
+        second = await say_to(runtime, "расскажи новости")
+        assert second["reason"] != "continuation"      # не съедено старым диалогом
+        assert second["scenario"] == "knowledge.news"  # фраза обработана заново роутером
+        assert runtime.store.load_execution("dlg") is None
+    finally:
+        await runtime.close()

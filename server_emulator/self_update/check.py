@@ -2,8 +2,8 @@
 
 stable — GET /releases/latest (пререлизы GitHub сам не отдаёт); beta — GET /releases (первый
 не-черновик). Заголовки — по документации REST API: Accept, X-GitHub-Api-Version, User-Agent;
-ETag/If-None-Match — 304 Not Modified вместо повторной выдачи. Приватный репозиторий без токена
-отвечает 404 — это «репозиторий недоступен», а не ошибка сети.
+ETag/If-None-Match — 304 Not Modified вместо повторной выдачи. 404 — репозиторий не найден
+(проверить имя owner/name) или у него ещё нет релизов; это не ошибка сети.
 """
 from aiohttp import ClientSession, ClientTimeout
 
@@ -30,14 +30,14 @@ def _release(data):
 
 async def latest(repo, token="", channel="stable", etag=None):
     """Последний релиз: {"release": …|None, "etag": …}. None — 304 (не менялся с прошлого раза).
-    LookupError — репозиторий недоступен (приватный) или релизов нет; остальное — ошибка сети."""
+    LookupError — репозиторий не найден или релизов нет; остальное — ошибка сети."""
     url = f"{API}/repos/{repo}/releases/latest" if channel == "stable" else f"{API}/repos/{repo}/releases"
     async with ClientSession(timeout=TIMEOUT) as client:
         async with client.get(url, headers=headers(token, etag)) as response:
             if response.status == 304:
                 return {"release": None, "etag": etag}
             if response.status == 404:
-                raise LookupError("репозиторий недоступен (приватный? задайте токен в настройках)")
+                raise LookupError("репозиторий не найден или релизов нет (проверьте имя owner/name в настройках)")
             response.raise_for_status()
             data = await response.json()
             if channel != "stable":

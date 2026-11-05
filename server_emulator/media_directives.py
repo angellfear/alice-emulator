@@ -53,12 +53,3 @@ def pause_items():
              "payload": {"smooth": False}},
             {"name": "clear_queue", "type": "client_action", "is_led_silent": True,
              "analytics_type": "general_conversation_player_pause"}]
-
-
-def stop_items():
-    """Останов на колонке, где играть уже нечего (образцы 2026-10-21 23:25, 2026-10-24
-    00:58): без player_pause — останавливать нечего, анимация паузы + очистка очереди
-    (analytics «player_pause»). Речи нет."""
-    return [tts_placeholder(), draw_player_pause(),
-            {"name": "clear_queue", "type": "client_action", "is_led_silent": True,
-             "analytics_type": "player_pause"}]

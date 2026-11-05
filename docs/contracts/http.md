@@ -77,7 +77,7 @@ meta `record_migration`); `record` как значение `route_mode` — 400.
 | Режим | HTTP | WS |
 |---|---|---|
 | `emulate` (Эмуляция) | эмулятор | эмулятор |
-| `hybrid` (Гибрид) | эмулятор, где есть обработчик; промах — upstream, промах остаётся в «Без ответа» с отметкой «ушёл в Яндекс» | эмулятор (фаза 1); пересылка отдельных необработанных сообщений — фаза 2 |
+| `hybrid` (Вместе) | эмулятор, где есть обработчик; промах — upstream, промах остаётся в «Без ответа» с отметкой «ушёл в Яндекс» | эмулятор (фаза 1); пересылка отдельных необработанных сообщений — фаза 2 |
 | `proxy` (Прозрачно) | upstream | мост upstream |
 
 Решение — `dispatcher.route_mode_for(request) → (sn, device_id, mode)`: заголовки
@@ -119,86 +119,10 @@ HTTP — `METHOD host path` без query; WS — `ws → Event.<имя>` (кол
 `ws open`, `ws close`, `ws unknown →|←`. На пару (устройство, ключ) хранятся последние 10 записей, `count` —
 все случаи.
 
-### H11: HTTP-маршруты эмуляции — три состояния
+### H11: HTTP-маршруты эмуляции — отменено
 
-Неизвестный эмуляции HTTP-маршрут (нет обработчика, builtin и OTA-политики) авторегистрируется в реестре (`server_emulator/http_routes.py`, state-файл `http_routes.json`, ключ — канонический host+method+path) **выключенным**, логируется (счётчик hits/last_ts + recent) и получает локальный 404 `emulator_route_disabled` (запись с emulated=true). Состояния:
-
-- **enabled** — обслуживается локально; без обработчика — локальный честный 404 `emulator_handler_not_found`.
-- **transparent** — обмен молча уходит upstream куда шёл, НЕ записываясь в захват (ctx capture_skip; read-once тело запроса переносится с собой). «Подмены» продолжают применяться.
-- **disabled** — локальный 404 `emulator_route_disabled`.
-
-Реестр действует только в режиме эмуляции; каталог приложений (`/gproxy/get_app_catalog` — перехватывается всегда, режимы см. выше), OTA-эндпоинты и `/glagol/token` — известные маршруты, гейтом не перехватываются. API: GET/PUT/DELETE `/emulator/api/http_routes`; UI — вкладка «HTTP · Quasar». Тесты: tests/test_http_routes.py, tests/test_mode_enum.py.
-
-## Обновление 2026-11-01: кабинет пользователя `/me`
-
-Реализация: `server_emulator/ui/api/me.py`, страница `server_emulator/ui/me.html`, вход — `server_emulator/auth.py`. Тесты: `tests/test_me_cabinet.py`.
-
-| Маршрут | Запрос | Ответ | Доступ |
-|---|---|---|---|
-| GET /me | — | страница кабинета (`me.html`; также `<prefix>/me`) | без входа |
-| GET /api/me/params[?user=<id>] | — | `{user, user_name, params, devices, users?}`: `params` — определения области `user` с `user_editable` и значением владельца; `devices` — устройства пользователя `{sn, name, room, model, platform, status (online/seen/offline), last_seen, params}` (определения области `device`); `users` — только админу | сессия; пользователь — свой дом (`identities_user`), `?user=` игнорируется; админ и открытый режим — дом из `?user=` (иначе свой/первый) |
-| PUT /api/me/params | `{key, value, owner?}` (`owner` — `user:<id>` или `device:<sn>`, по умолчанию свой) | `{owner, key, value}` | только `user_editable` своих владельцев; 403 `not_editable` / `bad_owner` / `not_your_device`, 400 — ошибка значения; нужен `X-Emulator: 1` |
-| PUT /api/me/devices | `{sn, name?, room?}` | `{sn, name, room}` | своё устройство (иначе 403 `not_your_device`): реестр и параметры `device.name` / `device.room` |
-| POST /emulator/api/me_link | `{user}` | `{url}` | только админ |
-
-Ошибки доступа: нет сессии при включённом входе — 401; вход не привязан к пользователю реестра (или в реестре нет пользователей) — 409 `{"error":"principal_not_linked"}`.
-
-Вход админа в кабинет без логина. Вход включён (`auth.json`) — `me_link` создаёт токен (в памяти, 12 ч, привязан к пользователю) и возвращает `{"url":"/me#t=<токен>"}`; открытый режим — `{"url":"/me?user=<id>"}`. Токен во фрагменте адреса, поэтому не попадает в логи сервера и прокси; страница кладёт его в `sessionStorage`, убирает из адреса и шлёт заголовком `X-Me-Token`. Заголовок действует только на `/api/me/*` и `/api/auth/whoami` (запрос идёт как сессия `role: user` этого пользователя); на остальных путях он игнорируется (401/403 как без сессии). `whoami` с токеном — `{authenticated, name, role: "user", via: "link"}`. Cookie админа не затрагивается. Выход админа (его токены) и `revoke_all` (смена пароля и т. п.) гасят токены кабинета.
-
-## Обновление 2026-11-01: журнал сервера
-
-Админ-API «Дополнительно → Лог» (`ui/api/server_log.py`, хранилище — `server_log.py`,
-`state/server_log.sqlite3`, хранение 3 дня, повторы в пределах часа склеиваются):
-
-| Маршрут | Запрос | Ответ | Доступ |
-|---|---|---|---|
-| GET /emulator/api/server_log | query: `level` (имя или имена через запятую), `source`, `q` (подстрока сообщения/устройства), `before` (ts — пагинация), `limit` (до 500) | `{items, sources, more}` — записи новые сверху: `ts` (первый случай), `last_ts`, `count`, `level`, `source`, `message`, `device_sn`, `detail` (JSON: хост, путь, код, причина — без заголовков и тел) | только админ при включённом входе |
-| DELETE /emulator/api/server_log | — | `{cleared: true}` | только админ; нужен `X-Emulator: 1` |
-
-## Обновление 2026-11-01: перехват OTA в «Прозрачно»
-
-Обновления прошивки (эндпоинты `updates.py`: `/tv/api/v4/updates`, `/check_updates`,
-`/allow_update`, `/confirm_update` и правила расширений) перехватываются **при любом маршруте
-устройства**, включая `proxy` («Прозрачно»): в `Dispatcher.handle` ветка proxy перед прямым
-проходом спрашивает `runtime.updates.match(canonical_host, path, method)` — совпало → ответ по
-политике «Устройства → Обновления» (запретить/разрешить/свой ответ), апстрим не вызывается.
-Запрос оригинала для каталога URL выполняется мимо маршрута (прямая сессия) с заголовком
-`X-Alice-Update-Probe: 1`; ответ на такой маркер — 508 (петля закрыта). Журнал — как в эмуляции
-(`journal_emulated` по опции «Запись»). Остальной трафик «Прозрачно» не меняется.
-
-## Обновление 2026-11-01: встроенные ответы без эндпоинтов
-
-Промахи рабочего сервера («HTTP без эндпоинта») обслуживаются встроенными ответами
-(`endpoints.py: BUILTIN_SILENCERS`, вызов — `Dispatcher.builtin_answer` в fallback'е, после
-каталога эндпоинтов). Пользовательский эндпоинт с тем же URL перекрывает встроенный (защиты URL,
-как у Квазара/Обновлений, нет). В «HTTP без эндпоинта» и в журнал трафика («Запись») они не
-пишутся (шум); в каталоге видны в группе «Встроенные ответы».
-
-| Хост и путь | Ответ |
-|---|---|
-| `POST clck.yandex.net/*` (quasar_metrics/tv/quasar/smart_display_errors) | 200, пустое тело |
-| `POST report.appmetrica.yandex.net/report`, `POST rosenberg.appmetrica.yandex.net/location` | 200, пустое тело |
-| `HEAD/GET scbh.yandex.net/generate_204` | 204 без тела |
-| `GET egress.yandex.net/` | 200 text/plain — адрес клиента, с которого пришёл запрос (семантика «твой исходящий IP») |
-| `GET soft.export.yandex.ru/status.xml` | 200 `text/xml` `<status>ok</status>` |
-| `POST rpc.alice.yandex.net/gproxy/get_auth_suggests`, `get_teasers` | 200 `{}` |
-| `GET keyboard.yandex.net/experiments` | 200 `{}` |
-| `GET yandex.ru/ads/v1/startup` | 200 `{}` |
-| `GET avatars.yandex.net/get-music-content/…`, `get-video-content/…` | пересылка настоящему серверу (цель — `upstream.target_for_host`, алиасы учитываются), ответ кешируется в `state/cache/avatars` (лимит 200 МБ, срок 7 дней, вытеснение самого старого); без сети — кеш (даже протухший), затем 404; Range-запросы проходят насквозь без кеша |
-
-Форматы, для которых в журнале не нашлось образцов (метрики, status.xml, `{}`) — безопасный
-минимум «успех»; если колонке потребуется что-то другое, ответ видно в «Прозрачно» и
-перекрывается своим эндпоинтом. Запросы браузера к самой панели (`favicon.ico` — отдаётся
-`tools/assets/alica.ico`; `/`, `/emulator/*`, `/me` — маршруты панели) — не промахи.
-
-## Обновление 2026-11-01: пробелы из журнала
-
-По отчёту `tools/journal_gaps.py` (журнал «Запись» → `reports/journal-gaps-<дата>.md`) закрыты
-оставшиеся HTTP-промахи колонки — там же, где встроенные ответы (перекрываются своими
-эндпоинтами, в промахи и «Запись» не пишутся):
-
-| Запрос | Ответ |
-|---|---|
-| `POST quasar.yandex.net/push_subscribe` | 200 по образцу Яндекса: `{"sign": <случайный hex>, "status": "ok", "ts": <сейчас>}` (динамический, `Dispatcher.builtin_answer`); push-канал эмулятор не ведёт |
-| `POST rpc.alice.yandex.net/gproxy/centaur_get_gallery` | 200 `application/x-protobuf`, пустое тело — персональная галерея без аккаунта недоступна (в «Прозрачно» галерея работает как раньше) |
-| `POST quasar.yandex.net/set_device_capability` | 200 `{"status":"ok"}` — принято; образца успеха у Яндекса нет (в журнале только 403/429), состояние возможностей колонки приходит и по WS и хранится в сессии устройства |
+Механизм авторегистрации неизвестных HTTP-маршрутов (`server_emulator/http_routes.py`,
+реестр `http_routes.json`, три состояния enabled/transparent/disabled) удалён насовсем
+(решение 2026-10-25 — см. `quasar-config.md`): вместо реестра с состояниями —
+каталоговые домены с режимами direct/merged/own (задание 074, вкладка «Каталог»).
+Прежний текст раздела — в истории git.

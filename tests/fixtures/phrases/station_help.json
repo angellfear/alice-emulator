@@ -1176,7 +1176,7 @@
     },
     {
      "text": "включи песню штиль в караоке",
-     "expect": "system.unavailable"
+     "expect": "media.music"
     },
     {
      "text": "давай споем под караоке",

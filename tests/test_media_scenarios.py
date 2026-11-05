@@ -188,14 +188,18 @@ def _service_ctx(runtime, name):
             **runtime._scenario_context(sn="SN-A")}
 
 
-@pytest.mark.parametrize("name", ["music_thin_client_on_started",
-                                  "music_thin_client_on_stopped",
-                                  "@@mm_stack_engine_get_next"])
-async def test_player_callbacks_match_silent_sample(tmp_path, name):
+@pytest.mark.parametrize(("name", "provide"), [
+    ("music_thin_client_on_started", "callbacks.ack"),
+    ("music_thin_client_on_stopped", "callbacks.ack"),
+    ("@@mm_stack_engine_get_next", "music.stack_next"),  # 099: сценарий поставщика, без него — умолчание
+])
+async def test_player_callbacks_match_silent_sample(tmp_path, name, provide):
     """Ответ колбэку — как в образце (on_started x112, on_stopped x134, get_next без
     очереди x4): пустой диалоговый ответ, только tts_play_placeholder {channel: Dialog},
-    без речи и других директив."""
-    assert callback_route(name, {}) == "callbacks.ack"
+    без речи и других директив. Get_next маршрутизируется поставщику музыки (099):
+    поставщика нет — сценарий отказывается, умолчание маршрута (quiet_ack) даёт
+    ту же форму образца."""
+    assert callback_route(name, {}) == provide
     runtime = Runtime(tmp_path)
     runtime.identities.mutate({"operation": "device", "sn": "SN-A", "device_ids": []})
     sent = []
@@ -204,9 +208,14 @@ async def test_player_callbacks_match_silent_sample(tmp_path, name):
         sent.append(data)
 
     try:
-        report = await runtime.dialog.handle_event("callbacks.ack", _service_ctx(runtime, name),
+        report = await runtime.dialog.handle_event(provide, _service_ctx(runtime, name),
                                                    "dlg-1", send)
-        assert report["handled"]
+        if provide == "callbacks.ack":
+            assert report["handled"]
+        else:
+            assert not report["handled"]  # поставщика нет — умолчание колбэка (voice.py)
+            message = await runtime.dialog.quiet_ack(_service_ctx(runtime, name))
+            sent.append(b"AAPI" + message.SerializeToString())
         names = []
         for raw in sent:
             message = SERVER.FromString(raw[4:])

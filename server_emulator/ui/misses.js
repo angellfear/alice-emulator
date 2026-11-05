@@ -38,7 +38,7 @@
     const url = node('span', null, 'ep-url'); url.append(node('b', m.method), document.createTextNode(' ' + m.host + m.path));
     if (m.forwarded) {  // гибрид (TASK-044): промах ушёл в Яндекс, локального обработчика можно не создавать
       const chip = node('span', m.forwarded === 'upstream' ? '→ Яндекс' : '⚠ Яндекс недоступен', 'chip');
-      chip.title = m.forwarded === 'upstream' ? 'Гибрид: запрос переслан наверх. Открыть «Журнал» (запись — опция «Запись» устройства)' : ('Пересылка не удалась: ' + m.forwarded);
+      chip.title = m.forwarded === 'upstream' ? 'Вместе: запрос переслан наверх. Открыть «Журнал» (запись — опция «Запись» устройства)' : ('Пересылка не удалась: ' + m.forwarded);
       if (m.forwarded === 'upstream') { chip.style.cursor = 'pointer'; chip.onclick = () => window.openTraffic?.({ unhandled: true }); }
       url.append(chip);
     }

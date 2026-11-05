@@ -216,3 +216,34 @@ async def test_compose_reply_builds_card_from_json():
     ref, message = outcome.composed[0]
     assert ref == "reply"
     assert message.Event.AliceResponse.Response.Cards[0].Text == "Привет, Мир"
+
+
+async def test_json_ask_ttl_expires_and_frees_the_phrase(tmp_path):
+    """TASK-097: истёкший JSON-ask не съедает реплику — ожидание снято, answer → None
+    (вызывающий обрабатывает фразу как новую: сценарии → «Вместе» → модель)."""
+    store = StateStore(tmp_path / "emulator.sqlite3")
+    executor = Executor(store=store)
+    flow = scenario([
+        step("q", "ask", question="На какое время?", **{"await": "on_time", "next": "done"}),
+        step("done", "finish"),
+    ], slots={"on_time": {"type": "string"}})
+    await executor.execute(flow, CTX, "dlg-ttl")
+    payload = store.load_execution("dlg-ttl")
+    payload["deadline_remaining_s"] = 0  # ожидание истекло (как зависший будильник в бою)
+    store.save_execution("dlg-ttl", payload)
+    assert await executor.answer("dlg-ttl", "расскажи новости", CTX) is None
+    assert store.load_execution("dlg-ttl") is None  # снято с хранения
+
+
+async def test_json_ask_cancel_phrase_ends_wait(tmp_path):
+    """TASK-097: «отмена»/«стоп» снимают JSON-ask — как у py-сценариев (TASK-020)."""
+    store = StateStore(tmp_path / "emulator.sqlite3")
+    executor = Executor(store=store)
+    flow = scenario([
+        step("q", "ask", question="На какое время?", **{"await": "on_time", "next": "done"}),
+        step("done", "finish"),
+    ], slots={"on_time": {"type": "string"}})
+    await executor.execute(flow, CTX, "dlg-cancel-2")
+    outcome = await executor.answer("dlg-cancel-2", "отмена", CTX)
+    assert outcome.status == "cancelled"
+    assert store.load_execution("dlg-cancel-2") is None

@@ -155,6 +155,23 @@ async def handle(ctx):
   `player_owner == "yandex"` отказываются (`None`): колбэки и ходы очереди идут Яндексу.
   Пауза/стоп (`device.player.pause`) — остаётся локальной штатной функцией колонки.
 
+## 2.4.0 — поставщик музыки: `ctx.music` (TASK-099)
+
+- `ctx.music` (только чтение): выбранный поставщик `music/*.py` включённого расширения —
+  запись `{"id", "title", "search", "neighbor", "rate"}` или `None` (источника нет).
+  Выбранный id — настройка `settings["music"]["provider"]` (пусто — первый включённый).
+- Функции поставщика вызываются через ядро `server_emulator.music.search(ctx, provider,
+  query, kind)` / `neighbor(ctx, provider, track_id, context, step)` / `rate(ctx, provider,
+  track_id, like)`: ядро ставит коду поставщика его настройки (`ctx.extension`, как у
+  режимов) и приводит результат к контракту `Track` (docs/contracts/player.md,
+  «Поставщик контента»). Своей очереди у ядра нет — треки только от поставщика.
+- Стек директорий виджета — `music.start_reply(result, text)` / `step_reply(track,
+  provider, text)` (по образцу захвата 2026-11-02-music); сценарий — `media.music`.
+- Маршруты: «Вместе» (`route_mode == "hybrid"`) — сценарий отказывается (Яндекс отвечает
+  сам, релей голоса 098); без поставщика — `ctx.no_data_source()` в «Простом» / отказ в
+  «Модели»; колбэк `@@mm_stack_engine_get_next` (provide `music.stack_next`) —
+  `neighbor(+1)` → следующая очередь + `audio_play`, иначе умолчание маршрута (тихий ack).
+
 ## 1.1.0 — устройства, парсеры, форматтеры, датасеты, ресурсы
 
 Minor: только добавления, форма построенных dict'ов и сигнатуры 1.0 не менялись. Всё — тонкие
@@ -371,9 +388,10 @@ Minor: только добавления, форма построенных dict
   `draw_animation_directive` (S3 `animations/player_pause`) + `player_pause{smooth:false}`
   + `clear_queue` (образцы x20, `docs/contracts/player.md`, фикстура
   `tests/fixtures/directives/media-pause.json`).
-- Колбэки `music_thin_client_on_started` / `on_stopped` / `@@mm_stack_engine_get_next`
-  маршрутизируются в `callbacks.ack` — тихий ответ, как в образцах (x112/x134/x4).
-  `audio_play` эмулятор больше не отправляет.
+- Колбэки `music_thin_client_on_started` / `on_stopped` маршрутизируются в `callbacks.ack` —
+  тихий ответ, как в образцах (x112/x134). `@@mm_stack_engine_get_next` с 2.4.0 идёт
+  поставщику музыки (`music.stack_next`, TASK-099), без поставщика — тот же тихий ack.
+  `audio_play` эмулятор отправляет только от поставщика (2.4.0).
 - `ctx.volume` — громкость колонки из **её запроса** (capability 23
   `NAlice.TVolumeCapability`, есть в каждом `TextInput`, TASK-083):
   `{muted, level, max_level, percent_level}`; пустой dict, если колонка ничего не

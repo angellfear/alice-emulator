@@ -38,10 +38,10 @@ def test_golden_covers_builtin_library():
     from server_emulator.scenario_engine.library import ERRORS, SCENARIOS
 
     assert ERRORS == []
-    assert len(SCENARIOS) == 25
+    assert len(SCENARIOS) == 26  # TASK-099: + media.music
     recorded = json.loads(GOLDEN.read_text(encoding="utf-8"))
     ids = [entry["id"] for entry in recorded["scenarios"]]
-    assert ids == sorted(SCENARIOS)  # все 25, каждый по одному разу
+    assert ids == sorted(SCENARIOS)  # все 26, каждый по одному разу
 
 
 def test_golden_has_no_executor_trace():

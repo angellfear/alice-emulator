@@ -24,7 +24,6 @@ ROUTE_MODES = ("emulate", "hybrid", "proxy")
 RECORD_MODES = ("off", "on", "misses")
 ROUTE_MIGRATION_KEY = "route_migration"  # meta StateStore: {"excluded": [sn]} — очередь миграции
 RECORD_MIGRATION_KEY = "record_migration"  # meta: маршрут record → proxy + опция record (TASK-054), однократно
-MAX_RADIO = 20  # радиостанций в списке медиа (TASK-071)
 LEGACY_REPO = "angellfear/alica_emule"  # прежнее имя репозитория — переводится миграцией на новое
 
 DEFAULT = {
@@ -50,7 +49,7 @@ DEFAULT = {
         {"id": "no_data_source", "name": "Нет источника данных", "case": "no_data_source",
          "enabled": True, "text": "Для этого нет источника данных."},
     ],
-    "weather": {"url": "", "latitude": "", "longitude": "", "ttl_min": 10},
+    "weather": {"latitude": "", "longitude": ""},
     "scenarios": [],
     # Движок ответа модели (server_emulator/agent): graph — LangGraph-агент с тредами и
     # подтверждениями, legacy — прежний цикл. Прочие ключи — agent/service.py DEFAULTS.
@@ -67,13 +66,13 @@ DEFAULT = {
     "upstream": {"dns_servers": ["77.88.8.8", "1.1.1.1"], "upstream_ip": {},
                  "journal": {"max_body_kb": 256, "max_size_mb": 100, "max_age_days": 14}},
     # Самообновление (TASK-040): проверка релизов GitHub и обновление по кнопке,
-    # автоматически ничего не ставится. token — строка или env:ИМЯ (приватный репозиторий
-    # без токена отдаёт 404); restart — кто запускает сервер после обновления.
+    # автоматически ничего не ставится. token — строка или env:ИМЯ, по умолчанию пуст
+    # (API публичного репозитория работает без него); restart — кто запускает сервер после обновления.
     "self_update": {"enabled": True, "repo": "angellfear/alice-emulator", "channel": "stable",
                     "interval_hours": 12, "token": "", "skipped": "", "restart": "self"},
-    # Медиа (TASK-071): интернет-радио для «включи радио <имя>» — [{name, url}];
-    # файлы музыки/сказок живут на диске (state/media/…), в настройках их нет.
-    "media": {"radio": []},
+    # Музыка (TASK-099): выбранный поставщик контента — id из music/*.py включённых
+    # расширений; пусто — первый включённый. Реестр — server_emulator/music.py.
+    "music": {"provider": ""},
 }
 
 
@@ -342,21 +341,15 @@ class SettingsService:
             if su.setdefault("restart", "self") not in ("self", "manager"):
                 raise ValueError("self_update.restart: self | manager")
         # Медиа (TASK-071): список радио «имя → URL»; присланной формы нет — из current.
-        if "media" not in value:
-            value["media"] = copy.deepcopy(current.get("media") or DEFAULT["media"])
+        # Музыка (TASK-099): id выбранного поставщика (проверку реестра делает music.selected —
+        # выключенное расширение просто не выбирается); присланной формы UI нет — из current.
+        if "music" not in value:
+            value["music"] = copy.deepcopy(current.get("music") or DEFAULT["music"])
         else:
-            media = value["media"]
-            if not isinstance(media, dict):
-                raise ValueError("media: нужен объект")
-            radio = media.setdefault("radio", [])
-            if not isinstance(radio, list) or len(radio) > MAX_RADIO:
-                raise ValueError(f"media.radio: список до {MAX_RADIO} станций")
-            for station in radio:
-                if not isinstance(station, dict) or not str(station.get("name") or "").strip() \
-                        or not str(station.get("url") or "").strip():
-                    raise ValueError("media.radio: станция — {name, url}")
-                validate_url(station["url"])
-                station["name"], station["url"] = str(station["name"]).strip()[:100], str(station["url"]).strip()
+            music_cfg = value["music"]
+            if not isinstance(music_cfg, dict):
+                raise ValueError("music: нужен объект")
+            music_cfg["provider"] = str(music_cfg.get("provider") or "").strip()
         # Расширения (TASK-029): устаревшая форма UI присылает настройки без ключа —
         # восстанавливаем из current (состояние расширений UI не редактирует);
         # присланное — проверяем по форме.

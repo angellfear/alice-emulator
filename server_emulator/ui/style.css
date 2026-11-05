@@ -812,3 +812,7 @@ label.ui-switch{position:relative;display:inline-flex;flex-direction:row;margin:
 .srv-path button{flex:none;white-space:nowrap}
 label.srv-check{flex-direction:row;align-items:center;gap:8px}
 label.srv-check input{flex:none;width:auto;height:auto;margin:0}
+/* TASK-093: зафиксированные домены вне сертификата — строка: хост ×N и кнопка «Добавить» */
+.srv-observed{display:grid;gap:4px;margin-top:6px}
+.srv-observed-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}
+.srv-observed-row button{flex:none;padding:2px 10px}

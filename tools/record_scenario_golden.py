@@ -370,6 +370,13 @@ CASES = {
         {"name": "player.pause-pause", "kind": "text", "phrase": "пауза"},
         {"name": "player.pause-stop-music", "kind": "text", "phrase": "останови музыку"},
     ],
+    "media.music": [
+        # 099: поставщика в прогоне нет — честный ответ «Простого» / умолчание колбэка
+        {"name": "music.no-provider", "kind": "text", "phrase": "включи музыку"},
+        {"name": "music.no-provider-query", "kind": "text", "phrase": "включи музыку хороший день"},
+        {"name": "music.no-provider-tale", "kind": "text", "phrase": "включи сказку"},
+        {"name": "music.stack-next-no-provider", "kind": "callback", "event": "@@mm_stack_engine_get_next"},
+    ],
     "device.volume": [
         {"name": "volume-level", "kind": "text", "phrase": "громкость 5"},
         {"name": "volume-percent", "kind": "text", "phrase": "громкость 50"},

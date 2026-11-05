@@ -62,7 +62,7 @@ docs/contracts/scripts-sdk.md).
 | `author` | string, обязателен | |
 | `license` | string, обязателен | SPDX-идентификатор |
 | `homepage` | string | |
-| `requires` | object, обязателен | `emulator` — диапазон semver версий эмулятора; `sdk` — диапазон `SDK_VERSION` из `server_emulator/sdk.py` (сейчас `"1.2.0"`); `python_packages` — список pip-требований |
+| `requires` | object, обязателен | `emulator` — диапазон semver версий эмулятора; `sdk` — диапазон `SDK_VERSION` из `server_emulator/sdk.py` (актуальное значение — константа в файле); `python_packages` — список pip-требований |
 | `permissions` | object, обязателен | см. «Разрешения»; `{}` для data-расширения |
 | `settings` | object | схема настроек расширения: `fields` + `defaults` — формат как `fields`/`defaults` в `voice_stack/packages/*.json` |
 | `contributes` | object | переопределяет поиск по папкам (ниже) |
@@ -111,6 +111,7 @@ docs/contracts/scripts-sdk.md).
 | `mcp/*.json` | описания MCP-серверов: stdio-команда или URL | code |
 | `actions/*.py` | действия сценариев: `ACTIONS = {"<префикс>.имя": fn}` | code |
 | `datasets/*.py` | источники данных шагов load/refresh: `DATASETS = {"имя": fn}` | code |
+| `music/*.py` | поставщики музыки (TASK-099): `PROVIDER = {"id", "title"}` + `search/neighbor/rate`; выбранный — настройка `settings["music"]["provider"]` (пусто — первый включённый); конфликт id или битый модуль отключает расширение, как у actions | code |
 | `animations/` | анимации (json + gif) | data |
 | `params/` | определения параметров устройств | data |
 | `replies/` | стандартные ответы (новые `case`, только известные) | data |

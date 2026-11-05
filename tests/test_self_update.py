@@ -112,15 +112,15 @@ async def test_check_new_version_and_304(monkeypatch, tmp_path, service):
         await runner.cleanup()
 
 
-async def test_check_private_repo_is_notice(monkeypatch, tmp_path, service):
-    """Приватный репозиторий без токена: 404 — статус «недоступен», не исключение сети."""
+async def test_check_404_repo_is_notice(monkeypatch, tmp_path, service):
+    """404 — репозиторий не найден или релизов нет: статус с подсказкой, не исключение сети."""
     svc, _ = service
     from tests.conftest import listen
     runner, url = await listen(web.Application())  # без маршрутов — всегда 404
     try:
         monkeypatch.setattr(check, "API", url)
         result = await svc.check()
-        assert "недоступен" in result["error"]
+        assert "не найден или релизов нет" in result["error"]
         assert svc.status()["available"] is False
     finally:
         await runner.cleanup()
