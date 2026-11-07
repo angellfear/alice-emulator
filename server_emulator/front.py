@@ -160,14 +160,16 @@ class Front:
         server, self._server = self._server, None
         if server is not None:
             server.close()
-            try:
-                await server.wait_closed()
-            except Exception:  # noqa: BLE001 — остановка не должна падать
-                pass
+        # Сначала соединения: wait_closed ждёт, пока закроются все они
         for writer in list(self.connections):
             try:
                 writer.close()
             except Exception:  # noqa: BLE001
+                pass
+        if server is not None:
+            try:
+                await server.wait_closed()
+            except Exception:  # noqa: BLE001 — остановка не должна падать
                 pass
         self.connections.clear()
         self.peers.clear()

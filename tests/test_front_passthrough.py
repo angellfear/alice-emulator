@@ -120,6 +120,21 @@ async def stop_front(front, runner):
     await runner.cleanup()
 
 
+async def test_stop_does_not_wait_for_open_connections(tmp_path):
+    front, runner, port, _cert = await start_front(Runtime(tmp_path), tmp_path, {})
+    _reader, writer = await asyncio.open_connection("127.0.0.1", port)
+    for _ in range(100):
+        if front.connections:
+            break
+        await asyncio.sleep(0.01)
+    assert front.connections
+    try:
+        await asyncio.wait_for(front.stop(), timeout=3)
+    finally:
+        writer.close()
+        await runner.cleanup()
+
+
 def test_cert_covers_and_sans(tmp_path):
     assert cert_covers("a.example.test", ("*.example.test",))
     assert cert_covers("EXAMPLE.test.", ("example.test",))
