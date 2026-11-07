@@ -1,0 +1,303 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1190" width="1800" height="1190" font-family="Segoe UI, IBM Plex Sans, Arial, sans-serif">
+<title>Карта эмулятора Алисы</title>
+<desc>Компоненты по слоям, голосовой ход по номерам, файлы состояния каждого блока и кто в них пишет.</desc>
+<defs>
+<marker id="m-voice" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#16855a"/></marker>
+<marker id="m-entry" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2f6fd0"/></marker>
+<marker id="m-plg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#6a45c9"/></marker>
+<marker id="m-ai" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#b8326b"/></marker>
+</defs>
+<rect width="1800" height="1190" fill="#ffffff"/>
+<rect x="188" y="124" width="1600" height="676" rx="14" fill="#fafbfc" stroke="#d5dbe3" stroke-dasharray="4 4"/>
+<text x="1776" y="790" text-anchor="end" font-size="12" fill="#5b6676">процесс эмулятора: Python, один asyncio-цикл, aiohttp; runtime.py собирает компоненты</text>
+<text x="200" y="150" font-size="12" font-weight="700" letter-spacing="1.4" fill="#2f6fd0">ВХОД</text>
+<text x="560" y="150" font-size="12" font-weight="700" letter-spacing="1.4" fill="#16855a">ГОЛОС</text>
+<text x="900" y="150" font-size="12" font-weight="700" letter-spacing="1.4" fill="#b2650b">СЦЕНАРИИ</text>
+<text x="1220" y="150" font-size="12" font-weight="700" letter-spacing="1.4" fill="#6a45c9">ПЛАГИНЫ</text>
+<text x="1540" y="150" font-size="12" font-weight="700" letter-spacing="1.4" fill="#b8326b">ИНТЕЛЛЕКТ</text>
+<rect x="200" y="30" width="220" height="60" rx="9" fill="#ffffff" stroke="#5b6676" stroke-width="1.5"/>
+<text x="214" y="53" font-size="14" font-weight="700" fill="#18202b">Серверы Яндекса</text>
+<text x="214" y="71" font-size="11.5" fill="#5b6676">uniproxy · quasar · OTA</text>
+<rect x="560" y="30" width="220" height="60" rx="9" fill="#ffffff" stroke="#5b6676" stroke-width="1.5"/>
+<text x="574" y="53" font-size="14" font-weight="700" fill="#18202b">Сервисы речи</text>
+<text x="574" y="71" font-size="11.5" fill="#5b6676">ASR и TTS: GPU/CPU или внешние API</text>
+<rect x="1220" y="30" width="200" height="60" rx="9" fill="#ffffff" stroke="#5b6676" stroke-width="1.5"/>
+<text x="1234" y="53" font-size="14" font-weight="700" fill="#18202b">Внешние API плагинов</text>
+<text x="1234" y="71" font-size="11.5" fill="#5b6676">Spotify, Open-Meteo, …</text>
+<rect x="1540" y="30" width="200" height="60" rx="9" fill="#ffffff" stroke="#5b6676" stroke-width="1.5"/>
+<text x="1554" y="53" font-size="14" font-weight="700" fill="#18202b">LLM-провайдеры</text>
+<text x="1554" y="71" font-size="11.5" fill="#5b6676">облачные и локальные</text>
+<rect x="20" y="160" width="140" height="70" rx="9" fill="#ffffff" stroke="#5b6676" stroke-width="1.5"/>
+<text x="34" y="183" font-size="14" font-weight="700" fill="#18202b">Яндекс Станции</text>
+<text x="34" y="201" font-size="11.5" fill="#5b6676">колонки в сети</text>
+<rect x="20" y="830" width="140" height="64" rx="9" fill="#ffffff" stroke="#5b6676" stroke-width="1.5"/>
+<text x="34" y="853" font-size="14" font-weight="700" fill="#18202b">Владелец</text>
+<text x="34" y="871" font-size="11.5" fill="#5b6676">браузер</text>
+<rect x="200" y="160" width="220" height="70" rx="9" fill="#e8effb" stroke="#2f6fd0" stroke-width="1.5"/>
+<text x="214" y="183" font-size="14" font-weight="700" fill="#18202b">front.py</text>
+<text x="214" y="201" font-size="11.5" fill="#5b6676">TLS-фронт, SNI</text>
+<text x="214" y="219" font-size="11" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#3d4a5c">▸ server.json</text>
+<rect x="200" y="270" width="220" height="70" rx="9" fill="#e8effb" stroke="#2f6fd0" stroke-width="1.5"/>
+<text x="214" y="293" font-size="14" font-weight="700" fill="#18202b">dispatcher.py</text>
+<text x="214" y="311" font-size="11.5" fill="#5b6676">маршрут устройства</text>
+<rect x="200" y="380" width="220" height="70" rx="9" fill="#e8effb" stroke="#2f6fd0" stroke-width="1.5"/>
+<text x="214" y="403" font-size="14" font-weight="700" fill="#18202b">HTTP Quasar</text>
+<text x="214" y="421" font-size="11.5" fill="#5b6676">quasar.py · endpoints</text>
+<text x="214" y="439" font-size="11" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#3d4a5c">▸ emulator · quasar/ · misses</text>
+<rect x="200" y="490" width="220" height="70" rx="9" fill="#e8effb" stroke="#2f6fd0" stroke-width="1.5"/>
+<text x="214" y="513" font-size="14" font-weight="700" fill="#18202b">Обновления OTA</text>
+<text x="214" y="531" font-size="11.5" fill="#5b6676">updates.py</text>
+<text x="214" y="549" font-size="11" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#3d4a5c">▸ updates</text>
+<rect x="200" y="600" width="220" height="70" rx="9" fill="#e8effb" stroke="#2f6fd0" stroke-width="1.5"/>
+<text x="214" y="623" font-size="14" font-weight="700" fill="#18202b">upstream/</text>
+<text x="214" y="641" font-size="11.5" fill="#5b6676">проход, журнал трафика</text>
+<text x="214" y="659" font-size="11" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#3d4a5c">▸ traffic</text>
+<rect x="200" y="710" width="220" height="70" rx="9" fill="#e8effb" stroke="#2f6fd0" stroke-width="1.5"/>
+<text x="214" y="733" font-size="14" font-weight="700" fill="#18202b">server_log.py</text>
+<text x="214" y="751" font-size="11.5" fill="#5b6676">журнал сервера (пишут все)</text>
+<text x="214" y="769" font-size="11" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#3d4a5c">▸ server_log</text>
+<rect x="560" y="160" width="220" height="70" rx="9" fill="#e5f4ec" stroke="#16855a" stroke-width="1.5"/>
+<text x="574" y="183" font-size="14" font-weight="700" fill="#18202b">voice.py</text>
+<text x="574" y="201" font-size="11.5" fill="#5b6676">AAPI по WebSocket</text>
+<rect x="560" y="270" width="220" height="70" rx="9" fill="#e5f4ec" stroke="#16855a" stroke-width="1.5"/>
+<text x="574" y="293" font-size="14" font-weight="700" fill="#18202b">Распознавание</text>
+<text x="574" y="311" font-size="11.5" fill="#5b6676">ASR-адаптер → сервис речи</text>
+<rect x="560" y="380" width="220" height="70" rx="9" fill="#e5f4ec" stroke="#16855a" stroke-width="1.5"/>
+<text x="574" y="403" font-size="14" font-weight="700" fill="#18202b">Маршрутизатор</text>
+<text x="574" y="421" font-size="11.5" fill="#5b6676">кто ответит на реплику</text>
+<text x="574" y="439" font-size="11" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#3d4a5c">▸ misses</text>
+<rect x="560" y="490" width="220" height="70" rx="9" fill="#e5f4ec" stroke="#16855a" stroke-width="1.5"/>
+<text x="574" y="513" font-size="14" font-weight="700" fill="#18202b">Сборка ответа</text>
+<text x="574" y="531" font-size="11.5" fill="#5b6676">текст + директивы колонке</text>
+<rect x="560" y="600" width="220" height="70" rx="9" fill="#e5f4ec" stroke="#16855a" stroke-width="1.5"/>
+<text x="574" y="623" font-size="14" font-weight="700" fill="#18202b">Синтез + кеш</text>
+<text x="574" y="641" font-size="11.5" fill="#5b6676">TTS-адаптер → сервис речи</text>
+<text x="574" y="659" font-size="11" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#3d4a5c">▸ tts_cache/</text>
+<rect x="560" y="710" width="220" height="70" rx="9" fill="#e5f4ec" stroke="#16855a" stroke-width="1.5"/>
+<text x="574" y="733" font-size="14" font-weight="700" fill="#18202b">Отложенный ответ</text>
+<text x="574" y="751" font-size="11.5" fill="#5b6676">дольше 3 с: «Секунду…» → Push</text>
+<rect x="900" y="160" width="220" height="70" rx="9" fill="#fbf1e2" stroke="#b2650b" stroke-width="1.5"/>
+<text x="914" y="183" font-size="14" font-weight="700" fill="#18202b">Встроенные сценарии</text>
+<text x="914" y="201" font-size="11.5" fill="#5b6676">время, таймеры, громкость…</text>
+<rect x="900" y="270" width="220" height="70" rx="9" fill="#fbf1e2" stroke="#b2650b" stroke-width="1.5"/>
+<text x="914" y="293" font-size="14" font-weight="700" fill="#18202b">Сценарии контента</text>
+<text x="914" y="311" font-size="11.5" fill="#5b6676">музыка, погода, новости, свет</text>
+<rect x="900" y="380" width="220" height="70" rx="9" fill="#fbf1e2" stroke="#b2650b" stroke-width="1.5"/>
+<text x="914" y="403" font-size="14" font-weight="700" fill="#18202b">scenario_engine/</text>
+<text x="914" y="421" font-size="11.5" fill="#5b6676">триггеры hassil, executor</text>
+<text x="914" y="439" font-size="11" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#3d4a5c">▸ emulator · scenarios/</text>
+<rect x="900" y="490" width="220" height="70" rx="9" fill="#fbf1e2" stroke="#b2650b" stroke-width="1.5"/>
+<text x="914" y="513" font-size="14" font-weight="700" fill="#18202b">sdk.py</text>
+<text x="914" y="531" font-size="11.5" fill="#5b6676">API py-сценариев (ctx.*)</text>
+<rect x="900" y="600" width="220" height="70" rx="9" fill="#ffffff" stroke="#b2650b" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="914" y="623" font-size="14" font-weight="700" fill="#18202b">Справочник фраз — план</text>
+<text x="914" y="641" font-size="11.5" fill="#5b6676">фразы и списки от плагинов</text>
+<rect x="1220" y="160" width="200" height="70" rx="9" fill="#f0ebfb" stroke="#6a45c9" stroke-width="1.5"/>
+<text x="1234" y="183" font-size="14" font-weight="700" fill="#18202b">providers.py</text>
+<text x="1234" y="201" font-size="11.5" fill="#5b6676">реестр поставщиков</text>
+<rect x="1220" y="270" width="200" height="70" rx="9" fill="#f0ebfb" stroke="#6a45c9" stroke-width="1.5"/>
+<text x="1234" y="293" font-size="14" font-weight="700" fill="#18202b">extensions/manager</text>
+<text x="1234" y="311" font-size="11.5" fill="#5b6676">установка, вкл/выкл</text>
+<text x="1234" y="329" font-size="11" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#3d4a5c">▸ extensions/ · emulator</text>
+<rect x="1220" y="380" width="200" height="70" rx="9" fill="#f0ebfb" stroke="#6a45c9" stroke-width="1.5"/>
+<text x="1234" y="403" font-size="14" font-weight="700" fill="#18202b">Встроенные плагины</text>
+<text x="1234" y="421" font-size="11.5" fill="#5b6676">server_emulator/plugins/</text>
+<rect x="1220" y="490" width="200" height="70" rx="9" fill="#f0ebfb" stroke="#6a45c9" stroke-width="1.5"/>
+<text x="1234" y="513" font-size="14" font-weight="700" fill="#18202b">Внешние расширения</text>
+<text x="1234" y="531" font-size="11.5" fill="#5b6676">state/extensions/&lt;id&gt;/</text>
+<rect x="1540" y="160" width="200" height="70" rx="9" fill="#fbeaf1" stroke="#b8326b" stroke-width="1.5"/>
+<text x="1554" y="183" font-size="14" font-weight="700" fill="#18202b">«Интеллект»</text>
+<text x="1554" y="201" font-size="11.5" fill="#5b6676">scenarios · model · agent</text>
+<rect x="1540" y="270" width="200" height="70" rx="9" fill="#fbeaf1" stroke="#b8326b" stroke-width="1.5"/>
+<text x="1554" y="293" font-size="14" font-weight="700" fill="#18202b">agent/</text>
+<text x="1554" y="311" font-size="11.5" fill="#5b6676">LangGraph, память</text>
+<text x="1554" y="329" font-size="11" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#3d4a5c">▸ agent · ops · routines</text>
+<rect x="1540" y="380" width="200" height="70" rx="9" fill="#fbeaf1" stroke="#b8326b" stroke-width="1.5"/>
+<text x="1554" y="403" font-size="14" font-weight="700" fill="#18202b">mcp_hub.py</text>
+<text x="1554" y="421" font-size="11.5" fill="#5b6676">внешние MCP-серверы</text>
+<text x="1554" y="439" font-size="11" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#3d4a5c">▸ mcp.json</text>
+<rect x="1540" y="490" width="200" height="70" rx="9" fill="#fbeaf1" stroke="#b8326b" stroke-width="1.5"/>
+<text x="1554" y="513" font-size="14" font-weight="700" fill="#18202b">voice_stack/</text>
+<text x="1554" y="531" font-size="11.5" fill="#5b6676">адаптеры ASR/TTS/LLM</text>
+<text x="1554" y="549" font-size="11" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#3d4a5c">▸ voice_stack/</text>
+<rect x="200" y="830" width="580" height="64" rx="9" fill="#eef1f4" stroke="#4a5566" stroke-width="1.5"/>
+<text x="214" y="853" font-size="14" font-weight="700" fill="#18202b">Панель ui/ и ui/api/*</text>
+<text x="214" y="871" font-size="11.5" fill="#5b6676">vanilla JS · запись только с заголовком X-Emulator: 1</text>
+<text x="214" y="889" font-size="11" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#3d4a5c">▸ emulator · traffic · server_log · tts_cache/ · misses · quasar/ · mcp.json · server.json</text>
+<path d="M160,195 L198,195" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M420,195 L558,195" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M670,230 L670,268" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M670,340 L670,378" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M780,405 L898,405" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M780,389 L810,389 L810,110 L1500,110 L1500,195 L1538,195" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M900,440 L850,440 L850,525 L782,525" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M670,560 L670,598" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M560,635 L540,635 L540,213 L558,213" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M310,230 L310,268" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M420,305 L450,305 L450,635 L422,635" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M450,415 L422,415" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M450,525 L422,525" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M200,635 L180,635 L180,60 L198,60" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M160,862 L198,862" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M1120,305 L1170,305 L1170,185 L1218,185" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M1120,525 L1195,525 L1195,209 L1218,209" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M1320,340 L1320,378" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M1420,415 L1450,415 L1450,195 L1422,195" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M1420,525 L1450,525 L1450,415" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M1320,160 L1320,92" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M1320,560 L1320,635 L1122,635" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M1640,230 L1640,268" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M1640,340 L1640,378" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M1740,195 L1770,195 L1770,525 L1742,525" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M1700,160 L1700,92" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+<path d="M160,195 L198,195" fill="none" stroke="#16855a" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-voice)"/>
+<path d="M420,195 L558,195" fill="none" stroke="#16855a" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-voice)"/>
+<path d="M670,230 L670,268" fill="none" stroke="#16855a" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-voice)"/>
+<path d="M670,340 L670,378" fill="none" stroke="#16855a" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-voice)"/>
+<path d="M780,405 L898,405" fill="none" stroke="#16855a" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-voice)"/>
+<path d="M780,389 L810,389 L810,110 L1500,110 L1500,195 L1538,195" fill="none" stroke="#16855a" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-voice)"/>
+<path d="M900,440 L850,440 L850,525 L782,525" fill="none" stroke="#16855a" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-voice)"/>
+<path d="M670,560 L670,598" fill="none" stroke="#16855a" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-voice)"/>
+<path d="M560,635 L540,635 L540,213 L558,213" fill="none" stroke="#16855a" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-voice)"/>
+<path d="M310,230 L310,268" fill="none" stroke="#2f6fd0" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-entry)"/>
+<path d="M420,305 L450,305 L450,635 L422,635" fill="none" stroke="#2f6fd0" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-entry)"/>
+<path d="M450,415 L422,415" fill="none" stroke="#2f6fd0" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-entry)"/>
+<path d="M450,525 L422,525" fill="none" stroke="#2f6fd0" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-entry)"/>
+<path d="M200,635 L180,635 L180,60 L198,60" fill="none" stroke="#2f6fd0" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-entry)"/>
+<path d="M160,862 L198,862" fill="none" stroke="#2f6fd0" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-entry)"/>
+<path d="M1120,305 L1170,305 L1170,185 L1218,185" fill="none" stroke="#6a45c9" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-plg)"/>
+<path d="M1120,525 L1195,525 L1195,209 L1218,209" fill="none" stroke="#6a45c9" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-plg)"/>
+<path d="M1320,340 L1320,378" fill="none" stroke="#6a45c9" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-plg)"/>
+<path d="M1420,415 L1450,415 L1450,195 L1422,195" fill="none" stroke="#6a45c9" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-plg)"/>
+<path d="M1420,525 L1450,525 L1450,415" fill="none" stroke="#6a45c9" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-plg)"/>
+<path d="M1320,160 L1320,92" fill="none" stroke="#6a45c9" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-plg)"/>
+<path d="M1320,560 L1320,635 L1122,635" fill="none" stroke="#6a45c9" stroke-width="1.8" stroke-linejoin="round" stroke-dasharray="7 5" marker-end="url(#m-plg)"/>
+<path d="M1640,230 L1640,268" fill="none" stroke="#b8326b" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-ai)"/>
+<path d="M1640,340 L1640,378" fill="none" stroke="#b8326b" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-ai)"/>
+<path d="M1740,195 L1770,195 L1770,525 L1742,525" fill="none" stroke="#b8326b" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-ai)"/>
+<path d="M1700,160 L1700,92" fill="none" stroke="#b8326b" stroke-width="1.8" stroke-linejoin="round" marker-end="url(#m-ai)"/>
+<text x="318" y="255" font-size="12" font-weight="600" fill="#2f6fd0" text-anchor="start" stroke="#ffffff" stroke-width="4" paint-order="stroke">HTTP</text>
+<text x="458" y="419" font-size="12" font-weight="600" fill="#2f6fd0" text-anchor="start" stroke="#ffffff" stroke-width="4" paint-order="stroke">emulate</text>
+<text x="458" y="529" font-size="12" font-weight="600" fill="#2f6fd0" text-anchor="start" stroke="#ffffff" stroke-width="4" paint-order="stroke">OTA</text>
+<text x="458" y="627" font-size="12" font-weight="600" fill="#2f6fd0" text-anchor="start" stroke="#ffffff" stroke-width="4" paint-order="stroke">hybrid /</text>
+<text x="458" y="643" font-size="12" font-weight="600" fill="#2f6fd0" text-anchor="start" stroke="#ffffff" stroke-width="4" paint-order="stroke">proxy</text>
+<text x="172" y="595" font-size="12" font-weight="600" fill="#2f6fd0" text-anchor="end" stroke="#ffffff" stroke-width="4" paint-order="stroke">проход</text>
+<text x="172" y="611" font-size="12" font-weight="600" fill="#2f6fd0" text-anchor="end" stroke="#ffffff" stroke-width="4" paint-order="stroke">к Яндексу</text>
+<text x="1145" y="297" font-size="12" font-weight="600" fill="#6a45c9" text-anchor="middle" stroke="#ffffff" stroke-width="4" paint-order="stroke">данные</text>
+<text x="1157" y="517" font-size="12" font-weight="600" fill="#6a45c9" text-anchor="middle" stroke="#ffffff" stroke-width="4" paint-order="stroke">ctx.music</text>
+<text x="1328" y="365" font-size="12" font-weight="600" fill="#6a45c9" text-anchor="start" stroke="#ffffff" stroke-width="4" paint-order="stroke">sync, вкл/выкл</text>
+<text x="1458" y="309" font-size="12" font-weight="600" fill="#6a45c9" text-anchor="start" stroke="#ffffff" stroke-width="4" paint-order="stroke">регистрация</text>
+<text x="1328" y="140" font-size="12" font-weight="600" fill="#6a45c9" text-anchor="start" stroke="#ffffff" stroke-width="4" paint-order="stroke">HTTP</text>
+<text x="1328" y="590" font-size="12" font-weight="600" fill="#6a45c9" text-anchor="start" stroke="#ffffff" stroke-width="4" paint-order="stroke">фразы (план)</text>
+<text x="1648" y="255" font-size="12" font-weight="600" fill="#b8326b" text-anchor="start" stroke="#ffffff" stroke-width="4" paint-order="stroke">agent</text>
+<text x="1648" y="365" font-size="12" font-weight="600" fill="#b8326b" text-anchor="start" stroke="#ffffff" stroke-width="4" paint-order="stroke">инструменты</text>
+<text x="1784" y="415" transform="rotate(90 1784 415)" font-size="12" font-weight="600" fill="#b8326b" text-anchor="middle" stroke="#ffffff" stroke-width="4" paint-order="stroke">model</text>
+<text x="1708" y="140" font-size="12" font-weight="600" fill="#b8326b" text-anchor="start" stroke="#ffffff" stroke-width="4" paint-order="stroke">LLM API</text>
+<circle cx="156" cy="156" r="11" fill="#16855a" stroke="#ffffff" stroke-width="2"/><text x="156" y="160.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">1</text>
+<circle cx="490" cy="179" r="11" fill="#16855a" stroke="#ffffff" stroke-width="2"/><text x="490" y="183.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">2</text>
+<circle cx="688" cy="250" r="11" fill="#16855a" stroke="#ffffff" stroke-width="2"/><text x="688" y="254.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">3</text>
+<circle cx="688" cy="360" r="11" fill="#16855a" stroke="#ffffff" stroke-width="2"/><text x="688" y="364.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">4</text>
+<circle cx="870" cy="389" r="11" fill="#16855a" stroke="#ffffff" stroke-width="2"/><text x="870" y="393.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">5</text>
+<circle cx="1000" cy="110" r="11" fill="#16855a" stroke="#ffffff" stroke-width="2"/><text x="1000" y="114.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">6</text>
+<circle cx="870" cy="509" r="11" fill="#16855a" stroke="#ffffff" stroke-width="2"/><text x="870" y="513.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">7</text>
+<circle cx="688" cy="580" r="11" fill="#16855a" stroke="#ffffff" stroke-width="2"/><text x="688" y="584.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">8</text>
+<circle cx="540" cy="525" r="11" fill="#16855a" stroke="#ffffff" stroke-width="2"/><text x="540" y="529.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">9</text>
+<text x="20" y="935" font-size="12" font-weight="700" letter-spacing="1.4" fill="#4a5566">ХРАНИЛИЩА state/</text>
+<text x="170" y="935" font-size="12" fill="#5b6676">у каждой подсистемы свой файл; чужие файлы читаются только через API владельца; ▸ в блоке выше — какие файлы он использует</text>
+<rect x="20" y="950" width="228" height="62" rx="9" fill="#eef1f4" stroke="#4a5566" stroke-width="1.3"/>
+<text x="32" y="970" font-size="13" font-weight="700" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#18202b">emulator.sqlite3</text>
+<text x="32" y="987" font-size="11.5" fill="#5b6676">настройки, устройства, параметры</text>
+<text x="32" y="1003" font-size="11.5" fill="#3d4a5c">пишет: state_store.py</text>
+<rect x="262" y="950" width="228" height="62" rx="9" fill="#eef1f4" stroke="#4a5566" stroke-width="1.3"/>
+<text x="274" y="970" font-size="13" font-weight="700" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#18202b">updates.sqlite3</text>
+<text x="274" y="987" font-size="11.5" fill="#5b6676">попытки OTA, URL прошивок</text>
+<text x="274" y="1003" font-size="11.5" fill="#3d4a5c">пишет: updates.py</text>
+<rect x="504" y="950" width="228" height="62" rx="9" fill="#eef1f4" stroke="#4a5566" stroke-width="1.3"/>
+<text x="516" y="970" font-size="13" font-weight="700" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#18202b">traffic.sqlite3</text>
+<text x="516" y="987" font-size="11.5" fill="#5b6676">журнал трафика («Запись»)</text>
+<text x="516" y="1003" font-size="11.5" fill="#3d4a5c">пишет: upstream/journal.py</text>
+<rect x="746" y="950" width="228" height="62" rx="9" fill="#eef1f4" stroke="#4a5566" stroke-width="1.3"/>
+<text x="758" y="970" font-size="13" font-weight="700" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#18202b">server_log.sqlite3</text>
+<text x="758" y="987" font-size="11.5" fill="#5b6676">события сервера</text>
+<text x="758" y="1003" font-size="11.5" fill="#3d4a5c">пишет: server_log.py</text>
+<rect x="988" y="950" width="228" height="62" rx="9" fill="#eef1f4" stroke="#4a5566" stroke-width="1.3"/>
+<text x="1000" y="970" font-size="13" font-weight="700" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#18202b">agent.sqlite3</text>
+<text x="1000" y="987" font-size="11.5" fill="#5b6676">история диалогов, память</text>
+<text x="1000" y="1003" font-size="11.5" fill="#3d4a5c">пишет: agent/service, memory</text>
+<rect x="1230" y="950" width="228" height="62" rx="9" fill="#eef1f4" stroke="#4a5566" stroke-width="1.3"/>
+<text x="1242" y="970" font-size="13" font-weight="700" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#18202b">agent_ops.sqlite3</text>
+<text x="1242" y="987" font-size="11.5" fill="#5b6676">прогоны и бюджет агента</text>
+<text x="1242" y="1003" font-size="11.5" fill="#3d4a5c">пишет: agent/ops.py</text>
+<rect x="1472" y="950" width="228" height="62" rx="9" fill="#eef1f4" stroke="#4a5566" stroke-width="1.3"/>
+<text x="1484" y="970" font-size="13" font-weight="700" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#18202b">routines.sqlite3</text>
+<text x="1484" y="987" font-size="11.5" fill="#5b6676">задания по расписанию</text>
+<text x="1484" y="1003" font-size="11.5" fill="#3d4a5c">пишет: agent/routines.py</text>
+<rect x="20" y="1026" width="199" height="62" rx="9" fill="#eef1f4" stroke="#4a5566" stroke-width="1.3"/>
+<text x="32" y="1046" font-size="13" font-weight="700" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#18202b">tts_cache/</text>
+<text x="32" y="1063" font-size="11.5" fill="#5b6676">готовые фразы Ogg</text>
+<text x="32" y="1079" font-size="11.5" fill="#3d4a5c">пишет: синтез</text>
+<rect x="232" y="1026" width="199" height="62" rx="9" fill="#eef1f4" stroke="#4a5566" stroke-width="1.3"/>
+<text x="244" y="1046" font-size="13" font-weight="700" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#18202b">*_misses.json</text>
+<text x="244" y="1063" font-size="11.5" fill="#5b6676">«Без ответа»</text>
+<text x="244" y="1079" font-size="11.5" fill="#3d4a5c">пишет: miss_journal.py</text>
+<rect x="444" y="1026" width="199" height="62" rx="9" fill="#eef1f4" stroke="#4a5566" stroke-width="1.3"/>
+<text x="456" y="1046" font-size="13" font-weight="700" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#18202b">scenarios/</text>
+<text x="456" y="1063" font-size="11.5" fill="#5b6676">свои сценарии</text>
+<text x="456" y="1079" font-size="11.5" fill="#3d4a5c">пишет: панель «Сценарии»</text>
+<rect x="656" y="1026" width="199" height="62" rx="9" fill="#eef1f4" stroke="#4a5566" stroke-width="1.3"/>
+<text x="668" y="1046" font-size="13" font-weight="700" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#18202b">extensions/</text>
+<text x="668" y="1063" font-size="11.5" fill="#5b6676">версии расширений</text>
+<text x="668" y="1079" font-size="11.5" fill="#3d4a5c">пишет: extensions/manager</text>
+<rect x="868" y="1026" width="199" height="62" rx="9" fill="#eef1f4" stroke="#4a5566" stroke-width="1.3"/>
+<text x="880" y="1046" font-size="13" font-weight="700" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#18202b">quasar/</text>
+<text x="880" y="1063" font-size="11.5" fill="#5b6676">конфиги колонки</text>
+<text x="880" y="1079" font-size="11.5" fill="#3d4a5c">пишет: панель Quasar</text>
+<rect x="1080" y="1026" width="199" height="62" rx="9" fill="#eef1f4" stroke="#4a5566" stroke-width="1.3"/>
+<text x="1092" y="1046" font-size="13" font-weight="700" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#18202b">mcp.json</text>
+<text x="1092" y="1063" font-size="11.5" fill="#5b6676">MCP-серверы</text>
+<text x="1092" y="1079" font-size="11.5" fill="#3d4a5c">пишет: панель MCP</text>
+<rect x="1292" y="1026" width="199" height="62" rx="9" fill="#eef1f4" stroke="#4a5566" stroke-width="1.3"/>
+<text x="1304" y="1046" font-size="13" font-weight="700" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#18202b">voice_stack/</text>
+<text x="1304" y="1063" font-size="11.5" fill="#5b6676">пакеты адаптеров</text>
+<text x="1304" y="1079" font-size="11.5" fill="#3d4a5c">пишет: панель «Голос»</text>
+<rect x="1504" y="1026" width="199" height="62" rx="9" fill="#eef1f4" stroke="#4a5566" stroke-width="1.3"/>
+<text x="1516" y="1046" font-size="13" font-weight="700" font-family="Consolas, IBM Plex Mono, Menlo, monospace" fill="#18202b">server.json</text>
+<text x="1516" y="1063" font-size="11.5" fill="#5b6676">порты, сертификаты</text>
+<text x="1516" y="1079" font-size="11.5" fill="#3d4a5c">пишет: server_config.py</text>
+<line x1="20" y1="1100" x2="1780" y2="1100" stroke="#d5dbe3"/>
+<text x="20" y="1127" font-size="13" font-weight="700" fill="#18202b">Голосовой ход</text>
+<circle cx="151" cy="1122" r="11" fill="#16855a"/><text x="151" y="1126.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">1</text>
+<text x="168" y="1127" font-size="12" fill="#18202b">колонка → фронт, TLS 443/80</text>
+<circle cx="383" cy="1122" r="11" fill="#16855a"/><text x="383" y="1126.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">2</text>
+<text x="400" y="1127" font-size="12" fill="#18202b">WebSocket uni.ws</text>
+<circle cx="539" cy="1122" r="11" fill="#16855a"/><text x="539" y="1126.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">3</text>
+<text x="556" y="1127" font-size="12" fill="#18202b">PCM на распознавание</text>
+<circle cx="723" cy="1122" r="11" fill="#16855a"/><text x="723" y="1126.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">4</text>
+<text x="740" y="1127" font-size="12" fill="#18202b">текст</text>
+<circle cx="803" cy="1122" r="11" fill="#16855a"/><text x="803" y="1126.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">5</text>
+<text x="820" y="1127" font-size="12" fill="#18202b">есть сценарий</text>
+<circle cx="938" cy="1122" r="11" fill="#16855a"/><text x="938" y="1126.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">6</text>
+<text x="955" y="1127" font-size="12" fill="#18202b">промах → «Интеллект»</text>
+<circle cx="1122" cy="1122" r="11" fill="#16855a"/><text x="1122" y="1126.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">7</text>
+<text x="1139" y="1127" font-size="12" fill="#18202b">текст и директивы</text>
+<circle cx="1285" cy="1122" r="11" fill="#16855a"/><text x="1285" y="1126.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">8</text>
+<text x="1302" y="1127" font-size="12" fill="#18202b">фраза на синтез</text>
+<circle cx="1434" cy="1122" r="11" fill="#16855a"/><text x="1434" y="1126.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">9</text>
+<text x="1451" y="1127" font-size="12" fill="#18202b">Ogg → колонке</text>
+<rect x="20" y="1148" width="16" height="13" rx="2" fill="#e8effb" stroke="#2f6fd0"/>
+<text x="42" y="1159" font-size="12" fill="#18202b">вход и маршруты</text>
+<rect x="169" y="1148" width="16" height="13" rx="2" fill="#e5f4ec" stroke="#16855a"/>
+<text x="191" y="1159" font-size="12" fill="#18202b">голос</text>
+<rect x="248" y="1148" width="16" height="13" rx="2" fill="#fbf1e2" stroke="#b2650b"/>
+<text x="270" y="1159" font-size="12" fill="#18202b">сценарии</text>
+<rect x="348" y="1148" width="16" height="13" rx="2" fill="#f0ebfb" stroke="#6a45c9"/>
+<text x="370" y="1159" font-size="12" fill="#18202b">плагины</text>
+<rect x="441" y="1148" width="16" height="13" rx="2" fill="#fbeaf1" stroke="#b8326b"/>
+<text x="463" y="1159" font-size="12" fill="#18202b">«Интеллект»</text>
+<rect x="562" y="1148" width="16" height="13" rx="2" fill="#eef1f4" stroke="#4a5566"/>
+<text x="584" y="1159" font-size="12" fill="#18202b">UI и хранилища</text>
+<rect x="704" y="1148" width="16" height="13" rx="2" fill="#ffffff" stroke="#5b6676"/>
+<text x="726" y="1159" font-size="12" fill="#18202b">вне процесса</text>
+<text x="842" y="1159" font-size="12" fill="#18202b">пунктир — запланировано</text>
+<text x="20" y="1182" font-size="12" fill="#5b6676">Ответ модели идёт в сборку ответа так же, как ответ сценария; дольше 3 с — через отложенный ответ (Push). Приоритет имён: пользовательское &gt; расширение &gt; встроенное.</text>
+</svg>
