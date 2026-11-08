@@ -8,7 +8,6 @@ import json
 
 import pytest
 
-from server_emulator.scenario_engine.library import SCENARIOS
 from tools.phrase_coverage import GROUPS, load_corpus, regressions, run_corpus
 
 CORPUS_PATH = "tests/fixtures/phrases/station_help.json"
@@ -38,9 +37,16 @@ def test_corpus_schema_and_scale(corpus):
             assert "«" not in text and "»" not in text and "**" not in text, text
 
 
-def test_corpus_expect_refs_existing_scenarios(corpus):
-    """expect — id встроенного сценария или null; фраз с expect достаточно для регрессии."""
-    known = set(SCENARIOS)
+async def test_corpus_expect_refs_existing_scenarios(corpus, tmp_path):
+    """expect — id сценария каталога роутинга (библиотека или включённые плагины) или
+    null; фраз с expect достаточно для регрессии."""
+    from server_emulator.runtime import Runtime
+
+    runtime = Runtime(tmp_path)
+    try:
+        known = {str(s.get("id")) for s in runtime.dialog.scenarios()}
+    finally:
+        await runtime.close()
     filled = 0
     for section in corpus["sections"]:
         for phrase in section["phrases"]:
@@ -48,7 +54,7 @@ def test_corpus_expect_refs_existing_scenarios(corpus):
             if expect is not None:
                 assert expect in known, (phrase["text"], expect)
                 filled += 1
-    assert filled >= 20  # 087: медиатека снята (media.* → null), 077–083 будут добавлять свои
+    assert filled >= 20
 
 
 async def test_expected_phrases_still_match(corpus):

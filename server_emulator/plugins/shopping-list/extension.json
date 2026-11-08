@@ -1,0 +1,22 @@
+{
+  "id": "builtin.shopping-list",
+  "name": "Список покупок",
+  "version": "0.1.0",
+  "description": "Список покупок (встроенный): «добавь в список покупок …», «что в списке покупок», «удали из списка покупок …», «очисти список покупок». Фразы — в справочнике плагина, список живёт по пользователю (ctx.data), переживает перезапуск; выключён — фразы списка неизвестны.",
+  "author": "Angell Fear",
+  "license": "MIT",
+  "requires": {
+    "emulator": ">=0.1.0",
+    "sdk": ">=2.5.0",
+    "python_packages": []
+  },
+  "permissions": {
+    "network": [],
+    "actions": [],
+    "device_push": false,
+    "install": false
+  },
+  "contributes": {
+    "phrases": "phrases/lists.json"
+  }
+}

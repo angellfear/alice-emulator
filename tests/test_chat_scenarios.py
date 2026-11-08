@@ -6,6 +6,7 @@
 """
 import datetime
 import re
+import uuid
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -19,7 +20,8 @@ WEEKDAYS_RU = ["понедельник", "вторник", "среда", "чет
 
 
 def _ctx(runtime, text, sn=""):
-    ctx = {"input": {"message_id": "m", "request_id": "r", "dialog_id": "dg", "sn": sn, "text": text},
+    ctx = {"input": {"message_id": uuid.uuid4().hex, "request_id": "r", "dialog_id": "dg",
+                     "sn": sn, "text": text},
            "clock": {"now": datetime.datetime.now()}}
     ctx.update(runtime._scenario_context(sn=sn))
     return ctx
@@ -187,13 +189,42 @@ async def test_no_steal_from_other_domains(tmp_path):
         await runtime.close()
 
 
-# --- список покупок (TASK-080): состояние по пользователю, переживает перезапуск ---
+# --- список покупок: состояние по пользователю, переживает перезапуск; фразы — плагин ---
 
 async def _shopping(runtime, phrase):
     report = await _say(runtime, phrase)
     assert report["handled"], f"{phrase!r}: {report.get('reason')}"
     assert report["scenario"] == "lists.shopping", report["scenario"]
     return report["speech"]
+
+
+async def test_shopping_phrases_from_builtin_plugin(tmp_path):
+    """Фразы списка объявляет встроенный плагин shopping-list: совпадение идёт из
+    справочника (reason dir:…), а не из триггеров сценария."""
+    runtime = Runtime(tmp_path)
+    try:
+        report = await _say(runtime, "Алиса, добавь в список покупок молоко")
+        assert report["scenario"] == "lists.shopping", report
+        assert report["reason"] == "dir:builtin.shopping-list.shopping", report["reason"]
+    finally:
+        await runtime.close()
+
+
+async def test_shopping_phrases_unknown_when_plugin_off(tmp_path):
+    """Выключенный плагин — фраз списка нет в справочнике: фраза не отвечает сценарием
+    списка (сценарий в каталоге остаётся, выбрать его нечему)."""
+    runtime = Runtime(tmp_path)
+    try:
+        await runtime.extensions.disable("builtin.shopping-list")
+        directory = runtime.dialog.phrase_directory()
+        assert not [e for e in directory.entries.values()
+                    if directory.handler_scenario(e) == "lists.shopping"]
+        report = await _say(runtime, "Алиса, добавь в список покупок молоко")
+        assert not report["handled"] or report["scenario"] != "lists.shopping", report
+        report = await _say(runtime, "Алиса, что в списке покупок")
+        assert not report["handled"] or report["scenario"] != "lists.shopping", report
+    finally:
+        await runtime.close()
 
 
 async def test_shopping_add_show_remove_clear(tmp_path):

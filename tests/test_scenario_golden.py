@@ -34,13 +34,14 @@ def tool():
 
 
 async def test_golden_covers_builtin_library(tmp_path):
-    """Эталон покрывает весь каталог роутинга: встроенную библиотеку (сейчас 26) и
-    сценарии включённых плагинов (свет — плагин home-assistant), каждый по одному разу."""
+    """Эталон покрывает весь каталог роутинга: встроенную библиотеку (сейчас 25) и
+    сценарии включённых плагинов (свет — home-assistant, покупки — shopping-list),
+    каждый по одному разу."""
     from server_emulator.runtime import Runtime
     from server_emulator.scenario_engine.library import ERRORS, SCENARIOS
 
     assert ERRORS == []
-    assert len(SCENARIOS) == 26  # свет ушёл в плагин home-assistant
+    assert len(SCENARIOS) == 25  # свет и покупки вынесены во встроенные плагины
     runtime = Runtime(tmp_path)
     try:
         expected = sorted(str(scenario.get("id")) for scenario in runtime.dialog.scenarios())

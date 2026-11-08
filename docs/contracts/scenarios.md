@@ -87,7 +87,7 @@ module: "server_emulator/scenario_engine/"
 | media.music | music; возможности `fairy_tales`, `podcasts`, `audiobooks` | фразы в ядре (`scenarios/media/music.json`), включая голый шаблон «включи {query}» и отсечку `media_other_domain` | test_music_provider |
 | кино/сериалы | video | вида нет; фразы — в `system.unavailable` (честный отказ) | — |
 | smart_home.light | умный дом (`builtin.home-assistant`) | фразы в файле плагина (`phrases/light.json`: закрытый список ламп из датасета `ha.lights`, падежи — pymorphy3 и словарь `room`; лампы одной площадки — одной командой), сценарий тоже даёт плагин: яркость → `brightness_pct`, исполнение — действие `ha.call_service` (сервисы `light.turn_on`/`turn_off` HA); плагин не настроен или ламп нет — фраз нет; сбой HA при вызове — понятная фраза | test_home_assistant_light |
-| lists.shopping | список покупок | в ядре, хранилище эмулятора | test_chat_scenarios |
+| lists.shopping | список покупок (`builtin.shopping-list`) | фразы и сценарий даёт плагин (`phrases/lists.json`, handler `core:lists.shopping`, у сценария `"triggers": []`); список хранится по пользователю (`ctx.data`), владелец записи — id сценария, поэтому перенос уже сохранённых списков не трогает; плагин выключен — фраз списка нет | test_chat_scenarios |
 | games.games | игры | в ядре | test_dialog_games |
 | chat.chat, knowledge.knowledge | болталка, знания («Интеллект») | в ядре | test_chat_scenarios, test_knowledge_scenarios |
 
@@ -221,4 +221,4 @@ API: `GET scenario-drafts` → `{drafts}`; `POST {op: test|activate|discard|hist
 - Голая фраза «включи {X}»: опрос каталогов плагинов с поиском (выбранный поставщик
   первым, отвечает нашедший); после этого ручная отсечка `media_other_domain` для
   маршрутизации не нужна.
-- Встроенные плагины списка покупок, игр, болталки и знаний; вид video.
+- Встроенные плагины игр, болталки и знаний; вид video.

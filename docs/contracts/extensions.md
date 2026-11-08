@@ -41,9 +41,9 @@ traversal (общий код `extensions/sources.py`, им же пользует
 Часть плагинов поставляется с эмулятором: папки `server_emulator/plugins/<имя>/` с тем же
 `extension.json`, id `builtin.<имя>` (префикс зарезервирован — установить чужое расширение
 с таким id нельзя). Набор поставки: музыка `builtin.spotify` и `builtin.yandex-music`,
-погода `builtin.open-meteo`, новости `builtin.news-stub`, умный дом `builtin.home-assistant`
-(выбор поставщика — docs/contracts/providers.md). Через встроенные плагины ядро получает
-данные контента; какие
+погода `builtin.open-meteo`, новости `builtin.news-stub`, умный дом `builtin.home-assistant`,
+список покупок `builtin.shopping-list` (выбор поставщика — docs/contracts/providers.md).
+Через встроенные плагины ядро получает данные контента; какие
 сценарии встроены, а какие экспортируются плагинами — docs/contracts/scenarios.md, раздел 2.
 
 - Установлены всегда: менеджер при каждой загрузке сверяет папки `plugins/` с состоянием

@@ -1814,7 +1814,180 @@
       "id": "knowledge.knowledge"
     },
     {
-      "cases": [],
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "что в списке покупок"
+          },
+          "name": "lists.shopping-dir0",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Ваш список покупок пуст.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Ваш список покупок пуст."
+                }
+              ],
+              "reason": "dir:builtin.shopping-list.shopping",
+              "scenario": "lists.shopping",
+              "speech": "Ваш список покупок пуст.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "что в списке покупок"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "прочитай список покупок"
+          },
+          "name": "lists.shopping-dir1",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Ваш список покупок пуст.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Ваш список покупок пуст."
+                }
+              ],
+              "reason": "dir:builtin.shopping-list.shopping",
+              "scenario": "lists.shopping",
+              "speech": "Ваш список покупок пуст.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "прочитай список покупок"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "список покупок"
+          },
+          "name": "lists.shopping-dir2",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Ваш список покупок пуст.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Ваш список покупок пуст."
+                }
+              ],
+              "reason": "dir:builtin.shopping-list.shopping",
+              "scenario": "lists.shopping",
+              "speech": "Ваш список покупок пуст.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "список покупок"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "убери весь список покупок"
+          },
+          "name": "lists.shopping-dir3",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Список покупок и так пуст.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Список покупок и так пуст."
+                }
+              ],
+              "reason": "dir:builtin.shopping-list.shopping",
+              "scenario": "lists.shopping",
+              "speech": "Список покупок и так пуст.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "убери весь список покупок"
+            }
+          ]
+        }
+      ],
       "id": "lists.shopping"
     },
     {
