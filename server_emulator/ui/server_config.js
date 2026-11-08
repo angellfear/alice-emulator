@@ -127,7 +127,7 @@
     section.replaceChildren(make('h2', {}, 'Сервер'),
       make('p', { className: 'hint' }, 'Колонки подключаются к основному порту 443 по TLS и к HTTP-порту 80 (quasar.yandex.net); сертификат должен быть тем, которому доверяют колонки. Путь к файлу указывается на компьютере с эмулятором либо файл загружается кнопкой — он сохранится в папке данных (certs/). Изменения применяются перезапуском сервера; если с новыми настройками он не поднимется, вернутся прежние.'),
       make('p', { className: 'hint' }, [version, 'Сейчас: ' + (listeners || '—') + (notes.length ? ' ' + notes.join(' ') : '')].filter(Boolean).join(' · ')),
-      form, selfUpdatePanel());
+      form, selfUpdatePanel(), oauthPanel());
   }
 
   // Политика доменов вне сертификата (TASK-093): три режима; для «по листу» — поле (1 домен на строку)
@@ -225,6 +225,43 @@
     return form;
   }
 
+  // OAuth / Passport: режим двух хостов (oauth.yandex.ru, mobileproxy.passport.yandex.net) —
+  // настройки эмулятора: GET api/settings, правка oauth.mode, PUT. Читается живьём — без
+  // перезапуска сервера; следующее обращение колонки уже по новому режиму.
+  function oauthPanel() {
+    const modes = [['auto', 'Авто', 'по маршруту устройства: эмуляция — заглушки, прозрачно — настоящий сервер'],
+                   ['emulate', 'Эмуляция', 'всегда заглушки эмулятора'],
+                   ['upstream', 'Напрямую', 'всегда настоящий сервер']];
+    const current = (state.oauth || {}).mode || 'auto';
+    const radios = {};
+    const rows = modes.map(([value, label, hint]) => {
+      const input = make('input', { type: 'radio', name: 'oauth-mode', value: value, checked: current === value });
+      radios[value] = input;
+      return make('label', { className: 'srv-check' }, input,
+        make('span', {}, label, make('small', { className: 'hint' }, ' — ' + hint)));
+    });
+    const error = make('p', { className: 'sc-err', hidden: true, role: 'alert' });
+    const save = make('button', { type: 'submit' }, 'Сохранить');
+    const form = make('form', { className: 'panel' },
+      make('h3', {}, 'OAuth / Passport'),
+      make('p', { className: 'hint' }, 'Как эмулятор отвечает колонке на авторизацию (oauth.yandex.ru) и профиль аккаунта (mobileproxy.passport.yandex.net). Применяется сразу, без перезапуска сервера.'),
+      ...rows, error, make('div', { className: 'actions' }, save));
+    form.onsubmit = async event => {
+      event.preventDefault();
+      if (busy) return;
+      error.hidden = true;
+      busy = true; save.disabled = true;
+      try {
+        const settings = await apiSettings();
+        settings.oauth = { ...(settings.oauth || {}), mode: modes.find(([value]) => radios[value].checked)[0] };
+        await apiSettings('PUT', settings);
+        notify('Режим OAuth сохранён');
+      } catch (e) { error.textContent = e.message; error.hidden = false; }
+      finally { busy = false; save.disabled = false; }
+    };
+    return form;
+  }
+
   // адрес панели после перезапуска: сервер слушает все адреса (0.0.0.0 / ::) — остаёмся на хосте, по которому
   // открыта панель (адрес в сети, имя компьютера), меняются только схема и порт; та же схема, если её слушатель остался
   function panelUrl(c) {
@@ -260,6 +297,7 @@
       state = await call('GET');
       try { state.front_policy = await callFront('GET'); } catch (e) { /* блок политики не покажется */ }
       try { state.self_update = (await apiSettings()).self_update; } catch (e) { /* блок просто не покажется */ }
+      try { state.oauth = (await apiSettings()).oauth; } catch (e) { /* блок просто не покажется */ }
       render();
     } catch (e) { section.replaceChildren(make('h2', {}, 'Сервер'), make('p', { className: 'sc-err' }, e.message)); }
   }

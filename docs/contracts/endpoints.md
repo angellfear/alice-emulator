@@ -142,6 +142,32 @@ capability уступают каталогу). Подписка в состоя�
 крафтовые повторы (нужна живая сессия станции); захватятся естественным трафиком в
 следующем proxy-окне — тогда `endpoints_recover.py --all` доберёт их.
 
+## OAuth и Passport: oauth.yandex.ru, mobileproxy.passport.yandex.net
+
+Режим-зависимые builtin-заглушки авторизации и профиля аккаунта (`oauth_stubs.py`); решение —
+сразу после `route_mode_for`, до каталога эндпоинтов (см. `http.md`, «Режимы маршрута устройств»):
+
+- `settings["oauth"]["mode"]`: `auto` (по умолчанию) — emulate/hybrid → заглушки, proxy → туннель
+  наверх; `emulate` — всегда заглушки; `upstream` («напрямую») — всегда туннель. Читается живьём;
+  карточка «OAuth / Passport» — «Дополнительно → Сервер». Туннель — механизм «Напрямую»
+  (upstream-мост, петлезащита резолвера); сломанный JSON наверху при статусе 200 — честная
+  502 колонке, мусор не отправляется.
+- `POST /token` и `POST /1/token` (urlencoded): `grant_type=authorization_code` →
+  `{access_token: "VAT."+sha256('access'+code+device_id), expires_in: 315360000,
+  refresh_token: "VRT."+sha256('refresh'+code+device_id), token_type: "bearer"}`;
+  `grant_type=x-token` → access_token эхом + `{uid, expires_in, token_type}`; иной grant_type →
+  400 `{"error": "unsupported_grant_type"}` (RFC 6749 §5.2). Токены детерминированные,
+  нигде не хранятся и не проверяются — как в образце (quasar-server, oauth.yandex.ru.ts);
+  префиксы VAT./VRT. — маркер заглушки: `music.note_token` их не захватывает, настоящий
+  токен аккаунта в кеше поставщика музыки не затирается.
+- `POST /1/bundle/oauth/token_by_sessionid` → `{access_token: "VAT."+hex(32), expires_in,
+  status: "ok", token_type: "bearer"}`.
+- `GET /1/bundle/account/short_info` → каркас полей из образца, персональное — из реестра:
+  владелец устройства, иначе первый владелец users; uid/master_uid — id пользователя,
+  display_name/имя/логин — из users.
+- `GET /1/am/sso/config.json`, `/1/am/config.json`, `/1/badges-specification.json` — статика
+  из образца (`oauth_static/`, MIT — NOTICE.md).
+
 ## glagol: токен и сертификаты устройств
 
 - `GET /glagol/token?device_id&platform` — HS256-токен целевого устройства (v9 §8: только

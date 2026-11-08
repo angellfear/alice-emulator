@@ -83,7 +83,11 @@ meta `record_migration`); `record` как значение `route_mode` — 400.
 Решение — `dispatcher.route_mode_for(request) → (sn, device_id, mode)`: заголовки
 uprx/quasar → query device_id → реестр (resolve-only); цель строит `upstream.target_for`
 (канонический хост из алиасов, https/wss; алиас может задавать полный `http://…` upstream —
-тесты). API: `PUT /api/route_mode {sn, mode}` (`mode`: `emulate` | `hybrid` | `proxy`, `null` — снять
+тесты). У хостов авторизации (oauth.yandex.ru, mobileproxy.passport.yandex.net) — свой
+переключатель `settings["oauth"]["mode"]` (`auto` — по режиму маршрута устройства: emulate/hybrid →
+заглушки эмулятора, proxy → туннель; `emulate` — всегда заглушки; `upstream` — всегда туннель),
+решение принимается сразу после `route_mode_for`, до остальных обработчиков
+(см. `endpoints.md`, «OAuth и Passport»). API: `PUT /api/route_mode {sn, mode}` (`mode`: `emulate` | `hybrid` | `proxy`, `null` — снять
 свой маршрут, то есть `emulate`) → `{sn, mode, disconnected}` — смена маршрута устройства сразу, без
 ожидания колонки. WS устройства закрываются (1012, в фоне; `disconnected` — число закрываемых)
 только при переходе в `proxy` или из него: `emulate` ↔ `hybrid` WS не рвёт, HTTP маршрутизируется

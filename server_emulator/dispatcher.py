@@ -24,6 +24,7 @@ from multidict import CIMultiDict
 
 from .identity import collect_device_id
 from .endpoints import builtin_covers, find_builtin
+from . import oauth_stubs
 from .quasar_replace import apply_replacements, replaced_headers
 from .upstream import UpstreamError, forward_headers
 from .upstream.forward import decoded_json
@@ -261,6 +262,51 @@ class Dispatcher:
             return 200, cached[0], {'Content-Type': cached[1], 'Cache-Control': 'max-age=86400'}
         return 404, b'{"error":"avatar_unavailable"}', {'Content-Type': 'application/json'}
 
+    async def _oauth(self, request, host, host_clean, path, record, sn, device_id, device,
+                     route_mode, started):
+        """oauth.yandex.ru / mobileproxy.passport.yandex.net: заглушки (settings["oauth"]["mode"]:
+        emulate или auto при emulate/hybrid) или туннель наверх (upstream или auto при proxy) —
+        как «Напрямую» get_sync_info, без состояния; сломанный JSON наверху — честная ошибка
+        колонке, мусор не уходит. Заглушки отвечают до каталога эндпоинтов."""
+        runtime = self.runtime
+        oauth_mode = str((runtime.settings.get('oauth') or {}).get('mode') or 'auto')
+        body = await request.read()
+        if oauth_mode == 'upstream' or (oauth_mode == 'auto' and route_mode == 'proxy'):
+            upstream = getattr(runtime, 'upstream', None)
+            if upstream is None:
+                return web.json_response({'error': 'upstream_unavailable',
+                                          'hint': 'Режим OAuth «напрямую», а upstream не настроен'}, status=502)
+            target = upstream.target_for(request, host=host)
+            try:
+                status, headers, payload = await upstream.forwarder.http(
+                    request.method, target, request.headers, body,
+                    journal=upstream.recording(sn, handled=False),
+                    host=host_clean, path=str(request.rel_url), device_sn=sn, device_id=device_id)
+            except UpstreamError as exc:
+                return web.json_response({'error': 'upstream_unavailable', 'detail': str(exc)[:200]}, status=502)
+            if status == 200 and decoded_json(headers, payload) is None:
+                return web.json_response({'error': 'upstream_bad_body',
+                                          'hint': 'Ответ настоящего сервера не JSON — колонке мусор не отправлен'},
+                                         status=502)
+            return web.Response(status=status, body=payload,
+                                headers=CIMultiDict(forward_headers(headers)))
+        served = oauth_stubs.handle(runtime, host_clean, request.method, path or request.path, body, device)
+        if served is None:  # emulate/auto-эмуляция: пути заглушкой не знаем — честный 404
+            return web.json_response({'error': 'emulator_handler_not_found'}, status=404)
+        status, value = served
+        output = json.dumps(value, ensure_ascii=False).encode()
+        headers = {'Content-Type': 'application/json'}
+        if record:
+            record({"request_original": body, "request_sent": body, "response_original": output, "response_sent": output},
+                   kind="http", direction="exchange", status=status, size=len(body) + len(output),
+                   request_size=len(body), response_size=len(output),
+                   headers={"request_original": list(request.headers.items()), "response_original": list(headers.items())},
+                   emulated=True, device_sn=device['sn'] if device else None,
+                   user_id=device.get('user_id') if device else None)
+        self.journal_emulated(request, host_clean, path or request.path, started,
+                              device['sn'] if device else sn, device_id, body, status, headers, output)
+        return web.Response(status=status, body=output, headers=headers)
+
     async def direct_sync_info(self, request, device, device_id, sn, body, upstream):
         """TASK-052, «Напрямую»: get_sync_info пересылается настоящему quasar.yandex.net,
         ответ колонке без изменений (кроме замен regexp устройства, TASK-063 — quasar_replace.py);
@@ -377,6 +423,14 @@ class Dispatcher:
             # OAuth аккаунта: захват только от опознанной колонки — в БД для поставщика Яндекс.Музыки
             from . import music
             music.note_token(runtime, auth[6:])
+        oauth_host = self.canonical_host(request, host)
+        if oauth_host in oauth_stubs.HOSTS:
+            # oauth.yandex.ru / mobileproxy.passport.yandex.net: режим-зависимые заглушки
+            # или туннель — решение сразу после route_mode_for, до остальных обработчиков
+            # (device здесь ещё не разрешён — resolve-only снимок)
+            oauth_device = runtime.identities.resolve(device_id) if device_id else None
+            return await self._oauth(request, host, oauth_host, path, record, sn, device_id,
+                                     oauth_device, route_mode, started)
         is_ws = request.headers.get("Upgrade", "").lower() == "websocket"
         # Потоки музыки поставщика (storage/strm) колонка качает сама — прозрачный проход
         # во всех маршрутах, кроме «Прозрачно» (там и так наверх; в «Напрямую» иначе

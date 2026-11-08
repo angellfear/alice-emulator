@@ -57,6 +57,10 @@ DEFAULT = {
     # Долговременная память агента (agent/memory.py): эмбеддинги — OpenAI-совместимый /v1/embeddings
     "memory": {"enabled": True, "embed": {"url": "", "model": "", "api_key": ""}, "recall_limit": 6, "reflect_after_s": 120},
     "aliases": {},  # колонка ходит на настоящие домены Яндекса; алиасы — для своих upstream и тестов
+    # OAuth/Passport (oauth.yandex.ru, mobileproxy.passport.yandex.net): auto — по маршруту
+    # устройства (emulate/hybrid — заглушки, proxy — туннель), emulate — всегда заглушки,
+    # upstream («напрямую») — всегда туннель. Детали — oauth_stubs.py.
+    "oauth": {"mode": "auto"},
     # Расширения (TASK-029): источники (URL/локальные папки), состояние включённости,
     # установленное (версия/предыдущая/источник/самопроверка) и значения настроек.
     # Файлы живут в state/extensions/<id>/<version>/; детали — extensions/manager.py.
@@ -369,6 +373,15 @@ class SettingsService:
                 raise ValueError("providers: нужен объект")
             value["providers"] = {str(k): str(v or "").strip()
                                   for k, v in providers_state.items()}
+        # OAuth/Passport: режим двух хостов; присланной формы нет — из current.
+        if "oauth" not in value:
+            value["oauth"] = copy.deepcopy(current.get("oauth") or DEFAULT["oauth"])
+        else:
+            oauth = value["oauth"]
+            if not isinstance(oauth, dict):
+                raise ValueError("oauth: нужен объект")
+            if oauth.setdefault("mode", "auto") not in ("auto", "emulate", "upstream"):
+                raise ValueError("oauth.mode: auto | emulate | upstream")
         # Ручной порядок справочника фраз: формы UI пока нет — из current (появится
         # с редактором порядка); присланное — проверяем по форме.
         if "phrase_order" not in value:

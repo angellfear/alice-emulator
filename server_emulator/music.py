@@ -84,6 +84,11 @@ def note_token(runtime, token):
     token = str(token or "").strip()
     if not _is_oauth(token):
         return False
+    from .oauth_stubs import is_stub_token
+    if is_stub_token(token):
+        # детерминированные токены заглушек OAuth (VAT./VRT.) — не данные аккаунта:
+        # захваченный настоящий токен не затирается
+        return False
     known = _CAPTURED.get("oauth")
     if known == token:
         return True
