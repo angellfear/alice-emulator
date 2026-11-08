@@ -1,8 +1,22 @@
 # Защита от утечки приватных данных (серийники, токены, адреса домашней сети и т. д.).
+# Документы и сообщения коммитов — без номеров рабочих заданий.
 # После клонирования: pip install pre-commit && pre-commit install
+default_install_hook_types: [pre-commit, commit-msg]
 repos:
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.1
     hooks:
       - id: gitleaks
         args: ["--config=.gitleaks.toml"]
+  - repo: local
+    hooks:
+      - id: no-task-refs-docs
+        name: номера заданий в документации
+        language: pygrep
+        entry: 'TASK-\d+|\btasks/|[Зз]акрыт\w* задач|^#.*\(\d{3}\)\s*$'
+        files: '^(README\.md|docs/.*\.md|server_emulator/README\.md|tests/fixtures/.*\.md)$'
+      - id: no-task-refs-commit
+        name: номера заданий в сообщении коммита
+        language: pygrep
+        entry: '^\d{3}\s*:|TASK-\d+|[Зз]акрыт\w* задач'
+        stages: [commit-msg]
