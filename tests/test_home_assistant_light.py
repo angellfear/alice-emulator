@@ -249,6 +249,30 @@ async def test_duplicate_names_collapsed(tmp_path):
         await runtime.close()
 
 
+def test_case_forms_of_names():
+    """Падежи названий из данных плагина — pymorphy3, без ручного словаря."""
+    from server_emulator.scenario_engine.wordforms import case_forms
+    assert {"берлоге", "берлогу", "берлоги"} <= set(case_forms("Берлога"))
+    assert "рабочем кабинете" in case_forms("Рабочий кабинет")
+    assert "детской" in case_forms("Детская")
+    assert case_forms("Study") == ()
+
+
+async def test_light_room_case_from_morphology(tmp_path):
+    """«в берлоге» ловится закрытым списком, хотя «Берлоги» нет в словаре room;
+    обе лампы площадки получают команду."""
+    runtime, stub, runner = await ha_home(tmp_path, lights=("work_lamp", "work2_lamp"),
+                                          areas={"light.work_lamp": "Берлога",
+                                                 "light.work2_lamp": "Берлога"})
+    try:
+        _report, text = await _say(runtime, "включи свет в берлоге")
+        assert text == "Свет (Берлога) включён."
+        assert service_calls(stub)[-1]["body"]["entity_id"] == ["light.work_lamp", "light.work2_lamp"]
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
 async def test_light_over_ws(tmp_path):
     """WS-путь как у прежнего ядра: «включи свет на кухне»/«выключи …» → ответ,
     сервис уходит в HA (заглушка), state.light колонки не меняется."""

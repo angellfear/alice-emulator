@@ -31,6 +31,7 @@ from hassil.errors import HassilError
 from hassil.recognize import recognize_all
 
 from .templates import LANGUAGE, clean, merge_lexicons
+from .wordforms import case_forms
 
 
 class PhraseEntryError(ValueError):
@@ -85,19 +86,28 @@ class PhraseDirectory:
             ext_id, path, kind, *rest = item
             dynamic = rest[0] if rest else None
             # закрытые списки из записей датасета (manager.phrase_files, lists_from):
-            # values — имена из записи, via — общий словарь: его падежные варианты
-            # (out == имя без регистра) дополняют список — «в спальне» ловится, когда
-            # устройство «Спальня»; перекрывает статический список записи с тем же именем
+            # values — имена из записи; падежные формы каждого имени — wordforms
+            # (pymorphy3): «в берлоге» ловится, когда устройство «Берлога»; via — общий
+            # словарь: его варианты (out == имя без регистра) дополняют список;
+            # перекрывает статический список записи с тем же именем
             dyn = {}
             for name, ref in (dynamic or {}).items():
                 values = [str(v) for v in (ref or {}).get("values") or []]
                 spec = [{"in": v, "out": v} for v in values]
+                seen = {v.lower() for v in values}
+                for value in values:
+                    for form in case_forms(value):
+                        if form not in seen:
+                            seen.add(form)
+                            spec.append({"in": form, "out": value})
                 via = (lists.get(str((ref or {}).get("via") or "")) or {}) if (ref or {}).get("via") else {}
                 by_lower = {v.lower(): v for v in values}
                 for variant in via.get("values") or []:
                     out = str(variant.get("out") or "").lower()
-                    if out in by_lower and str(variant.get("in") or ""):
-                        spec.append({"in": str(variant["in"]), "out": by_lower[out]})
+                    word = str(variant.get("in") or "")
+                    if out in by_lower and word and word.lower() not in seen:
+                        seen.add(word.lower())
+                        spec.append({"in": word, "out": by_lower[out]})
                 dyn[str(name)] = {"values": spec}
             try:
                 entries = load_entries(ext_id, path)
