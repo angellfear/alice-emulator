@@ -36,6 +36,7 @@ from urllib.parse import urlsplit
 
 from ..scripting import ScriptRunner, failure
 from ..sdk import SDK_VERSION
+from ..settings_service import masked_secret
 from . import EMULATOR_VERSION
 from . import legacy_registry
 from .context import ExtensionContext, bind_manager
@@ -404,6 +405,23 @@ class ExtensionManager:
         stored = self._state()["settings"].get(ext_id) or {}
         return {**defaults, **stored}
 
+    KEEP = "__KEEP__"  # маска заданного секрета в API; запись KEEP сохраняет прежнее значение
+
+    @staticmethod
+    def _secret_keys(manifest):
+        """Ключи полей-секретов манифеста (settings.fields с type=password)."""
+        return {f["key"] for f in (manifest.get("settings") or {}).get("fields") or []
+                if f.get("type") == "password"}
+
+    def public_values(self, ext_id, manifest=None):
+        """Значения настроек для API: секреты (type=password) — маска KEEP, ссылка
+        env:ИМЯ — как есть (значение живёт в окружении); прочее — как values()."""
+        if manifest is None:
+            manifest = self._load_manifest(ext_id)
+        secrets = self._secret_keys(manifest)
+        return {key: (masked_secret(value) if key in secrets else value)
+                for key, value in self.values(ext_id, manifest).items()}
+
     def provider_declarations(self):
         """Объявления поставщиков включённых плагинов: [(ext_id, объявление, папка)] —
         contributes.providers манифеста (вид, название вида, модуль, возможности,
@@ -689,10 +707,13 @@ class ExtensionManager:
         unknown = sorted(set(values) - known)
         if unknown:
             raise ValueError(f"Неизвестные поля настроек: {unknown}")
+        secrets = self._secret_keys(manifest)
+        values = {key: value for key, value in values.items()
+                  if not (key in secrets and value == self.KEEP)}  # маска секрета — прежнее значение
         stored = self._state()["settings"]
         stored[ext_id] = {**stored.get(ext_id, {}), **values}
         await self._save()
-        return {"id": ext_id, "values": self.values(ext_id, manifest)}
+        return {"id": ext_id, "values": self.public_values(ext_id, manifest)}
 
     async def install_python_packages(self, ext_id, confirm=False):
         """requires.python_packages не ставятся молча: без confirm — список,
@@ -866,7 +887,7 @@ class ExtensionManager:
                              "class": info["class"], "permissions": manifest["permissions"],
                              "folders": folders, "python_packages": info["python_packages"],
                              "settings": {"fields": (manifest.get("settings") or {}).get("fields") or [],
-                                          "values": self.values(ext_id, manifest)}})
+                                          "values": self.public_values(ext_id, manifest)}})
                 newer = available.get(ext_id)
                 if newer and newer.get("version"):
                     try:

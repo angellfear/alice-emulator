@@ -23,6 +23,7 @@
 
   const make = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
   const say = (text, error = false) => { notify(text, { error }); };
+  const KEEP = '__KEEP__';  // маска заданного секрета (settings.fields type=password)
   const call = async (op, value = {}) => {
     const r = await fetch('api/extensions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Emulator': '1' }, body: JSON.stringify({ op, ...value }) });
     const v = await r.json().catch(() => ({}));
@@ -198,8 +199,13 @@
       if (spec.type === 'number') el.step = spec.step || 'any';
       if (spec.type === 'password') el.autocomplete = 'off';
     }
-    el.value = values[spec.key] ?? '';
-    el.oninput = () => { values[spec.key] = spec.type === 'number' && el.value !== '' ? Number(el.value) : el.value; };
+    const kept = spec.type === 'password' && values[spec.key] === KEEP;  // секрет задан, сервер его не отдаёт
+    if (kept) { el.value = ''; el.placeholder = 'сохранён — оставьте пустым'; }
+    else el.value = values[spec.key] ?? '';
+    el.oninput = () => {
+      if (kept && !el.value) { values[spec.key] = KEEP; return; }
+      values[spec.key] = spec.type === 'number' && el.value !== '' ? Number(el.value) : el.value;
+    };
     if (spec.type === 'select') el.onchange = () => { el.oninput(); render(); };  // поля с when зависят от выбора
     label.append(el);
     return label;

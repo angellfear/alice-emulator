@@ -472,14 +472,25 @@ async def test_python_packages_and_settings(tmp_path):
             assert body == {"requires_confirmation": True,
                             "packages": ["some-package>=1,<2"]}  # молча пакеты не ставятся
             body = await op(client, url, {"op": "set", "id": "coffee", "values": {"token": "abc"}})
-            assert body["values"] == {"token": "abc"}
+            assert body["values"] == {"token": "__KEEP__"}  # секрет наружу не отдаётся
+            assert runtime.extensions.values("coffee")["token"] == "abc"  # коду расширения — значение
             body = await op(client, url, {"op": "set", "id": "coffee", "values": {"unknown": 1}},
                             expect=400)
             assert "Неизвестные поля" in body["error"]
             listing = await (await client.get(url + "/emulator/api/extensions")).json()
             card = next(c for c in listing["extensions"] if c["id"] == "coffee")
             assert card["python_packages"] == ["some-package>=1,<2"]
-            assert card["settings"]["values"] == {"token": "abc"}
+            assert card["settings"]["values"] == {"token": "__KEEP__"}
+            assert "abc" not in json.dumps(listing)
+            # форма вернула маску — прежнее значение остаётся
+            await op(client, url, {"op": "set", "id": "coffee", "values": {"token": "__KEEP__"}})
+            assert runtime.extensions.values("coffee")["token"] == "abc"
+            # ссылка на окружение — не секрет, видна как есть
+            body = await op(client, url, {"op": "set", "id": "coffee", "values": {"token": "env:COFFEE_TOKEN"}})
+            assert body["values"] == {"token": "env:COFFEE_TOKEN"}
+            # пустое значение стирает секрет
+            body = await op(client, url, {"op": "set", "id": "coffee", "values": {"token": ""}})
+            assert body["values"] == {"token": ""} and runtime.extensions.values("coffee")["token"] == ""
     finally:
         await app_runner.cleanup()
         await runtime.close()
