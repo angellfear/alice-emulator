@@ -154,16 +154,17 @@
     return box;
   }
   const short=(v,n=48)=>{const s=JSON.stringify(v);return s===undefined?'':s.length>n?s.slice(0,n-1)+'…':s};
-  function valueView(rule){
-    switch(rule.kind){
-      case 'param':return tag(rule.value);
-      case 'template':return withTokens(String(rule.value??''));
-      case 'db':{const t=tag(rule.value,'db');t.prepend(make('b','БД'));return t}
-      case 'script':{const t=tag(rule.value,'run');t.prepend(make('b','run'));return t}
-      case 'delete':return tag('удалить','del');
-      default:return make('code',short(rule.value),'qr-val');
+  // значение состояния: строка — текст с тегами подстановок, маркеры db/run — теги, иначе JSON
+  function stateView(value){
+    if(typeof value==='string')return value.includes('{{')?withTokens(value):make('code',short(value),'qr-val');
+    if(value&&typeof value==='object'&&!Array.isArray(value)){
+      const keys=Object.keys(value);
+      if(keys.length===1&&keys[0]==='db'){const t=tag(String(value.db),'db');t.prepend(make('b','БД'));return t}
+      if(keys.length===1&&keys[0]==='run'){const t=tag(String(value.run),'run');t.prepend(make('b','run'));return t}
     }
+    return make('code',short(value),'qr-val');
   }
+  const statesOf=rule=>Object.keys(rule.options||{});
 
   // ── каркас ───────────────────────────────────────────────────────────
   const STEPS=[
@@ -320,23 +321,26 @@
       await ctx.save(next);
       notify((rule.name||rule.path)+': сохранено');
     });
-    if(rule.kind==='bool'){
-      const sw=make('label','','ui-switch');sw.setAttribute('aria-label',rule.name||rule.path);
-      const cb=make('input');cb.type='checkbox';cb.checked=!!rule.value;cb.disabled=!editable;
-      cb.onchange=()=>change(cb.checked);
+    const states=statesOf(rule);
+    if(rule.kind==='delete')ctl.append(tag('удалить','del'));
+    else if(states.length===2){  // два состояния — переключатель: первое — «вкл»
+      const sw=make('label','','ui-switch');sw.setAttribute('aria-label',label);
+      sw.title=states.join(' / ');
+      const cb=make('input');cb.type='checkbox';cb.checked=rule.value===states[0];cb.disabled=!editable;
+      cb.onchange=()=>change(cb.checked?states[0]:states[1]);
       sw.append(cb,make('i'));ctl.append(sw);
-    }else if(rule.kind==='select'){
+    }else if(states.length>2){
       const select=make('select','','qr-select');select.disabled=!editable;
-      select.setAttribute('aria-label',rule.name||rule.path);
-      for(const key of Object.keys(rule.options||{}))select.append(new Option(key,key));
+      select.setAttribute('aria-label',label);
+      for(const key of states)select.append(new Option(key,key));
       select.value=rule.value;
       select.onchange=()=>change(select.value);
       ctl.append(select);
-    }else{
-      const view=valueView(rule);
+    }else{  // одно состояние — значение узла
+      const view=stateView((rule.options||{})[rule.value]);
       if(!ctx.readOnly){
         const b=make('button','','qr-value');b.type='button';b.append(view);
-        b.setAttribute('aria-label','Изменить: '+(rule.name||rule.path));
+        b.setAttribute('aria-label','Изменить: '+label);
         b.onclick=()=>work(()=>ruleDialog({...ctx,rules,index}));
         ctl.append(b);
       }else ctl.append(view);
@@ -358,8 +362,6 @@
   const move=(rules,index,delta)=>{const next=rules.slice();const [item]=next.splice(index,1);next.splice(index+delta,0,item);return next};
 
   // ── окно замены: имя, узел, вид, значение ────────────────────────────
-  const KINDS=[['value','Значение'],['bool','Флаг'],['select','Выбор варианта'],['param','Параметр'],
-    ['template','Строка с {{токенами}}'],['db','Из реестра'],['script','Скрипт'],['delete','Удалить ключ']];
   const BUILTIN_PARAMS=['device.sn','device.id','device.name','device.room','device.platform','user.id','user.name','session.sn'];
   let paramKeys=null;
   async function knownParams(){
@@ -375,10 +377,24 @@
     list.replaceChildren(...values.map(v=>new Option(v)));
     return id;
   }
+  // текст поля значения ⇄ JSON: строка показывается без кавычек; при сохранении текст,
+  // похожий на JSON (объект, список, число, true/false/null, "строка"), разбирается как JSON
+  const valueToText=v=>v===undefined?'':typeof v==='string'?v:JSON.stringify(v,null,2);
+  function textToValue(text){
+    const t=text.trim();
+    if(/^[\[{"]/.test(t)||/^(true|false|null|-?\d+(\.\d+)?([eE][+-]?\d+)?)$/.test(t)){
+      try{return JSON.parse(t)}catch{if(/^[\[{]/.test(t))throw Error('Значение «'+(t.length>30?t.slice(0,29)+'…':t)+'»: некорректный JSON')}
+    }
+    return text;
+  }
+  // начальные состояния новой замены по текущему значению узла
+  const defaultStates=v=>typeof v==='boolean'
+    ?{options:{'Вкл':true,'Выкл':false},value:v?'Вкл':'Выкл'}
+    :{options:{'Значение':v===undefined?'':v},value:'Значение'};
   async function ruleDialog({rules,index,layer,platform,device,current,save,prefill=null}){
     const editing=index!==null&&index!==undefined?rules[index]:null;
     const tree=current||await composedFor(platform||'');
-    const params=await knownParams();
+    const tokens=[...new Set(['device_name','device_id','device.room','user.name','now_iso','uuid',...await knownParams()])];
     const {dlg,form}=dialogShell(editing?'Замена':'Новая замена','qr-dialog');
     const field=(text,control)=>{const l=make('label',text);l.append(control);return l};
     const name=make('input');name.value=editing?editing.name:'';name.placeholder='Подпись';
@@ -386,88 +402,83 @@
     path.value=editing?editing.path:(prefill&&prefill.path)||'';
     path.placeholder='/config/device_config/…';
     path.setAttribute('list',datalist('qr-paths',allPointers(tree)));
-    const kind=make('select');
-    for(const [value,title] of KINDS)kind.append(new Option(title,value));
+    const currentValue=()=>{const p=toPointer(path.value);return p?valueAt(tree,p):undefined};
+    let kind=editing&&editing.kind==='delete'?'delete':'select';
+    const seg=make('div','','segmented qr-kind');seg.setAttribute('role','radiogroup');seg.setAttribute('aria-label','Вид');
+    const statesBox=make('div','','qr-states');
+    const kindButtons=[['select','Состояния'],['delete','Удалить ключ']].map(([value,label])=>{
+      const b=make('button',label);b.type='button';b.setAttribute('role','radio');
+      b.onclick=()=>{kind=value;syncKind()};seg.append(b);return [value,b];
+    });
+    function syncKind(){
+      for(const [value,b] of kindButtons){b.classList.toggle('active',kind===value);b.setAttribute('aria-checked',String(kind===value))}
+      statesBox.hidden=kind!=='select';
+    }
+    // состояния: [текущее ◉] [имя] [значение] [удалить]
+    const list=make('div','','qr-state-list');
+    const radioName='qr-cur-'+Math.random().toString(36).slice(2);
+    let lastValueInput=null;
+    const grow=ta=>{ta.rows=Math.min(8,Math.max(1,ta.value.split('\n').length))};
+    function addState(stateName='',value='',checked=false){
+      const row=make('div','','qr-state');
+      const cur=make('input');cur.type='radio';cur.name=radioName;cur.checked=checked;cur.setAttribute('aria-label','Текущее состояние');
+      const n=make('input','','qr-state-name');n.value=stateName;n.placeholder='Имя';n.setAttribute('aria-label','Имя состояния');
+      const v=make('textarea','','code');v.value=valueToText(value);v.spellcheck=false;v.placeholder='значение';
+      v.setAttribute('aria-label','Значение состояния');grow(v);
+      const mark=()=>{lastValueInput=v};v.oninput=()=>{grow(v);mark()};
+      for(const ev of ['focus','pointerdown','keyup','select'])v.addEventListener(ev,mark);
+      const rm=iconButton('del','Удалить состояние',()=>{row.remove();
+        if(!list.querySelector('input[type=radio]:checked')){const f=list.querySelector('input[type=radio]');if(f)f.checked=true}});
+      row.append(cur,n,v,rm);list.append(row);lastValueInput=lastValueInput||v;return row;
+    }
+    function fillStates(spec){
+      list.replaceChildren();lastValueInput=null;
+      for(const [key,value] of Object.entries(spec.options))addState(key,value,key===spec.value);
+    }
+    fillStates(editing&&editing.kind==='select'?{options:editing.options,value:editing.value}:defaultStates(currentValue()));
+    const add=make('button','＋ Состояние','secondary');add.type='button';
+    add.onclick=()=>{const r=addState('','',!list.children.length);r.querySelector('.qr-state-name').focus()};
+    const chips=make('div','','qr-chips');
+    for(const t of tokens){
+      const c=make('button','','qtag-btn');c.type='button';c.append(tag(t));c.title='Вставить {{'+t+'}}';
+      c.onclick=()=>{const v=lastValueInput||list.querySelector('textarea');if(!v)return;
+        const at=v.selectionStart??v.value.length;v.setRangeText('{{'+t+'}}',at,v.selectionEnd??at,'end');grow(v);v.focus()};
+      chips.append(c);
+    }
+    statesBox.append(make('p','Одно состояние — значение узла, два — переключатель (первое — «вкл»), больше — выбор. Значение — текст или JSON; подстановки {{…}} — кнопками ниже.','hint'),
+      list,add,chips);
     const enabled=make('label','','ui-switch');
     const enabledBox=make('input');enabledBox.type='checkbox';enabledBox.checked=editing?editing.enabled!==false:true;
     enabled.append(enabledBox,make('i'),document.createTextNode('Включена'));
-    const valueBox=make('div','','qr-dialog-value');
     const err=make('p','','sc-err');err.hidden=true;
-    const currentValue=()=>{const p=toPointer(path.value);return p?valueAt(tree,p):undefined};
-    // начальный вид: правка — как есть; новая — по текущему значению узла
-    const guessKind=v=>typeof v==='boolean'?'bool':'value';
-    kind.value=editing?editing.kind:guessKind(currentValue());
-    let read=()=>null;   // текущий редактор значения → value (+ options)
-    function buildValue(){
-      valueBox.replaceChildren();err.hidden=true;
-      const k=kind.value;
-      const same=editing&&editing.kind===k;
-      if(k==='value'){
-        const holder=make('div');
-        const start=same?editing.value:currentValue();
-        const ed=makeCM(holder,{value:JSON.stringify(start===undefined?'':start,null,2),height:'180px'});
-        valueBox.append(field('Значение (JSON)',holder));
-        read=()=>{try{return {value:JSON.parse(ed.getValue()||'null')}}catch{throw Error('Значение: некорректный JSON')}};
-      }else if(k==='bool'){
-        const sw=make('label','','ui-switch');const cb=make('input');cb.type='checkbox';
-        cb.checked=same?!!editing.value:!!currentValue();
-        sw.append(cb,make('i'),document.createTextNode('true'));
-        cb.onchange=()=>{sw.lastChild.textContent=cb.checked?'true':'false'};cb.onchange();
-        valueBox.append(sw);
-        read=()=>({value:cb.checked});
-      }else if(k==='select'){
-        const holder=make('div');
-        const start=same?editing.options:{'Как есть':currentValue()??null};
-        const ed=makeCM(holder,{value:JSON.stringify(start,null,2),height:'200px'});
-        const pick=make('select');
-        const fill=()=>{
-          let options;try{options=JSON.parse(ed.getValue())}catch{return}
-          if(!options||typeof options!=='object'||Array.isArray(options))return;
-          const was=pick.value||(same?editing.value:'');
-          pick.replaceChildren(...Object.keys(options).map(key=>new Option(key,key)));
-          if(Object.keys(options).includes(was))pick.value=was;
-        };
-        fill();ed.onChange(fill);
-        valueBox.append(field('Варианты: подпись → значение (JSON)',holder),field('Выбран',pick));
-        read=()=>{
-          let options;try{options=JSON.parse(ed.getValue())}catch{throw Error('Варианты: некорректный JSON')}
-          if(!options||typeof options!=='object'||Array.isArray(options)||!Object.keys(options).length)
-            throw Error('Варианты: объект «подпись → значение»');
-          return {value:pick.value,options};
-        };
-      }else if(k==='delete'){
-        read=()=>({value:null});
-      }else{
-        const input=make('input','','code');input.spellcheck=false;
-        input.value=same?editing.value:'';
-        const preview=make('div','','qr-preview');
-        const lists={param:params,db:['user.location','user.name','user.fields.','device.fields.'],script:[]};
-        if(lists[k])input.setAttribute('list',datalist('qr-values-'+k,lists[k]));
-        input.placeholder={param:'device.id',template:'{{device_name}} в {{device.room}}',db:'user.location',script:'script.bat'}[k];
-        const draw=()=>{preview.replaceChildren(input.value.trim()?valueView({kind:k,value:k==='template'?input.value:input.value.trim()}):'')};
-        input.oninput=draw;draw();
-        valueBox.append(field({param:'Параметр',template:'Строка',db:'Путь реестра',script:'Скрипт (state/quasar/scripts)'}[k],input),preview);
-        read=()=>({value:k==='template'?input.value:input.value.trim()});
-      }
-    }
-    kind.onchange=buildValue;
     path.onchange=()=>{if(!editing){
       if(!name.value.trim())name.value=pointerParts(toPointer(path.value)).slice(-1)[0]||'';
-      if(['value','bool'].includes(kind.value)){kind.value=guessKind(currentValue());buildValue()}
+      fillStates(defaultStates(currentValue()));
     }};
-    buildValue();
+    syncKind();
     const row=make('div','','row');
     const cancel=make('button','Отмена','secondary');cancel.type='button';cancel.onclick=()=>dlg.close();
     const ok=make('button','Сохранить');ok.type='submit';
     row.append(cancel,ok);
-    form.append(field('Имя',name),field('Узел JSON',path),field('Вид',kind),valueBox,enabled,err,row);
+    form.append(field('Имя',name),field('Узел JSON',path),seg,statesBox,enabled,err,row);
     form.onsubmit=async e=>{
       e.preventDefault();err.hidden=true;
       try{
         const pointer=toPointer(path.value);
         if(!pointer)throw Error('Укажите узел JSON');
-        const rule={...(editing||{}),name:name.value.trim(),path:pointer,kind:kind.value,enabled:enabledBox.checked,...read()};
-        if(rule.kind!=='select')delete rule.options;
+        const rule={...(editing||{}),name:name.value.trim(),path:pointer,kind,enabled:enabledBox.checked};
+        if(kind==='select'){
+          const options={};let chosen=null;
+          for(const r of list.children){
+            const key=r.querySelector('.qr-state-name').value.trim();
+            if(!key)throw Error('У состояния нет имени');
+            if(key in options)throw Error('Имена состояний повторяются: '+key);
+            options[key]=textToValue(r.querySelector('textarea').value);
+            if(r.querySelector('input[type=radio]').checked)chosen=key;
+          }
+          if(!Object.keys(options).length)throw Error('Нужно хотя бы одно состояние');
+          rule.options=options;rule.value=chosen??Object.keys(options)[0];
+        }else{delete rule.options;rule.value=null}
         const next=rules.slice();
         if(editing)next[index]=rule;else next.push(rule);
         ok.disabled=true;

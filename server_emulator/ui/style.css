@@ -421,8 +421,18 @@ body:has(.sc-edit-dialog[open]){overflow:hidden}
 .qr-dialog{width:min(560px,calc(100vw - 24px))}
 .qr-dialog label{display:flex;flex-direction:column;gap:4px}
 .qr-dialog label.ui-switch{flex-direction:row;font-weight:500;margin:10px 0 4px}
-.qr-dialog-value{display:flex;flex-direction:column;gap:8px}
-.qr-preview{min-height:22px}
+.qr-kind{margin:12px 0 4px}
+.qr-states .hint{margin:8px 0}
+.qr-state-list{display:flex;flex-direction:column;gap:6px}
+.qr-state{display:grid;grid-template-columns:18px minmax(64px,.6fr) minmax(0,1.6fr) 30px;gap:8px;align-items:start}
+.qr-state input[type=radio]{margin:10px 0 0;accent-color:var(--accent)}
+.qr-state input,.qr-state textarea{min-width:0;width:100%;margin:0}
+.qr-state textarea{resize:vertical;min-height:34px;padding:6px 8px;font-size:12.5px}
+.qr-state .qr-icon{margin-top:2px}
+.qr-states>.secondary{margin-top:8px}
+.qr-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.qtag-btn{background:none;border:0;padding:0;min-height:0;box-shadow:none;cursor:pointer;font:inherit;font-size:12.5px}
+.qtag-btn:hover .qtag{background:var(--accent);color:#081120}
 .qr-dialog .sc-err{margin:8px 0 0;color:var(--danger);overflow-wrap:anywhere}
 .qr-menu-dialog .list{display:flex;flex-direction:column;gap:6px;min-width:220px}
 .qr-menu-dialog .list button{justify-content:flex-start;text-align:left}

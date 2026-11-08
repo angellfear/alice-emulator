@@ -14,14 +14,15 @@
 path — JSON Pointer (RFC 6901): ключи с точкой (com.yandex.io.sdk) адресуются без
 экранирования точек. Виды (kind):
 
-    value     своё значение (любой JSON) — ставится как есть
-    bool      флаг true/false
-    select    выбор варианта: options — подпись → значение, value — выбранная подпись
-    param     параметр: value — ключ каталога «Параметры» или пути реестра (user.name …)
-    template  строка с {{токенами}}
-    db        значение из реестра эмулятора: user.<путь> | device.<путь>
-    script    stdout скрипта из state/quasar/scripts (белый список)
+    select    состояния узла: options — имя → значение, value — имя текущего.
+              Одно состояние — значение узла, два — переключатель вкл/выкл (первое —
+              «вкл»), больше — выбор. Значение — любой JSON; в строках подстановки {{…}}
+              (токены запроса и параметры; строка из одной подстановки — её значение
+              как есть), маркеры {"db": "user.…"} и {"run": "скрипт"}
     delete    удалить ключ
+
+Прежние виды принимаются и переводятся в состояния: bool → «Вкл»/«Выкл»; value,
+template, param («{{ключ}}»), db ({"db": …}), script ({"run": …}) — одно состояние.
 
 Отключённое правило (enabled: false) хранится, но не применяется.
 
@@ -44,10 +45,12 @@ from pathlib import Path
 from jsonpointer import JsonPointer, JsonPointerException, escape
 
 from .quasar_config import (INLINE_KEYS, QuasarConfigError, SCRIPTS_DIRNAME, context_for,
-                            db_lookup, generated_base, generated_platforms, merge_patch, resolve_param,
-                            resolve_tree, run_command)
+                            generated_base, generated_platforms, merge_patch,
+                            resolve_tree)
 
-RULE_KINDS = ("value", "bool", "select", "param", "template", "db", "script", "delete")
+RULE_KINDS = ("select", "delete")
+LEGACY_KINDS = ("value", "bool", "param", "template", "db", "script")
+ON, OFF, SINGLE = "Вкл", "Выкл", "Значение"
 PLATFORM_NAME = re.compile(r"[a-z0-9_.-]+")
 NAME_LIMIT = 120
 _MISSING = object()
@@ -137,10 +140,33 @@ def new_rule_id():
     return uuid.uuid4().hex[:10]
 
 
+def normalize_kind(item):
+    """Прежние виды → состояния. Копия, если менялось."""
+    kind = item.get("kind") if isinstance(item, dict) else None
+    if kind not in LEGACY_KINDS:
+        return item
+    item = dict(item)
+    value = item.get("value")
+    label = item.get("name") or item.get("path")
+    if kind == "bool":
+        if not isinstance(value, bool):
+            raise QuasarConfigError(f"замена «{label}»: флаг — true или false")
+        item.update(kind="select", options={ON: True, OFF: False}, value=ON if value else OFF)
+        return item
+    if kind in ("param", "db", "script"):
+        if not isinstance(value, str) or not value.strip():
+            raise QuasarConfigError(f"замена «{label}»: пустое значение")
+        value = value.strip()
+        value = {"param": "{{" + value + "}}", "db": {"db": value}, "script": {"run": value}}[kind]
+    item.update(kind="select", options={SINGLE: copy.deepcopy(value)}, value=SINGLE)
+    return item
+
+
 def validate_rule(item):
     """Нормализованная копия правила; иначе QuasarConfigError с понятным текстом."""
     if not isinstance(item, dict):
         raise QuasarConfigError("замена: объект {name, path, kind, value}")
+    item = normalize_kind(item)
     kind = item.get("kind")
     if kind not in RULE_KINDS:
         raise QuasarConfigError(f"замена: вид {kind!r} — один из {', '.join(RULE_KINDS)}")
@@ -154,21 +180,16 @@ def validate_rule(item):
             "kind": kind, "enabled": item.get("enabled", True) is not False}
     value = copy.deepcopy(item.get("value"))
     label = name or path
-    if kind == "bool":
-        if not isinstance(value, bool):
-            raise QuasarConfigError(f"замена «{label}»: флаг — true или false")
-    elif kind == "select":
+    if kind == "select":
         options = item.get("options")
         if not isinstance(options, dict) or not options:
-            raise QuasarConfigError(f"замена «{label}»: выбор — нужен хотя бы один вариант")
+            raise QuasarConfigError(f"замена «{label}»: нужно хотя бы одно состояние")
+        if any(not str(key).strip() for key in options):
+            raise QuasarConfigError(f"замена «{label}»: у состояния пустое имя")
         if value not in options:
-            raise QuasarConfigError(f"замена «{label}»: вариант {value!r} не из списка")
+            raise QuasarConfigError(f"замена «{label}»: состояние {value!r} не из списка")
         rule["options"] = copy.deepcopy(options)
-    elif kind in ("param", "template", "db", "script"):
-        if not isinstance(value, str) or not value.strip():
-            raise QuasarConfigError(f"замена «{label}»: пустое значение")
-        value = value.strip() if kind != "template" else value
-    elif kind == "delete":
+    else:
         value = None
     rule["value"] = value
     return rule
@@ -191,6 +212,10 @@ def validate_rules(items):
 
 
 def legacy_override_to_rule(item, select_options=None):
+    return normalize_kind(_legacy_override_to_rule(item, select_options))
+
+
+def _legacy_override_to_rule(item, select_options=None):
     """Прежнее переопределение {path (через точку), source} → правило.
     select_options — pointer → варианты выбора нижних слоёв (для {"$select": …})."""
     path = dotted_to_pointer(item.get("path"))
@@ -217,6 +242,11 @@ def legacy_override_to_rule(item, select_options=None):
 
 
 def inline_to_rule(node, path, fallback_name):
+    rule = _inline_to_rule(node, path, fallback_name)
+    return normalize_kind(rule) if rule else rule
+
+
+def _inline_to_rule(node, path, fallback_name):
     """Инлайн-узел прежнего тела ($select/$bool/$param/…) → правило."""
     kinds = set(node) & set(INLINE_KEYS)
     if len(kinds) != 1:
@@ -243,30 +273,21 @@ def rules_as_list(items, select_options=None):
         if not isinstance(item, dict):
             continue
         if "kind" in item:
-            result.append(item)
+            try:
+                result.append(normalize_kind(item))
+            except QuasarConfigError:
+                continue  # битая запись не ломает сборку остальных
         elif isinstance(item.get("path"), str) and "source" in item:
             result.append(legacy_override_to_rule(item, select_options))
     return result
 
 
-def rule_value(rule, runtime, device, context, render=True):
-    kind, value = rule["kind"], rule.get("value")
-    if kind == "bool":
-        return bool(value)
-    if kind == "select":
-        options = rule.get("options") or {}
-        if value not in options:
-            raise QuasarConfigError(f"замена «{rule.get('name') or rule['path']}»: вариант {value!r} не из списка")
-        return copy.deepcopy(options[value])
-    if kind == "param":
-        if not render:
-            return "{{" + str(value) + "}}"
-        return resolve_param(value, runtime, device, context)
-    if kind == "db":
-        return db_lookup(value, runtime, device) if render else {"db": value}
-    if kind == "script":
-        return run_command(value, runtime, device, context) if render else {"run": value}
-    return copy.deepcopy(value)  # value / template (строка рендерится общим проходом)
+def rule_value(rule):
+    """Значение текущего состояния; подстановки и маркеры разрешит общий проход resolve_tree."""
+    options, value = rule.get("options") or {}, rule.get("value")
+    if value not in options:
+        raise QuasarConfigError(f"замена «{rule.get('name') or rule['path']}»: состояние {value!r} не из списка")
+    return copy.deepcopy(options[value])
 
 
 def apply_rules(body, rules, label, runtime, device, context, trace=None, render=True):
@@ -278,7 +299,7 @@ def apply_rules(body, rules, label, runtime, device, context, trace=None, render
         if rule["kind"] == "delete":
             _delete_at(body, parts)
         else:
-            _set_at(body, parts, rule_value(rule, runtime, device, context, render))
+            _set_at(body, parts, rule_value(rule))
         if trace is not None:
             trace[trace_key(parts)] = f"{label}: {rule.get('name') or rule['path']}" \
                 + (" (удалено)" if rule["kind"] == "delete" else "")
@@ -355,8 +376,6 @@ def _plain_apply(body, rules):
             _delete_at(result, parts)
         elif rule["kind"] == "select":
             _set_at(result, parts, copy.deepcopy(rule["options"][rule["value"]]))
-        elif rule["kind"] == "param":
-            _set_at(result, parts, {"$param": rule["value"]})
         else:
             _set_at(result, parts, copy.deepcopy(rule["value"]))
     return result

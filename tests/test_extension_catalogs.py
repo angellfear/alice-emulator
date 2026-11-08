@@ -262,7 +262,7 @@ async def test_extension_quasar_layers(tmp_path):
         store = runtime.quasar_rules
         assert "coffee" in store.platforms()
         [(ext_id, common)] = store.extension_rules("common")
-        assert any(r["path"] == "/config/extension_key" and r["value"] == "coffee" for r in common)
+        assert any(r["path"] == "/config/extension_key" and r["options"][r["value"]] == "coffee" for r in common)
         body = compose_config(runtime, "coffee", None, render=False)
         assert body["config"]["extension_key"] == "coffee"
         assert body["config"]["device_config"]["drink"] == "latte"

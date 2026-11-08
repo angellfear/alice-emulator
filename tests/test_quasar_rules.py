@@ -12,16 +12,28 @@ from tests.conftest import listen
 from test_quasar_config import OPTIONS, FakeRuntime
 
 HEADERS = {"X-Emulator": "1"}
+ONE = "Значение"
+
+
+def state(rule):
+    """Значение текущего состояния замены."""
+    return rule["options"][rule["value"]]
 
 
 def test_validate_rules_normalizes_and_reports_line():
     rules = validate_rules([{"name": " Флаг ", "path": "/a/b", "kind": "bool", "value": False},
-                            {"path": "/c", "kind": "delete", "value": 5}])
+                            {"path": "/c", "kind": "delete", "value": 5},
+                            {"path": "/d", "kind": "select", "value": "Б", "options": {"А": 1, "Б": 2, "В": 3}}])
     assert rules[0]["name"] == "Флаг" and rules[0]["enabled"] is True and rules[0]["id"]
+    assert rules[0]["kind"] == "select" and rules[0]["options"] == {"Вкл": True, "Выкл": False}
+    assert rules[0]["value"] == "Выкл"                       # флаг — два состояния, первое «вкл»
     assert rules[1]["value"] is None and rules[0]["id"] != rules[1]["id"]
+    assert state(rules[2]) == 2
     for bad, text in (({"path": "a.b", "kind": "value"}, "JSON Pointer"),
                       ({"path": "/a", "kind": "bool", "value": 1}, "true или false"),
                       ({"path": "/a", "kind": "select", "value": "x", "options": {"y": 1}}, "не из списка"),
+                      ({"path": "/a", "kind": "select", "value": "", "options": {"": 1}}, "пустое имя"),
+                      ({"path": "/a", "kind": "select", "value": "x", "options": {}}, "хотя бы одно"),
                       ({"path": "/a", "kind": "param", "value": " "}, "пустое"),
                       ({"path": "/a//b", "kind": "value"}, "пустой сегмент"),
                       ({"path": "/a", "kind": "regex"}, "вид")):
@@ -29,21 +41,24 @@ def test_validate_rules_normalizes_and_reports_line():
             validate_rules([{"path": "/ok", "kind": "value", "value": 1}, bad])
 
 
-def test_legacy_override_conversion():
-    assert legacy_override_to_rule({"path": "config.a.b", "source": {"expr": "{{x}}"}}) == \
-        {"name": "b", "path": "/config/a/b", "kind": "template", "value": "{{x}}"}
+def test_legacy_kinds_become_states():
+    """Прежние виды — одно состояние с тем же значением (подстановка, маркер db/run)."""
+    one = {"name": "b", "path": "/config/a/b", "kind": "select", "value": ONE}
+    assert legacy_override_to_rule({"path": "config.a.b", "source": {"expr": "{{x}}"}}) ==         {**one, "options": {ONE: "{{x}}"}}
     assert legacy_override_to_rule({"path": "a", "source": {"delete": True}})["kind"] == "delete"
-    assert legacy_override_to_rule({"path": "a", "source": {"db": "user.name"}})["kind"] == "db"
-    assert legacy_override_to_rule({"path": "a", "source": {"run": "x.bat"}})["kind"] == "script"
-    assert legacy_override_to_rule({"path": "a", "source": False})["kind"] == "bool"
-    assert legacy_override_to_rule({"path": "a", "source": {"k": 1}})["kind"] == "value"
+    assert state(legacy_override_to_rule({"path": "a", "source": {"db": "user.name"}})) == {"db": "user.name"}
+    assert state(legacy_override_to_rule({"path": "a", "source": {"run": "x.bat"}})) == {"run": "x.bat"}
+    assert legacy_override_to_rule({"path": "a", "source": False})["options"] == {"Вкл": True, "Выкл": False}
+    assert state(legacy_override_to_rule({"path": "a", "source": {"k": 1}})) == {"k": 1}
+    assert state(validate_rules([{"path": "/p", "kind": "param", "value": "user.name"}])[0]) == "{{user.name}}"
     rule = legacy_override_to_rule({"path": "subscription", "source": {"$select": "Включена"}},
                                    {"/subscription": OPTIONS})
     assert rule["kind"] == "select" and rule["options"] == OPTIONS
-    assert legacy_override_to_rule({"path": "f", "source": {"$bool": True, "$name": "Флаг"}}) == \
-        {"name": "Флаг", "path": "/f", "kind": "bool", "value": True}
-    mixed = rules_as_list([{"path": "/n", "kind": "value", "value": 1}, {"path": "o", "source": 2}, "мусор"])
-    assert [r["path"] for r in mixed] == ["/n", "/o"]
+    flag = legacy_override_to_rule({"path": "f", "source": {"$bool": True, "$name": "Флаг"}})
+    assert flag["name"] == "Флаг" and flag["value"] == "Вкл"
+    mixed = rules_as_list([{"path": "/n", "kind": "value", "value": 1}, {"path": "o", "source": 2},
+                           {"path": "/x", "kind": "bool", "value": "битое"}, "мусор"])
+    assert [r["path"] for r in mixed] == ["/n", "/o"]          # битая запись пропускается
 
 
 def test_body_to_rules_differs_from_any_reference():
@@ -51,12 +66,12 @@ def test_body_to_rules_differs_from_any_reference():
     rules = body_to_rules({"a": 1, "b": {"x": 1, "y": None, "z": True}, "c": {"$param": "user.name"},
                            "d": "{{device_name}}", "e": {}}, refs)
     by_path = {r["path"]: r for r in rules}
-    assert by_path["/a"]["value"] == 1                     # отличается от второй ссылки
+    assert state(by_path["/a"]) == 1                       # отличается от второй ссылки
     assert "/b/x" not in by_path                           # совпадает со всеми
     assert by_path["/b/y"]["kind"] == "delete"             # null над существующим ключом
-    assert by_path["/b/z"]["kind"] == "bool"
-    assert by_path["/c"]["kind"] == "param" and by_path["/d"]["kind"] == "template"
-    assert by_path["/e"]["value"] == {}                    # новый пустой объект — создаётся
+    assert by_path["/b/z"]["options"] == {"Вкл": True, "Выкл": False}
+    assert state(by_path["/c"]) == "{{user.name}}" and state(by_path["/d"]) == "{{device_name}}"
+    assert state(by_path["/e"]) == {}                      # новый пустой объект — создаётся
     assert body_to_rules({"b": {}}, refs) == []            # пустой объект поверх объекта — без изменений
 
 
@@ -145,11 +160,12 @@ async def test_rules_api_layers_and_validation(tmp_path):
             async with client.get(api + "quasar_rules?layer=device:SN-1") as response:
                 body = await response.json()
                 assert body["platform"] == "chiron"
-                assert body["rules"] == [{"name": "lamp", "path": "/extra/lamp", "kind": "value", "value": 42}]
+                assert body["rules"] == [{"name": "lamp", "path": "/extra/lamp", "kind": "select", "value": ONE,
+                                          "options": {ONE: 42}}]
             async with client.put(api + "quasar_rules", headers=HEADERS,
                                   json={"layer": "device:SN-1", "rules": body["rules"]}) as response:
                 assert response.status == 200
-            assert runtime.identities.resolve('id-1')['state']['quasar_overrides'][0]['kind'] == "value"
+            assert runtime.identities.resolve('id-1')['state']['quasar_overrides'][0]['kind'] == "select"
             async with client.get(api + "quasar_rules?layer=bogus") as response:
                 assert response.status == 400
             # обзор, итог без устройства: параметр — тег {{ключ}}, не ошибка
@@ -184,3 +200,23 @@ async def test_rules_api_layers_and_validation(tmp_path):
     finally:
         await runner.cleanup()
         await runtime.close()
+
+
+def test_state_value_substitutions_and_params(tmp_path):
+    """В значении состояния — подстановки: строка из одной подстановки даёт значение как есть
+    (число из реестра), внутри текста — текст; маркер db — значение реестра; нет параметра — ошибка."""
+    runtime = FakeRuntime(tmp_path, users=[{"id": "u1", "name": "Аня", "location": {"latitude": 55.7}}])
+    device = {"sn": "SN-1", "device_ids": ["id-1"], "name": "Кухня", "user_id": "u1", "profile": {}}
+    runtime.quasar_rules.save("common", [
+        {"name": "lat", "path": "/lat", "kind": "select", "value": ONE, "options": {ONE: "{{user.location.latitude}}"}},
+        {"name": "txt", "path": "/txt", "kind": "select", "value": ONE, "options": {ONE: "{{device_name}} у {{user.name}}"}},
+        {"name": "loc", "path": "/loc", "kind": "select", "value": ONE, "options": {ONE: {"db": "user.location"}}},
+        {"name": "mode", "path": "/mode", "kind": "select", "value": "Б", "options": {"А": 1, "Б": "{{device_id}}", "В": 3}}])
+    body = compose_config(runtime, "", device)
+    assert body["lat"] == 55.7 and body["txt"] == "Кухня у Аня"
+    assert body["loc"] == {"latitude": 55.7} and body["mode"] == "id-1"
+    runtime.quasar_rules.save("common", [{"name": "x", "path": "/x", "kind": "select", "value": ONE,
+                                          "options": {ONE: "{{no.such.param}}"}}])
+    with pytest.raises(QuasarConfigError, match="не найден"):
+        compose_config(runtime, "", device)
+    assert compose_config(runtime, "", None, render=False)["x"] == "{{no.such.param}}"

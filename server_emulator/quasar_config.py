@@ -250,12 +250,29 @@ def resolve_source(value, runtime, device, context, trace=None, path="", render=
         return value
     if isinstance(value, str):
         if "{{" in value:
+            # токен вне контекста запроса — параметр (каталог «Параметры», пути реестра)
+            def lookup(name, strict):
+                if context.get(name) is not None:
+                    return context[name]
+                try:
+                    return resolve_param(name, runtime, device, context)
+                except QuasarConfigError:
+                    if strict:
+                        raise
+                    return None
+
             def substitute(match):
-                found = context.get(match.group(1))
+                found = lookup(match.group(1), False)
                 return "" if found is None else str(found)
             if trace is not None:
                 used = sorted({m.group(1) for m in _TOKEN_DOTTED.finditer(value)})
                 trace[path] = "динамика {{" + "}}, {{".join(used) + "}}"
+            whole = _TOKEN_DOTTED.fullmatch(value.strip())
+            if whole:
+                # строка из одной подстановки — её значение как есть (число, объект);
+                # параметра нет — ошибка, а не пустая строка в ответе колонке
+                found = lookup(whole.group(1), whole.group(1) not in context)
+                return "" if found is None else found
             return _TOKEN_DOTTED.sub(substitute, value)
         return value
     if isinstance(value, dict) and set(value) == {"expr"}:
