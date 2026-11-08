@@ -129,7 +129,7 @@
   "number": {
    "range": {
     "from": 0,
-    "to": 9999,
+    "to": 100,
     "words_language": "ru"
    }
   },
@@ -151,6 +151,13 @@
    "range": {
     "from": 0,
     "to": 59,
+    "words_language": "ru"
+   }
+  },
+  "level": {
+   "range": {
+    "from": 0,
+    "to": 10,
     "words_language": "ru"
    }
   },

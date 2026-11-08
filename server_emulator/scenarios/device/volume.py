@@ -1,15 +1,17 @@
 """Громкость: «громче», «тише», «громкость 5», «выключи звук», «максимальная громкость».
 
-Установка уровня (число, слово, процент) — тихий ответ директивами настоящего сервера
-(журнал 2026-10-24 00:24:56, 23:07:45, 2026-10-29 22:14:24: голосовое «громкость два» →
-звук без речи и карточек: sound_set_level{new_level, new_percent_level} +
-tts_play_placeholder). Шкала колонки — из её состояния (capability 23 TVolumeCapability:
-Level/MaxLevel/PercentLevel), процент = уровень·100/MaxLevel; своего учёта громкости на
-сервере нет (главное правило tasks/PLAN-station-skills.md).
+Установка уровня — тихий ответ директивами настоящего сервера (журнал 2026-10-24
+00:24:56, 23:07:45, 2026-10-29 22:14:24: голосовое «громкость два» → звук без речи и
+карточек: sound_set_level{new_level, new_percent_level} + tts_play_placeholder).
+Шкала — 0..10; MaxLevel из состояния колонки (capability 23 TVolumeCapability) —
+источник пересчёта в new_percent_level = уровень·100/MaxLevel; своего учёта громкости
+на сервере нет.
 
 Шаги («громче/тише»), «выключи звук» и «на всю» — ответных образцов фраз в журнале нет;
-шаги уровня наблюдались только как проводной Push из приложения (2026-10-23…29, TASK-025) —
-прежние ветки сохранены как есть, БЛОКЕР — нужна запись.
+шаги уровня наблюдались только как проводной Push из приложения (2026-10-23…29) —
+прежние ветки сохранены как есть, БЛОКЕР — нужна запись. Число вне шкалы 0..10
+(«громкость на 50») — образца ответа тоже нет: сценарий уступает, реплика уходит
+следующему кандидату (БЛОКЕР — нужна запись).
 """
 from server_emulator.sdk import say
 
@@ -51,13 +53,15 @@ async def handle(ctx):
     if mode is not None:  # любой иной режим словаря — «тише», как ветка else прежнего flow
         await push(ctx, "sound_quiter")
         return say("Тише.")
-    level = slots.get("number")
+    level = slots.get("level")
     if level is not None:
         level = int(level)
+        if level > 10 or level > max_level:
+            return None  # число вне шкалы 0..10 (образца ответа нет) — уступаем
     else:
         level = ctx.parse_number(minimum=0, maximum=100)
-    if level is None:
-        raise ValueError("Не удалось понять громкость")
-    if level > max_level:  # «громкость на 50» — проценты, шкала колонки не больше MaxLevel
-        level = level * max_level / 100.0
+        if level is None:
+            raise ValueError("Не удалось понять громкость")  # числа в фразе нет — прежний путь
+        if level > 10:
+            return None  # число вне шкалы — уступаем: реплика уходит следующему кандидату
     return set_level_reply(level, max_level)
