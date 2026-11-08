@@ -23,7 +23,7 @@ from aiohttp import web
 from multidict import CIMultiDict
 
 from .identity import collect_device_id
-from .endpoints import builtin_covers, find_builtin
+from .endpoints import builtin_covers, clck_json_batch, find_builtin, startup_payload, CLCK_JSON_BATCHES
 from . import oauth_stubs
 from .quasar_replace import apply_replacements, replaced_headers
 from .upstream import UpstreamError, forward_headers
@@ -543,12 +543,33 @@ class Dispatcher:
         if quasar_token_route:
             builtin = runtime.quasar.handle(request.method, path or request.path, device, device_id, body,
                                             caller=caller, caller_id=caller_id, client_ip=self.client_ip(request),
-                                            platform=request.query.get('platform', ''))
+                                            platform=request.query.get('platform', ''), headers=request.headers)
         else:
-            builtin = runtime.quasar.handle(request.method, path or request.path, device, device_id, body, client_ip=self.client_ip(request)) if canonical_host == 'quasar.yandex.net' else None
+            builtin = runtime.quasar.handle(request.method, path or request.path, device, device_id, body,
+                                            client_ip=self.client_ip(request), headers=request.headers) \
+                if canonical_host == 'quasar.yandex.net' else None
         if builtin:
             status, value = builtin
             output = json.dumps(value, ensure_ascii=False).encode()
+            headers = {'Content-Type': 'application/json'}
+        elif canonical_host == 'clck.yandex.net' and request.method == 'POST' \
+                and (path or request.path) in CLCK_JSON_BATCHES:
+            # JSON-метрики: массив статусов по длине присланного массива; не массив — 500
+            status = 200
+            output = clck_json_batch(body)
+            headers = {'Content-Type': 'application/json'}
+            if output is None:
+                status, output, headers = 500, b'', {'Content-Type': 'text/plain'}
+        elif canonical_host == 'scbh.yandex.net' and request.method in ('GET', 'HEAD') \
+                and (path or request.path) == '/generate_204':
+            # Проверка доступности: 204 + время старта ответа (микросекунды, как у образца)
+            status, output, headers = 204, b'', {'X-Start-Time': str(time.time_ns() // 1000)}
+        elif canonical_host == 'startup.mobile.yandex.net' and request.method == 'GET' \
+                and (path or request.path) == '/analytics/startup':
+            # Стартовая телеметрия: содержательный ответ (хосты — как у Яндекса, до них
+            # колонка добирается DNS-алиасами владельца); hash/uuid — одноразовые
+            status = 200
+            output = json.dumps(startup_payload(), ensure_ascii=False).encode()
             headers = {'Content-Type': 'application/json'}
         elif (endpoint := runtime.endpoints.find(canonical_host, request.method, path or request.path)) is not None \
                 and endpoint.get("enabled"):

@@ -30,8 +30,9 @@ class FakeRequest:
 
 def test_builtin_answers_table():
     assert find_builtin("clck.yandex.net", "POST", "/quasar_metrics/write/batch")["status"] == 200
-    assert find_builtin("clck.yandex.net", "POST", "/quasar_metrics/write/batch")["body"] == b""
-    assert find_builtin("report.appmetrica.yandex.net", "POST", "/report")["status"] == 200
+    assert find_builtin("clck.yandex.net", "POST", "/quasar_metrics/write/batch")["body"] == b"\x0a\x02OK"
+    report = find_builtin("report.appmetrica.yandex.net", "POST", "/report")
+    assert report["status"] == 200 and json.loads(report["body"]) == {"status": "accepted"}
     assert find_builtin("scbh.yandex.net", "HEAD", "/generate_204")["status"] == 204
     assert find_builtin("scbh.yandex.net", "GET", "/generate_204")["status"] == 204
     assert find_builtin("soft.export.yandex.ru", "GET", "/status.xml")["body"] == b"<status>ok</status>"

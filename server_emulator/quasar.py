@@ -40,7 +40,7 @@ class QuasarBackend:
         except (ValueError,TypeError,KeyError,UnicodeError):
             return False
 
-    ROUTES = {('GET','/check_updates'),('GET','/get_sync_info'),('GET','/glagol/device_list'),('GET','/glagol/token'),('POST','/glagol/check_token'),('POST','/glagol/v2.0/check_token'),('POST','/update_device_state'),('POST','/set_device_capability')}
+    ROUTES = {('GET','/check_updates'),('GET','/get_sync_info'),('GET','/glagol/device_list'),('GET','/glagol/token'),('POST','/glagol/check_token'),('POST','/glagol/v2.0/check_token'),('POST','/update_device_state'),('POST','/set_device_capability'),('POST','/register'),('POST','/tv/api/v3/updates'),('GET','/tv/api/v3/ota')}
 
     @classmethod
     def handles(cls, method, path):
@@ -150,12 +150,34 @@ class QuasarBackend:
             devices.append(item)
         return devices
 
-    def handle(self, method, path, device, device_id, body, caller=None, caller_id=None, client_ip=None, platform=None):
+    def handle(self, method, path, device, device_id, body, caller=None, caller_id=None, client_ip=None, platform=None, headers=None):
         routes = self.ROUTES
         if (method,path) not in routes:
             return None
         if path=='/check_updates':
             return 200, {'hasUpdate':False}
+        if path=='/register':
+            # Регистрация прошивки (образец quasar-server): критическое обновление — из
+            # политик OTA (updates.py): custom с записями → да; deny/allow/пустой custom → нет.
+            updates = self.runtime.updates
+            policy, custom = updates.effective(updates.settings(), device)
+            return 200, {'hasCriticalUpdate': bool((custom or {}).get('updates')) if policy=='custom' else False,
+                         'status':'ok'}
+        if path=='/tv/api/v3/updates':
+            # v3-список обновлений (образец quasar-server): пустые коллекции
+            return 200, {'bundles':[], 'updates':[]}
+        if path=='/tv/api/v3/ota':
+            # v3-опрос прошивки: объект — только из каталога прошивок эмулятора (updates.py)
+            # с учётом политики; записи нет — {} (ничего не выдумываем)
+            updates = self.runtime.updates
+            policy, custom = updates.effective(updates.settings(), device)
+            if policy=='deny':
+                return 200, {}
+            if policy=='custom':
+                items = (custom or {}).get('updates') or []
+                return 200, copy.deepcopy(items[0]) if items else {}
+            platform_name = str((headers or {}).get('x-yaquasarplatform') or '')
+            return 200, updates.firmware_for(platform_name)
         if path=='/glagol/token':
             # v9 §8: query device_id — ЦЕЛЕВОЕ устройство (токен «для него»), вызывающий
             # определяется заголовками (или, без заголовков, сам запрашивает для себя).

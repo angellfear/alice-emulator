@@ -337,6 +337,32 @@ class Updates:
             custom=settings.get('custom_devices',{}).get(device['sn'],custom)
         return policy,custom
 
+    def firmware_for(self,platform):
+        """Объект прошивки платформы из каталога (свежая запись) — форма ответа /tv/api/v3/ota
+        (образец: {md5_hash, priority, size, update_id, url, version}); только записанные
+        поля, записи для платформы нет — {} (ничего не выдумываем)."""
+        platform=str(platform or '').strip()
+        if not platform:
+            return {}
+        with self.connect() as db:
+            rows=db.execute('SELECT url, metadata FROM urls ORDER BY last_seen DESC LIMIT 500').fetchall()
+            per_url={}
+            for r in db.execute('SELECT s.url, a.device_sn AS device_sn FROM sightings s '
+                                'JOIN attempts a ON a.id=s.attempt_id WHERE a.device_sn IS NOT NULL'):
+                per_url.setdefault(r['url'],[]).append(r['device_sn'])
+        for row in rows:
+            if platform not in url_platforms(row['url'],per_url.get(row['url'],[]),[]):
+                continue
+            try:meta=json.loads(row['metadata'] or '{}')
+            except (ValueError,TypeError):meta={}
+            firmware={'url':row['url']}
+            for src,dst in (('md5_hash','md5_hash'),('priority','priority'),('size','size'),
+                            ('update_id','update_id'),('version_name','version'),('version_code','version')):
+                if meta.get(src) and dst not in firmware:
+                    firmware[dst]=meta[src]
+            return firmware
+        return {}
+
     def inventory(self,sn=None,sns=None):
         with self.connect() as db:
             if sn:

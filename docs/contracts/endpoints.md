@@ -168,6 +168,29 @@ capability уступают каталогу). Подписка в состоя�
 - `GET /1/am/sso/config.json`, `/1/am/config.json`, `/1/badges-specification.json` — статика
   из образца (`oauth_static/`, MIT — NOTICE.md).
 
+## Встроенные ответы по образцу: register, OTA v3, телеметрия
+
+Образец — код quasar-server; ответы встроенные (пользовательский эндпоинт перекрывает, кроме
+отмеченного), в «HTTP без эндпоинтов» не попадают:
+
+| Host | Endpoint | Ответ |
+|---|---|---|
+| quasar.yandex.net | `POST /register?platform=&firmware_version=` | `{hasCriticalUpdate: <из политик OTA>, status: "ok"}` — custom с записями → true, deny/allow/пустой custom → false |
+| quasar.yandex.net | `POST /tv/api/v3/updates` | `{bundles: [], updates: []}` |
+| quasar.yandex.net | `GET /tv/api/v3/ota` (заголовок x-yaquasarplatform) | `{}` или объект прошивки **только** из каталога прошивок эмулятора (`updates.firmware_for`, с учётом политики: deny → `{}`, custom → первый свой объект, allow → свежая запись каталога по платформе) |
+| rpc.alice.yandex.net | `POST /gproxy/push_events_batch` | 200, пусто, `application/x-protobuf` |
+| clck.yandex.net | `POST /quasar_metrics/write/batch` | 200, тело `0x0A 0x02 0x4F 0x4B` (protobuf field1="OK"), `application/x-protobuf` |
+| clck.yandex.net | `POST /quasar_metrics/write/json/batch`, `/smart_display_errors/write/json/batch`, `/quasar/write/json/batch` | массив `[{"ResponseStatus": "OK"}] × N` (N = длина присланного массива; не массив → 500) — диспетчер |
+| report.appmetrica.yandex.net | `POST /report` | `{"status": "accepted"}` (прочие пути appmetrica — прежнее пустое «принято») |
+| scbh.yandex.net | `GET /generate_204` | 204 + `X-Start-Time: <микросекунды строкой>` |
+| startup.mobile.yandex.net | `GET /analytics/startup` | `{device_id: {hash: <10 цифр>}, query_hosts: {list: {9 доменов, как у образца}}, uuid: {value: <hex16>}}` — домены оставлены яндексовыми (до них колонка добирается DNS-алиасами владельца), hash/uuid одноразовые |
+
+Порядок прежний: пользовательский эндпоинт перекрывает builtin, builtin отвечает раньше
+честного 404. Автозаполнение из промахов (`tools/endpoints_recover.py`) сохраняет только
+реальные ответы со статусом 2xx — отказ наверху (≥400) не образец ответа. Уже сохранённые
+такие записи (source `miss`, статус ≥400) при поиске пропускаются: колонке уходит
+builtin/дальнейшая цепочка, запись остаётся на диске и в UI — решение за владельцем.
+
 ## glagol: токен и сертификаты устройств
 
 - `GET /glagol/token?device_id&platform` — HS256-токен целевого устройства (v9 §8: только

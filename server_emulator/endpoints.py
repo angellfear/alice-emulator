@@ -22,6 +22,7 @@ device_id, client_ip, now и пр.). При наличии template тело г�
 import json
 import os
 import re
+import secrets
 import time
 import uuid
 from pathlib import Path
@@ -71,14 +72,23 @@ def system_entries(quasar_routes, update_endpoints):
 # колонка не видела ошибок и промахи не засорялись. Пользовательский эндпоинт
 # перекрывает встроенный (dispatch ищет каталог раньше).
 BUILTIN_SILENCERS = (
+    {"host": "clck.yandex.net", "methods": ("POST",), "path": "/quasar_metrics/write/batch", "status": 200,
+     "body": b"\x0a\x02\x4f\x4b", "content_type": "application/x-protobuf",
+     "note": "protobuf-метрики колонки — «OK» (field 1), как у образца"},
     {"host": "clck.yandex.net", "methods": ("POST",), "prefix": "/", "status": 200, "body": b"",
-     "note": "метрики колонки — принять и выбросить"},
+     "note": "метрики колонки — принять и выбросить (JSON-батчи обслуживает диспетчер)"},
+    {"host": "report.appmetrica.yandex.net", "methods": ("POST",), "path": "/report", "status": 200,
+     "body": b'{"status": "accepted"}', "content_type": "application/json",
+     "note": "AppMetrica-отчёт — принято (как у образца)"},
     {"host": "report.appmetrica.yandex.net", "methods": ("POST",), "prefix": "/", "status": 200, "body": b"",
      "note": "AppMetrica — принять и выбросить"},
     {"host": "rosenberg.appmetrica.yandex.net", "methods": ("POST",), "prefix": "/", "status": 200, "body": b"",
      "note": "геометрика — принять и выбросить"},
+    {"host": "rpc.alice.yandex.net", "methods": ("POST",), "path": "/gproxy/push_events_batch",
+     "status": 200, "body": b"", "content_type": "application/x-protobuf",
+     "note": "батч событий телеметрии — пустой protobuf (обслуживает диспетчер до каталога)"},
     {"host": "scbh.yandex.net", "methods": ("GET", "HEAD"), "path": "/generate_204", "status": 204, "body": b"",
-     "note": "проверка доступности интернета"},
+     "note": "проверка доступности интернета (заголовок X-Start-Time добавляет диспетчер)"},
     {"host": "soft.export.yandex.ru", "methods": ("GET", "HEAD"), "path": "/status.xml", "status": 200,
      "body": b"<status>ok</status>", "content_type": "text/xml", "note": "проверка доступности"},
     {"host": "rpc.alice.yandex.net", "methods": ("POST",), "path": "/gproxy/get_auth_suggests", "status": 200,
@@ -96,6 +106,45 @@ BUILTIN_SILENCERS = (
      "status": 200, "body": b'{"status":"ok"}',
      "note": "состояние возможностей колонки — принято (TASK-072; по WS оно хранится, TASK-069)"},
 )
+
+
+# JSON-батчи метрик clck: ответ — массив статусов по длине присланного массива
+# (обслуживает диспетчер, образец quasar-server); не массив — 500
+CLCK_JSON_BATCHES = ("/quasar_metrics/write/json/batch", "/smart_display_errors/write/json/batch",
+                     "/quasar/write/json/batch")
+
+
+def clck_json_batch(body):
+    """[{ResponseStatus: OK} × N] по длине присланного массива | None — не массив (500)."""
+    try:
+        items = json.loads(body.decode("utf-8")) if body else None
+    except (ValueError, UnicodeError):
+        return None
+    if not isinstance(items, list):
+        return None
+    return json.dumps([{"ResponseStatus": "OK"} for _ in items], ensure_ascii=False).encode()
+
+
+def startup_payload():
+    """GET /analytics/startup (startup.mobile.yandex.net; образец — startup.mobile.yandex.net.ts
+    quasar-server): домены telemetry-инфраструктуры — как у Яндекса (до них колонка добирается
+    DNS-алиасами владельца); hash/uuid — одноразовые значения, никуда не записываются."""
+    hosts = lambda name: {"urls": ["https://" + name]}
+    return {
+        "device_id": {"hash": str(secrets.randbelow(10 ** 10)).zfill(10)},
+        "query_hosts": {"list": {
+            "apple_tracking": hosts("tracking.appmetrica.yandex.net"),
+            "check_updates": hosts("analytics.mobile.yandex.net"),
+            "diagnostic": hosts("report.appmetrica.yandex.net"),
+            "location": hosts("rosenberg.appmetrica.yandex.net"),
+            "mediascope": hosts("zen.report.appmetrica.yandex.net"),
+            "redirect": hosts("redirect.appmetrica.yandex.com"),
+            "report": hosts("report.appmetrica.yandex.net"),
+            "ssl_pinning": hosts("certificate.mobile.yandex.net"),
+            "startup": hosts("startup.mobile.yandex.net"),
+        }},
+        "uuid": {"value": secrets.token_hex(16)},
+    }
 
 
 def find_builtin(host, method, path):
@@ -308,11 +357,18 @@ class EndpointCatalog:
         os.replace(temporary, target)
 
     def find(self, host, method, path):
-        """Точное совпадение host+method+path (query в path не входит)."""
+        """Точное совпадение host+method+path (query в path не входит). Записи, созданные
+        из промахов с реальным отказом наверху (source "miss", статус ≥400), не считаются
+        образцом ответа: колонке уходит builtin/дальнейшая цепочка, запись остаётся на диске
+        и в UI — решение за владельцем."""
         host = (host or "").lower()
-        return next((e for e in self.endpoints
-                     if e["host"].lower() == host and e["method"] == method
-                     and e["path"] == path), None)
+        for e in self.endpoints:
+            if e["host"].lower() != host or e["method"] != method or e["path"] != path:
+                continue
+            if str(e.get("source") or "") == "miss" and int(e.get("status") or 0) >= 400:
+                continue
+            return e
+        return None
 
     def upsert(self, item, system=(), script=None):
         """system — маршруты других вкладок: их URL JSON-эндпоинтом не перекрыть

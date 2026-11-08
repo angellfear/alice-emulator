@@ -245,7 +245,7 @@ async def test_any_request_with_marker_populates_registry(tmp_path):
                                    headers={"Host": "rpc.alice.yandex.net",
                                             "X-Ya-Application": '{"app_id":"ru.yandex.centaur","device_id":"dev-rpc"}'},
                                    json={}) as response:
-                assert response.status == 404  # эндпоинт не реализован — маркер всё равно принят
+                assert response.status == 200  # builtin-ответ — маркер всё равно принят
             async with client.get(url + "/glagol/token?device_id=dev-target",
                                   headers={"Host": "quasar.yandex.net", "X-YaQuasarDeviceId": "dev-caller"}) as response:
                 assert response.status == 403  # вызывающий без владельца — caller_not_assigned

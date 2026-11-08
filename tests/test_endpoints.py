@@ -325,3 +325,213 @@ def test_public_shows_system_route_once_at_real_owner(tmp_path):
     # ни у одной записи нет ключа 'shadowed_by'
     for e in data["endpoints"]:
         assert "shadowed_by" not in e
+
+
+@pytest.mark.asyncio
+async def test_builtin_silencers_and_dynamic_hosts(tmp_path):
+    """Таблица образцов: push_events_batch — пустой protobuf до каталога (захваченный
+    с промаха 400-эндпоинт не перекрывает), clck-protobuf/JSON по длине входа,
+    appmetrica /report, scbh 204 + X-Start-Time, startup с одноразовыми hash/uuid."""
+    from server_emulator.server import create_app
+    from tests.conftest import listen
+
+    runtime = Runtime(directory=tmp_path)
+    # захваченный с промаха эндпоинт с реальным 400 — как в живом state владельца
+    runtime.endpoints.upsert(endpoint(host="rpc.alice.yandex.net", path="/gproxy/push_events_batch",
+                                      id="rpc.push_events_batch", method="POST", status=400,
+                                      source="miss",
+                                      body_base64=base64.b64encode(b'{"Method":"PushEventBatch"}').decode()))
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        async with ClientSession() as client:
+            async with client.post(url + "/gproxy/push_events_batch",
+                                   headers={"Host": "rpc.alice.yandex.net"}) as response:
+                assert response.status == 200  # не 400 из захваченного эндпоинта
+                assert await response.read() == b""
+                assert response.headers["Content-Type"] == "application/x-protobuf"
+            async with client.post(url + "/quasar_metrics/write/batch",
+                                   headers={"Host": "clck.yandex.net"}) as response:
+                assert response.status == 200
+                assert await response.read() == b"\x0a\x02\x4f\x4b"
+                assert response.headers["Content-Type"] == "application/x-protobuf"
+            for path in ("/quasar_metrics/write/json/batch", "/smart_display_errors/write/json/batch",
+                         "/quasar/write/json/batch"):
+                async with client.post(url + path, headers={"Host": "clck.yandex.net"},
+                                       data=json.dumps([{}, {}, {}])) as response:
+                    assert response.status == 200
+                    assert await response.json() == [{"ResponseStatus": "OK"}] * 3
+                async with client.post(url + path, headers={"Host": "clck.yandex.net"},
+                                       data=json.dumps({"not": "array"})) as response:
+                    assert response.status == 500
+                async with client.post(url + path, headers={"Host": "clck.yandex.net"},
+                                       data=b"garbage") as response:
+                    assert response.status == 500
+            async with client.post(url + "/report",
+                                   headers={"Host": "report.appmetrica.yandex.net"}) as response:
+                assert response.status == 200
+                assert await response.json() == {"status": "accepted"}
+            stamps = []
+            for _ in range(2):
+                async with client.get(url + "/generate_204",
+                                      headers={"Host": "scbh.yandex.net"}) as response:
+                    assert response.status == 204
+                    stamp = response.headers["X-Start-Time"]
+                    assert stamp.isdigit() and len(stamp) == 16  # микросекунды строкой
+                    stamps.append(int(stamp))
+            assert stamps[1] >= stamps[0]  # монотонен
+            async with client.get(url + "/analytics/startup",
+                                  headers={"Host": "startup.mobile.yandex.net"}) as response:
+                assert response.status == 200
+                body = await response.json()
+            assert len(body["device_id"]["hash"]) == 10 and body["device_id"]["hash"].isdigit()
+            assert len(body["uuid"]["value"]) == 32
+            hosts = body["query_hosts"]["list"]
+            assert set(hosts) == {"apple_tracking", "check_updates", "diagnostic", "location",
+                                  "mediascope", "redirect", "report", "ssl_pinning", "startup"}
+            assert hosts["startup"]["urls"] == ["https://startup.mobile.yandex.net"]
+            async with ClientSession() as client2:
+                async with client2.get(url + "/analytics/startup",
+                                       headers={"Host": "startup.mobile.yandex.net"}) as response:
+                    again = await response.json()
+            assert again["uuid"]["value"] != body["uuid"]["value"]  # одноразовые значения
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
+@pytest.mark.asyncio
+async def test_register_and_ota_v3(tmp_path):
+    """/register (hasCriticalUpdate из политик OTA), /tv/api/v3/updates — пустые коллекции,
+    /tv/api/v3/ota — {} при deny, свой объект при custom, прошивка каталога при allow."""
+    from server_emulator.server import create_app
+    from tests.conftest import listen
+
+    runtime = Runtime(directory=tmp_path)
+    runtime.identities.mutate({"operation": "user", "id": "u1", "name": "U"})
+    runtime.identities.mutate({"operation": "device", "sn": "SN-1", "user_id": "u1",
+                               "device_ids": ["id-1"], "profile": {"platform": "chiron"}})
+    runner, url = await listen(create_app(runtime=runtime))
+    FIRMWARE = {"url": "https://ota.s3.yandex.net/ota/chiron/firmware.bin",
+                "version_name": "5.1.9", "update_id": "upd-1", "md5_hash": "abc123",
+                "size": 12345, "priority": "FORCED"}
+    try:
+        async with ClientSession() as client:
+            async with client.post(url + "/register?platform=chiron&firmware_version=5.1.8",
+                                   headers={"Host": "quasar.yandex.net"}) as response:
+                assert response.status == 200
+                assert await response.json() == {"hasCriticalUpdate": False, "status": "ok"}
+            async with client.post(url + "/tv/api/v3/updates",
+                                   headers={"Host": "quasar.yandex.net"}) as response:
+                assert await response.json() == {"bundles": [], "updates": []}
+            async with client.get(url + "/tv/api/v3/ota",
+                                  headers={"Host": "quasar.yandex.net",
+                                           "x-yaquasarplatform": "chiron"}) as response:
+                assert response.status == 200
+                assert await response.json() == {}  # свежая база: политика deny, каталог пуст
+        value = runtime.updates.settings()
+        value["policy"] = "custom"
+        value["custom"] = {"updates": [dict(FIRMWARE)]}
+        runtime.updates.save(value)
+        async with ClientSession() as client:
+            async with client.get(url + "/tv/api/v3/ota",
+                                  headers={"Host": "quasar.yandex.net",
+                                           "x-yaquasarplatform": "chiron"}) as response:
+                assert await response.json() == FIRMWARE  # свой ответ целиком
+            async with client.post(url + "/register?platform=chiron",
+                                   headers={"Host": "quasar.yandex.net"}) as response:
+                assert (await response.json())["hasCriticalUpdate"] is True  # custom с записями
+        value = runtime.updates.settings()
+        value["policy"] = "allow"
+        value["custom"] = {"updates": []}
+        runtime.updates.save(value)
+        runtime.updates.record({"id": "att-1", "ts": 0, "endpoint": "ota", "device_sn": None,
+                                "user_id": None, "device_id": None, "policy": "allow",
+                                "status": 200, "error": None, "ip": None},
+                               {"updates": [dict(FIRMWARE)]})
+        async with ClientSession() as client:
+            async with client.get(url + "/tv/api/v3/ota",
+                                  headers={"Host": "quasar.yandex.net",
+                                           "x-yaquasarplatform": "chiron"}) as response:
+                body = await response.json()
+            assert body["url"] == FIRMWARE["url"]  # объект из каталога прошивок
+            assert body["version"] == "5.1.9" and body["md5_hash"] == "abc123"
+            assert body["priority"] == "FORCED" and body["size"] == 12345
+            async with client.get(url + "/tv/api/v3/ota",
+                                  headers={"Host": "quasar.yandex.net",
+                                           "x-yaquasarplatform": "yandexstation"}) as response:
+                assert await response.json() == {}  # для другой платформы записи нет
+        value = runtime.updates.settings()
+        value["policy"] = "deny"
+        runtime.updates.save(value)
+        async with ClientSession() as client:
+            async with client.get(url + "/tv/api/v3/ota",
+                                  headers={"Host": "quasar.yandex.net",
+                                           "x-yaquasarplatform": "chiron"}) as response:
+                assert await response.json() == {}  # deny глушит и каталог
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
+def test_catalog_skips_miss_4xx_but_keeps_it_visible(tmp_path):
+    """Запись из промаха с реальным отказом (source miss, статус ≥400) — не образец ответа:
+    find её пропускает, каталог UI по-прежнему показывает."""
+    catalog = EndpointCatalog(tmp_path / "endpoints")
+    catalog.upsert(endpoint(id="miss400", host="rpc.alice.yandex.net", method="POST",
+                            path="/gproxy/push_events_batch", status=400, source="miss",
+                            body_base64=base64.b64encode(b'{"HttpCode":400}').decode()))
+    assert catalog.find("rpc.alice.yandex.net", "POST", "/gproxy/push_events_batch") is None
+    listed = catalog.public()["endpoints"]
+    assert "miss400" in [e["id"] for e in listed]  # в UI запись видна
+    # та же запись со статусом 200 (реальный успешный образец с промаха) — образец
+    catalog.upsert(endpoint(id="miss200", host="rpc.alice.yandex.net", method="POST",
+                            path="/gproxy/other", status=200, source="miss",
+                            body_base64=base64.b64encode(b"{}").decode()))
+    assert catalog.find("rpc.alice.yandex.net", "POST", "/gproxy/other") is not None
+
+
+@pytest.mark.asyncio
+async def test_user_endpoint_wins_over_builtin(tmp_path):
+    """Пользовательская (не miss) запись перекрывает builtin — порядок прежний."""
+    from server_emulator.server import create_app
+    from tests.conftest import listen
+
+    runtime = Runtime(directory=tmp_path)
+    runtime.endpoints.upsert(endpoint(host="rpc.alice.yandex.net", path="/gproxy/push_events_batch",
+                                      id="rpc.push_user", method="POST", status=418, source="manual",
+                                      body_base64=base64.b64encode(b'{"custom":true}').decode()))
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        async with ClientSession() as client:
+            async with client.post(url + "/gproxy/push_events_batch",
+                                   headers={"Host": "rpc.alice.yandex.net"}) as response:
+                assert response.status == 418
+                assert await response.json() == {"custom": True}
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
+def test_recover_skips_non_2xx_answers(tmp_path):
+    """Автозаполнение из промахов не сохраняет отказ наверху: последний реальный ответ
+    со статусом ≥400 — не образец (latest_real вернёт None)."""
+    import sys
+    sys.path.insert(0, str(tmp_path))
+    from tools import endpoints_recover as rec
+
+    db_path = tmp_path / "cap400.sqlite3"
+    db = sqlite3.connect(db_path)
+    db.executescript(
+        "CREATE TABLE events(id TEXT PRIMARY KEY, ts REAL, kind TEXT, host TEXT, url TEXT,"
+        " method TEXT, status INTEGER, detail TEXT NOT NULL);"
+        "CREATE TABLE payloads(hash TEXT PRIMARY KEY, block_id INTEGER, offset INTEGER, size INTEGER);"
+        "CREATE TABLE blocks(id INTEGER PRIMARY KEY, data BLOB NOT NULL, raw_size INTEGER NOT NULL);"
+        "CREATE TABLE event_payloads(event_id TEXT, role TEXT, hash TEXT,"
+        " PRIMARY KEY(event_id, role));")
+    detail = json.dumps({"emulated": None, "headers": {"response_original": [["Content-Type", "application/json"]]}})
+    db.execute("INSERT INTO events VALUES('rej',1.0,'http','rpc.alice.yandex.net',"
+               "'/gproxy/push_events_batch','POST',400,?)", (detail,))
+    db.commit()
+    db = rec.open_db(db_path)
+    assert rec.latest_real(db, "rpc.alice.yandex.net", "POST", "/gproxy/push_events_batch",
+                           want_json=True) is None
