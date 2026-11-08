@@ -273,6 +273,7 @@
   function cardBody(c) {
     const body = make('div', 'ext-leaf-body');
     if (c.error) body.append(make('pre', 'vs-log', c.error));
+    if (c.provider_hint) body.append(make('p', 'hint', c.provider_hint));;
     if (c.description) body.append(make('p', 'vs-desc', c.description));
     const meta = [c.id, c.author, c.license, CLASSES[c.class]].filter(Boolean).join(' · ');
     if (meta) body.append(make('p', 'ext-line', meta));

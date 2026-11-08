@@ -1,0 +1,14 @@
+{
+ "entries": [
+  {
+   "id": "news",
+   "sentences": [
+    "{_prefix} новости [{query}]",
+    "новости [{query}]",
+    "(что|какие|расскажи) новости [{query}]",
+    "что нового [{query}]"
+   ],
+   "handler": "core:informers.news"
+  }
+ ]
+}

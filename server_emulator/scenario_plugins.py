@@ -13,6 +13,8 @@ from __future__ import annotations
 
 
 def weather_plugin(runtime):
+    from . import providers as _prov
+    _prov.require("weather", ("forecast",))  # потребитель вида объявляет требования
     """Плагин weather (диспетчер): ключ/аргументы датасета → прогноз выбранного
     поставщика. args: {"location": {"latitude", "longitude", "timezone"?}} —
     координаты дома из параметров пользователя."""

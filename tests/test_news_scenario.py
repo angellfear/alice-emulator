@@ -5,6 +5,7 @@ ExtensionContext плагина. Сценарий informers.news произно�
 (образца ответа настоящего сервера на «новости» в журнале нет — директивы не угадываем).
 """
 import datetime
+import json
 import importlib.util
 from pathlib import Path
 
@@ -36,25 +37,49 @@ class ExtCtx:
 
 
 def make_runtime(tmp_path, headlines=None):
-    """Runtime с владельцем и колонкой; builtin-плагины выключены, поставщик новостей —
+    """Runtime с владельцем и колонкой; фразы новостей — из справочника включённого
+    news-stub, данные — заглушка в реестре; музыкальные поставщики выключены.
     заглушка в реестре (если задан список заголовков)."""
     runtime = Runtime(tmp_path)
     state = runtime.settings.setdefault("extensions", {})
-    for ext_id in list(state["installed"]):
-        if ext_id.startswith("builtin."):
-            state["enabled"][ext_id] = False
+    for ext_id in ("builtin.spotify", "builtin.yandex-music"):
+        state["enabled"][ext_id] = False
     runtime.extensions.load_enabled()
     runtime.identities.mutate({"operation": "user", "id": "owner", "name": "O"})
     runtime.identities.mutate({"operation": "device", "sn": "SN-N", "user_id": "owner",
                                "name": "Станция"})
     if headlines is not None:
-        async def headlines_fn(ctx, kind):
-            return {"items": list(headlines)}
-
-        providers.PROVIDERS["news"] = {"golden-news": {
-            "id": "golden-news", "title": "Новости (заглушка)", "service": "",
-            "kind": "news", "ext_id": "golden-news", "origin": "builtin", "file": "",
-            "headlines": headlines_fn}}
+        # заглушка — объявленный плагин (владелец записей справочника), headlines
+        # читает свой JSON — тест правит его между репликами
+        ext = runtime.directory / "ext" / "golden-news"
+        (ext / "news").mkdir(parents=True, exist_ok=True)
+        headlines_file = ext / "headlines.json"
+        headlines_file.write_text(json.dumps(headlines if isinstance(headlines, dict) else list(headlines)), encoding="utf-8")
+        (ext / "extension.json").write_text(json.dumps({
+            "id": "golden-news", "name": "golden-news", "version": "1.0.0", "description": "d",
+            "author": "A", "license": "MIT",
+            "requires": {"emulator": ">=0.1.0", "sdk": ">=2.0.0"}, "permissions": {},
+            "contributes": {"providers": [{"kind": "news", "title": "Новости",
+                                           "module": "news/golden.py",
+                                           "phrases": "phrases/news.json"}]}}), encoding="utf-8")
+        golden = chr(10).join([
+            "import json",
+            "from pathlib import Path",
+            "FILE = Path(r'" + str(headlines_file).replace("\\", "/") + "')",
+            'PROVIDER = {"id": "golden-news", "title": "Новости (заглушка)"}',
+            "async def headlines(ctx, kind):",
+            "    parsed = json.loads(FILE.read_text(encoding='utf-8'))",
+            "    return parsed if isinstance(parsed, dict) else {'items': parsed}"])
+        (ext / "news" / "golden.py").write_text(golden, encoding="utf-8")
+        phrases_dir = ext / "phrases"
+        phrases_dir.mkdir(exist_ok=True)
+        (phrases_dir / "news.json").write_text(json.dumps({"entries": [
+            {"id": "news", "sentences": ["{_prefix} новости [{query}]", "что нового [{query}]"],
+             "handler": "core:informers.news"}]}, ensure_ascii=False), encoding="utf-8")
+        state["installed"]["golden-news"] = {"version": "1.0.0", "dev": str(ext)}
+        state["enabled"]["golden-news"] = True
+        runtime.settings.setdefault("providers", {})["news"] = "golden-news"  # выбранный — первым в порядке
+        runtime.extensions.load_enabled()
     return runtime
 
 
@@ -104,15 +129,7 @@ async def test_news_speaks_provider_headlines(tmp_path):
 
 async def test_news_empty_items_speaks_note(tmp_path):
     """Пустая лента с note — произносим note поставщика; без note — «Свежих новостей нет.»."""
-    runtime = make_runtime(tmp_path)
-
-    async def empty(ctx, kind):
-        return {"items": [], "note": "Лента пока не отвечает."}
-
-    providers.PROVIDERS["news"] = {"golden-news": {
-        "id": "golden-news", "title": "Новости (заглушка)", "service": "",
-        "kind": "news", "ext_id": "golden-news", "origin": "builtin", "file": "",
-        "headlines": empty}}
+    runtime = make_runtime(tmp_path, {"items": [], "note": "Лента пока не отвечает."})
     try:
         report = await _say(runtime, "что нового")
         assert report["speech"] == "Лента пока не отвечает."
@@ -128,13 +145,15 @@ async def test_news_empty_items_speaks_note(tmp_path):
 
 
 async def test_news_without_provider_no_data_source(tmp_path):
-    """Поставщика новостей нет — честный ответ «нет источника данных» («Простой»)."""
+    """Плагина новостей нет — фраза неизвестна («нет плагина — нет фраз»)."""
     runtime = make_runtime(tmp_path)
     try:
         runtime.settings["intelligence"] = "scenarios"
+        state = runtime.settings["extensions"]["enabled"]
+        state["builtin.news-stub"] = False
+        runtime.extensions.load_enabled()
         report = await _say(runtime, "что нового")
-        assert report["handled"], report
-        assert report["speech"] == "Для этого нет источника данных."
+        assert not report["handled"] and report["reason"] == "no_match", report
     finally:
         await runtime.close()
 

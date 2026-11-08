@@ -1,11 +1,13 @@
 """Каркас «от плагинов»: объявления contributes.providers в реестре поставщиков,
 справочник фраз (записи с handler core:<сценарий>), ранжирование кандидатов по
-точности (закрытый список → литеральные куски текста) и отчёт кандидатов в dry-run.
+точности (закрытый список → литеральные куски текста), отчёт кандидатов в dry-run
+и ступень свободных хвостов (записи search:true — опрос каталогов плагинов).
 
 Встроенные шаблонные сценарии участвуют в том же ранжировании: «поставь будильник
 на 7» (закрытые списки времени) обязано выигрывать у записи-поиска «(поставь|включи)
 {query}» — свободный хвост ниже закрытых списков и литеральных слов.
 """
+import datetime
 import json
 
 from aiohttp import ClientSession
@@ -16,7 +18,8 @@ from server_emulator.runtime import Runtime
 from server_emulator.sdk import SDK_VERSION
 from server_emulator.server import create_app
 from tests.conftest import listen
-from tests.test_music_provider import make_music_extension
+from tests.test_music_provider import (_disable_builtin_providers, _provider_module,
+                                       MUSIC_PHRASES, TRACKS, make_music_extension)
 
 DECL = {"kind": "music", "title": "Музыка", "module": "music/fake.py",
         "capabilities": ["podcasts"]}
@@ -76,9 +79,13 @@ async def test_declaration_registry_next_to_folders(tmp_path):
     from server_emulator import providers
     try:
         music = providers.PROVIDERS["music"]
-        assert "fake-declared" in music and "fake-folder" in music
+        assert "fake-declared" in music  # объявление собирает поставщика
         assert music["fake-declared"]["origin"] == "extension"
         assert music["fake-declared"]["capabilities"] == ["podcasts"]
+        # папка вида без объявления больше не собирается — карточке добавлена подсказка
+        assert "fake-folder" not in music
+        card = next(c for c in runtime.extensions.listing()["extensions"] if c["id"] == "fake-folder")
+        assert "contributes.providers" in (card.get("provider_hint") or "")
         assert "builtin.spotify" in music and "builtin.yandex-music" in music
         assert music["builtin.spotify"]["origin"] == "builtin"  # реестр из объявлений встроенных
         assert any(path.name == "music.json" for _e, path, _k in runtime.extensions.phrase_files())
@@ -185,5 +192,62 @@ async def test_broken_phrase_file_warns_without_dropping_others(tmp_path):
         directory = runtime.dialog.phrase_directory()
         assert directory.warnings and "a.json" in directory.warnings[0]
         assert "fake-declared.one" in directory.entries  # файл-дубль и битый — мимо, свои на месте
+    finally:
+        await runtime.close()
+
+
+# --- ступень свободных хвостов: опрос каталогов плагинов ------------------------
+
+def _probe_ctx(runtime, text):
+    """Контекст реплики стенда «Проверка»: dry-run без устройства, время фиксировано."""
+    ctx = {"input": {"message_id": "probe", "request_id": "probe", "dialog_id": "probe",
+                     "sn": "", "text": text},
+           "clock": {"now": datetime.datetime(2026, 11, 8, 12, 0)}, "dry_run": True}
+    ctx.update(runtime._scenario_context(sn=""))
+    return ctx
+
+
+async def _probe(runtime, text):
+    return await runtime.dialog.handle_text(text, _probe_ctx(runtime, text), "probe",
+                                            None, deliver=False)
+
+
+async def test_bare_phrase_asks_catalogs_and_winner_answers(tmp_path):
+    """Голое «включи {X}» без закрытых списков: записи справочника search:true —
+    ступень опроса каталогов; нашедший поставщик отдаёт треки, отвечает сценарий-
+    исполнитель его handler'а (handler core:media.music), запрос — хвост реплики."""
+    runtime = Runtime(tmp_path)
+    _disable_builtin_providers(runtime)
+    marker = tmp_path / "calls.json"
+    make_music_extension(runtime, ext_id="fake-music", provider_id="fake",
+                         files={"music/fake.py": _provider_module(marker)},
+                         phrases=MUSIC_PHRASES)
+    runtime.extensions.load_enabled()
+    try:
+        report = await _probe(runtime, "включи эминем")
+        assert report["handled"] and report["scenario"] == "media.music", report
+        assert str(report["reason"]).startswith("search:fake-music."), report["reason"]
+        assert report["speech"] == f"Включаю {TRACKS[0]['title']}.", report["speech"]
+        assert json.loads(marker.read_text(encoding="utf-8")) == [["search", "эминем", "music"]]
+    finally:
+        await runtime.close()
+
+
+async def test_bare_phrase_without_catalog_hits_reports_candidates(tmp_path):
+    """Каталоги опрошены, но никто не нашёл: честный no_match с запросом (режим
+    «сценарии» отвечает «Не нашла «X».») и кандидаты dry-run — чьи записи спрашивали,
+    чтобы промах был виден в «Без ответа»."""
+    runtime = Runtime(tmp_path)
+    _disable_builtin_providers(runtime)
+    marker = tmp_path / "calls.json"
+    silent = _provider_module(marker).replace('{"tracks": TRACKS', '{"tracks": []')
+    make_music_extension(runtime, ext_id="fake-music", provider_id="fake",
+                         files={"music/fake.py": silent}, phrases=MUSIC_PHRASES)
+    runtime.extensions.load_enabled()
+    try:
+        report = await _probe(runtime, "включи эминем")
+        assert not report["handled"] and report["reason"] == "no_match", report
+        assert report["not_found_query"] == "эминем", report
+        assert report["candidates"] == [("fake-music.search", "search")], report["candidates"]
     finally:
         await runtime.close()

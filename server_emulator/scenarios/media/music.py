@@ -1,7 +1,7 @@
 """media.music — музыка от поставщика.
 
-Ядро — server_emulator/music.py: треки и очередь отдаёт поставщик (music/*.py
-включённых расширений), эмулятор только собирает стек директорий виджета по образцу
+Ядро — server_emulator/music.py: треки и очередь отдаёт поставщик вида music
+включённого плагина, эмулятор только собирает стек директорий виджета по образцу
 захвата 2026-11-02 (draw_animation + show_audio_player_screen + очередь +
 sequence_state + audio_play). Своей очереди у ядра нет — очередь только от поставщика.
 
@@ -104,7 +104,7 @@ async def handle(ctx):
         return ctx.no_data_source()
 
     if "search_result" in entry:  # ступень свободных хвостов: поиск сделал диспетчер
-        found = entry["search_result"]
+        found = music.normalize_result(entry["search_result"], provider)
     else:
         found = await music.search(ctx, provider, query, kind)
     if found is None:  # пусто или поставщик не дал треков — честный ответ

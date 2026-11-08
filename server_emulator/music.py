@@ -1,7 +1,8 @@
 """Музыка: поставщик контента и сборка стека директорий виджета плеера (TASK-099).
 
-Точка подключения расширений music/*.py — вид music общего реестра поставщиков
-(server_emulator/providers.py: папка вида + обязательные функции; реестр собирает
+Точка подключения расширений — вид music общего реестра поставщиков
+(server_emulator/providers.py: объявление contributes.providers плагина и требования
+потребителя; реестр собирает
 runtime.rebuild_extension_registries; конфликт имён или битый модуль отключает
 расширение целиком, как у actions/datasets):
 
@@ -128,6 +129,10 @@ UNSPECIFIED_KEY = "MUSIC_PROVIDER_UNSPECIFIED"
 # --- реестр поставщиков музыки (общий реестр видов — server_emulator/providers.py) ----
 
 
+# потребитель вида music: обязательные функции поставщика (см. providers.require)
+_providers.require("music", ("search", "neighbor"), ("rate",))
+
+
 def selected(settings):
     """Выбранный поставщик музыки: settings["providers"]["music"] (id); пусто/нет —
     первый включённый по алфавиту id. Выбранный id не в реестре (расширение
@@ -202,13 +207,22 @@ async def _call(ctx, provider, function, *args):
 
 
 async def search(ctx, provider, query, kind="music"):
-    """search поставщика → {"tracks": [Track], "start": int, "context": dict} (очередь
-    режется до MAX_QUEUE) или None — нет поставщика/пусто/сбой результата. Пустой
-    результат с "note" — честный отказ поставщика с объяснением: dict с пустыми
+    """search поставщика → {"tracks": [Track], "start": int, "context": dict, "provider"}
+    (очередь режется до MAX_QUEUE) или None — нет поставщика/пусто/сбой результата.
+    Пустой результат с "note" — честный отказ поставщика с объяснением: dict с пустыми
     треками и note передаётся сценарию."""
     if provider is None:
         return None
     raw = await _call(ctx, provider, provider["search"], ctx, str(query or ""), str(kind or ""))
+    return normalize_result(raw, provider)
+
+
+def normalize_result(raw, provider):
+    """Результат search поставщика → контракт ответа: треки нормализованы, очередь
+    до MAX_QUEUE, start в границах; пустой результат с note — честный отказ с
+    объяснением; None — не словарь, пусто или без note. Нужен и сценарию: на ступени
+    свободных хвостов поиск делает диспетчер, и исполнитель получает уже сырой ответ
+    поставщика."""
     if not isinstance(raw, dict):
         return None
     tracks = [track for track in (normalize_track(item) for item in raw.get("tracks") or [])

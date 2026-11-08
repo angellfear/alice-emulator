@@ -157,9 +157,10 @@ async def handle(ctx):
 
 ## 2.4.0 — поставщик музыки: `ctx.music`
 
-- `ctx.music` (только чтение): выбранный поставщик `music/*.py` включённого расширения —
+- `ctx.music` (только чтение): выбранный поставщик вида `music` (объявление
+  `contributes.providers` включённого расширения) —
   запись `{"id", "title", "search", "neighbor", "rate"}` или `None` (источника нет).
-  Выбранный id — настройка `settings["music"]["provider"]` (пусто — первый включённый).
+  Выбранный id — настройка `settings["providers"]["music"]` (пусто — первый включённый).
 - Функции поставщика вызываются через ядро `server_emulator.music.search(ctx, provider,
   query, kind)` / `neighbor(ctx, provider, track_id, context, step)` / `rate(ctx, provider,
   track_id, like)`: ядро ставит коду поставщика его настройки (`ctx.extension`, как у

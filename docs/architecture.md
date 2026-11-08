@@ -73,7 +73,7 @@
 | Механизм | Где | Контракт |
 |---|---|---|
 | Расширения: сценарии, эндпоинты, адаптеры, режимы, MCP, действия, данные | внешние — `state/extensions/<id>/`, встроенные плагины — `server_emulator/plugins/<имя>/` (id `builtin.<имя>`) | [extensions](contracts/extensions.md) |
-| Поставщики данных по видам: музыка, погода, новости | `providers.py` (`KINDS`, реестр), `ui/api/providers.py` | [providers](contracts/providers.md) |
+| Поставщики данных по видам: музыка, погода, новости | объявления плагинов `contributes.providers`, реестр `providers.py`, `ui/api/providers.py` | [providers](contracts/providers.md) |
 | SDK py-сценариев | `sdk.py` | [scripts-sdk](contracts/scripts-sdk.md) |
 | Адаптеры голосового стека | `state/voice_stack/adapters/*.py` | [voice-stack](contracts/voice-stack.md) |
 | MCP-серверы | `state/mcp.json` | [mcp](contracts/mcp.md) |

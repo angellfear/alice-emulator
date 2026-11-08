@@ -142,6 +142,9 @@ class Runtime:
         from .extensions.legacy_registry import migrate_registry
         migrate_registry(self)  # TASK-036: прежний реестр сценариев → источник и расширения (единожды)
         self.extensions.load_enabled()
+        # требования потребителей видов (providers.require) — при старте ядра:
+        # потребитель импортируется лениво, записи реестра дообогащаются его функциями
+        from .scenarios.informers import news as _news_consumer  # noqa: F401
         self._migrate_weather_url()  # параметр server.weather.url → настройка плагина погоды
         from .sdk import bind_runtime  # TASK-059: sdk.send_push/send_directive без ctx
         bind_runtime(self)
@@ -361,6 +364,25 @@ class Runtime:
                                     lambda: load_type(ROOT / "schemas", "alice-api.pb",
                                                       "NAlice.NAliceApi.TServerMessage")(),
                                     lexicon_sources=self._lexicon_sources())
+        # справочник фраз плагинов и его окружение — сразу при создании диалога
+        # (полная пересборка реестров в старте ранняя, обновление — в rebuild)
+        from .scenario_engine.phrases import PhraseDirectory
+        _phrase_dir = PhraseDirectory(self.extensions.phrase_files(), self.dialog.lexicon_sources)
+        for _w in _phrase_dir.warnings:
+            log.warning("Справочник фраз: %s", _w)
+        self.dialog.phrase_directory = lambda: _phrase_dir
+        self.dialog.phrase_order = lambda: {**(self.settings.get("phrase_order")
+                                             if isinstance(self.settings.get("phrase_order"), dict)
+                                             else {}), "selected": {}}
+        self.dialog.extension_context = lambda ext_id: (
+            self.extensions.context(ext_id) if ext_id in self.extensions.loaded else None)
+
+        def _search_timeout():
+            try:
+                return float(self.quasar_params.resolve("server.providers.search_timeout") or 3)
+            except Exception:  # noqa: BLE001 — параметра нет/битый: умолчание
+                return 3.0
+        self.dialog.search_timeout = _search_timeout
         # TASK-004 (DEBT-01): HTTP-маршрутизация (dispatch) вынесена в Dispatcher;
         # runtime остаётся владельцем WS-сессий и состояния, к которому dispatcher обращается.
         self.dispatcher = Dispatcher(self)
@@ -543,9 +565,7 @@ class Runtime:
         action_dirs, dataset_dirs = folders("actions"), folders("datasets")
         aapi_dirs = folders("aapi")  # TASK-059: обработчики событий колонки из расширений
         # поставщики данных: объявления contributes.providers (модуль называет точку
-        # подключения сам) + папки вида providers.KINDS для расширений без объявления
-        provider_dirs = {kind: folders(spec["folder"])
-                         for kind, spec in providers_registry.KINDS.items()}
+        # подключения сам)
         declarations = {}
         for ext_id_d, decl, base in extensions.provider_declarations():
             declarations.setdefault(ext_id_d, []).append((decl, base))
@@ -632,20 +652,12 @@ class Runtime:
                                                          registration["enabled"], ext_id,
                                                          observer=registration["observer"])
             if error is None:
-                # поставщики данных: сначала объявления contributes.providers (модуль
-                # называет точку подключения сам), затем папки вида providers.KINDS —
-                # для расширений без объявления (совместимость до переноса); ошибка
-                # модуля или конфликт id в пределах вида — расширение не включается,
-                # как у actions
+                # поставщики данных: объявления contributes.providers (модуль называет
+                # точку подключения сам); ошибка модуля или конфликт id в пределах
+                # вида — расширение не включается, как у actions
                 try:
-                    declared = set()
                     for decl, base in declarations.get(ext_id, []):
                         providers_registry.collect_declaration(ext_id, decl, base, runners[3])
-                        declared.add(str(decl["kind"]).strip())
-                    for kind in providers_registry.KINDS:
-                        if kind not in declared:
-                            providers_registry.collect(kind, ext_id,
-                                                       provider_dirs[kind].get(ext_id, []), runners[3])
                 except ValueError as exc:
                     error = str(exc)
             if error:

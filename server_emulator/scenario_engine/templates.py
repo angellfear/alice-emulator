@@ -170,8 +170,8 @@ def _mid_word_wildcard(cleaned, entities):
     («свет» совпадает с началом «светлану», остаток уходит в хвост) — такие
     совпадения отбрасываются, спаны даёт hassil (MatchEntity.text_span)."""
     for entity in entities:
-        if not entity.is_wildcard or entity.text_span is None:
-            continue
+        if not entity.is_wildcard or entity.text_span is None or not (entity.text or ""):
+            continue  # пустой хвост слова не разрезает
         start, end = entity.text_span
         if start > 0 and cleaned[start - 1].isalnum():
             return True

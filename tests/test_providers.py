@@ -15,7 +15,7 @@ from server_emulator.extensions import EMULATOR_VERSION
 from server_emulator.runtime import Runtime
 from server_emulator.server import create_app
 from tests.conftest import listen
-from tests.test_music_provider import _provider_module, make_music_extension
+from tests.test_music_provider import MUSIC_PHRASES, _provider_module, make_music_extension
 
 
 async def api_get(url, client):
@@ -51,6 +51,10 @@ async def test_builtin_providers_listed_on_fresh_runtime(tmp_path):
             assert [p["id"] for p in music_kind["providers"]] == ["builtin.spotify", "builtin.yandex-music"]
             assert all(p["origin"] == "builtin" and p["enabled"] for p in music_kind["providers"])
             assert music_kind["selected"] == ""  # авто
+            # запись реестра держит модуль поставщика (_module) — наружу идут только
+            # объявленные поля, поэтому payload сериализуется как есть
+            assert all(set(p) == {"id", "title", "extension", "origin", "enabled", "status"}
+                       for p in music_kind["providers"])
             yandex = music_kind["providers"][1]
             assert yandex["status"]["oauth_captured"] is False
             assert "y0_" not in json.dumps(data)  # токен наружу не идёт
@@ -86,7 +90,8 @@ async def test_external_provider_lives_next_to_builtin(tmp_path):
     выбор сохраняется; PUT сохраняет настройки расширения через общий менеджер."""
     runtime = Runtime(tmp_path)
     make_music_extension(runtime, ext_id="fake-ext",
-                         files={"music/fake.py": _provider_module(tmp_path / "m.json")})
+                         files={"music/fake.py": _provider_module(tmp_path / "m.json")},
+                         phrases=MUSIC_PHRASES)
     runtime.extensions.load_enabled()
     runner, url = await listen(create_app(runtime=runtime))
     try:

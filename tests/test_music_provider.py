@@ -113,7 +113,7 @@ MUSIC_PHRASES = {"entries": [
 
 
 def make_music_extension(runtime, ext_id="fake-music", provider_id="fake", files=None,
-                         enabled=True, phrases=None):
+                         enabled=True, phrases=None, module="music/fake.py"):
     """Расширение-папка с music/*.py (dev-режим): manifest + записи installed/enabled.
     phrases — файл справочника фраз + объявление contributes.providers (фразы музыки
     переехали из сценария в справочник плагина); None — папка вида без объявления."""
@@ -127,7 +127,7 @@ def make_music_extension(runtime, ext_id="fake-music", provider_id="fake", files
         files = dict(files or {})
         files["phrases/music.json"] = json.dumps(phrases, ensure_ascii=False)
         manifest["contributes"] = {"providers": [{"kind": "music", "title": "Музыка",
-                                                  "module": "music/fake.py",
+                                                  "module": module,
                                                   "phrases": "phrases/music.json"}]}
     (root / "extension.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
     for name, content in (files or {}).items():
@@ -217,7 +217,8 @@ async def test_provider_registry_from_extension(tmp_path):
 
 async def test_broken_provider_module_disables_extension(tmp_path):
     runtime = Runtime(tmp_path)
-    make_music_extension(runtime, files={"music/bad.py": "raise ValueError('битый модуль')\n"})
+    make_music_extension(runtime, files={"music/bad.py": "raise ValueError('битый модуль')\n"},
+                          phrases=MUSIC_PHRASES, module="music/bad.py")
     _disable_builtin_providers(runtime)
     try:
         assert "fake-music" not in runtime.extensions.loaded
@@ -230,8 +231,8 @@ async def test_broken_provider_module_disables_extension(tmp_path):
 async def test_provider_name_conflict_disables_second(tmp_path):
     runtime = Runtime(tmp_path)
     marker = tmp_path / "marker.json"
-    make_music_extension(runtime, ext_id="first", files={"music/a.py": _provider_module(marker)})
-    make_music_extension(runtime, ext_id="second", files={"music/b.py": _provider_module(marker)})
+    make_music_extension(runtime, ext_id="first", files={"music/a.py": _provider_module(marker)}, phrases=MUSIC_PHRASES, module="music/a.py")
+    make_music_extension(runtime, ext_id="second", files={"music/b.py": _provider_module(marker)}, phrases=MUSIC_PHRASES, module="music/b.py")
     _disable_builtin_providers(runtime)
     try:
         # оба объявляют id «fake» — второй по алфавиту не включается, первый работает
@@ -613,10 +614,12 @@ async def test_captured_oauth_only_for_yandex_provider(tmp_path):
     получает обычный ExtensionContext без captured_oauth."""
     runtime = Runtime(tmp_path)
     make_music_extension(runtime, ext_id="fake-ext",
-                         files={"music/fake.py": _provider_module(tmp_path / "fake.json")})
+                         files={"music/fake.py": _provider_module(tmp_path / "fake.json")},
+                         phrases=MUSIC_PHRASES)
     make_music_extension(runtime, ext_id="yandex-ext",
                          files={"music/yandex.py": _provider_module(tmp_path / "yandex.json",
-                                                                    provider_id="yandex-music")})
+                                                                    provider_id="yandex-music")},
+                         phrases=MUSIC_PHRASES)
     runtime.extensions.load_enabled()
     try:
         assert music.note_token(runtime, "y0_" + "c" * 30)
@@ -649,7 +652,8 @@ async def test_builtin_and_external_yandex_both_get_token(tmp_path):
     marker = tmp_path / "marker.json"
     make_music_extension(runtime, ext_id="ext-ym",
                          files={"music/yandex.py": _provider_module(marker, provider_id="yandex-music",
-                                                                    service="yandex-music")})
+                                                                    service="yandex-music")},
+                         phrases=MUSIC_PHRASES, module="music/yandex.py")
     runtime.extensions.load_enabled()
     try:
         ids = set(providers.PROVIDERS["music"])

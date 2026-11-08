@@ -47,13 +47,13 @@ def make_runtime(directory):
     runtime = Runtime(directory)
     # корпус проверяет сценарии — режим «Простой»: system.unavailable отвечает, model не вызывается
     runtime.settings["intelligence"] = "scenarios"
-    # мир без встроенных плагинов-поставщиков: ожидания корпуса — из мира без
-    # поставщиков («в Яндексе их отвечает настоящий сервер»); поведение с
-    # поставщиками — tests/test_music_*.py
+    # погода и новости покрыты: встроенные open-meteo/news-stub включены, сеть не
+    # нужна (диспетчер погоды подменён ниже, у news-stub сети нет). Музыка — как в
+    # группе 1: встроенные поставщики музыки выключены («в Яндексе отвечает
+    # настоящий сервер»), поведение с ними — tests/test_music_*.py
     state = runtime.settings.setdefault("extensions", {})
-    for ext_id in list(state["installed"]):
-        if ext_id.startswith("builtin."):
-            state["enabled"][ext_id] = False
+    for ext_id in ("builtin.spotify", "builtin.yandex-music"):
+        state["enabled"][ext_id] = False
     runtime.extensions.load_enabled()
 
     async def _no_weather(key, args):

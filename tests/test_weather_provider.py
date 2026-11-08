@@ -154,13 +154,14 @@ FORECAST = {
 
 
 def make_runtime(tmp_path, forecast=None):
-    """Runtime с владельцем, колонкой и координатами дома; builtin-плагины выключены,
-    поставщик — заглушка в реестре (если задана forecast) — сеть не дёргается."""
+    """Runtime с владельцем, колонкой и координатами дома; фразы погоды — из
+    справочника включённого open-meteo, данные — заглушка в реестре (если задана
+    forecast), сеть не дёргается. Музыкальные поставщики выключены — их мир в
+    tests/test_music_*.py."""
     runtime = Runtime(tmp_path)
     state = runtime.settings.setdefault("extensions", {})
-    for ext_id in list(state["installed"]):
-        if ext_id.startswith("builtin."):
-            state["enabled"][ext_id] = False
+    for ext_id in ("builtin.spotify", "builtin.yandex-music"):
+        state["enabled"][ext_id] = False
     runtime.extensions.load_enabled()
     runtime.identities.mutate({"operation": "user", "id": "owner", "name": "O"})
     runtime.identities.mutate({"operation": "device", "sn": "SN-W", "user_id": "owner",
@@ -252,9 +253,11 @@ async def test_weather_without_provider_no_data_source(tmp_path):
     runtime = make_runtime(tmp_path)
     try:
         runtime.settings["intelligence"] = "scenarios"
+        state = runtime.settings["extensions"]["enabled"]
+        state["builtin.open-meteo"] = False  # нет плагина — нет фраз
+        runtime.extensions.load_enabled()
         report = await _say(runtime, "какая погода")
-        assert report["handled"], report
-        assert report["speech"] == "Для этого нет источника данных."
+        assert not report["handled"] and report["reason"] == "no_match", report
     finally:
         await runtime.close()
 
@@ -267,7 +270,8 @@ async def test_weather_extension_provider_collected(tmp_path):
     (ext / "extension.json").write_text(json.dumps(
         {"id": "wext", "name": "W", "version": "1.0.0", "description": "d", "author": "A",
          "license": "MIT", "requires": {"emulator": ">=0.1.0", "sdk": ">=2.0.0"},
-         "permissions": {}}), encoding="utf-8")
+         "permissions": {}, "contributes": {"providers": [
+             {"kind": "weather", "title": "Погода", "module": "weather/wfake.py"}]}}), encoding="utf-8")
     (ext / "weather" / "wfake.py").write_text(
         'PROVIDER = {"id": "wfake", "title": "Фейковая погода"}\n'
         "async def forecast(ctx, location):\n"
@@ -279,6 +283,7 @@ async def test_weather_extension_provider_collected(tmp_path):
     try:
         records = providers.PROVIDERS["weather"]
         assert "wfake" in records and records["wfake"]["origin"] == "extension"
-        assert providers.selected("weather", runtime.settings)["id"] == "wfake"  # единственный
+        runtime.settings.setdefault("providers", {})["weather"] = "wfake"  # их двое — выбранный явный
+        assert providers.selected("weather", runtime.settings)["id"] == "wfake"
     finally:
         await runtime.close()

@@ -627,7 +627,8 @@ class ScenarioContext:
 
     @property
     def music(self):
-        """Поставщик музыки (2.4.0): выбранный music/*.py включённого плагина —
+        """Поставщик музыки (2.4.0): выбранный поставщик вида music (объявление
+        contributes.providers включённого плагина) —
         запись {"id", "title", "search", "neighbor", "rate"} или None (источника нет).
         Выбранный id — настройка settings["providers"]["music"] (пусто — первый включённый).
         Функции поставщика вызываются через server_emulator.music.search/neighbor/rate:

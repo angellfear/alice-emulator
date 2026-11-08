@@ -36,7 +36,8 @@
    {
     "kind": "weather",
     "title": "Погода",
-    "module": "weather/open_meteo.py"
+    "module": "weather/open_meteo.py",
+    "phrases": "phrases/weather.json"
    }
   ]
  }

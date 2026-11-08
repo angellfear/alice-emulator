@@ -323,8 +323,9 @@ class DialogManager:
             record = providers_registry.for_ext(entry.get("kind") or "music", entry.get("ext_id"))
             if record is None or not callable(record.get("search")) or not self.extension_context:
                 return None
+            kind = str(entry.get("kind") or "music")
             try:
-                found = record["search"](self.extension_context(entry.get("ext_id")), query, "music")
+                found = record["search"](self.extension_context(entry.get("ext_id")), query, kind)
                 if inspect.isawaitable(found):
                     found = await found
                 return found if isinstance(found, dict) and found.get("tracks") else None
@@ -333,24 +334,24 @@ class DialogManager:
 
         timeout = self.search_timeout()
         results = await asyncio.gather(
-            *[asyncio.wait_for(_ask(entry, query), timeout) for _o, entry, query in poll],
+            *[asyncio.wait_for(_ask(entry, query), timeout) for entry, query in poll],
             return_exceptions=True)
-        found_pairs = [(order, entry, query, found)
-                       for (order, entry, query), found in zip(poll, results)
+        found_pairs = [(entry, query, found) for (entry, query), found in zip(poll, results)
                        if isinstance(found, dict) and found.get("tracks")]
-        query = poll[0][2]
+        query = poll[0][1]
         if not found_pairs:
             report = {"handled": False, "verdict": "unsupported", "reason": "no_match",
                       "not_found_query": query, "status": None}
             if ctx.get("dry_run"):
-                report["candidates"] = [(entry["id"], "search") for _o, entry, _q in poll]
+                report["candidates"] = [(entry["id"], "search") for entry, _q in poll]
             return report
-        matches = [(entry, {"query": query}, (0, 0, 0)) for _o, entry, query in poll]
+        matches = [(entry, {"query": query}, (0, 0, 0)) for entry, query in poll]
         positions = self._entry_positions(matches, self.phrase_order() or {})
-        found_pairs.sort(key=lambda item: (positions.get(item[1].get("kind") or "_other", ({}, 0))[1],
-                                           positions.get(item[1].get("kind") or "_other", ({}, 0))[0]
-                                           .get(item[1].get("ext_id") or "", 0)))  # ручной порядок: выбранный первым
-        _order, entry, query, found = found_pairs[0]
+        def _order(item):
+            within, kind_rank = positions.get(item[0].get("kind") or "_other", ({}, 0))
+            return (kind_rank, within.get(item[0].get("ext_id") or "", 0))
+        found_pairs.sort(key=_order)  # ручной порядок: выбранный поставщик первым
+        entry, query, found = found_pairs[0]
         by_id = {str(scenario.get("id")): scenario for scenario in catalog}
         scenario = by_id.get(self.phrase_directory().handler_scenario(entry) or "")
         if scenario is None:

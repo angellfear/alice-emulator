@@ -49,8 +49,11 @@ MANIFEST = "extension.json"
 HOOK_TIMEOUT = 10.0  # таймаут хука hooks.py (ScriptRunner)
 MAX_ZIP_BYTES = 50 * 1024 * 1024  # лимит архива расширения (модели тяжелее — это класс install)
 FOLDERS = ("scenarios", "endpoints", "quasar", "voice", "lists", "modes", "mcp", "aapi", "actions",
-           "datasets", "music", "weather", "news", "animations", "params", "replies", "catalog",
-           "updates", "sounds", "ui")
+           "datasets", "animations", "params", "replies", "catalog", "updates", "sounds", "ui")
+# папки-поставщики (music/weather/news) — не точки подключения: вид объявляет
+# contributes.providers. Имена ниже — только подсказка миграции в карточке
+# расширению, у которого осталась папка вида без объявления (не таблица видов).
+LEGACY_PROVIDER_FOLDERS = ("music", "weather", "news")
 
 SEMVER_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$")
 ID_RE = re.compile(r"^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$")
@@ -850,10 +853,18 @@ class ExtensionManager:
             try:
                 manifest = self._load_manifest(ext_id)
                 info = self._content_info(self._active_dir(ext_id), manifest)
+                folders = list(info["folders"])
+                declared_kinds = [str(d["kind"]) for d in
+                                  (manifest.get("contributes") or {}).get("providers") or []]
+                folders += [k for k in declared_kinds if k not in folders]
+                if not declared_kinds and any(
+                        (self._active_dir(ext_id) / f).is_dir() for f in LEGACY_PROVIDER_FOLDERS):
+                    card["provider_hint"] = ("есть папка вида (music/weather/news) без объявления — "
+                                             "добавьте contributes.providers в extension.json")
                 card.update({"name": manifest["name"], "description": manifest["description"],
                              "author": manifest["author"], "license": manifest["license"],
                              "class": info["class"], "permissions": manifest["permissions"],
-                             "folders": info["folders"], "python_packages": info["python_packages"],
+                             "folders": folders, "python_packages": info["python_packages"],
                              "settings": {"fields": (manifest.get("settings") or {}).get("fields") or [],
                                           "values": self.values(ext_id, manifest)}})
                 newer = available.get(ext_id)

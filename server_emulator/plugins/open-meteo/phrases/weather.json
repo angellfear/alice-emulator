@@ -1,0 +1,13 @@
+{
+ "entries": [
+  {
+   "id": "weather",
+   "sentences": [
+    "{_prefix} погода [{query}]",
+    "[(какая|скажи|покажи)] погода [{query}]",
+    "сколько градусов [сейчас] [на улице]"
+   ],
+   "handler": "core:informers.weather"
+  }
+ ]
+}

@@ -61,15 +61,16 @@ async def test_local_catalog_not_gated_by_publication():
 
 
 async def test_builtin_pair_resolved_by_curated_order():
-    """Встроенный каталог курируется (priority): погода («погода») раньше generic
-    app.open («открой», priority 200) — равное вхождение не даёт ambiguous."""
+    """Встроенный каталог курируется (priority): «открой погода» достаётся app.open
+    (phrase:contains, priority раньше); погода ушла в справочник плагинов.
+    Пользовательский конфликт с builtin — честно ambiguous."""
     catalog = list(SCENARIOS.values())
     executor = Executor()
     verdict, reason, scenario = probe(catalog, executor, text="открой погода")
     assert verdict == "supported" and reason == "phrase:contains"
-    assert scenario["id"] == "informers.weather"
+    assert scenario["id"] == "device.app.open"
     # конфликт пользовательского сценария с builtin по-прежнему честно ambiguous
-    user = scenario_with_action("user.weather", phrase="погода")
+    user = scenario_with_action("user.weather", phrase="погода")  # тот же bucket contains — честный ambiguous
     executor.actions["light.on"] = lambda a, e: True
     verdict, reason, _ = probe(catalog + [user], executor, text="открой погода")
     assert verdict == "ambiguous" and "user.weather" in reason

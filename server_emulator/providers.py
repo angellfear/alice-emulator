@@ -1,26 +1,15 @@
-"""Поставщики данных: общий реестр видов (kind = папка в плагине + обязательные функции).
+"""Поставщики данных: реестр из объявлений плагинов (contributes.providers).
 
-Точка подключения расширений по видам — обобщение реестра музыки (music/*.py): вид
-объявлен в KINDS — папка расширения и обязательные функции модуля PROVIDER. Реестр
-собирает runtime.rebuild_extension_registries; конфликт id поставщиков в пределах
-вида или битый модуль отключает расширение целиком (как у actions/datasets).
-Встроенные плагины (id с приставкой builtin.) и внешние расширения живут в одном
-реестре — приставка разводит их id.
+Точку подключения называет сам плагин (decl["module"]), папка вида не нужна; вид —
+строка плагина (новый вид без правки ядра). Реестр собирает
+runtime.rebuild_extension_registries; конфликт id поставщиков в пределах вида или
+битый модуль отключает расширение целиком (как у actions/datasets). Встроенные
+плагины (id с приставкой builtin.) и внешние расширения живут в одном реестре —
+приставка разводит их id.
 
-    KINDS = {"music": {"title": "Музыка", "folder": "music",
-                       "required": ("search", "neighbor"), "optional": ("rate",)}}
-
-    PROVIDER = {"id": "builtin.yandex-music", "title": "Яндекс Музыка",
-                "service": "yandex-music"}   # service — признак сервиса вместо id
-
-    async def search(ctx, query, kind): ...      # обязательные функции вида
-    async def neighbor(ctx, track_id, context, step): ...
-
-Выбранный поставщик вида — настройка settings["providers"][<вид>] (id; пусто — первый
-включённый по алфавиту). Прежний ключ settings["music"]["provider"] переносится в
-providers.music при загрузке настроек (settings_service). Вызов selected()/kinds() —
-после apply() пересборки; записи содержат callables вида и метаданные {id, title,
-service, kind, ext_id, origin, file}.
+Требования к функциям вида объявляют ПОТРЕБИТЕЛИ (providers.require): погодный
+диспетчер — forecast, новостной сценарий — headlines, исполнитель музыки —
+search/neighbor. Вид без потребителя регистрируется без проверки функций.
 """
 from __future__ import annotations
 
@@ -29,22 +18,12 @@ from pathlib import Path
 
 BUILTIN_PREFIX = "builtin."
 
-KINDS = {
-    "music": {"title": "Музыка", "folder": "music",
-              "required": ("search", "neighbor"), "optional": ("rate",)},
-    # forecast(ctx, location) → прогноз в форме Open-Meteo (current/hourly/daily) —
-    # форма, которую уже читают informers.weather и виджет погоды; location —
-    # {"latitude", "longitude", "timezone"?}. Датасет weather — кеш записей,
-    # обновляет его диспетчер (scenario_plugins.weather_plugin) вызовом forecast.
-    "weather": {"title": "Погода", "folder": "weather", "required": ("forecast",)},
-    # headlines(ctx, kind) → {"items": [заголовок, ...], "note"?} — заголовки репликой
-    # («что нового»); kind — раздел новостей ("top"), пусто — общий.
-    "news": {"title": "Новости", "folder": "news", "required": ("headlines",)},
-}
+# требования к функциям вида → заполняют потребители (providers.require)
+REQUIREMENTS: dict[str, tuple] = {}  # вид → (обязательные, опциональные) функции
 
 PROVIDERS: dict[str, dict[str, dict]] = {}  # вид → id → запись (реестр пересобирает Runtime)
 _COLLECTED: dict[str, list] = {}  # накопитель за пересборку (как drop_extensions у aapi_handlers)
-DECLARED_TITLES: dict[str, str] = {}  # вид → название из объявления (новые виды без правки ядра)
+DECLARED_TITLES: dict[str, str] = {}  # вид → название из объявления плагина
 
 
 def reset():
@@ -53,51 +32,12 @@ def reset():
     DECLARED_TITLES.clear()
 
 
-def collect(kind, ext_id, paths, runner):
-    """Модули <folder>/*.py одного расширения → накопитель вида. Битый модуль, PROVIDER
-    без id или без обязательных функций вида — ValueError: расширение не включается
-    (как у actions). Одинаковый id в пределах вида — тот же отказ."""
-    spec = KINDS.get(kind)
-    if spec is None:
-        raise ValueError(f"Неизвестный вид поставщиков: {kind}")
-    for path in paths:
-        for file in sorted(Path(path).glob("*.py")):
-            try:
-                module = runner._module(file)
-            except Exception as exc:  # noqa: BLE001 — битый модуль отключает расширение
-                raise ValueError(f"{file.name}: модуль не загружается "
-                                 f"({type(exc).__name__}: {str(exc)[:150]})") from exc
-            provider = getattr(module, "PROVIDER", None)
-            if provider is None:
-                continue  # вспомогательный модуль без PROVIDER — не участвует
-            if not isinstance(provider, dict) or not str(provider.get("id") or "").strip():
-                raise ValueError(f"{file.name}: PROVIDER — объект с непустым id")
-            pid = str(provider["id"]).strip()
-            record = {"id": pid, "title": str(provider.get("title") or pid),
-                      "service": str(provider.get("service") or "").strip(),
-                      "kind": kind, "ext_id": str(ext_id), "file": str(file),
-                      "origin": "builtin" if str(ext_id).startswith(BUILTIN_PREFIX) else "extension"}
-            for name in spec["required"]:
-                function = getattr(module, name, None)
-                if not callable(function):
-                    raise ValueError(f"{file.name}: нужна async {name} "
-                                     f"({', '.join(spec['required'])} — обязательные функции вида)")
-                record[name] = function
-            for name in spec.get("optional") or ():
-                function = getattr(module, name, None)
-                record[name] = function if callable(function) else None
-            if any(item["id"] == pid for item in _COLLECTED.setdefault(kind, [])):
-                raise ValueError(f"Имя поставщика {pid!r} уже занято другим расширением")
-            _COLLECTED[kind].append(record)
-
-
 def collect_declaration(ext_id, decl, base_dir, runner):
     """Поставщик из объявления contributes.providers: точку подключения называет сам
-    плагин (decl["module"]), папка вида не нужна. Обязательные функции вида объявляет
-    потребитель: для известных видов это таблица KINDS; вид, объявленный плагином
-    впервые, регистрируется без проверки функций — их проверит его потребитель, когда
-    появится (сценарий ядра или общий исполнитель). Битый модуль или PROVIDER без
-    id — ValueError: расширение не включается (как у folder-путей)."""
+    плагин (decl["module"]), папка вида не нужна. Обязательные функции вида объявил
+    потребитель (providers.require); вид без потребителя регистрируется без проверки
+    функций — их проверит его потребитель, когда появится. Битый модуль или PROVIDER
+    без id — ValueError: расширение не включается."""
     kind = str(decl["kind"]).strip()
     file = Path(base_dir) / str(decl["module"]).strip()
     try:
@@ -109,20 +49,21 @@ def collect_declaration(ext_id, decl, base_dir, runner):
     if not isinstance(provider, dict) or not str(provider.get("id") or "").strip():
         raise ValueError(f"{file.name}: PROVIDER — объект с непустым id")
     pid = str(provider["id"]).strip()
-    spec = KINDS.get(kind)
+    required, optional = REQUIREMENTS.get(kind) or ((), ())
     record = {"id": pid, "title": str(provider.get("title") or pid),
               "service": str(provider.get("service") or "").strip(),
               "kind": kind, "ext_id": str(ext_id), "file": str(file),
               "origin": "builtin" if str(ext_id).startswith(BUILTIN_PREFIX) else "extension",
               "capabilities": [str(c).strip() for c in decl.get("capabilities") or []
-                               if str(c).strip()]}
-    for name in (spec or {}).get("required") or ():
+                               if str(c).strip()],
+              "_module": module}  # для дообогащения, когда потребитель объявит требования
+    for name in required:
         function = getattr(module, name, None)
         if not callable(function):
             raise ValueError(f"{file.name}: нужна async {name} "
-                             f"({', '.join(spec['required'])} — требования потребителя вида)")
+                             f"({', '.join(required)} — требования потребителя вида)")
         record[name] = function
-    for name in (spec or {}).get("optional") or ():
+    for name in optional:
         function = getattr(module, name, None)
         record[name] = function if callable(function) else None
     if any(item["id"] == pid for item in _COLLECTED.setdefault(kind, [])):
@@ -140,16 +81,34 @@ def apply():
 
 
 def kinds():
-    """Виды, у которых есть поставщики включённых плагинов (объявленные или из папок):
-    разделы «Поставщики данных» строятся по ним — нет вида, нет вкладки."""
-    known = sorted(set(KINDS) | set(DECLARED_TITLES))
-    return [kind for kind in known if PROVIDERS.get(kind)]
+    """Виды, у которых есть поставщики включённых плагинов: разделы «Поставщики
+    данных» строятся по ним — нет вида, нет вкладки."""
+    return [kind for kind in sorted(set(DECLARED_TITLES)) if PROVIDERS.get(kind)]
 
 
 def kind_title(kind):
-    """Название вида для вкладки: таблица ядра для известных, иначе — из объявления
-    плагина (новый вид), без обеих — сам вид."""
-    return KINDS.get(kind, {}).get("title") or DECLARED_TITLES.get(kind) or kind
+    """Название вида для вкладки — из объявления плагина."""
+    return DECLARED_TITLES.get(kind) or kind
+
+
+def require(kind, required, optional=()):
+    """Потребитель вида объявляет функции поставщика (вызывается из кода потребителя
+    при импорте): диспетчер погоды — forecast, новости — headlines, исполнитель
+    музыки — search/neighbor (+rate опционально). Несовместимый поставщик не попадает
+    в реестр, причина — в карточке расширения. Потребитель импортируется позже
+    пересборки — готовым записям вида функции дообогащаются здесь."""
+    REQUIREMENTS[kind] = (tuple(required), tuple(optional))
+    for record in PROVIDERS.get(kind, {}).values():
+        module = record.get("_module")
+        if module is None:
+            continue
+        for name in required:
+            function = getattr(module, name, None)
+            if callable(function):
+                record[name] = function
+        for name in optional:
+            function = getattr(module, name, None)
+            record[name] = function if callable(function) else None
 
 
 def extension_context(ctx, provider):

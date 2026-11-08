@@ -62,9 +62,7 @@ async def handle(ctx):
     effective = ctx.params.get("effective") or {}
     location = effective.get("location") or {}
     if location.get("latitude") is None:
-        return {"text": "Не знаю, где вы: задайте координаты дома в параметрах пользователя."}
-    if providers.selected("weather", ctx.settings) is None:
-        return ctx.no_data_source()  # поставщика погоды нет — честный ответ
+        return {"text": "Не знаю, где вы: задайте координаты дома в параметрах пользователя."}  # поставщика погоды нет — честный ответ
     settings = effective.get("weather") or {}
     key = f"{location['latitude']},{location['longitude']}"
     try:

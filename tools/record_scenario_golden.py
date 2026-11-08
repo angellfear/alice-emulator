@@ -4,7 +4,10 @@
 триггеров плюс вариации со значениями («таймер на 5 минут», «свет в спальне»,
 «громкость 5») — через стандартный диалоговый путь dialog.handle_text /
 dialog.handle_event, тот же, что в voice.py и tests/test_timesync_scenario.py.
-ask-уточнения продолжаются ответом из кейса (continuation диалога).
+У сценария без своих триггеров (фразы контента живут в справочниках плагинов —
+погода, новости) кейсы берутся из записей справочника включённых плагинов с
+handler `core:<сценарий>`: по фразе-образцу шаблона. ask-уточнения продолжаются
+ответом из кейса (continuation диалога).
 
 Детерминизм: время (ctx.clock.now), гео владельца (params) и данные погоды
 (заглушка плагина weather) фиксированы; из ответов берётся проекция без
@@ -46,16 +49,21 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from google.protobuf import json_format  # noqa: E402
+from hassil.sample import sample_sentence  # noqa: E402
 
 from server_emulator.runtime import Runtime  # noqa: E402
 from server_emulator.schema import load_type  # noqa: E402
 from server_emulator.scenario_engine.router import trigger_phrases  # noqa: E402
+from server_emulator.scenario_engine.templates import LANGUAGE  # noqa: E402
 from server_emulator.voice import service_event_fields  # noqa: E402
 
 CLIENT = load_type(ROOT / "server_emulator" / "schemas", "alice-api.pb", "NAlice.NAliceApi.TClientMessage")
 SERVER = load_type(ROOT / "server_emulator" / "schemas", "alice-api.pb", "NAlice.NAliceApi.TServerMessage")
 
 DEFAULT_GOLDEN = ROOT / "tests" / "golden" / "scenarios.json"
+
+# фраз-образцов справочника на одну запись — больше не нужно: эталон фиксирует поведение
+DIRECTORY_CASES = 4
 
 # --- фиксированный мир прогона: владелец, колонка, гео, время, погода --------
 OWNER = "owner"
@@ -155,13 +163,13 @@ def make_runtime(workdir):
     """Владелец + две колонки + гео дома (params) + заглушка погоды."""
     runtime = Runtime(Path(workdir))
     runtime.settings["intelligence"] = "scenarios"  # эталоны проверяют сценарии (090)
-    # Фиксированный мир — без встроенных плагинов-поставщиков: эталон проверяет
-    # библиотеку сценариев (в том числе пути «нет поставщика»); поведение с
-    # поставщиками — tests/test_music_*.py. Выключение — до пересборки реестров.
+    # Фиксированный мир: погода и новости покрыты (open-meteo/news-stub включены,
+    # сеть не нужна — диспетчер погоды подменён заглушкой), музыка — поставщики
+    # музыки выключены («в Яндексе отвечает настоящий сервер»). Поведение с
+    # поставщиками музыки — tests/test_music_*.py. Выключение — до пересборки.
     state = runtime.settings.setdefault("extensions", {})
-    for ext_id in list(state["installed"]):
-        if ext_id.startswith("builtin."):
-            state["enabled"][ext_id] = False
+    for ext_id in ("builtin.spotify", "builtin.yandex-music"):
+        state["enabled"][ext_id] = False
     runtime.extensions.load_enabled()
     runtime.identities.mutate({"operation": "user", "id": OWNER, "name": "Alex"})
     runtime.identities.mutate({"operation": "device", "sn": SN, "user_id": OWNER, "name": "Станция"})
@@ -544,13 +552,59 @@ def derive_cases(catalog):
     return entries
 
 
-def cases_for(catalog):
-    """Ручные кейсы встроенной библиотеки + авто-вывод для сценариев без них."""
+def cases_for(catalog, phrases=None):
+    """Ручные кейсы встроенной библиотеки + авто-вывод для сценариев без них.
+    Своих триггеров у сценария-исполнителя может не быть (фразы контента живут в
+    справочниках плагинов): тогда кейсы — фразы-образцы записей `phrases`."""
     by_id = {str(item.get("id")): item for item in catalog}
     entries = []
     for scenario_id in sorted(by_id):
-        entries.append((scenario_id, CASES.get(scenario_id) or _derived(by_id[scenario_id])))
+        case_list = CASES.get(scenario_id) or _derived(by_id[scenario_id]) \
+            or directory_cases(scenario_id, phrases)
+        entries.append((scenario_id, case_list))
     return entries
+
+
+def directory_cases(scenario_id, phrases):
+    """Кейсы из фраз-образцов справочника для сценария-обработчика записей."""
+    return [{"name": f"{scenario_id}-dir{index}", "kind": "text", "phrase": phrase}
+            for index, phrase in enumerate((phrases or {}).get(scenario_id) or [])]
+
+
+def _sample_phrase(sentence, directory):
+    """Фраза-образец шаблона записи: вариант hassil без необязательных групп; подстановки
+    (хвосты `{query}`, `_prefix`) отбрасываются — фраза должна быть произносимой.
+    Из вариантов берётся самый информативный — длиннее литеральный текст."""
+    samples = []
+    for text in sample_sentence(sentence, slot_lists=directory.intents.slot_lists,
+                                language=LANGUAGE, skip_optionals=True):
+        text = " ".join(str(text).split())
+        if text and not any(char in text for char in "{}[]"):
+            samples.append(text)
+    return max(samples, key=len) if samples else ""
+
+
+def phrase_samples(runtime, catalog):
+    """Фразы-образцы справочника фраз включённых плагинов: {id сценария: [фразы]} для
+    записей с handler `core:<сценарий>`. По одной фразе на предложение записи, не
+    больше DIRECTORY_CASES на запись — эталон фиксирует поведение, а не весь шаблон."""
+    directory = runtime.dialog.phrase_directory() if runtime.dialog.phrase_directory else None
+    if directory is None or directory.intents is None:
+        return {}
+    known = {str(scenario.get("id")) for scenario in catalog}
+    phrases = {}
+    for entry in directory.entries.values():
+        scenario_id = directory.handler_scenario(entry)
+        if scenario_id not in known:
+            continue
+        intent = directory.intents.intents.get(entry["id"])
+        for data in (intent.data if intent is not None else []):
+            for sentence in data.sentences:
+                phrase = _sample_phrase(sentence, directory)
+                found = phrases.setdefault(scenario_id, [])
+                if phrase and phrase not in found:
+                    found.append(phrase)
+    return {scenario_id: found[:DIRECTORY_CASES] for scenario_id, found in phrases.items()}
 
 
 def _derived(scenario):
@@ -584,7 +638,8 @@ async def record(catalog_dir=None, workdir=None, cases=None):
             if catalog_dir is not None:
                 catalog = load_catalog(catalog_dir)
                 runtime.dialog.scenarios = lambda: catalog
-            plan = cases if cases is not None else cases_for(catalog)
+            plan = cases if cases is not None else cases_for(
+                catalog, phrase_samples(runtime, catalog))
             entries = []
             for scenario_id, case_list in plan:
                 entry_cases = []

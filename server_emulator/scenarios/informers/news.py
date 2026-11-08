@@ -9,15 +9,16 @@ headlines(ctx, kind) → {"items": ["заголовок", ...], "note"?}; ctx �
 проносим note пользователю.
 """
 from server_emulator import providers
+providers.require("news", ("headlines",))  # потребитель вида объявляет требования
 from server_emulator.sdk import say
 
 MAX_HEADLINES = 3  # реплика не читает всю ленту
 
 
 async def handle(ctx):
-    provider = providers.selected("news", ctx.settings)
-    if provider is None:
-        return ctx.no_data_source()  # поставщика новостей нет — честный ответ
+    # владелец совпавшей записи справочника — его поставщик; прямой запуск — выбранный
+    entry = ctx.phrase_entry or {}
+    provider = providers.for_ext("news", entry.get("ext_id")) if entry.get("ext_id")         else providers.selected("news", ctx.settings)
     try:
         result = await providers.invoke(ctx, provider, provider["headlines"], "")
     except Exception:  # noqa: BLE001 — сбой поставщика не роняет сценарий
