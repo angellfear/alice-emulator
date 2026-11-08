@@ -138,3 +138,26 @@ async def test_token_without_query_returns_caller_self(tmp_path):
     finally:
         await runner.cleanup()
         await runtime.close()
+
+
+async def test_token_carries_plt_from_query(tmp_path):
+    """plt — из query (как у оригинала); sub/uid прежние; verify plt не смотрит
+    (нестрогая: отсутствие или несовпадение проверку не ломает)."""
+    runtime = Runtime(tmp_path)
+    _setup_owner_with_devices(runtime)
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        async with ClientSession() as client:
+            async with client.get(url + '/glagol/token?device_id=speaker-id&platform=yandexstation',
+                                  headers={'Host': 'quasar.yandex.net',
+                                           'x-uprx-device-id': 'tv-id'}) as r:
+                assert r.status == 200
+                claims = _claims((await r.json())['token'])
+        assert claims['plt'] == 'yandexstation'
+        assert claims['sub'] == 'speaker-id' and claims['uid'] == 'alice'
+        speaker = runtime.identities.resolve('speaker-id')
+        old = runtime.quasar.token('speaker-id', 'alice')  # токен без plt (прежний формат)
+        assert runtime.quasar.verify(old.encode(), speaker)
+    finally:
+        await runner.cleanup()
+        await runtime.close()

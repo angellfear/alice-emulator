@@ -27,10 +27,16 @@ def _session_public(session):
 @route("identities", methods=("GET", "POST"))
 async def identities(request, runtime, app):
     if request.method == 'GET':
-        # activity — оперативная сводка «виден/последний IP» для таблицы устройств
-        return web.json_response({**runtime.identities.public(),
-                                  'sessions': [_session_public(s) for s in runtime.sessions.values()],
-                                  'activity': copy.deepcopy(runtime.identities.activity)})
+        # activity — оперативная сводка «виден/последний IP» для таблицы устройств;
+        # приватный ключ glagol.security — секрет: наружу только маска (как секреты расширений)
+        data = {**runtime.identities.public(),
+                'sessions': [_session_public(s) for s in runtime.sessions.values()],
+                'activity': copy.deepcopy(runtime.identities.activity)}
+        for device in data.get('devices', []):
+            security = (device.get('state') or {}).get('glagol_security')
+            if isinstance(security, dict) and security.get('private_key'):
+                security['private_key'] = runtime.masked_secret(security['private_key'])
+        return web.json_response(data)
     if request.method != 'POST':
         raise web.HTTPMethodNotAllowed(request.method, ['GET', 'POST'])
     value = await request.json()

@@ -9,6 +9,7 @@ dependencies = [
   "protobuf>=5,<8",
   "grpcio-tools>=1.60,<2",
   "zstandard>=0.23,<1",
+  "cryptography>=43,<48",
   "androguard>=4.1,<5",
   "numpy>=2,<3",
   "soxr>=1,<2",
@@ -29,7 +30,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest>=8", "pytest-asyncio>=0.24", "pytest-xdist>=3.6,<4", "cryptography>=43"]
+test = ["pytest>=8", "pytest-asyncio>=0.24", "pytest-xdist>=3.6,<4"]
 windows = ["pystray>=0.19,<1; sys_platform == 'win32'", "Pillow>=10,<13; sys_platform == 'win32'"]
 # полная установка одной командой (TASK-039): базовые зависимости + трей Windows; состав как у windows
 emulator = ["pystray>=0.19,<1; sys_platform == 'win32'", "Pillow>=10,<13; sys_platform == 'win32'"]

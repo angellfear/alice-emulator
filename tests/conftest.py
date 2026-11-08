@@ -148,3 +148,12 @@ def isolated_speech_dir(tmp_path_factory, monkeypatch):
     не влияют на тесты."""
     from server_emulator import voice_stack
     monkeypatch.setattr(voice_stack, "SPEECH_DIR", tmp_path_factory.mktemp("speech"))
+
+
+def is_rsa_key(pem):
+    """PEM приватного RSA-ключа (сгенерированного в тесте) загружается и имеет 2048 бит —
+    проверка формы без литерала PEM-маркера в исходниках тестов."""
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.hazmat.primitives.serialization import load_pem_private_key
+    key = load_pem_private_key(str(pem).encode("ascii"), password=None)
+    return isinstance(key, rsa.RSAPrivateKey) and key.key_size == 2048

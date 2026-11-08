@@ -372,9 +372,11 @@ async def test_get_sync_info_custom_and_legacy_unchanged(tmp_path):
             async with client.get(url + "/get_sync_info?device_id=SN-2",
                                   headers={"Host": "quasar.yandex.net"}) as response:
                 assert response.status == 200
-                assert await response.json() == {'status': 'ok',
-                                                 'config': {'device_config': {'name': 'legacy'}},
-                                                 'tags': ['x'], 'subscription': {'mode': 'legacy'}}
+                body = await response.json()
+                assert body["config"] == {'device_config': {'name': 'legacy'}}
+                assert body["tags"] == ['x'] and body["subscription"] == {'mode': 'legacy'}
+                security = body["glagol"]["security"]  # glagol.security поверх legacy тоже
+                assert security["server_certificate"].startswith("-----BEGIN CERTIFICATE-----")
     finally:
         await runner.cleanup()
         await runtime.close()
@@ -413,7 +415,7 @@ async def test_get_sync_info_stereo_group_over_template(tmp_path):
 async def test_get_sync_info_generated_without_layers(tmp_path):
     """Чистое состояние (нет custom, слоёв и legacy): встроенный generated — 200, не 409."""
     from server_emulator.server import create_app
-    from tests.conftest import listen
+    from tests.conftest import is_rsa_key, listen
 
     runtime = Runtime(directory=tmp_path)
     runtime.identities.mutate({'operation': 'user', 'id': 'u1', 'name': 'U'})
@@ -437,6 +439,9 @@ async def test_get_sync_info_generated_without_layers(tmp_path):
                 assert body["alice_pro_subscription"] == {"enabled": True, "ttl": 31536000}
                 assert body["subscription"] == {"mode": "transaction"}
                 assert body["tags"] == []
+                security = body["glagol"]["security"]  # автоген поверх собранного конфига
+                assert security["server_certificate"].startswith("-----BEGIN CERTIFICATE-----")
+                assert is_rsa_key(security["server_private_key"])
     finally:
         await runner.cleanup()
         await runtime.close()

@@ -1,4 +1,4 @@
-"""TASK-052: источник конфига устройства — Генерируемый · Напрямую · Свой.
+"""Источник конфига устройства — Генерируемый · Напрямую · Свой.
 
 Только локальные серверы: «Яндекс» — локальная заглушка, цель подменяется алиасом
 со схемой (settings.aliases[host] = http://127.0.0.1:порт), как в tests/test_upstream.py.
@@ -188,7 +188,11 @@ async def test_generate_matches_composed_and_fetch_uses_headers(tmp_path):
                                    json={"sn": "SN-Q", "action": "generate"}, headers={"X-Emulator": "1"}) as r:
                 assert r.status == 200
                 generated = await r.json()
-            assert generated == sync_response  # generate — ровно то, что собрал бы compose
+            # generate — ровно то, что собрал бы compose; приватный ключ Glagol в UI — маской
+            expected = json.loads(json.dumps(sync_response))
+            expected["glagol"]["security"]["server_private_key"] = "__KEEP__"
+            assert generated == expected
+            assert sync_response["glagol"]["security"]["server_private_key"] != "__KEEP__"
             async with client.get(url + "/emulator/api/quasar_composed?device=SN-Q") as r:
                 composed = (await r.json())["config"]
             assert generated["config"] == composed["config"]

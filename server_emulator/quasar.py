@@ -22,10 +22,10 @@ class QuasarBackend:
             self.key = secrets.token_bytes(32)
             runtime.write(path.name, {'key':self.key.hex()})
 
-    def token(self, device_id, user_id):
+    def token(self, device_id, user_id, platform=''):
         now = int(time.time())
         head = b64(b'{"alg":"HS256","typ":"JWT"}')
-        body = b64(json.dumps({'sub':device_id,'uid':user_id,'iss':'quasar-backend','aud':'glagol','iat':now,'exp':now+86400},separators=(',',':')).encode())
+        body = b64(json.dumps({'plt':platform,'sub':device_id,'uid':user_id,'iss':'quasar-backend','aud':'glagol','iat':now,'exp':now+86400},separators=(',',':')).encode())
         data = head+'.'+body
         return data+'.'+b64(hmac.new(self.key,data.encode(),hashlib.sha256).digest())
 
@@ -79,24 +79,59 @@ class QuasarBackend:
         return {'id':group['id'],'name':group['name'],'secret':group['secret'],'devices':members}
 
     def glagol_security(self, device):
-        """server_certificate/server_private_key устройства из параметров
-        device.glagol_cert / device.glagol_key (контекст этого устройства). Пара неполна — {}."""
+        """Сертификат glagol-сервера устройства — единственная точка чтения (для
+        /get_sync_info и /glagol/device_list): параметры пользователя (device.glagol_cert /
+        device.glagol_key) сильнее автогена (state.glagol_security). Не задан ни один —
+        автоген; задан ровно один или параметр пуст — пара неполна, поля нет."""
         from .quasar_config import QuasarConfigError, context_for, resolve_param
         context = context_for(self.runtime, device)
-        security = {}
+        values = {}
+        unset = False
         for field, param in (('server_certificate','device.glagol_cert'),('server_private_key','device.glagol_key')):
             try:
                 value = resolve_param(param, self.runtime, device, context)
             except QuasarConfigError:
-                return {}
-            if not isinstance(value, str) or not value:
-                return {}
-            security[field] = value
-        return security
+                unset = True  # параметр не задан — не блокирует автоген
+                continue
+            if isinstance(value, str) and value:
+                values[field] = value
+            else:
+                unset = True  # пустой/нестрочный параметр — значения нет (дефолт "")
+        if len(values) == 2:
+            return values
+        if values:
+            return {}  # задан ровно один параметр — пара неполна, поля нет
+        generated = (device.get('state') or {}).get('glagol_security')
+        if isinstance(generated, dict) and isinstance(generated.get('certificate'), str) \
+                and generated['certificate'] and isinstance(generated.get('private_key'), str) \
+                and generated['private_key']:
+            return {'server_certificate': generated['certificate'],
+                    'server_private_key': generated['private_key']}
+        return {}
+
+    def ensure_glagol_security(self, device):
+        """Ленивый автоген glagol.security: создаёт пару, если нет ни параметров пользователя,
+        ни сгенерированной; повторный вызов не перегенерирует (device — снимок resolve())."""
+        if self.glagol_security(device):
+            return
+        from .glagol_security import generate
+        state = copy.deepcopy(device.get('state') or {})
+        state['glagol_security'] = generate()
+        self.runtime.identities.mutate({'operation':'state','sn':device['sn'],'state':state})
+
+    def glagol_security_with_autogen(self, device):
+        """Сертификат устройства с ленивым автогеном — для /get_sync_info, /glagol/device_list
+        и генерации образца («кто раньше, тот и создаёт»: регистрация или первый опрос).
+        device — снимок реестра; после создания пары читает свежую запись."""
+        self.ensure_glagol_security(device)
+        fresh = next((d for d in self.runtime.identities.data['devices']
+                      if d['sn'] == device['sn']), None) or device
+        return self.glagol_security(fresh)
 
     def device_list(self, user_id):
         """Элементы /glagol/device_list: устройства одного владельца. Как в реальном ответе,
-        glagol.security есть у каждого устройства списка (у каждого — свои параметры)."""
+        glagol.security есть у каждого устройства списка: параметры пользователя или автоген
+        (лениво создаётся и запоминается в state.glagol_security)."""
         devices = []
         for other in self.runtime.identities.data['devices']:
             if other['user_id'] != user_id:
@@ -106,7 +141,7 @@ class QuasarBackend:
                     'activation_code':own_state.get('activation_code',''),'activation_region':own_state.get('activation_region',''),
                     'promocode_activated':bool(own_state.get('promocode_activated',False)),
                     'networkInfo':own_state.get('networkInfo',{}),'config':own_state.get('quasar',{}).get('config',{}).get('device_config',{}),'tags':[]}
-            security = self.glagol_security(other)
+            security = self.glagol_security_with_autogen(other)
             if security:
                 item['glagol'] = {'security':security}
             group = self.group_payload(other)
@@ -115,7 +150,7 @@ class QuasarBackend:
             devices.append(item)
         return devices
 
-    def handle(self, method, path, device, device_id, body, caller=None, caller_id=None, client_ip=None):
+    def handle(self, method, path, device, device_id, body, caller=None, caller_id=None, client_ip=None, platform=None):
         routes = self.ROUTES
         if (method,path) not in routes:
             return None
@@ -138,7 +173,7 @@ class QuasarBackend:
                 sub, uid = next(iter(device['device_ids']), device_id), device['user_id']
             else:  # нет query — токен вызывающего для самого себя
                 sub, uid = next(iter(caller['device_ids']), ''), caller['user_id']
-            return 200, {'status':'ok','token':self.token(sub, uid)}
+            return 200, {'status':'ok','token':self.token(sub, uid, platform or '')}
         # Вызывающий неопределим (запрос без маркеров устройства — только OAuth
         # аккаунта): builtin не знает, чьи данные отдавать, — уступает каталогу
         # эндпоинтов (захваченный реальный ответ). Известное, но непривязанное
@@ -165,6 +200,9 @@ class QuasarBackend:
                 if not isinstance(custom,dict) or not isinstance(custom.get('config'),dict):
                     return 409, {'error':'quasar_custom_not_set','hint':'Сохраните свой ответ во вкладке «Quasar → Переопределение под устройство»'}
                 return 200, copy.deepcopy(custom)
+            # glagol.security поверх собранного конфига: параметры пользователя или
+            # автоген (лениво запоминается в state.glagol_security).
+            security = self.glagol_security_with_autogen(device)
             # Слоёная модель: встроенный generated → common → merge-patch платформы →
             # переопределения аккаунта владельца → переопределения устройства →
             # инлайн-узлы → динамика. Пользовательского common нет — база built-in
@@ -187,6 +225,8 @@ class QuasarBackend:
                 if not isinstance(body, dict) or not isinstance(body.get('config'), dict):
                     return 409, {'error':'quasar_config_no_config','hint':'В конфиге нет sync.config'}
                 result = {'status':'ok', **body}
+                if security:
+                    result['glagol'] = {'security':security}
                 group = self.group_payload(device)
                 if group:
                     result['group'] = group  # реестр стереопар главнее узла шаблона
@@ -196,6 +236,8 @@ class QuasarBackend:
             for key in ('glagol','subscription','alice_pro_subscription'):
                 if key in quasar:
                     result[key] = quasar[key]
+            if 'glagol' not in result and security:
+                result['glagol'] = {'security':security}
             group = self.group_payload(device)
             if group:
                 result['group'] = group
@@ -203,7 +245,7 @@ class QuasarBackend:
         if path=='/glagol/device_list':
             return 200, {'status':'ok','devices':self.device_list(device['user_id'])}
         if path=='/glagol/token':
-            return 200, {'status':'ok','token':self.token(device_id,device['user_id'])}
+            return 200, {'status':'ok','token':self.token(device_id,device['user_id'],platform or '')}
         if path.endswith('/check_token'):
             valid = bool(self.verify(body,device))
             return 200, {'status':'ok',**({'owner':valid,'guest':False} if '/v2.0/' in path else {'valid':valid})}

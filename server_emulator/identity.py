@@ -439,8 +439,12 @@ class IdentityRegistry:
                                            'source': source or previous.get('source')}
         if not device and register:
             value = self.public()
+            # glagol.security — при регистрации (кто раньше: она, /get_sync_info или
+            # /glagol/device_list); параметры пользователя потом перекрывают автоген.
+            from .glagol_security import generate
             device_row = {'sn': device_id, 'name': device_id, 'user_id': None,
-                          'device_ids': [device_id], 'profile': {}, 'state': {}}
+                          'device_ids': [device_id], 'profile': {},
+                          'state': {'glagol_security': generate()}}
             if self._take_pending_route(device_id):  # TASK-044: SN из emulation_excluded
                 device_row['route_mode'] = 'proxy'
             value['devices'].append(device_row)

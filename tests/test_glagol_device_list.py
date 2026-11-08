@@ -4,7 +4,7 @@ from aiohttp import ClientSession
 
 from server_emulator.runtime import Runtime
 from server_emulator.server import create_app
-from tests.conftest import listen
+from tests.conftest import is_rsa_key, listen
 
 # фиктивные значения: настоящие сертификаты в тестах не используются
 FAKE_CERT = "FAKE-CERT-{sn}"
@@ -63,20 +63,85 @@ async def test_security_per_device_owner_only(tmp_path):
         await runtime.close()
 
 
-async def test_no_params_no_glagol_field(tmp_path):
+async def test_no_params_autogenerates_security(tmp_path):
+    """Параметров нет: пара генерируется и запоминается в state.glagol_security; повторный
+    вызов не перегенерирует (стабильный PEM); устройство с параметрами получает их."""
     runtime = Runtime(tmp_path)
     _registry(runtime)
     _define_params(runtime)  # определения есть, значений нет (пустой дефолт)
-    _set_security(runtime, "SN-A2")  # только у второго устройства
+    _set_security(runtime, "SN-A2")  # параметры пользователя — только у второго
     runner, url = await listen(create_app(runtime=runtime))
     try:
         _, body = await _get(url, "/glagol/device_list?device_id=id-a1")
         by_id = {d["id"]: d for d in body["devices"]}
-        assert "glagol" not in by_id["id-a1"]
-        assert "glagol" in by_id["id-a2"]
+        generated = by_id["id-a1"]["glagol"]["security"]
+        assert generated["server_certificate"].startswith("-----BEGIN CERTIFICATE-----")
+        assert is_rsa_key(generated["server_private_key"])
+        assert by_id["id-a2"]["glagol"]["security"] == {"server_certificate": "FAKE-CERT-SN-A2",
+                                                        "server_private_key": "FAKE-KEY-SN-A2"}
+        stored = runtime.identities.resolve("id-a1")["state"]["glagol_security"]
+        assert stored["certificate"] == generated["server_certificate"]
+        _, body = await _get(url, "/glagol/device_list?device_id=id-a1")
+        again = {d["id"]: d for d in body["devices"]}["id-a1"]["glagol"]["security"]
+        assert again == generated  # повторный вызов: тот же PEM
     finally:
         await runner.cleanup()
         await runtime.close()
+
+
+async def test_user_params_override_autogen(tmp_path):
+    """Параметры пользователя сильнее автогена: появившись позже, перекрывают пару из state."""
+    runtime = Runtime(tmp_path)
+    _registry(runtime)
+    _define_params(runtime)
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        _, body = await _get(url, "/glagol/device_list?device_id=id-a1")
+        generated = {d["id"]: d for d in body["devices"]}["id-a1"]["glagol"]["security"]
+        assert generated["server_certificate"].startswith("-----BEGIN CERTIFICATE-----")
+        _set_security(runtime, "SN-A1")
+        _, body = await _get(url, "/glagol/device_list?device_id=id-a1")
+        security = {d["id"]: d for d in body["devices"]}["id-a1"]["glagol"]["security"]
+        assert security == {"server_certificate": "FAKE-CERT-SN-A1",
+                            "server_private_key": "FAKE-KEY-SN-A1"}
+        # сгенерированная пара осталась в state, но не выдаётся
+        assert runtime.identities.resolve("id-a1")["state"]["glagol_security"]["certificate"] \
+            == generated["server_certificate"]
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
+async def test_private_key_masked_in_ui_api(tmp_path):
+    """В API реестра приватный ключ glagol.security — маска (как секреты расширений),
+    сертификат виден как есть."""
+    runtime = Runtime(tmp_path)
+    _registry(runtime)
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        await _get(url, "/glagol/device_list?device_id=id-a1")  # ленивый автоген пары
+        async with ClientSession() as client:
+            async with client.get(url + "/emulator/api/identities") as response:
+                devices = (await response.json())["devices"]
+        security = devices[0]["state"]["glagol_security"]
+        assert security["private_key"] == "__KEEP__"
+        assert security["certificate"].startswith("-----BEGIN CERTIFICATE-----")  # в state — настоящий
+
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
+def test_registration_generates_security(tmp_path):
+    """Регистрация устройства (observe register=True) сразу несёт сгенерированную пару."""
+    from server_emulator.identity import IdentityRegistry
+    from server_emulator.state_store import StateStore
+
+    registry = IdentityRegistry(tmp_path, StateStore(tmp_path / "emulator.sqlite3"))
+    device = registry.observe("id-new", register=True)
+    security = device["state"]["glagol_security"]
+    assert security["certificate"].startswith("-----BEGIN CERTIFICATE-----")
+    assert is_rsa_key(security["private_key"])
 
 
 async def test_no_marker_resolved_by_client_ip(tmp_path):

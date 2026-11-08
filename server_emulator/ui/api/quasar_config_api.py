@@ -36,6 +36,11 @@ def _sync_body(runtime, device):
     body = compose(base, platform_patch, state.get('quasar_overrides'),
                    runtime, device, account_overrides=account_overrides, account_name=account_name)
     result = {'status': 'ok', **body}
+    security = runtime.quasar.glagol_security_with_autogen(device)  # как в ответе колонке
+    if security:
+        # образец показывается в UI: приватный ключ — маской, как секреты в остальном API
+        security = {**security, 'server_private_key': runtime.masked_secret(security['server_private_key'])}
+        result['glagol'] = {'security': security}
     group = runtime.quasar.group_payload(device)
     if group:
         result['group'] = group
