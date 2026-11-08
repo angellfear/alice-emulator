@@ -1,4 +1,4 @@
-"""TASK-081: знания по схеме «сценарий → база → плагин».
+"""Знания по схеме «сценарий → база → плагин».
 
 Подменный плагин датасета отдаёт значение — сценарий отвечает по шаблону во всех трёх режимах;
 плагина нет — «Для этого нет источника данных.» в «Простом» и отказ модели в «Модели»;
@@ -37,15 +37,17 @@ def _plugin(runtime, name, value, age_s=0):
     runtime.scenario_executor.plugins[name] = fn
 
 
-async def test_news_with_plugin_all_modes(tmp_path):
-    value = {"items": [{"title": "Событие", "source": "Лента"}]}
+async def test_knowledge_with_plugin_all_modes(tmp_path):
+    """Домен tv («скажи программу на вечер») — шаблонный ответ по записи датасета
+    во всех трёх режимах «Интеллекта»."""
+    value = {"items": [{"channel": "Первый", "title": "Вечер", "start": "21:00"}]}
     for mode in ("scenarios", "model", "agent"):
         runtime = Runtime(tmp_path)
-        _plugin(runtime, "news", value)
+        _plugin(runtime, "tv", value)
         try:
-            report = await _report(runtime, "Алиса, расскажи новости", intelligence=mode)
+            report = await _report(runtime, "Алиса, скажи программу на вечер", intelligence=mode)
             assert report["scenario"] == "knowledge.knowledge", report
-            assert "Событие" in report["speech"] and "Лента" in report["speech"]
+            assert "Первый" in report["speech"] and "21:00" in report["speech"]
         finally:
             await runtime.close()
 
@@ -53,7 +55,7 @@ async def test_news_with_plugin_all_modes(tmp_path):
 async def test_no_plugin_simple_honest(tmp_path):
     runtime = Runtime(tmp_path)
     try:
-        report = await _report(runtime, "Алиса, расскажи новости")
+        report = await _report(runtime, "Алиса, какой курс доллара")
         assert report["scenario"] == "knowledge.knowledge"
         assert report["speech"] == "Для этого нет источника данных."
     finally:
@@ -69,10 +71,10 @@ async def test_no_plugin_model_yields(tmp_path):
 
     runtime = Runtime(tmp_path)
     try:
-        report = await _report(runtime, "Алиса, расскажи новости", intelligence="model", chat=chat)
+        report = await _report(runtime, "Алиса, какой курс доллара", intelligence="model", chat=chat)
         assert not report["handled"] and report["reason"] == "script_declined:knowledge.knowledge"
-        await runtime.chat("расскажи новости", history=[], thread="", sn="")
-        assert "новости" in seen.get("text", "")
+        await runtime.chat("какой курс доллара", history=[], thread="", sn="")
+        assert "доллара" in seen.get("text", "")
     finally:
         await runtime.close()
 
@@ -80,15 +82,15 @@ async def test_no_plugin_model_yields(tmp_path):
 async def test_stale_record_notes_age(tmp_path):
     runtime = Runtime(tmp_path)
     try:
-        value = {"items": [{"title": "Событие", "source": "Лента"}]}
+        value = {"unit": "USD", "value": 81.4}
 
         async def plugin(key, args=None):
             return value
 
-        runtime.scenario_executor.plugins["news"] = plugin
-        report = await _report(runtime, "Алиса, расскажи новости")
-        assert "Событие" in report["speech"] and "назад" not in report["speech"]
-        # запись двухчасовой давности (max_age news — 600): ответ с пометкой о времени данных
+        runtime.scenario_executor.plugins["prices"] = plugin
+        report = await _report(runtime, "Алиса, какой курс доллара")
+        assert "USD" in report["speech"] and "назад" not in report["speech"]
+        # запись двухчасовой давности (max_age prices — 600): ответ с пометкой о времени данных
         store = runtime.scenario_executor.data_store
         db = store._live()
         with db:
@@ -98,9 +100,9 @@ async def test_stale_record_notes_age(tmp_path):
         async def broken(key, args=None):
             raise RuntimeError("нет связи")
 
-        runtime.scenario_executor.plugins["news"] = broken
-        report = await _report(runtime, "Алиса, расскажи новости")
-        assert "Событие" in report["speech"] and "назад" in report["speech"], report["speech"]
+        runtime.scenario_executor.plugins["prices"] = broken
+        report = await _report(runtime, "Алиса, какой курс доллара")
+        assert "USD" in report["speech"] and "назад" in report["speech"], report["speech"]
     finally:
         await runtime.close()
 

@@ -1,13 +1,13 @@
 ---
 title: "Контракт: сценарный движок, каталог и реестр"
 status: stable
-date: "2026-10-24"
+date: "2026-11-07"
 module: "server_emulator/scenario_engine/"
 ---
 
 # Контракт: сценарный движок, каталог и реестр
 
-Дата: 2026-10-24. Всё, что ниже — CODE_TESTED (автотесты в `tests/`); физическая приёмка на колонке не проводилась.
+Дата: 2026-11-07. Всё, что ниже — CODE_TESTED (автотесты в `tests/`); физическая приёмка на колонке не проводилась.
 
 ## 1. Порядок ответа (приоритет)
 
@@ -26,6 +26,15 @@ module: "server_emulator/scenario_engine/"
 
 Каталог builtin включается `settings.builtin_scenarios`, отдельные встроенные сценарии — `settings.builtin_disabled` (аддитивная миграция дефолтов доносит ключи в старые БД). Выключенные (`enabled:false` / id в `builtin_disabled`) из роутинга исключаются.
 
+Шаблонные кандидаты упорядочены каталогом (приоритет); ранжирование точности
+(сущность из закрытого списка сильнее свободного хвоста, больше литеральных кусков
+текста сильнее — метрики hassil) выбирает самое точное совпадение **внутри**
+сценария и для записей справочника фраз плагинов (`contributes.providers[].phrases`,
+запись с `handler: core:<сценарий>` — кандидат в сценарий-обработчик). Споры записей
+разных плагинов при равной точности — ручной порядок `settings["phrase_order"]`
+(порядок видов и плагинов в виде; «Прочее» — плагины без вида); сухой прогон
+(«Проверка») показывает порядок кандидатов (`candidates`).
+
 ## 1a. Поставщики данных для колбэков
 
 Служебные колбэки колонки маршрутизируются во внутренние события (`informers.requested`,
@@ -34,24 +43,56 @@ module: "server_emulator/scenario_engine/"
 перекрывает встроенного поставщика; поставщика нет — колбэк отвечает умолчанием (тихое
 подтверждение). Триггер `kind: event` сохранён для расширений и сценариев из промахов.
 
-## 2. Встроенные семейства (без AI)
+## 2. Классы сценариев
+
+Класс задаёт, откуда сценарий берёт фразы и данные (обзор — `docs/architecture.md`,
+«Сценарии: встроенные и от плагинов»). Колонка «Сейчас» — где фразы живут сегодня.
+
+**Встроенные** — фразы и логика в ядре, плагин не нужен; данные — из запроса колонки
+(`EnvironmentStateRaw`, `ctx.player`) и эмулятора:
 
 | id | фразы | исполнение | тесты |
 |---|---|---|---|
-| builtin.clock.get_time | «сколько времени», «который час» | local_time_phrase, карточка | test_builtin_scenarios |
-| builtin.timer.set | «поставь таймер на N…» | директивы колонке: `open_screen_timer_info_directive` (или `open_screen_timer_list_directive{ForceAutoClose}`, если список уже открыт) + `timer_set_directive` по образцу; таймер ведёт колонка, уточнение при отсутствии длительности | test_time_scenarios |
-| builtin.timer.list | «сколько осталось до таймера», «какие таймеры установлены» | остаток из состояния колонки (`Duration − (now − StartTimestamp)`), `open_screen_timer_list_directive{TargetTimerIds}` | test_time_scenarios |
-| builtin.timer.cancel | «отмени таймер» | `open_screen_timer_list_directive{ForceAutoClose}` (если список открыт) + `timer_cancel_directive{TimerId}`; список — из EnvironmentStateRaw запроса | test_time_scenarios |
-| builtin.alarm.set | «поставь будильник на HH:MM» | `open_screen_alarm_list_directive{ForceAutoClose}` + `alarm_add_directive` (одна дата активации, таймзона колонки, SnoozeTime 10) | test_time_scenarios |
-| builtin.ringing.stop | «хватит» | гасит сигнал: у колонки `CurrentlyPlaying`/истёкший активный таймер → `timer_stop_directive`/`alarm_stop_directive{StopMedia}` + закрытие активного экрана; не звенит — отказ (реплику берёт `device.player.pause`) | test_time_scenarios |
+| informers.clock | «сколько времени», «который час» | local_time_phrase, карточка | test_builtin_scenarios |
+| informers.clock.date | «какое сегодня число», «какой день недели» | дата в таймзоне колонки | test_chat_scenarios |
+| timers.timer.set | «поставь таймер на N…» | `open_screen_timer_info_directive` (или `open_screen_timer_list_directive{ForceAutoClose}`, если список уже открыт) + `timer_set_directive` по образцу; уточнение при отсутствии длительности | test_time_scenarios |
+| timers.timer.list | «сколько осталось до таймера», «какие таймеры установлены» | остаток из состояния колонки (`Duration − (now − StartTimestamp)`), `open_screen_timer_list_directive{TargetTimerIds}` | test_time_scenarios |
+| timers.timer.cancel | «отмени таймер» | `open_screen_timer_list_directive{ForceAutoClose}` (если список открыт) + `timer_cancel_directive{TimerId}` | test_time_scenarios |
+| timers.alarm.set | «поставь будильник на HH:MM» | `open_screen_alarm_list_directive{ForceAutoClose}` + `alarm_add_directive` (одна дата активации, таймзона колонки, SnoozeTime 10) | test_time_scenarios |
+| timers.ringing.stop | «хватит» | у колонки `CurrentlyPlaying`/истёкший активный таймер → `timer_stop_directive`/`alarm_stop_directive{StopMedia}` + закрытие экрана; не звенит — отказ (реплику берёт `device.player.pause`) | test_time_scenarios |
+| device.volume | «громче/тише/громкость на N» (шкала 0–10) | `sound_set_level`/louder/quiter: директива ответа или Push в сессию колонки | test_simple_commands |
+| device.player.pause | «пауза», «останови музыку» | директивы настоящего сервера | test_builtin_templates |
+| device.bluetooth.on/off | «включи/выключи блютуз» | директивы по образцу | test_simple_commands |
+| device.led.emotion | «подмигни», «покажи глазки» | LED-директива | test_led_emotion |
+| device.app.open | «открой/запусти X» | резолв по state.apps; запуск не поддержан (wire не восстановлен) — честная карточка | test_simple_commands |
+| system.* | служебные события, «забудь всё», «функция недоступна» | timesync, callbacks.ack, dialog.reset, agent_say, unavailable | test_builtin_templates |
 
 Таймеры и будильники ведёт колонка: сервер не хранит и не считает их (своего планировщика
-нет с TASK-079), состояние берётся из `EnvironmentStateRaw` её запроса, ответы — штатные
-директивы «Часов» (`tests/fixtures/directives/` — обезличенные образцы журнала).
-| builtin.light.switch | «включи/выключи свет (комната)» | state.light устройства; нет ламп — честный отказ | test_light |
-| builtin.volume.set | «громче/тише/громкость на N/максимум/выключи звук» | Push sound_set_level/louder/quiter в сессию SN | test_simple_commands |
-| builtin.app.open | «открой/запусти X» | резолв по state.apps; запуск НЕ поддержан (wire не восстановлен) — честная карточка | test_simple_commands |
-| builtin.weather.get | «погода…» | внешний провайдер (Open-Meteo-совместимый), кеш TTL, недоступность честно | test_weather |
+нет), ответы — штатные директивы «Часов» (`tests/fixtures/directives/` — обезличенные
+образцы журнала).
+
+**Ядро по поставщику** — фразы и ответ колонке в ядре, данные — от поставщика вида
+(`docs/contracts/providers.md`):
+
+| id | вид | сейчас | тесты |
+|---|---|---|---|
+| informers.weather, informers.weather.widget | weather | без поставщика отвечает «Для этого нет источника данных.» | test_weather, test_weather_provider |
+| informers.news | news | без поставщика — честный отказ | test_news_scenario |
+
+**Экспорт плагина** — фразы объявляет плагин по своим возможностям, ответ колонке собирает
+ядро:
+
+| id | плагин (вид / возможность) | сейчас | тесты |
+|---|---|---|---|
+| media.music | music; возможности `fairy_tales`, `podcasts`, `audiobooks` | фразы в ядре (`scenarios/media/music.json`), включая голый шаблон «включи {query}» и отсечку `media_other_domain` | test_music_provider |
+| кино/сериалы | video | вида нет; фразы — в `system.unavailable` (честный отказ) | — |
+| smart_home.light | умный дом | фразы и сценарий в ядре, state.light устройства; нет ламп — честный отказ | test_light |
+| lists.shopping | список покупок | в ядре, хранилище эмулятора | test_chat_scenarios |
+| games.games | игры | в ядре | test_dialog_games |
+| chat.chat, knowledge.knowledge | болталка, знания («Интеллект») | в ядре | test_chat_scenarios, test_knowledge_scenarios |
+
+Каталог builtin включается `settings.builtin_scenarios`, отдельные встроенные сценарии —
+`settings.builtin_disabled`.
 
 Passport provenance — `scenario_engine/builtin.py::BUILTIN_PROVENANCE` (перенесено/адаптировано/неподдержано).
 
@@ -98,7 +139,7 @@ bindings), payload_raw (base64 — реплей перехваченного wir
 Опциональные поля определения (валидатор `scenario_packages/validate.py`; формат v4 §10 без изменений для format_version/id/version/triggers/slots/flow/dependencies/publication):
 
 - `title`, `description` — строка или `{ru, en}`; пустая строка внутри = перевода нет; UI показывает ru → en → id/фразы.
-- `executor` — декларативный выход: `{kind: reply|flow|mcp_stdio|script|app}` + `server/tool/args/ref/entrypoint/note`. Исполняются движком только `reply`/`flow`; `mcp_stdio`/`script`/`app` — объявление привязки (хранится и показывается; инлайн-код по-прежнему запрещён правилами пакета). Реальное исполнение — будущая работа (см. plan-index).
+- `executor` — декларативный выход: `{kind: reply|flow|mcp_stdio|script|app}` + `server/tool/args/ref/entrypoint/note`. Движок исполняет `reply`, `flow` и `script` (py-файл рядом с JSON, SDK — `docs/contracts/scripts-sdk.md`). `mcp_stdio` и `app` — только объявление привязки: она хранится и показывается, но не исполняется. Инлайн-код по-прежнему запрещён правилами пакета.
 
 UI каталога: плоские группы-каталоги (`builtin`, путь `_group`, «без раздела») — без вложенных аккордеонов; галочка каждого сценария и группы (группа `builtin` — мастер-флаг; включение снимает индивидуальные отключения; смешанные состояния — indeterminate). «Редактировать» открывает окно-редактор (`<dialog>`); встроенного (и сценария расширения) — окно с черновиком копии `user.<имя>`: на диск и в настройки ничего не пишется, «Сохранить» записывает копию (с кодом `.py` у py-сценариев: `GET scenarios?script=<id>` → `PUT {scenario, script}`), затем выключает встроенный; «Отмена» без следов. Установка пакетов сценариев — «Дополнительно → Расширения» (кнопка-ссылка в панели каталога).
 
@@ -152,19 +193,32 @@ API: `GET scenario-drafts` → `{drafts}`; `POST {op: test|activate|discard|hist
 
 ## 8. Не поддержано (честно)
 
-- Исполнение `executor.kind = mcp_stdio|script|app` — поле декларативное, привязка хранится, но не запускается (будущая работа, см. plan-index).
+- Исполнение `executor.kind = mcp_stdio|app` — поле декларативное, привязка хранится, но не запускается.
 - Запуск приложений физически (TSendAndroidAppIntentDirective не восстановлен).
-- Сигналит и снимает сигнал колонка: срабатываний на сервере больше нет (TASK-079),
+- Сигналит и снимает сигнал колонка: срабатываний на сервере больше нет,
   сценарий «сработало» снят. Snooze-перепостановка будильника, отмена и изменение
   будильника, дни недели будильника, пауза/продолжить таймера, таймер сна,
-  напоминания, календарь — по образцам не восстановлены (БЛОКЕР TASK-079, нужна запись).
+  напоминания, календарь — по образцам не восстановлены (БЛОКЕР, нужна запись).
 - Прогноз погоды на дни (только current); локация по GPS устройства.
 
 ## 9. Медиа: штатный плеер колонки
 
-Своей медиатеки, очереди и избранного у эмулятора нет (087): раздел `media` удалён,
-музыкальные фразы отвечает настоящий сервер Яндекса. Из плеера эмулятор держит только
-то, что есть в образцах: «стоп/пауза» — директивы настоящего сервера (`device.player.pause`),
-колбэки `HollywoodMusic` — тихий `callbacks.ack`. Состояние плеера — из запроса колонки
-(`ctx.player`, capability 46). Директивы, состояние и список БЛОКЕРов — в отдельном
-контракте `docs/contracts/player.md`.
+Своей медиатеки, очереди и избранного у эмулятора нет. Музыку ищет и отдаёт поставщик
+вида music (`media.music`, `docs/contracts/providers.md`), играет штатный плеер колонки
+по стеку директив образца. «Стоп/пауза» — директивы настоящего сервера
+(`device.player.pause`), колбэки `HollywoodMusic` — тихий `callbacks.ack`. Состояние
+плеера — из запроса колонки (`ctx.player`, capability 46). Директивы, состояние и
+список БЛОКЕРов — `docs/contracts/player.md`.
+
+## 10. Не реализовано: перенос фраз контента в плагины
+
+Классы из раздела 2 закреплены; для сценариев класса «Экспорт плагина» и «Ядро по
+поставщику» не реализовано:
+
+- Объявление плагином возможностей (`capabilities`) и своих фраз; ядро гасит фразы без
+  возможности у выбранного поставщика.
+- Признак «активен только при поставщике вида» у погоды и новостей (сейчас — отказ).
+- Голая фраза «включи {X}»: опрос каталогов плагинов с поиском (выбранный поставщик
+  первым, отвечает нашедший); после этого ручная отсечка `media_other_domain` для
+  маршрутизации не нужна.
+- Встроенные плагины умного дома, списка покупок, игр, болталки и знаний; вид video.

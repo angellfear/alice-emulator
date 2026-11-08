@@ -281,6 +281,7 @@ async def test_transparent_flag_does_not_affect_other_routes(tmp_path):
 async def test_transparent_upstream_error_gives_502(tmp_path):
     runtime, upstream_runner, runner, url = await start_transparent(tmp_path, True)
     await upstream_runner.cleanup()  # «Яндекс» недоступен
+    runtime.settings["aliases"]["quasar.yandex.net"] = "http://0.0.0.0:1"  # отказ мгновенный
     try:
         status, body = await get_raw(url)
         assert status == 502 and json.loads(body)["error"] == "upstream_unavailable"

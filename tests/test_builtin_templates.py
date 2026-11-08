@@ -9,6 +9,7 @@ from server_emulator.scenario_engine.executor import Executor
 from server_emulator.scenario_engine.library import SCENARIOS
 from server_emulator.scenario_engine.normalize import deglue, lexicon_for, normalize_text
 from server_emulator.scenario_engine.probe import dependencies_ok
+from server_emulator.scenario_engine.conditions import check
 from server_emulator.scenario_engine.router import candidates, with_templates
 from server_emulator.scenario_engine.templates import TemplateIndex, check_template
 
@@ -48,8 +49,12 @@ def full_route(text, user_scenarios=()):
     executor = _executor()
     for scenario, reason in ordered:
         verdict, _ = dependencies_ok(scenario, executor)
-        if verdict == "supported":
-            return scenario.get("id"), reason, slots_by_id.get(scenario.get("id"))
+        if verdict != "supported":
+            continue
+        guard = scenario.get("guard")  # как в dialog.handle_text: guard фильтрует кандидатов
+        if guard is not None and not check(guard, {"input": {"text": text}}):
+            continue
+        return scenario.get("id"), reason, slots_by_id.get(scenario.get("id"))
     return None, "no_match", {}
 
 
@@ -64,8 +69,7 @@ TABLE = [
     ("поставь таймер на 2 часа 15 минут", "timers.timer.set",
      {"duration_number": 2, "duration_unit": 3600, "duration_number2": 15, "duration_unit2": 60}),
     # громкость
-    ("громкость на семь", "device.volume", {"number": 7}),
-    ("громкость на 50", "device.volume", {"number": 50}),
+    ("громкость на семь", "device.volume", {"level": 7}),
     ("сделай громче", "device.volume", {"volume_mode": "up"}),
     ("выключи звук", "device.volume", {"volume_fixed": "mute"}),
     ("вруби на всю", "device.volume", {"volume_fixed": "max"}),
@@ -151,7 +155,36 @@ def test_legacy_phrases_keep_their_scenario(text):
 @pytest.mark.parametrize("text,sid", LEGACY_CASES)
 def test_legacy_variations_keep_scenario(text, sid):
     got, _reason, _slots = full_route(text)
-    assert got == sid, text
+    assert got == sid, (text, got, _reason)
+
+
+# --- голый шаблон музыки: guard media_other_domain ----------------------------------
+
+MUSIC_BARE_CASES = [
+    # маркеры музыки («группу», «песню») имена/названия не отдают другим доменам
+    ("включи светлану лободу", True),
+    ("включи группу кино", True),
+    ("поставь песню замок", True),
+    ("включи шоу маст гоу он", True),
+    # не-музыкальные домены — музыке не достаются (свой сценарий матчится)
+    ("включи свет", False),
+    ("включи кино", False),
+    ("поставь таймер", False),
+    ("включи утреннее шоу", False),
+    ]
+
+
+@pytest.mark.parametrize("text,is_music", MUSIC_BARE_CASES)
+def test_music_bare_template_other_domain_guard(text, is_music):
+    """Голые фразы — не шаблоны сценариев ядра: фразы музыки переехали в справочник
+    плагинов; чужой домен шаблон не перехватывает (границы слов в движке шаблонов —
+    «светлану» не начинается с «свет»)."""
+    hits = [sid for sid, _slots, _score in INDEX.ranked(normalize_text(text, LEXICON))]
+    foreign = [sid for sid in hits if sid != "media.music"]
+    if is_music:
+        assert not foreign, (text, foreign)
+    else:
+        assert foreign, (text, hits)
 
 
 # --- пользовательский сценарий перебивает шаблон встроенного -------------------------

@@ -198,6 +198,12 @@ async def quasar_source(request, runtime, app):
     action = value.get('action')
     if action == 'generate':
         return web.json_response(_sync_body(runtime, device))
+    if action == 'push':  # принудительный перезапрос конфига — колонка сделает get_sync_info
+        item = await runtime.push_action(sn, 'push_update_config', {})
+        if item.get('delivery') == 'no_session':
+            return web.json_response({'error': 'push_no_session',
+                                      'hint': 'Нет живой WS-сессии устройства — перезапрос не отправлен'}, status=409)
+        return web.json_response(item)
     if action == 'fetch':
         saved = runtime.quasar_sync_headers.get(sn)
         if not saved:

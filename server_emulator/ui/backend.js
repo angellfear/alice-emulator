@@ -348,6 +348,19 @@
     const locked=routed==='proxy';
     const headRow=make('div');headRow.className='src-head';
     headRow.append(make('h3','Переопределения · '+device.sn));
+    // push: принудительный перезапрос конфига (push_update_config) в живую сессию —
+    // колонка сделает get_sync_info, правила замен применятся на свежем ответе
+    const pushBtn=make('button','Перезапросить');pushBtn.type='button';pushBtn.className='secondary';
+    pushBtn.title='Принудительный перезапрос конфига: колонка сделает get_sync_info';
+    pushBtn.onclick=()=>work(async()=>{
+      pushBtn.disabled=true;
+      try{
+        await api('quasar_source',{sn:device.sn,action:'push'});
+        notify('Перезапрос конфига отправлен.');
+      }catch(e){notify(e.message,{error:true})}
+      finally{pushBtn.disabled=false}
+    });
+    headRow.append(pushBtn);
     if(locked)headRow.append(make('span','маршрут: Прозрачно','chip'));
     const seg=make('div');seg.className='segmented';
     for(const [value,label] of Object.entries(SOURCE_LABEL)){

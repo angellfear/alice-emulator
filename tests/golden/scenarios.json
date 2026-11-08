@@ -18,6 +18,7 @@
       "games.games",
       "informers.clock",
       "informers.clock.date",
+      "informers.news",
       "informers.weather",
       "informers.weather.widget",
       "knowledge.knowledge",
@@ -397,7 +398,7 @@
           "effects": [],
           "input": {
             "kind": "text",
-            "phrase": "расскажи новости"
+            "phrase": "какой курс доллара"
           },
           "name": "knowledge.no-plugin",
           "runs": [
@@ -432,7 +433,7 @@
               "speech": "Для этого нет источника данных.",
               "speech_parts": [],
               "status": "finished",
-              "text": "расскажи новости"
+              "text": "какой курс доллара"
             }
           ]
         },
@@ -834,40 +835,12 @@
           "name": "volume-percent",
           "runs": [
             {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [],
-                  "directives": [
-                    {
-                      "is_led_silent": true,
-                      "name": "sound_set_level",
-                      "payload": {
-                        "new_level": 5.0,
-                        "new_percent_level": 50.0
-                      },
-                      "type": "client_action"
-                    },
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": ""
-                }
-              ],
-              "reason": "template",
-              "scenario": "device.volume",
+              "handled": false,
+              "reason": "script_declined:device.volume",
+              "scenario": null,
               "speech": "",
               "speech_parts": [],
-              "status": "finished",
+              "status": null,
               "text": "громкость 50"
             }
           ]
@@ -1449,6 +1422,140 @@
           "effects": [],
           "input": {
             "kind": "text",
+            "phrase": "новости"
+          },
+          "name": "informers.news-trigger0-0",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Для этого нет источника данных.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Для этого нет источника данных."
+                }
+              ],
+              "reason": "template",
+              "scenario": "informers.news",
+              "speech": "Для этого нет источника данных.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "новости"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "что нового"
+          },
+          "name": "informers.news-trigger0-1",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Для этого нет источника данных.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Для этого нет источника данных."
+                }
+              ],
+              "reason": "template",
+              "scenario": "informers.news",
+              "speech": "Для этого нет источника данных.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "что нового"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "расскажи новости"
+          },
+          "name": "informers.news-trigger0-2",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Для этого нет источника данных.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Для этого нет источника данных."
+                }
+              ],
+              "reason": "template",
+              "scenario": "informers.news",
+              "speech": "Для этого нет источника данных.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "расскажи новости"
+            }
+          ]
+        }
+      ],
+      "id": "informers.news"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
             "phrase": "какая погода"
           },
           "name": "weather-phrase",
@@ -1721,36 +1828,12 @@
           "name": "music.no-provider",
           "runs": [
             {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [
-                    {
-                      "text": "Для этого нет источника данных.",
-                      "type": "simple_text"
-                    }
-                  ],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Для этого нет источника данных."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.music",
-              "speech": "Для этого нет источника данных.",
+              "handled": false,
+              "reason": "no_match",
+              "scenario": null,
+              "speech": "",
               "speech_parts": [],
-              "status": "finished",
+              "status": null,
               "text": "включи музыку"
             }
           ]
@@ -1764,36 +1847,12 @@
           "name": "music.no-provider-query",
           "runs": [
             {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [
-                    {
-                      "text": "Для этого нет источника данных.",
-                      "type": "simple_text"
-                    }
-                  ],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Для этого нет источника данных."
-                }
-              ],
-              "reason": "template",
-              "scenario": "media.music",
-              "speech": "Для этого нет источника данных.",
+              "handled": false,
+              "reason": "no_match",
+              "scenario": null,
+              "speech": "",
               "speech_parts": [],
-              "status": "finished",
+              "status": null,
               "text": "включи музыку хороший день"
             }
           ]
@@ -1807,36 +1866,12 @@
           "name": "music.no-provider-tale",
           "runs": [
             {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [
-                    {
-                      "text": "Для этого нет источника данных.",
-                      "type": "simple_text"
-                    }
-                  ],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Для этого нет источника данных."
-                }
-              ],
-              "reason": "phrase:exact",
-              "scenario": "media.music",
-              "speech": "Для этого нет источника данных.",
+              "handled": false,
+              "reason": "no_match",
+              "scenario": null,
+              "speech": "",
               "speech_parts": [],
-              "status": "finished",
+              "status": null,
               "text": "включи сказку"
             }
           ]

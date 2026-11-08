@@ -68,6 +68,30 @@ UI и admin-API работают, а WS и протокольные HTTP-обр�
   Результат — `schemas/alica-<хеш>.pb` (полный набор, рядом `.pb.json` со сводкой) и `schemas/alice-api.pb`
   (выборка `NAlice.NAliceApi`).
 
+#### Источник схем: zip quasar-protos
+
+Готовый набор описаний протокола без APK станции — репозиторий
+[v3rt3p/quasar-protos](https://github.com/v3rt3p/quasar-protos) (MIT): 873 `.proto`, слитые из
+прошивок Станции 2, Midi, Duo Max и ТВ. Файлы под `reconstructed/` собраны заново по wire-формату
+(Yandex «ry» codegen) — имена файлов придуманы, формат точный; остальные — исходные пути из
+встроенных дескрипторов.
+
+Загрузка того же вида, что и путь через APK: клонировать репозиторий и упаковать содержимое
+(без `.git`) в zip — корень архива должен содержать `alice/…`:
+
+```bash
+git clone --depth 1 https://github.com/v3rt3p/quasar-protos
+python -c "import zipfile,pathlib; src=pathlib.Path('quasar-protos'); z=zipfile.ZipFile('quasar-protos.zip','w',zipfile.ZIP_DEFLATED); [z.write(p, p.relative_to(src).as_posix()) for p in src.rglob('*') if p.is_file() and '.git' not in p.parts]; z.close()"
+python -m server_emulator.protocol_import quasar-protos.zip
+```
+
+Ограничения против `libquasar_daemons.so` станции: набор собран из нескольких прошивок (версии
+могут смешиваться). `TAliceRequestProto` в этих protos лежит в пакете `NAlice` — как и в
+дескрипторах станции — и входит в полный набор `alica-<хеш>.pb`, не в выборку `alice-api.pb`.
+Для ежедневной работы с одной станцией библиотека из APK точнее; zip quasar-protos — способ
+настроиться без APK. Smoke-тест импорта: `ALICA_QUASAR_PROTOS_ZIP=<zip>` в
+`tests/test_protocol_import.py` (без переменной тест пропускается).
+
 Как настроить:
 
 - **UI.** Окно «Настройка эмулятора» (шаг 1 — картинки, шаг 2 — протокол) открывается само, пока нет протокола
@@ -148,7 +172,7 @@ zip-архива (без `.git`) обновлениями не пользует�
 | `http_port` | `80` | второй слушатель без TLS (0 — выключен); колонки ходят по HTTP на `quasar.yandex.net` |
 | `front` | `true` | фронт TLS: SNI решает — эмулятор или туннель (см. «Фронт TLS» ниже) |
 | `front_dns` | `8.8.8.8, 1.1.1.1` | внешние DNS для адресов туннелей фронта |
-| `front_uncovered` | `tunnel` | домены вне сертификата: `tunnel` — пропускать прозрачно (туннель), `allowlist` — туннель только доменам из `front_allow`, `block` — отклонять. Применяется без перезапуска (TASK-093) |
+| `front_uncovered` | `tunnel` | домены вне сертификата: `tunnel` — пропускать прозрачно (туннель), `allowlist` — туннель только доменам из `front_allow`, `block` — отклонять. Применяется без перезапуска |
 | `front_allow` | `[]` | лист доменов для режима `allowlist`; по одному домену на строку в интерфейсе, `*.` — первым ярлыком на один уровень (`*.strm.yandex.net`) |
 
 Сертификат и ключ можно указать путём на компьютере с эмулятором (в кавычках из «Копировать как путь» тоже

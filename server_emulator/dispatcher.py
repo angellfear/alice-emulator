@@ -372,7 +372,22 @@ class Dispatcher:
             return await (runtime.catalog.icon(request) if '/icon/' in request.path else runtime.catalog.download(request))
         upstream = getattr(runtime, "upstream", None)
         sn, device_id, route_mode = self.route_mode_for(request)
+        auth = request.headers.get("Authorization", "")
+        if sn and auth.startswith("OAuth "):
+            # OAuth аккаунта: захват только от опознанной колонки — в БД для поставщика Яндекс.Музыки
+            from . import music
+            music.note_token(runtime, auth[6:])
         is_ws = request.headers.get("Upgrade", "").lower() == "websocket"
+        # Потоки музыки поставщика (storage/strm) колонка качает сама — прозрачный проход
+        # во всех маршрутах, кроме «Прозрачно» (там и так наверх; в «Напрямую» иначе
+        # остаётся «Без ответа» и трек не играет)
+        host_clean = (host or "").rstrip(".").lower()
+        if upstream is not None and route_mode != "proxy" and (host_clean == "storage.yandex.net"
+                                                               or host_clean.endswith(".strm.yandex.net")):
+            target = upstream.target_for(request, host=host, path=path or request.path)
+            return await upstream.serve(request, target, host=host, path=path or request.path,
+                                        journal=upstream.recording(sn, False), unhandled=True,
+                                        device_sn=sn, device_id=device_id)
         if upstream is not None and route_mode == "proxy":
             # TASK-044: прямой проход — WS мостом, HTTP пересылкой. Запись в журнал — по опции
             # «Запись» устройства (TASK-054): HTTP решается здесь, WS — на каждом кадре.

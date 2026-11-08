@@ -16,7 +16,7 @@ TRIGGER_KINDS = {"phrase", "event", "protocol_event", "provide", "intent", "temp
 EVENT_FILTER_KEYS = {"callback", "purpose", "frame"}
 BINDING_SOURCES = {"constant", "input", "generated", "slot", "clock", "computed", "state",
                    "user", "device", "animation", "template", "path"}
-COMPUTED_FNS = {"timezone_offset_seconds", "slot_value"}
+COMPUTED_FNS = {"timezone_offset_seconds", "slot_value", "media_other_domain"}
 GENERATED_KINDS = {"uuid4_hex", "hex32", "uuid4_dash"}
 CLOCK_OPS = {"now_epoch", "now_epoch_ms", "now_local_iso"}
 MATCH_MODES = ("contains", "exact", "mask")
@@ -130,8 +130,9 @@ def validate_scenario(scenario):
     if scenario.get("risk", "device") not in RISKS:
         raise PackageError(f"risk ∈ {sorted(RISKS)}")
     triggers = scenario.get("triggers")
-    if not isinstance(triggers, list) or not triggers:
-        raise PackageError("triggers: непустой массив")
+    if not isinstance(triggers, list):
+        raise PackageError("triggers: массив (может быть пустым — сценарий-исполнитель "
+                           "справочника фраз матчится записями, не триггерами)")
     for trigger in triggers:
         kind = trigger.get("kind") if isinstance(trigger, dict) else None
         if kind not in TRIGGER_KINDS:

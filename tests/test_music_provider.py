@@ -1,24 +1,29 @@
-"""TASK-099: ядро поставщика музыки (music/*.py) и стек директорий виджета.
+"""Ядро поставщика музыки (music/*.py) и стек директорий виджета.
 
 Поставщик — тестовое расширение (music/fake.py через реальный rebuild_extension_registries,
-как в тестах actions/datasets). Настоящий Spotify/Яндекс в тестах не дёргается.
-Форма стека — по расшифрованным образцам настоящего сервера (захват 2026-11-02-music,
-server_emulator/state/captures/): полный стек «включи музыку» — tts_play_placeholder +
-draw_animation(player_play) + show_audio_player_screen + apply_player_playback_queue
-(TApplyMusicPlatformQueueDirective) + set_audio_player_sequence_state + audio_play;
-«дальше» (колбэк @@mm_stack_engine_get_next → provide music.stack_next) — тройка
-очередь+состояние+audio_play без экрана.
+как в тестах actions/datasets); механика реестра — на внешних расширениях, встроенные
+плагины выключаются хелпером _disable_builtin_providers. Настоящий Spotify/Яндекс в
+тестах не дёргается. Форма стека — по расшифрованным образцам настоящего сервера
+(захват 2026-11-02-music, server_emulator/state/captures/): полный стек «включи музыку» —
+tts_play_placeholder + draw_animation(player_play) + show_audio_player_screen +
+apply_player_playback_queue (TApplyMusicPlatformQueueDirective) +
+set_audio_player_sequence_state + audio_play; «дальше» (колбэк @@mm_stack_engine_get_next →
+provide music.stack_next) — тройка очередь+состояние+audio_play без экрана.
 """
 import datetime
 import json
+import pytest
 from pathlib import Path
 
 from google.protobuf import json_format
 
-from server_emulator import music
+from server_emulator import music, providers
 from server_emulator.aapi_handlers import route as callback_route
 from server_emulator.extensions import EMULATOR_VERSION
 from server_emulator.runtime import Runtime
+from aiohttp import ClientSession
+
+from tests.conftest import listen
 from server_emulator.sdk import SDK_VERSION, ScenarioContext
 from server_emulator.schema import load_type, schemas_dir, station_file
 from server_emulator.server import create_app
@@ -44,10 +49,30 @@ NEXT_TRACK = {"id": "t9", "title": "Следующий трек", "artist": "Т�
               "duration_ms": 190000, "stream": {"url": "https://example.com/t9.mp3", "format": "mp3"}}
 
 
-def _provider_module(marker, provider_id="fake"):
+@pytest.fixture(autouse=True)
+def _reset_captured_oauth():
+    """Кеш захваченного OAuth — глобальный по модулю: тесты стартуют с чистого."""
+    music._CAPTURED.pop("oauth", None)
+    yield
+    music._CAPTURED.pop("oauth", None)
+
+
+def _disable_builtin_providers(runtime):
+    """Мир без встроенных поставщиков (механика реестра здесь — на внешних расширениях;
+    сами встроенные — tests/test_builtin_plugins.py, перенесённые поставщики —
+    tests/test_music_spotify.py / tests/test_music_yandex.py)."""
+    state = runtime.settings.setdefault("extensions", {})
+    for ext_id in list(state["installed"]):
+        if ext_id.startswith("builtin."):
+            state["enabled"][ext_id] = False
+    runtime.extensions.load_enabled()
+
+
+def _provider_module(marker, provider_id="fake", service=None):
     """Модуль music/*.py: каждый вызов пишет в marker (JSON-список), треки — TRACKS."""
     path = str(marker).replace("\\", "/")
     tracks = json.dumps(TRACKS, ensure_ascii=False)
+    service_part = f', "service": "{service}"' if service else ""
     return f'''import json
 from pathlib import Path
 MARKER = Path("{path}")
@@ -71,19 +96,39 @@ async def rate(ctx, track_id, like):
     _note(["rate", track_id, like])
     return True
 
-PROVIDER = {{"id": "{provider_id}", "title": "Поставщик для теста"}}
+PROVIDER = {{"id": "{provider_id}", "title": "Поставщик для теста"{service_part}}}
 '''
 
 
+MUSIC_PHRASES = {"entries": [
+    {"id": "play", "sentences": ["включи музыку [{query}]", "(включи|поставь|запусти) музыку [{query}]",
+                                 "давай послушаем музыку [{query}]", "(включи|поставь) (песню|трек) {query}"],
+     "handler": "core:media.music"},
+    {"id": "podcast", "sentences": ["(включи|поставь) (подкаст|подкасты) [{query}]"],
+     "handler": "core:media.music"},
+    {"id": "audiobook", "sentences": ["(включи|поставь) аудиокнигу {query}"], "handler": "core:media.music"},
+    {"id": "tales", "sentences": ["(включи|поставь) (сказку|сказки) {query}"], "handler": "core:media.music"},
+    {"id": "search", "sentences": ["(включи|запусти|поставь|послушай) {query}"],
+     "handler": "core:media.music", "search": True}]}
+
+
 def make_music_extension(runtime, ext_id="fake-music", provider_id="fake", files=None,
-                         enabled=True):
-    """Расширение-папка с music/*.py (dev-режим): manifest + записи installed/enabled."""
+                         enabled=True, phrases=None):
+    """Расширение-папка с music/*.py (dev-режим): manifest + записи installed/enabled.
+    phrases — файл справочника фраз + объявление contributes.providers (фразы музыки
+    переехали из сценария в справочник плагина); None — папка вида без объявления."""
     root = runtime.directory / "ext" / ext_id
     (root / "music").mkdir(parents=True, exist_ok=True)
     manifest = {"id": ext_id, "name": ext_id, "version": "1.0.0", "description": "тест",
                 "author": "T", "license": "MIT",
                 "requires": {"emulator": f">={EMULATOR_VERSION}", "sdk": f">={SDK_VERSION}"},
                 "permissions": {}}
+    if phrases is not None:
+        files = dict(files or {})
+        files["phrases/music.json"] = json.dumps(phrases, ensure_ascii=False)
+        manifest["contributes"] = {"providers": [{"kind": "music", "title": "Музыка",
+                                                  "module": "music/fake.py",
+                                                  "phrases": "phrases/music.json"}]}
     (root / "extension.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
     for name, content in (files or {}).items():
         path = root / name
@@ -158,10 +203,10 @@ def _payload_of(message, name):
 async def test_provider_registry_from_extension(tmp_path):
     runtime = Runtime(tmp_path)
     marker = tmp_path / "marker.json"
-    make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)})
-    runtime.extensions.load_enabled()
+    make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
     try:
-        assert set(music.PROVIDERS) == {"fake"}
+        assert set(providers.PROVIDERS["music"]) == {"fake"}
         provider = music.selected(runtime.settings)
         assert provider["id"] == "fake" and provider["ext_id"] == "fake-music"
         assert provider["title"] == "Поставщик для теста" and callable(provider["search"])
@@ -173,11 +218,11 @@ async def test_provider_registry_from_extension(tmp_path):
 async def test_broken_provider_module_disables_extension(tmp_path):
     runtime = Runtime(tmp_path)
     make_music_extension(runtime, files={"music/bad.py": "raise ValueError('битый модуль')\n"})
-    runtime.extensions.load_enabled()
+    _disable_builtin_providers(runtime)
     try:
         assert "fake-music" not in runtime.extensions.loaded
         assert any("битый модуль" in w["error"] for w in runtime.extensions.warnings)
-        assert music.PROVIDERS == {}
+        assert providers.PROVIDERS.get("music", {}) == {}
     finally:
         await runtime.close()
 
@@ -187,7 +232,7 @@ async def test_provider_name_conflict_disables_second(tmp_path):
     marker = tmp_path / "marker.json"
     make_music_extension(runtime, ext_id="first", files={"music/a.py": _provider_module(marker)})
     make_music_extension(runtime, ext_id="second", files={"music/b.py": _provider_module(marker)})
-    runtime.extensions.load_enabled()
+    _disable_builtin_providers(runtime)
     try:
         # оба объявляют id «fake» — второй по алфавиту не включается, первый работает
         assert "second" not in runtime.extensions.loaded
@@ -199,14 +244,15 @@ async def test_provider_name_conflict_disables_second(tmp_path):
 
 async def test_selected_setting_and_empty_registry(tmp_path):
     runtime = Runtime(tmp_path)
+    _disable_builtin_providers(runtime)  # пусто и без встроенных
     try:
         assert music.selected(runtime.settings) is None  # поставщиков нет
         marker = tmp_path / "marker.json"
-        make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)})
+        make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)}, phrases=MUSIC_PHRASES)
         runtime.extensions.load_enabled()
-        runtime.settings["music"]["provider"] = "нет-такого"
+        runtime.settings["providers"]["music"] = "нет-такого"
         assert music.selected(runtime.settings) is None  # выбранный отключён — источника нет
-        runtime.settings["music"]["provider"] = "fake"
+        runtime.settings["providers"]["music"] = "fake"
         assert music.selected(runtime.settings)["id"] == "fake"
     finally:
         await runtime.close()
@@ -218,8 +264,8 @@ async def test_selected_setting_and_empty_registry(tmp_path):
 async def test_full_widget_stack_on_play_phrase(tmp_path):
     runtime = Runtime(tmp_path)
     marker = tmp_path / "marker.json"
-    make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)})
-    runtime.extensions.load_enabled()
+    make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
     try:
         report = await say(runtime, "включи музыку хороший день")
         assert report["handled"], report
@@ -276,8 +322,8 @@ async def test_play_phrase_without_query_asks_provider(tmp_path):
     """«включи музыку» без запроса — поставщик решает (пустой query), играет первый трек."""
     runtime = Runtime(tmp_path)
     marker = tmp_path / "marker.json"
-    make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)})
-    runtime.extensions.load_enabled()
+    make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
     try:
         report = await say(runtime, "включи музыку")
         assert report["handled"] and report["messages"]
@@ -293,8 +339,8 @@ async def test_search_kind_by_phrase(tmp_path):
     """«включи сказку/аудиокнигу/подкаст» — kind из реплики, хвост — запрос."""
     runtime = Runtime(tmp_path)
     marker = tmp_path / "marker.json"
-    make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)})
-    runtime.extensions.load_enabled()
+    make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
     try:
         await say(runtime, "включи сказку Колобок")
         calls = json.loads(marker.read_text(encoding="utf-8"))
@@ -309,8 +355,8 @@ async def test_queue_cut_to_five(tmp_path):
     runtime = Runtime(tmp_path)
     marker = tmp_path / "marker.json"
     module = _provider_module(marker).replace("TRACKS, \"start\"", "TRACKS + TRACKS, \"start\"")
-    make_music_extension(runtime, files={"music/fake.py": module})
-    runtime.extensions.load_enabled()
+    make_music_extension(runtime, files={"music/fake.py": module}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
     try:
         report = await say(runtime, "включи музыку")
         queue = _decoded(report["messages"][0], "apply_player_playback_queue_directive", QUEUE_PROTO)
@@ -324,8 +370,8 @@ async def test_nothing_found_honest_answer(tmp_path):
     runtime = Runtime(tmp_path)
     marker = tmp_path / "marker.json"
     module = _provider_module(marker).replace('{"tracks": TRACKS', '{"tracks": []')
-    make_music_extension(runtime, files={"music/fake.py": module})
-    runtime.extensions.load_enabled()
+    make_music_extension(runtime, files={"music/fake.py": module}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
     try:
         report = await say(runtime, "включи музыку")
         assert report["handled"] and report["messages"]
@@ -345,8 +391,8 @@ def _sent_messages(sent):
 async def test_get_next_callback_serves_next_track(tmp_path):
     runtime = Runtime(tmp_path)
     marker = tmp_path / "marker.json"
-    make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)})
-    runtime.extensions.load_enabled()
+    make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
     try:
         assert callback_route("@@mm_stack_engine_get_next", {}) == "music.stack_next"
         sent = []
@@ -377,8 +423,8 @@ async def test_get_next_without_next_track_stays_silent(tmp_path):
     runtime = Runtime(tmp_path)
     marker = tmp_path / "marker.json"
     module = _provider_module(marker).replace("return NEXT if step > 0 else None", "return None")
-    make_music_extension(runtime, files={"music/fake.py": module})
-    runtime.extensions.load_enabled()
+    make_music_extension(runtime, files={"music/fake.py": module}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
     try:
         report = await runtime.dialog.handle_event(
             "music.stack_next", service_ctx(runtime, "@@mm_stack_engine_get_next"),
@@ -393,6 +439,7 @@ async def test_get_next_without_next_track_stays_silent(tmp_path):
 
 async def test_get_next_without_provider_falls_back_to_ack(tmp_path):
     runtime = Runtime(tmp_path)
+    _disable_builtin_providers(runtime)
     try:
         report = await runtime.dialog.handle_event(
             "music.stack_next", service_ctx(runtime, "@@mm_stack_engine_get_next"),
@@ -411,8 +458,8 @@ async def test_hybrid_route_declines_music(tmp_path):
     """«Вместе»: сценарии музыки отказываются — Яндекс отвечает сам (релей голоса, 098)."""
     runtime = Runtime(tmp_path)
     marker = tmp_path / "marker.json"
-    make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)})
-    runtime.extensions.load_enabled()
+    make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
     try:
         report = await say(runtime, "включи музыку хороший день", route_mode="hybrid")
         assert not report["handled"]  # фраза уходит релею голоса
@@ -425,15 +472,13 @@ async def test_hybrid_route_declines_music(tmp_path):
         await runtime.close()
 
 
-async def test_no_provider_simple_mode_answers_no_data_source(tmp_path):
     runtime = Runtime(tmp_path)
     runtime.settings["intelligence"] = "scenarios"  # «Простой»
+    _disable_builtin_providers(runtime)
     try:
+        # мира фраз без плагина нет: «нет плагина — нет фраз», реплика неизвестна
         report = await say(runtime, "включи музыку хороший день")
-        assert report["handled"]
-        message = report["messages"][0]
-        assert _reply_names(message) == ["tts_play_placeholder"]
-        assert _reply_speech(message) == "Для этого нет источника данных."
+        assert not report["handled"] and report["reason"] == "no_match", report
     finally:
         await runtime.close()
 
@@ -442,6 +487,7 @@ async def test_no_provider_model_mode_declines(tmp_path):
     """«Модель»: сценарий отказывается (None) — фразу забирает модель."""
     runtime = Runtime(tmp_path)
     runtime.settings["intelligence"] = "model"
+    _disable_builtin_providers(runtime)
     try:
         report = await say(runtime, "включи музыку хороший день")
         assert not report["handled"]  # реплика уходит модели
@@ -453,8 +499,8 @@ async def test_provider_answers_in_every_intelligence_mode(tmp_path):
     """Поставщик есть — играет он во всех режимах «Интеллекта» (модель не участвует)."""
     runtime = Runtime(tmp_path)
     marker = tmp_path / "marker.json"
-    make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)})
-    runtime.extensions.load_enabled()
+    make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
     try:
         for mode in ("scenarios", "model", "agent"):
             runtime.settings["intelligence"] = mode
@@ -471,8 +517,8 @@ async def test_provider_answers_in_every_intelligence_mode(tmp_path):
 async def test_rate_and_neighbor_calls(tmp_path):
     runtime = Runtime(tmp_path)
     marker = tmp_path / "marker.json"
-    make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)})
-    runtime.extensions.load_enabled()
+    make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
     ctx = ScenarioContext(runtime, dict(service_ctx(runtime, "x")))
     try:
         provider = music.selected(runtime.settings)
@@ -501,3 +547,167 @@ async def test_normalize_track_contract():
     assert track == {"id": "x", "title": "Т", "artist": "А", "duration_ms": 1500,
                      "stream": {"url": "http://s", "format": "mp3", "decode_key": "k"},
                      "album": "Аль", "cover_url": "http://c"}
+
+
+# --- захват OAuth аккаунта: реальные обращения колонки к Яндексу -----------------------
+
+async def test_captured_oauth_from_http_header(tmp_path):
+    """Authorization: OAuth … от опознанной колонки (заголовки устройства) — в БД
+    (meta yandex_oauth) и в кеше ядра для поставщика; от неопознанного клиента токен
+    не принимается; мусор вместо токена не затирает захват."""
+    runtime = Runtime(tmp_path)
+    runtime.identities.mutate({'operation': 'user', 'id': 'owner', 'name': 'O'})
+    runtime.identities.mutate({'operation': 'device', 'sn': 'SN-A', 'user_id': 'owner',
+                               'device_ids': ['device-id-a']})
+    app = create_app(runtime=runtime)
+    runner, url = await listen(app)
+    try:
+        async with ClientSession() as client:
+            async with client.get(url + "/unknown/path",
+                                  headers={"Host": "quasar.yandex.net",
+                                           "Authorization": "OAuth " + "y0_" + "a" * 30}) as r:
+                await r.read()
+            assert runtime.store.meta("yandex_oauth") is None  # клиент не опознан — нет захвата
+            assert music.captured_oauth() == ""
+            async with client.get(url + "/unknown/path",
+                                  headers={"Host": "quasar.yandex.net", "x-uprx-device-id": "device-id-a",
+                                           "Authorization": "OAuth " + "y0_" + "a" * 30}) as r:
+                await r.read()
+            raw = runtime.store.meta("yandex_oauth")
+            assert raw and json.loads(raw)["token"].startswith("y0_")
+            assert music.captured_oauth().startswith("y0_")
+            async with client.get(url + "/unknown/path",
+                                  headers={"Host": "quasar.yandex.net", "x-uprx-device-id": "device-id-a",
+                                           "Authorization": "OAuth junk"}) as r:
+                await r.read()
+            assert music.captured_oauth().startswith("y0_")  # мусор не затирает захват
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
+async def test_captured_oauth_from_ws_handshake_of_known_device(tmp_path):
+    """X-UPRX-OAUTH-TOKEN в WS-handshake захватывается только от опознанной колонки."""
+    runtime = Runtime(tmp_path)
+    runtime.identities.mutate({'operation': 'user', 'id': 'owner', 'name': 'O'})
+    runtime.identities.mutate({'operation': 'device', 'sn': 'SN-A', 'user_id': 'owner',
+                               'device_ids': ['device-id-a']})
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        async with ClientSession() as client:
+            async with client.ws_connect(url + "/uni.ws", headers={
+                    "x-uprx-device-id": "device-id-unknown", "x-uprx-oauth-token": "y0_" + "b" * 30}):
+                pass  # неопознанное устройство: токен не принимается
+            assert music.captured_oauth() == ""
+            async with client.ws_connect(url + "/uni.ws", headers={
+                    "x-uprx-device-id": "device-id-a", "x-uprx-oauth-token": "y0_" + "b" * 30}) as ws:
+                await ws.close()
+        assert music.captured_oauth().startswith("y0_")
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
+async def test_captured_oauth_only_for_yandex_provider(tmp_path):
+    """Захваченный OAuth видит только поставщик Яндекс.Музыки: другой поставщик
+    получает обычный ExtensionContext без captured_oauth."""
+    runtime = Runtime(tmp_path)
+    make_music_extension(runtime, ext_id="fake-ext",
+                         files={"music/fake.py": _provider_module(tmp_path / "fake.json")})
+    make_music_extension(runtime, ext_id="yandex-ext",
+                         files={"music/yandex.py": _provider_module(tmp_path / "yandex.json",
+                                                                    provider_id="yandex-music")})
+    runtime.extensions.load_enabled()
+    try:
+        assert music.note_token(runtime, "y0_" + "c" * 30)
+        token = music.captured_oauth()
+        assert token.startswith("y0_")
+
+        class _Ctx:
+            def __init__(self, rt):
+                self._rt = rt
+
+            def _services_runtime(self):
+                return self._rt
+
+        ctx = _Ctx(runtime)
+        fake = music.extension_context(ctx, {"id": "fake", "ext_id": "fake-ext"})
+        yandex = music.extension_context(ctx, {"id": "yandex-music", "ext_id": "yandex-ext"})
+        assert not isinstance(fake, music._WithSystemValues)
+        assert fake.get("captured_oauth") in (None, "")  # другой поставщик токена не видит
+        assert isinstance(yandex, music._WithSystemValues)
+        assert yandex.get("captured_oauth") == token
+    finally:
+        await runtime.close()
+
+
+async def test_builtin_and_external_yandex_both_get_token(tmp_path):
+    """Встроенный builtin.yandex-music (service="yandex-music") и внешний поставщик
+    с тем же service — два разных поставщика в одном реестре; токен аккаунта
+    получают оба (признак сервиса вместо id)."""
+    runtime = Runtime(tmp_path)
+    marker = tmp_path / "marker.json"
+    make_music_extension(runtime, ext_id="ext-ym",
+                         files={"music/yandex.py": _provider_module(marker, provider_id="yandex-music",
+                                                                    service="yandex-music")})
+    runtime.extensions.load_enabled()
+    try:
+        ids = set(providers.PROVIDERS["music"])
+        assert {"builtin.yandex-music", "yandex-music", "builtin.spotify"} <= ids
+        records = providers.PROVIDERS["music"]
+        assert records["yandex-music"]["origin"] == "extension"
+        assert records["builtin.yandex-music"]["origin"] == "builtin"
+        assert records["yandex-music"]["service"] == "yandex-music"
+        assert music.note_token(runtime, "y0_" + "e" * 30)
+
+        class _Ctx:
+            def __init__(self, rt):
+                self._rt = rt
+
+            def _services_runtime(self):
+                return self._rt
+
+        ctx = _Ctx(runtime)
+        for record_id in ("builtin.yandex-music", "yandex-music"):
+            record = records[record_id]
+            assert music.is_yandex_music(record)
+            got = music.extension_context(ctx, record)
+            assert isinstance(got, music._WithSystemValues)
+            assert got.get("captured_oauth") == music.captured_oauth()
+        spotify = music.extension_context(ctx, records["builtin.spotify"])
+        assert not isinstance(spotify, music._WithSystemValues)
+    finally:
+        await runtime.close()
+
+
+async def test_load_token_clears_cache_for_other_runtime(tmp_path):
+    """Кеш захваченного токена — глобальный: гидратация из пустой БД другого Runtime
+    чужой токен убирает."""
+    first = Runtime(tmp_path / "a")
+    try:
+        assert music.note_token(first, "y0_" + "d" * 30)
+        assert music.captured_oauth().startswith("y0_")
+    finally:
+        await first.close()
+    second = Runtime(tmp_path / "b")  # другая БД — там токена нет
+    try:
+        music.load_token(second.store)
+        assert music.captured_oauth() == ""
+    finally:
+        await second.close()
+
+
+async def test_no_provider_bare_template_yields_to_next_candidate(tmp_path):
+    """Голый шаблон («запусти спотифай») без поставщика — сценарий уступает: реплику
+    отвечает следующий кандидат (device.app.open), а не «Для этого нет источника данных.»."""
+    runtime = Runtime(tmp_path)
+    _disable_builtin_providers(runtime)  # мир без поставщиков музыки
+    try:
+        report = await say(runtime, "запусти спотифай")
+        assert report["handled"], report
+        message = report["messages"][0]
+        speech = _reply_speech(message)
+        assert speech != "Для этого нет источника данных."
+        assert "не найдено" in speech.lower(), speech
+    finally:
+        await runtime.close()

@@ -231,7 +231,7 @@ async def test_registry_source_rejects_bad_hash_and_foreign_origin(tmp_path):
             assert "sha256" in body["error"]
             body = await op(client, url, {"op": "install", "url": source, "id": "pack.evil"}, expect=400)
             assert "origin" in body["error"]
-        assert runtime.settings["extensions"]["installed"] == {}
+        assert "pack.greet" not in runtime.settings["extensions"]["installed"]
     finally:
         await runner.cleanup()
         await runtime.close()

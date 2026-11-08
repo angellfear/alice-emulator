@@ -77,12 +77,12 @@ async def test_volume_step_push(tmp_path, phrase, action, arguments, reply):
 
 @pytest.mark.parametrize("phrase,level,percent", [
     # тихий ответ директивой настоящего сервера (журнал «громкость два»: new_level +
-    # new_percent_level = level·100/MaxLevel); шкала без состояния запроса — по умолчанию 0..10
+    # new_percent_level = level·100/MaxLevel); шкала громкости — 0..10
     ("громкость два", 2.0, 20.0),
     ("громкость пять", 5.0, 50.0),
     ("громкость на 5", 5.0, 50.0),
     ("громкость на семь", 7.0, 70.0),
-    ("громкость на 50", 5.0, 50.0),  # проценты → шкала колонки (0..10 без состояния)
+    ("громкость 10", 10.0, 100.0),
 ])
 async def test_volume_set_is_silent_directive(tmp_path, phrase, level, percent):
     runtime = Runtime(tmp_path)
@@ -98,8 +98,33 @@ async def test_volume_set_is_silent_directive(tmp_path, phrase, level, percent):
         assert MessageToDict(directive.Payload) == {"new_level": level,
                                                     "new_percent_level": percent}
         assert not [c.Text for c in alice.Response.Cards]  # тихий ответ: речи и карточек нет
-        speech = alice.VoiceResponse.OutputSpeech.Text if alice.HasField("VoiceResponse") else ""
-        assert speech == ""
+    finally:
+        await runtime.close()
+
+
+async def test_volume_zero_level(tmp_path):
+    """«громкость 0» — new_level/new_percent_level = 0 (нулевые поля читаются напрямую)."""
+    runtime = Runtime(tmp_path)
+    try:
+        report, sent, pushed = await _say(runtime, "громкость 0", sn="SN-V")
+        assert report["handled"] and report["scenario"] == "device.volume"
+        alice = _alice(sent)
+        directive = alice.Response.Directives[0]
+        fields = {k: v.number_value for k, v in directive.Payload.fields.items()}
+        assert fields == {"new_level": 0.0, "new_percent_level": 0.0}
+    finally:
+        await runtime.close()
+
+
+@pytest.mark.parametrize("phrase", ["громкость на 50", "громкость 11", "громкость на сто"])
+async def test_volume_out_of_scale_yields(tmp_path, phrase):
+    """Число вне шкалы 0..10: образца ответа нет — сценарий уступает, реплика уходит
+    дальше по кандидатам (как без шаблона), громкость не ставится."""
+    runtime = Runtime(tmp_path)
+    try:
+        report, sent, pushed = await _say(runtime, phrase, sn="SN-V")
+        assert not report["handled"], (phrase, report)
+        assert pushed == [] and not sent
     finally:
         await runtime.close()
 
@@ -119,6 +144,11 @@ async def test_bluetooth(tmp_path, phrase, scenario, action, reply):
 
 async def test_app_open_found_and_not_found(tmp_path):
     runtime = Runtime(tmp_path)
+    state = runtime.settings.setdefault("extensions", {})  # мир без поставщиков музыки:
+    for ext_id in list(state["installed"]):                # «запусти спотифай» — про приложение
+        if ext_id.startswith("builtin."):
+            state["enabled"][ext_id] = False
+    runtime.extensions.load_enabled()
     runtime.identities.mutate({'operation': 'user', 'id': 'owner', 'name': 'O'})
     runtime.identities.mutate({'operation': 'device', 'sn': 'SN-A', 'user_id': 'owner', 'device_ids': []})
     device = next(d for d in runtime.identities.data['devices'] if d['sn'] == 'SN-A')

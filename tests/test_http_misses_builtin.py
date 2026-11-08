@@ -11,7 +11,7 @@ from server_emulator.runtime import Runtime
 from server_emulator.server import create_app
 from tests.conftest import listen
 
-DEAD = "http://127.0.0.1:1"  # порт без слушателя: пересылка не выходит в сеть
+DEAD = "http://0.0.0.0:1"  # адрес не существует: отказ мгновенный, не 2 с Windows-рефузла
 
 
 def registry(runtime, sn="SN-S", device_id="s-id"):

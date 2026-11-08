@@ -5,7 +5,9 @@ zip-архивы с `.pb` / `.proto` — файлов Яндекса в тест
 """
 import asyncio
 import importlib.util
+import os
 import zipfile
+from pathlib import Path
 
 import pytest
 from aiohttp import ClientSession, FormData, WSMsgType
@@ -311,3 +313,32 @@ async def test_upload_protocol_enables_it_without_restart(empty_setup, kind):
             assert not list((runtime.directory / "setup-tmp").glob("*/*"))        # временные файлы удалены
     finally:
         await runner.cleanup()
+
+
+# ── Реальный zip quasar-protos (второй источник схем) ────────────────────────
+
+needs_quasar_protos = pytest.mark.skipif(
+    not os.environ.get("ALICA_QUASAR_PROTOS_ZIP"),
+    reason="нет ALICA_QUASAR_PROTOS_ZIP (zip репозитория quasar-protos)")
+
+
+@needs_quasar_protos
+def test_quasar_protos_zip_smoke(tmp_path, monkeypatch):
+    """Схемы из zip репозитория quasar-protos: импорт собирает оба набора, ключевые типы грузятся.
+
+    Схемы ставятся во временный каталог (ALICA_SCHEMAS_DIR): настоящие файлы не трогаются.
+    TAliceRequestProto в этих protos лежит в пакете NAlice (как и в дескрипторах станции)
+    и входит в полный набор, а не в выборку alice-api."""
+    source = Path(os.environ["ALICA_QUASAR_PROTOS_ZIP"])
+    monkeypatch.setenv("ALICA_SCHEMAS_DIR", str(tmp_path))
+    info = protocol_import.import_source(source, tmp_path)
+    assert info["source"] == "zip"
+    assert info["files"]["centaur"] > 100 and info["files"]["alice-api"] > 10
+    for type_name in ("NAlice.NAliceApi.TClientMessage", "NAlice.NAliceApi.TServerMessage",
+                      "NAlice.NAliceApi.TDirective", "NAlice.NAliceApi.TPush",
+                      "NAlice.NAliceApi.TSyncPush", "NAlice.NAliceApi.TExecuteDirective",
+                      "NAlice.NAliceApi.TAliceResponseProto"):
+        assert load_type(tmp_path, "alice-api.pb", type_name)().DESCRIPTOR.name
+    assert load_type(tmp_path, station_file(tmp_path), "NAlice.TAliceRequestProto")().DESCRIPTOR.name == "TAliceRequestProto"
+    assert schemas_ready()
+    assert protocol_import.setup_status()["schemas"] is True

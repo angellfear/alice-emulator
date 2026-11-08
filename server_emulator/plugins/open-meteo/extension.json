@@ -1,0 +1,43 @@
+{
+ "id": "builtin.open-meteo",
+ "name": "Open-Meteo",
+ "version": "0.1.0",
+ "description": "Поставщик погоды (встроенный): прогноз по координатам дома с api.open-meteo.com в форме Open-Meteo (текущая погода, почасовая лента, день); недоступен — резерв api.met.no, приведённый к той же форме. Данные ставятся в датасет weather (кеш) сценарием погоды.",
+ "author": "Angell Fear",
+ "license": "MIT",
+ "requires": {
+  "emulator": ">=0.1.0",
+  "sdk": ">=2.0.0",
+  "python_packages": []
+ },
+ "permissions": {
+  "network": [
+   "api.open-meteo.com",
+   "api.met.no"
+  ],
+  "actions": [],
+  "device_push": false,
+  "install": false
+ },
+ "settings": {
+  "fields": [
+   {
+    "key": "url",
+    "label": "API погоды (Open-Meteo-совместимый)",
+    "type": "text"
+   }
+  ],
+  "defaults": {
+   "url": "https://api.open-meteo.com/v1/forecast"
+  }
+ },
+ "contributes": {
+  "providers": [
+   {
+    "kind": "weather",
+    "title": "Погода",
+    "module": "weather/open_meteo.py"
+   }
+  ]
+ }
+}

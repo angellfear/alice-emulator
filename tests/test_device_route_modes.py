@@ -132,7 +132,7 @@ async def test_hybrid_handled_stays_local_miss_goes_upstream(tmp_path):
             assert any(m.get("forwarded") == "upstream" for m in misses)
 
             # upstream недоступен — 502 колонке, промах остаётся с пометкой об ошибке
-            runtime.settings["aliases"]["quasar.yandex.net"] = "http://127.0.0.1:1"
+            runtime.settings["aliases"]["quasar.yandex.net"] = "http://0.0.0.0:1"  # отказ мгновенный
             async with client.get(url + "/no/handler", headers=headers) as response:
                 assert response.status == 502
                 assert (await response.json())["error"] == "upstream_unavailable"

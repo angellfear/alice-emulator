@@ -292,7 +292,7 @@ async def test_api_reports_missing_network_without_breaking_ui(tmp_path, monkeyp
     monkeypatch.setenv("ALICA_IMAGES_DIR", str(tmp_path / "devices"))
     monkeypatch.setenv("ALICA_SCHEMAS_DIR", str(tmp_path / "schemas"))
     runtime = Runtime(tmp_path / "state")
-    runtime.device_images = fetcher("http://127.0.0.1:9", tmp_path)
+    runtime.device_images = fetcher("http://127.0.0.1:9", tmp_path)  # адрес не существует: отказ мгновенный
     runner, url = await listen(create_app(runtime=runtime))
     try:
         async with ClientSession() as client:

@@ -155,7 +155,7 @@ textarea{resize:vertical}
 .code,pre{font-family:Consolas,'Cascadia Mono',monospace;font-size:12.5px}
 .fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}
 .check{flex-direction:row;align-items:center;gap:10px;font-size:14px;color:var(--text);cursor:pointer}
-.check input{width:18px;min-height:18px;height:18px;accent-color:var(--accent);cursor:pointer}
+.check input{width:18px;min-height:18px;height:18px;flex-shrink:0;accent-color:var(--accent);cursor:pointer}
 .actions{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 4px}
 
 /* ── Списки ─────────────────────────────────────────────────────── */
@@ -680,17 +680,12 @@ label.ui-switch{position:relative;display:inline-flex;flex-direction:row;margin:
 /* ── Расширения (extensions.js) ─────────────────────────────────── */
 #extensions .sc-toolbar h3{margin:0}
 #extensions .sc-toolbar{justify-content:space-between}
-.ext-title{margin:20px 0 0;font-size:15px}
 .ext-add{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .ext-add input{flex:1 1 220px;min-width:0;width:auto}
 .ext-source{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--border)}
 .ext-source:last-child{border-bottom:0}
 .ext-entry{padding-left:18px}
 .ext-url{flex:1 1 200px;min-width:0;overflow-wrap:anywhere;font-family:Consolas,monospace;font-size:12.5px}
-.ext-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.ext-head h3{min-width:0;overflow-wrap:anywhere}
-.ext-head .chip{padding:1px 9px;font-size:12px}
-.ext-state{margin-left:auto;font-size:12px;color:var(--faint)}
 .vs-dot.on{background:#4cc38a}
 .ext-line{margin:0;font-size:12px;color:var(--faint);line-height:1.5;overflow-wrap:anywhere}
 .ext-check{display:flex;align-items:center;gap:6px;color:var(--muted)}
@@ -701,6 +696,16 @@ label.ui-switch{position:relative;display:inline-flex;flex-direction:row;margin:
 .ext-list{margin:0;padding-left:18px;max-height:140px;overflow:auto;font-size:12.5px;font-family:Consolas,monospace;overflow-wrap:anywhere}
 .ext-dialog .error{font-size:12.5px;margin:6px 0 0;color:var(--danger)}
 .ext-settings .vs-actions{margin-top:12px}
+/* дерево «Расширений»: узлы видов и строки-листья — без рамки, с отступом уровня */
+.ext-node details{border:none;background:none;padding:0;margin:6px 0 6px 18px}
+.ext-node details summary{font-weight:500}
+.ext-node .hint{margin:2px 0 10px}
+/* строка-лист: компактная, в одну линию (название сокращается), переключатель справа */
+.ext-leaf>summary{display:flex;align-items:center;gap:8px;cursor:pointer}
+.ext-leaf-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ext-leaf .chip{flex:none;padding:1px 9px;font-size:12px}
+.ext-leaf-toggle{display:inline-flex;align-items:center;margin:0;flex:none}
+.ext-leaf-body{padding:10px 0 2px}
 
 /* ── Первый запуск: плашка «Нужна настройка» и окно настройки — картинки и протокол (setup.js) ── */
 .setup-banner{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;margin:10px 0 0;padding:10px 14px;
@@ -816,3 +821,12 @@ label.srv-check input{flex:none;width:auto;height:auto;margin:0}
 .srv-observed{display:grid;gap:4px;margin-top:6px}
 .srv-observed-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}
 .srv-observed-row button{flex:none;padding:2px 10px}
+
+/* порядок ответов («Поставщики данных»): перетаскиваемые строки */
+.order-list{list-style:none;margin:8px 0;padding:0;max-width:420px}
+.order-row{display:flex;align-items:center;gap:8px;padding:8px 10px;margin:4px 0;cursor:grab;
+  background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-s);
+  overflow-wrap:anywhere}
+.order-row:active{cursor:grabbing}
+.order-row::before{content:"⋮⋮";color:var(--faint);letter-spacing:-2px;flex-shrink:0}
+.order-row[draggable="true"]{user-select:none}

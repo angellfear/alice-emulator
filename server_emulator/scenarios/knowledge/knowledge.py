@@ -8,13 +8,12 @@
 from server_emulator.sdk import SDKError, format_duration, say
 
 MAX_AGE = {"facts": None, "translate": None, "prices": 600, "places": 1800, "route": 600,
-           "traffic": 300, "news": 900, "tv": 600, "recipes": None}
+           "traffic": 300, "tv": 600, "recipes": None}
 
 
 def _domain(text):
     """Домен по ключевым словам (порядок важен: частное раньше общего)."""
     checks = (
-        ("news", ("новост",)),
         ("traffic", ("пробк", "на дорогах")),
         ("prices", ("в рублях", "курс", "сколько стоит")),
         ("translate", ("переведи", "по-английски", "по английски", "по-французски", "на французском")),
@@ -36,7 +35,7 @@ def _query(text, domain):
                    "куда сходить ", "найди ", " поближе", "сколько идти до ",
                    "долго ли ехать до ", "как пройти в ", "как доехать в ", "какой курс ",
                    "сколько стоит ", "переведи на ", "скажи программу ", "какие рецепты есть с ",
-                   "какие есть рецепты ", "найди рецепт ", "давай приготовим ", "новости ",
+                   "какие есть рецепты ", "найди рецепт ", "давай приготовим ",
                    "расскажи ", "включи "):
         if marker in text:
             text = text.replace(marker, " ", 1)
@@ -91,10 +90,6 @@ async def handle(ctx):
         text = f"В пути около {_num(value.get('minutes'))} минут ({_num(value.get('km'))} км)."
     elif domain == "traffic":
         text = f"Пробки: {_num(value.get('score'))} баллов." + (f" {value['text']}" if value.get("text") else "")
-    elif domain == "news":
-        rows = [f"{n}) {item.get('title')} ({item.get('source')})"
-                for n, item in enumerate(value.get("items") or [], 1)][:3]
-        text = ("Главное: " + "; ".join(rows) + ".") if rows else "Свежих новостей нет."
     elif domain == "tv":
         rows = [f"{n}) {item.get('channel')} — {item.get('title')} в {item.get('start')}"
                 for n, item in enumerate(value.get("items") or [], 1)][:3]

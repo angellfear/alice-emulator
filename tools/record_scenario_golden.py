@@ -80,14 +80,29 @@ FORECAST = {
 WEATHER_KEY = f"{LAT},{LON}"
 
 
-async def weather_stub(key, args):
-    """Заглушка плагина weather: фиксированный прогноз без сети."""
+def weather_provider(forecast):
+    """Запись поставщика weather для реестра (диспетчер датасета дёргает forecast)."""
+    async def run(ctx, location):
+        return forecast()
+    return {"id": "golden-weather", "title": "Погода (заглушка)", "service": "",
+            "kind": "weather", "ext_id": "golden-weather", "origin": "builtin", "file": "",
+            "forecast": run}
+
+
+def weather_forecast_ok():
+    """Заглушка поставщика погоды: фиксированный прогноз без сети."""
     return copy.deepcopy(FORECAST)
 
 
-async def weather_offline(key, args):
-    """Заглушка «провайдер недоступен»: ветка no_data/тихий ответ."""
-    raise ConnectionError("провайдер погоды недоступен")
+def weather_forecast_offline():
+    """Заглушка «поставщик недоступен»: ветка no_data/тихий ответ."""
+    raise ConnectionError("поставщик погоды недоступен")
+
+
+def set_weather_provider(runtime, forecast):
+    """Реестр поставщиков погоды мира прогона — одна заглушка."""
+    from server_emulator import providers
+    providers.PROVIDERS["weather"] = {"golden-weather": weather_provider(forecast)}
 
 
 def service_request(purpose="", timezone=TIMEZONE, name="@@mm_typed_callback"):
@@ -140,6 +155,14 @@ def make_runtime(workdir):
     """Владелец + две колонки + гео дома (params) + заглушка погоды."""
     runtime = Runtime(Path(workdir))
     runtime.settings["intelligence"] = "scenarios"  # эталоны проверяют сценарии (090)
+    # Фиксированный мир — без встроенных плагинов-поставщиков: эталон проверяет
+    # библиотеку сценариев (в том числе пути «нет поставщика»); поведение с
+    # поставщиками — tests/test_music_*.py. Выключение — до пересборки реестров.
+    state = runtime.settings.setdefault("extensions", {})
+    for ext_id in list(state["installed"]):
+        if ext_id.startswith("builtin."):
+            state["enabled"][ext_id] = False
+    runtime.extensions.load_enabled()
     runtime.identities.mutate({"operation": "user", "id": OWNER, "name": "Alex"})
     runtime.identities.mutate({"operation": "device", "sn": SN, "user_id": OWNER, "name": "Станция"})
     runtime.identities.mutate({"operation": "state", "sn": SN,
@@ -148,7 +171,7 @@ def make_runtime(workdir):
                                "name": OTHER_NAME})
     runtime.quasar_params.set_value(f"user:{OWNER}", "user.location.latitude", LAT)
     runtime.quasar_params.set_value(f"user:{OWNER}", "user.location.longitude", LON)
-    runtime.scenario_plugins["weather"] = weather_stub
+    set_weather_provider(runtime, weather_forecast_ok)
     effects = attach_effects_recorder(runtime)
     return runtime, effects
 
@@ -194,11 +217,11 @@ def apply_setup(runtime, name):
     elif name == "station_alarm_evening":  # будильник на вечер: id фиксирован, экранов нет
         STATION.update({"timers": [], "alarms": [], "screens": {}, "clock_id": CLOCK_ID})
     elif name == "weather_stub":
-        runtime.scenario_plugins["weather"] = weather_stub
+        set_weather_provider(runtime, weather_forecast_ok)
         runtime.store.scenario_data_set("dataset:weather", "system", "", WEATHER_KEY,
                                         copy.deepcopy(FORECAST))
     elif name == "weather_absent":
-        runtime.scenario_plugins["weather"] = weather_offline
+        set_weather_provider(runtime, weather_forecast_offline)
         runtime.store.scenario_data_delete("dataset:weather", "system", "", WEATHER_KEY)
     else:
         raise ValueError(f"неизвестный setup {name!r}")
@@ -360,7 +383,7 @@ CASES = {
         {"name": "bluetooth.on-latin", "kind": "text", "phrase": "включи bluetooth"},
     ],
     "device.led.emotion": [
-        {"name": "knowledge.no-plugin", "kind": "text", "phrase": "расскажи новости"},
+        {"name": "knowledge.no-plugin", "kind": "text", "phrase": "какой курс доллара"},
         {"name": "unavailable.simple", "kind": "text", "phrase": "покажи фильм дюна"},
         {"name": "unavailable.game", "kind": "text", "phrase": "давай сыграем в города"},
         {"name": "led.emotion-joy", "kind": "text", "phrase": "покажи глазки"},

@@ -14,6 +14,7 @@ from types import SimpleNamespace
 import pytest
 
 from server_emulator.scenario_engine.executor import Executor
+from server_emulator.scripting import ScriptRunner
 from server_emulator.scenario_engine.reply_compose import compose_reply
 from server_emulator.scenario_packages.validate import validate_scenario
 from server_emulator.sdk import (SDK_VERSION, Ask, Event, SDKError, ScenarioContext,
@@ -616,6 +617,20 @@ async def test_executor_passes_assets_dir_next_to_script(tmp_path):
 
 
 # --- return [] = тихое завершение ---------------------------------------------------------
+
+
+def test_script_reread_on_same_mtime(tmp_path):
+    """Перезапись скрипта в тот же тик (mtime_ns не меняется) — модуль перечитывается:
+    ключ кеша содержимого, а не mtime (под нагрузкой тест тихого завершения падал)."""
+    runner = ScriptRunner()
+    script = tmp_path / "same.py"
+    import os
+    script.write_text("def value():" + chr(10) + "    return 1" + chr(10), encoding="utf-8")
+    stat = script.stat()
+    assert runner.function(script, "value")() == 1
+    script.write_text("def value():" + chr(10) + "    return 2" + chr(10), encoding="utf-8")  # тот же размер
+    os.utime(script, ns=(stat.st_mtime_ns, stat.st_mtime_ns))  # и тот же mtime_ns
+    assert runner.function(script, "value")() == 2
 
 
 async def test_script_returning_empty_list_finishes_silently(tmp_path):

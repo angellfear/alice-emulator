@@ -10,7 +10,11 @@ X.Y.x; условия через пробел/запятую — И.
 
 Состояние живёт в settings["extensions"] (sources/enabled/installed/settings —
 дефолт и валидация в settings_service); файлы — state/extensions/<id>/<version>/,
-активная версия — атомарный файл current. Хуки hooks.py — через
+активная версия — атомарный файл current. Встроенные плагины — папки
+server_emulator/plugins/<имя>/ (id builtin.<имя>): установлены всегда (sync при
+каждом load_enabled), версия = версия эмулятора, включение/выключение и настройки —
+как у внешних; удалить/обновить/откатить и установить чужое с id builtin.* нельзя.
+Хуки hooks.py — через
 scripting.ScriptRunner(prefix="extension_hook_<id>"), ошибка хука откатывает
 операцию. Самопроверка tests/ — dry-run механизма TASK-023; пока py-сценарии
 не подключены (TASK-019), каталоги с *.py в scenarios/ дают предупреждение.
@@ -45,7 +49,8 @@ MANIFEST = "extension.json"
 HOOK_TIMEOUT = 10.0  # таймаут хука hooks.py (ScriptRunner)
 MAX_ZIP_BYTES = 50 * 1024 * 1024  # лимит архива расширения (модели тяжелее — это класс install)
 FOLDERS = ("scenarios", "endpoints", "quasar", "voice", "lists", "modes", "mcp", "aapi", "actions",
-           "datasets", "music", "animations", "params", "replies", "catalog", "updates", "sounds", "ui")
+           "datasets", "music", "weather", "news", "animations", "params", "replies", "catalog",
+           "updates", "sounds", "ui")
 
 SEMVER_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$")
 ID_RE = re.compile(r"^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$")
@@ -54,6 +59,9 @@ FIELD_KEY_RE = re.compile(r"^[a-z0-9_]+$")
 FIELD_TYPES = ("text", "password", "number", "select", "textarea", "file")
 REQUIRED_FIELDS = ("id", "name", "version", "description", "author", "license", "requires", "permissions")
 MANIFEST_FIELDS = set(REQUIRED_FIELDS) | {"homepage", "settings", "contributes"}
+
+BUILTIN_PREFIX = "builtin."  # id встроенных плагинов: builtin.<имя папки>
+BUILTIN_DIR = Path(__file__).resolve().parent.parent / "plugins"  # server_emulator/plugins/<имя>/
 
 
 # --- версии и диапазоны совместимости -----------------------------------------
@@ -182,7 +190,8 @@ def validate_settings_schema(settings):
 
 
 def validate_contributes(contributes):
-    """contributes: имя папки → путь или список путей; actions → {prefix}."""
+    """contributes: имя папки → путь или список путей; actions → {prefix};
+    providers → список объявлений поставщиков {kind, title, module, capabilities?, phrases?}."""
     if not isinstance(contributes, dict) or not contributes:
         raise ValueError("extension.json: contributes — непустой объект")
     for key, value in contributes.items():
@@ -190,6 +199,27 @@ def validate_contributes(contributes):
             if not isinstance(value, dict) or set(value) - {"prefix"} \
                     or not isinstance(value.get("prefix", "x"), str):
                 raise ValueError("extension.json: contributes.actions — объект {prefix}")
+        elif key == "providers":
+            if not isinstance(value, list) or not value:
+                raise ValueError("extension.json: contributes.providers — непустой список объявлений")
+            for decl in value:
+                if not isinstance(decl, dict) \
+                        or set(decl) - {"kind", "title", "module", "capabilities", "phrases"}:
+                    raise ValueError("extension.json: объявление поставщика — "
+                                     "{kind, title, module, capabilities?, phrases?}")
+                if not isinstance(decl.get("kind"), str) or not decl["kind"].strip() \
+                        or not isinstance(decl.get("title"), str) or not decl["title"].strip() \
+                        or not isinstance(decl.get("module"), str) or not decl["module"].strip():
+                    raise ValueError("extension.json: объявлению поставщика нужны kind, title и module")
+                caps = decl.get("capabilities", [])
+                if not isinstance(caps, list) or not all(isinstance(c, str) and c.strip() for c in caps):
+                    raise ValueError("extension.json: capabilities — список строк")
+                phrases = decl.get("phrases", [])
+                if isinstance(phrases, str):
+                    phrases = [phrases]
+                if not isinstance(phrases, list) \
+                        or not all(isinstance(p, str) and p.strip() for p in phrases):
+                    raise ValueError("extension.json: phrases — путь или список путей")
         elif not (isinstance(value, str) and value) and not (
                 isinstance(value, list) and value and all(isinstance(v, str) and v for v in value)):
             raise ValueError(f"extension.json: contributes.{key} — путь или список путей")
@@ -228,6 +258,50 @@ class ExtensionManager:
             raise ValueError(f"Расширение {ext_id} не установлено")
         return entry
 
+    # --- встроенные плагины ---------------------------------------------------------
+    def builtin_plugins(self):
+        """Встроенные плагины поставки: [(ext_id, Path)] — папки server_emulator/plugins/
+        <имя>/ с extension.json (id builtin.<имя>). Поставляются с эмулятором: всегда
+        установлены, версия = версия эмулятора, живут рядом с внешними расширениями."""
+        result = []
+        if BUILTIN_DIR.is_dir():
+            for path in sorted(BUILTIN_DIR.iterdir()):
+                if path.is_dir() and (path / MANIFEST).is_file():
+                    result.append((BUILTIN_PREFIX + path.name, path))
+        return result
+
+    def builtin_dir(self, ext_id):
+        path = BUILTIN_DIR / str(ext_id).removeprefix(BUILTIN_PREFIX)
+        if not (path / MANIFEST).is_file():
+            raise ValueError(f"Встроенный плагин {ext_id} отсутствует в поставке")
+        return path
+
+    def _sync_builtin(self):
+        """Встроенные плагины — в состояние всегда (старт и каждое load_enabled):
+        запись installed с builtin=True (версия = версия эмулятора), включены по
+        умолчанию; выключение сохраняется (setdefault — не перезаписывает). Запись
+        встроенного, чьей папки в поставке больше нет (плагин убрали в новой версии
+        эмулятора), удаляется из installed/enabled — карточки с ошибкой не оставляет
+        (его настройки сохраняются: вернувшийся плагин снова их читает)."""
+        present = {ext_id for ext_id, _path in self.builtin_plugins()}
+        for ext_id in [e for e in self._state()["installed"] if str(e).startswith(BUILTIN_PREFIX)]:
+            if ext_id not in present:
+                state = self._state()
+                state["installed"].pop(ext_id, None)
+                state["enabled"].pop(ext_id, None)
+        for ext_id, _path in self.builtin_plugins():
+            state = self._state()
+            entry = state["installed"].setdefault(ext_id, {
+                "version": EMULATOR_VERSION, "previous": None, "source": "", "source_id": None,
+                "dev": None, "installed_ts": time.time(), "check": None, "builtin": True})
+            entry["builtin"] = True
+            if entry.get("version") != EMULATOR_VERSION:  # версия встроенного = версия эмулятора
+                entry["version"] = EMULATOR_VERSION
+            state["enabled"].setdefault(ext_id, True)
+
+    def _builtin_entry(self, ext_id):
+        return (self._state()["installed"].get(ext_id) or {}).get("builtin")
+
     # --- пути ----------------------------------------------------------------------
     def ext_root(self, ext_id):
         return self.root / ext_id
@@ -256,8 +330,11 @@ class ExtensionManager:
         os.replace(temporary, self.current_file(ext_id))
 
     def _active_dir(self, ext_id):
-        """Активный каталог: локальная папка (dev) или state/extensions/<id>/<version>."""
+        """Активный каталог: встроенный плагин (plugins/<имя>), локальная папка (dev)
+        или state/extensions/<id>/<version>."""
         entry = self._state()["installed"].get(ext_id) or {}
+        if entry.get("builtin"):
+            return self.builtin_dir(ext_id)
         if entry.get("dev"):
             path = Path(entry["dev"])
             if not path.is_dir():
@@ -283,7 +360,11 @@ class ExtensionManager:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError, UnicodeDecodeError) as exc:
             raise ValueError(f"{path}: манифест не читается ({str(exc)[:120]})") from exc
-        return validate_manifest(data)
+        data = validate_manifest(data)
+        if ext_id.startswith(BUILTIN_PREFIX) and data.get("id") != ext_id:
+            raise ValueError(f"{path}: манифест встроенного плагина обязан иметь id {ext_id} "
+                             f"(в папке — {data.get('id')!r})")
+        return data
 
     # --- содержимое -----------------------------------------------------------------
     def _content_info(self, ext_dir, manifest):
@@ -319,6 +400,32 @@ class ExtensionManager:
         defaults = (manifest.get("settings") or {}).get("defaults") or {}
         stored = self._state()["settings"].get(ext_id) or {}
         return {**defaults, **stored}
+
+    def provider_declarations(self):
+        """Объявления поставщиков включённых плагинов: [(ext_id, объявление, папка)] —
+        contributes.providers манифеста (вид, название вида, модуль, возможности,
+        файлы справочника фраз). Ядро не держит таблицы видов: вид — строка плагина,
+        новый вид появляется без правки ядра; требования к функциям объявляет
+        потребитель (проверка на сборке реестра), несовместимый поставщик в реестр
+        не попадает, причина — в карточке расширения."""
+        out = []
+        for ext_id in sorted(self.loaded):
+            for decl in (self.loaded[ext_id]["manifest"].get("contributes") or {}).get("providers") or []:
+                out.append((ext_id, dict(decl, kind=str(decl["kind"]).strip()),
+                            self._active_dir(ext_id)))
+        return out
+
+    def phrase_files(self):
+        """Файлы справочника фраз включённых плагинов: [(ext_id, путь, вид)] — phrases
+        объявлений, путь относительно папки расширения. Выключил плагин — файлов нет."""
+        out = []
+        for ext_id, decl, base in self.provider_declarations():
+            phrases = decl.get("phrases") or []
+            if isinstance(phrases, str):
+                phrases = [phrases]
+            for rel in phrases:
+                out.append((ext_id, Path(base) / rel, str(decl["kind"]).strip()))
+        return out
 
     def context(self, ext_id):
         """ExtensionContext расширения (TASK-053): значения values(ext_id), строки
@@ -427,6 +534,9 @@ class ExtensionManager:
             except (OSError, ValueError, UnicodeDecodeError) as exc:
                 raise ValueError(f"{MANIFEST} не читается или неверен: {str(exc)[:200]}") from exc
             ext_id, version = manifest["id"], manifest["version"]
+            if ext_id.startswith(BUILTIN_PREFIX):
+                raise ValueError("id с приставкой builtin. зарезервирован за встроенными "
+                                 "плагинами эмулятора — устанавливайте расширение с другим id")
             self._check_compatibility(manifest)
             if declared and str(declared) != version:
                 raise ValueError(f"Версия каталога ({declared}) не совпадает с манифестом ({version})")
@@ -496,6 +606,9 @@ class ExtensionManager:
         """Обновление из источника расширения: версия источника должна быть новее;
         предыдущая версия остаётся на диске для отката."""
         entry = self._installed(ext_id)
+        if entry.get("builtin"):
+            raise ValueError("Встроенное расширение не обновляется отдельно — "
+                             "оно обновляется вместе с эмулятором")
         if entry.get("dev"):  # локальная папка: правки подхватываются, версия перечитывается
             manifest = self._load_manifest(ext_id)
             if manifest["version"] != entry["version"]:
@@ -511,6 +624,8 @@ class ExtensionManager:
         """Откат на предыдущую версию (она хранится на диске); повторный откат
         возвращает на свежую."""
         entry = self._installed(ext_id)
+        if entry.get("builtin"):
+            raise ValueError("Встроенному расширению нечего откатывать — версии хранит эмулятор")
         if entry.get("dev"):
             raise ValueError("Локальная папка не хранит версий")
         previous = entry.get("previous")
@@ -548,6 +663,9 @@ class ExtensionManager:
     async def uninstall(self, ext_id):
         """Удаление с файлами (локальная папка не удаляется — снимается подключение)."""
         entry = self._installed(ext_id)
+        if entry.get("builtin"):
+            raise ValueError("Встроенное расширение нельзя удалить — оно поставляется "
+                             "с эмулятором (можно выключить)")
         state = self._state()
         state["installed"].pop(ext_id, None)
         state["enabled"].pop(ext_id, None)
@@ -674,6 +792,7 @@ class ExtensionManager:
         После скана — пересборка реестров действий/датасетов (TASK-033); до создания
         Executor в runtime (начало __init__) пересборка сама ничего не делает."""
         self.loaded, self.warnings = {}, []
+        self._sync_builtin()
         state = self._state()
         for ext_id in sorted(state["installed"]):
             if not state["enabled"].get(ext_id):
@@ -724,6 +843,7 @@ class ExtensionManager:
         items = []
         for ext_id, entry in sorted(state["installed"].items()):
             card = {"id": ext_id, "version": entry.get("version"), "enabled": bool(state["enabled"].get(ext_id)),
+                    "builtin": bool(entry.get("builtin")),
                     "source": entry.get("source"), "source_id": entry.get("source_id"),
                     "dev": entry.get("dev"), "previous": entry.get("previous"),
                     "installed_ts": entry.get("installed_ts"), "check": entry.get("check")}

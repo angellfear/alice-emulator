@@ -5,9 +5,12 @@
 weather.assets/tables.json. Подстановку в карточку делает compose: скрипт кладёт значения
 в ctx.slots["weather"] и ctx.state (title, animation, condition, hours), а шаблоны
 ресурса {{state.*}} / {{slots.weather.*}} раскрываются тем же движком, что у JSON-сценариев.
-Данные — датасет weather (ctx.dataset_record: свежая запись, иначе плагин с таймаутом,
-при сбое — старая запись с пометкой «Данные не актуальны»).
+Данные — у выбранного поставщика погоды (вид weather, providers.py): датасет weather —
+кеш записей, обновляет его диспетчер вызовом forecast поставщика (свежая запись — сразу,
+иначе плагин с таймаутом, при сбое — старая запись с пометкой «Данные не актуальны»).
+Поставщика нет — честный ответ «нет источника данных».
 """
+from server_emulator import providers
 from server_emulator.sdk import SDKError, format_duration
 
 
@@ -60,22 +63,21 @@ async def handle(ctx):
     location = effective.get("location") or {}
     if location.get("latitude") is None:
         return {"text": "Не знаю, где вы: задайте координаты дома в параметрах пользователя."}
+    if providers.selected("weather", ctx.settings) is None:
+        return ctx.no_data_source()  # поставщика погоды нет — честный ответ
     settings = effective.get("weather") or {}
     key = f"{location['latitude']},{location['longitude']}"
     try:
         record = await ctx.dataset_record(
             "weather", key, max_age=_max_age(settings["max_age_hours"]),
-        args={"url": settings.get("url"), "timezone": effective.get("timezone"),
-              "query": {"latitude": location["latitude"], "longitude": location["longitude"],
-                        "current": "temperature_2m,apparent_temperature,weather_code,is_day",
-                        "hourly": "temperature_2m,weather_code,is_day",
-                        "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_max",
-                        "forecast_hours": "24", "forecast_days": "1", "timezone": "auto"}},
+            args={"location": {"latitude": location["latitude"],
+                               "longitude": location["longitude"],
+                               "timezone": effective.get("timezone")}},
             timeout=settings.get("refresh_timeout"))
     except SDKError:  # ни записи, ни плагина — честный ответ вместо сбоя (090)
         return ctx.no_data_source()
     if record is None:
-        return {"text": "Нет данных о погоде: плагин погоды не ответил."}
+        return {"text": "Нет данных о погоде: поставщик погоды не ответил."}
     weather = record["value"]
     stale_note = (f" Данные не актуальны: обновлены {format_duration(record['age_s'])} назад."
                   if record["stale"] else "")

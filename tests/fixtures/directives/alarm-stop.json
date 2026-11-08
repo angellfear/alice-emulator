@@ -1,7 +1,7 @@
 {
  "format_version": 1,
  "name": "alarm-stop",
- "proves": "«хватит» при сигнале будильника: alarm_stop_directive + закрытие активного экрана; между ними сервер переставлял будильник alarm_add_directive (snooze: LocalTime +10 минут, SnoozeTime 600) — политика snooze по образцам неоднозначна (БЛОКЕР TASK-079), в ожидания эмулятора не входит (журнал 2026-10-27 19:05:13).",
+ "proves": "«хватит» при сигнале будильника: alarm_stop_directive + закрытие активного экрана; между ними сервер переставлял будильник alarm_add_directive (snooze: LocalTime +10 минут, SnoozeTime 600) — политика snooze по образцам неоднозначна (БЛОКЕР), в ожидания эмулятора не входит (журнал 2026-10-27 19:05:13).",
  "source": {
   "kind": "capture",
   "database": "data/traffic.sqlite3",

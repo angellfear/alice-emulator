@@ -892,11 +892,11 @@
    "phrases": [
     {
      "text": "расскажи новости",
-     "expect": "knowledge.knowledge"
+     "expect": "informers.news"
     },
     {
      "text": "включи новости",
-     "expect": "knowledge.knowledge"
+     "expect": "informers.news"
     }
    ]
   },
@@ -1176,7 +1176,7 @@
     },
     {
      "text": "включи песню штиль в караоке",
-     "expect": "media.music"
+     "expect": "system.unavailable"
     },
     {
      "text": "давай споем под караоке",

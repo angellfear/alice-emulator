@@ -161,7 +161,7 @@ async def test_semantic_recall_and_reindex_on_model_change(tmp_path, embeddings)
 async def test_embeddings_down_memory_still_works(tmp_path):
     runtime = home(tmp_path)
     runtime.settings['memory'] = {**runtime.settings['memory'],
-                                  'embed': {'url': 'http://127.0.0.1:9/v1/embeddings', 'model': 'x', 'api_key': ''}}
+                                  'embed': {'url': 'http://0.0.0.0:9/v1/embeddings', 'model': 'x', 'api_key': ''}}
     async with memory.open_store(runtime, runtime.agent.path) as store:
         await memory.put(store, 'u', 'facts', 'Кота зовут Барсик')
     calls = fake(runtime, [{'content': 'ok'}])

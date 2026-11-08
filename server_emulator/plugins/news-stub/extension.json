@@ -1,0 +1,28 @@
+{
+ "id": "builtin.news-stub",
+ "name": "Новости (заглушка)",
+ "version": "0.1.0",
+ "description": "Поставщик новостей (встроенный, заглушка): отдаёт 2–3 фиксированных заголовка без сети — чтобы вкладка «Новости» и сценарий «что нового» работали до подключения настоящего источника (внешнее расширение с папкой news/*.py).",
+ "author": "Angell Fear",
+ "license": "MIT",
+ "requires": {
+  "emulator": ">=0.1.0",
+  "sdk": ">=2.0.0",
+  "python_packages": []
+ },
+ "permissions": {
+  "network": [],
+  "actions": [],
+  "device_push": false,
+  "install": false
+ },
+ "contributes": {
+  "providers": [
+   {
+    "kind": "news",
+    "title": "Новости",
+    "module": "news/news_stub.py"
+   }
+  ]
+ }
+}

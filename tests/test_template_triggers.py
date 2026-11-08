@@ -33,11 +33,13 @@ POWER = {"values": [{"in": "включи", "out": "on"}, {"in": "потуши", 
 
 
 def catalog():
-    """Сценарии с template-триггерами: списки — общие lexicons.json (room, minutes,
+    """Сценарии с template-триггерами: списки — общие lexicons.json (room, number,
     hour, minute, app) + свой список power у света (перекрывает общие по имени)."""
     return [
+        # {number} (0..100), не {minutes}: перечень range-списка 0..3599 в unicode_rbnf
+        # стоит ~9 с на процесс, а проверяемый контракт тот же (range → int)
         scenario("timers.timer.set", [{"kind": "template", "sentences": [
-            "[поставь] [таймер] (на|в) {minutes} [минут]", "таймер на {minutes} минут"]}],
+            "[поставь] [таймер] (на|в) {number} [минут]", "таймер на {number} минут"]}],
                  category="timers"),
         scenario("timers.alarm.set", [{"kind": "template", "sentences": [
             "[поставь] будильник на {hour} [часов] {minute} [минут]"]}], category="timers"),
@@ -51,9 +53,9 @@ def catalog():
 
 # Таблица фраз из карточки TASK-022
 TABLE = [
-    ("поставь таймер на пять минут", "timers.timer.set", {"minutes": 5}),
-    ("поставь таймер на 5 минут", "timers.timer.set", {"minutes": 5}),
-    ("таймер на двадцать пять минут", "timers.timer.set", {"minutes": 25}),
+    ("поставь таймер на пять минут", "timers.timer.set", {"number": 5}),
+    ("поставь таймер на 5 минут", "timers.timer.set", {"number": 5}),
+    ("таймер на двадцать пять минут", "timers.timer.set", {"number": 25}),
     ("потуши свет в спальне", "smart_home.light", {"power": "off", "room": "спальня"}),
     ("поставь будильник на семь часов тридцать минут", "timers.alarm.set", {"hour": 7, "minute": 30}),
     ("открой ютуб", "device.app.open", {"app": "ютуб"}),
@@ -79,9 +81,9 @@ def test_numbers_coerced_to_int_by_list_type():
     """Цифры hassil приходят float (5.0), слова — int: range-список приводит к int."""
     index = TemplateIndex(catalog())
     found = index.match("поставь таймер на 5 минут")
-    assert isinstance(found[1]["minutes"], int) and found[1]["minutes"] == 5
+    assert isinstance(found[1]["number"], int) and found[1]["number"] == 5
     found = index.match("таймер на двадцать пять минут")
-    assert isinstance(found[1]["minutes"], int) and found[1]["minutes"] == 25
+    assert isinstance(found[1]["number"], int) and found[1]["number"] == 25
 
 
 def test_skip_words_from_builtin_asr():

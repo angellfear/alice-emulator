@@ -28,7 +28,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest>=8", "pytest-asyncio>=0.24", "cryptography>=43"]
+test = ["pytest>=8", "pytest-asyncio>=0.24", "pytest-xdist>=3.6,<4", "cryptography>=43"]
 windows = ["pystray>=0.19,<1; sys_platform == 'win32'", "Pillow>=10,<13; sys_platform == 'win32'"]
 # полная установка одной командой (TASK-039): базовые зависимости + трей Windows; состав как у windows
 emulator = ["pystray>=0.19,<1; sys_platform == 'win32'", "Pillow>=10,<13; sys_platform == 'win32'"]
@@ -41,8 +41,11 @@ build-backend = "setuptools.build_meta"
 include = ["server_emulator*"]
 
 [tool.setuptools.package-data]
-server_emulator = ["ui/*", "schemas/*.pb", "requirements.txt", "voice_stack/packages/*.json"]
+server_emulator = ["ui/*", "schemas/*.pb", "requirements.txt", "voice_stack/packages/*.json",
+                   "plugins/*/extension.json", "plugins/*/music/*.py", "plugins/*/phrases/*.json",
+  "plugins/*/weather/*.py", "plugins/*/news/*.py", "plugins/*/README.md"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+addopts = "-n 4 --dist loadgroup"

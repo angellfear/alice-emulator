@@ -34,26 +34,33 @@ const LEVEL_HINT={scenarios:'Фраза без сценария — станда
 let extModes=[];
 const levelValue=()=>settings&&typeof settings.intelligence==='string'?settings.intelligence:'agent';
 const extMode=()=>levelValue().startsWith('ext:')?extModes.find(m=>'ext:'+m.id===levelValue()):null;
+// Виды поставщиков данных (вкладки группы «Поставщики данных») — из api/providers: нет
+// видов (нет включённых плагинов с поставщиками) — группы нет (providers.js строит секции).
+let providerKinds=[];
+const providerTabs=()=>[...providerKinds.map(k=>['providers-'+k.kind,k.title||k.kind]),['providers-order','Порядок']];
 const GROUPS=[
   {title:'Устройства',tabs:[['devices','Устройства'],['accounts','Пользователи'],['updates','Обновления']]},
   {title:'Эмулятор',tabs:[['scenarios','Сценарии'],['endpoints','HTTP'],['ws','WS'],['quasar-http','Quasar'],['params','Параметры'],['app-catalog','Каталог приложений'],['traffic','Журнал']]},
+  {title:'Поставщики данных',tabs:[]},
   {title:'Голос',tabs:[['voice-stack','Голосовой стек'],['replies','Звуковой кеш'],['animations','Анимации']]},
   {title:'Интеллект',tabs:[['intelligence','Режим',null,'hidden'],['llm','Модель','model'],['agent','Агент','agent'],['mcp','MCP','agent'],['memory','Память','agent'],['routines','Задания','agent']]},
   {title:'Дополнительно',tabs:[['extensions','Расширения'],['server','Сервер'],['server-log','Лог'],['setup','Настройка'],['studio','Проверка']]}];
 const level=()=>LEVELS.includes(settings?.intelligence)?settings.intelligence:'agent';
 const allowed=([,,min])=>!min||LEVELS.indexOf(level())>=LEVELS.indexOf(min);
 const listed=t=>allowed(t)&&t[3]!=='hidden';  // в подвкладках; скрытая — запасная страница группы
-// Подвкладки группы с учётом режима расширения: его tabs — кнопками в конец «Интеллекта».
-const groupTabs=g=>g.title==='Интеллект'&&extMode()?g.tabs.concat(extMode().tabs.map(t=>['ext-mode',t.title])):g.tabs;
+// Подвкладки группы: у «Интеллекта» — вкладки активного режима расширения, у
+// «Поставщиков данных» — виды поставщиков из api/providers.
+const groupTabs=g=>g.title==='Интеллект'&&extMode()?g.tabs.concat(extMode().tabs.map(t=>['ext-mode',t.title])):g.title==='Поставщики данных'?providerTabs():g.tabs;
+const groups=()=>GROUPS.filter(g=>g.title!=='Поставщики данных'||providerTabs().length);
 window.goTab=id=>{if(location.hash==='#'+id)return showTab();history.pushState(null,'','#'+id);window.dispatchEvent(new HashChangeEvent('hashchange'))};
 const tabButton=(id,title,active)=>{const b=document.createElement('button');b.type='button';b.textContent=title;b.classList.toggle('active',active);b.onclick=()=>goTab(id);return b};
 function showTab(){let tab=location.hash.slice(1)||'devices';if(tab==='users')tab='devices';if(tab==='misses')tab='endpoints';  // старый хеш «Без ответа» — в HTTP (TASK-061)
-  let group=GROUPS.find(g=>groupTabs(g).some(t=>t[0]===tab));
-  if(group&&!allowed(groupTabs(group).find(t=>t[0]===tab)))tab=(groupTabs(group).find(allowed)||['devices'])[0],group=GROUPS.find(g=>groupTabs(g).some(t=>t[0]===tab));
+  let group=groups().find(g=>groupTabs(g).some(t=>t[0]===tab));
+  if(group&&!allowed(groupTabs(group).find(t=>t[0]===tab)))tab=(groupTabs(group).find(allowed)||['devices'])[0],group=groups().find(g=>groupTabs(g).some(t=>t[0]===tab));
   if(group&&!listed(groupTabs(group).find(t=>t[0]===tab))&&groupTabs(group).some(listed))tab=groupTabs(group).find(listed)[0];
-  if(!group&&!['tools','providers'].includes(tab))tab='devices',group=GROUPS[0];
+  if(!group&&!['tools','providers'].includes(tab))tab='devices',group=groups()[0];
   document.querySelectorAll('main>.tab').forEach(s=>s.hidden=s.id!==tab);
-  $('groups').replaceChildren(...GROUPS.map(g=>tabButton(g===group?tab:(groupTabs(g).find(listed)||g.tabs[0])[0],g.title,g===group)));
+  $('groups').replaceChildren(...groups().map(g=>tabButton(g===group?tab:(groupTabs(g).find(listed)||g.tabs[0])[0],g.title,g===group)));
   const subtabs=group?groupTabs(group).filter(listed):[];
   $('subnav').replaceChildren(...subtabs.map(([id,title])=>tabButton(id,title,id===tab)));
   $('subnav').hidden=!subtabs.length||(subtabs.length<2&&group.title!=='Интеллект');
@@ -72,7 +79,10 @@ document.querySelectorAll('.segmented [data-level]').forEach(b=>b.onclick=()=>se
 if($('ext-mode-open'))$('ext-mode-open').onclick=()=>goTab('extensions');
 // Вкладка «Расширения» (extensions.js): после установки/включения/набора перечитать настройки и режимы, иначе сохранение из этой страницы затрёт серверное состояние
 window.setLevel=setLevel;
-window.refreshSettings=async()=>{settings=await api('settings');try{extModes=(await api('intelligence')).modes||[]}catch(e){extModes=[]}renderExtSegments();renderSettings();showTab()};
+window.refreshSettings=async()=>{settings=await api('settings');try{extModes=(await api('intelligence')).modes||[]}catch(e){extModes=[]}await loadProviderKinds();renderExtSegments();renderSettings();showTab()};
+// Виды поставщиков — из api/providers (только виды с поставщиками включённых плагинов);
+// секции вкладок строит providers.js. Сбой загрузки — без группы, не критичен.
+const loadProviderKinds=async()=>{try{const kinds=(await api('providers')).kinds||{};providerKinds=Object.entries(kinds).map(([kind,v])=>({kind,title:v.title}))}catch(e){providerKinds=[]}};
 window.addEventListener('hashchange',showTab);showTab();
 if(location.hash)requestAnimationFrame(()=>scrollTo(0,0));  // загрузка по ссылке #tab — без прыжка к секции
 document.querySelectorAll('.save-settings').forEach(b=>b.onclick=()=>work(saveSettings));
@@ -81,7 +91,7 @@ async function chat(){const result=await api('chat','POST',{text:$('chat-input')
 async function transcribe(){const file=$('audio-file').files[0];if(!file)throw Error('Выберите аудиофайл');const r=await fetch('api/stt',{method:'POST',headers:{'X-Emulator':'1','X-Filename':encodeURIComponent(file.name)},body:file});const result=await r.json();if(!r.ok)throw Error(result.error);$('chat-input').value=result.text||'';message('Распознавание завершено');return result}
 async function speak(){const r=await fetch('api/tts',{method:'POST',headers:{'X-Emulator':'1','Content-Type':'application/json'},body:JSON.stringify({text:$('answer').value||$('chat-input').value})});if(!r.ok){const e=await r.json();throw Error(e.error)}if(objectUrl)URL.revokeObjectURL(objectUrl);objectUrl=URL.createObjectURL(await r.blob());$('audio-output').src=objectUrl;$('audio-output').hidden=false;message('Аудио готово к прослушиванию')}
 $('chat').onclick=()=>work(chat);$('transcribe').onclick=()=>work(transcribe);$('speak').onclick=()=>work(speak);$('pipeline').onclick=()=>work(async()=>{await transcribe();await chat();await speak()});
-work(async()=>{settings=await api('settings');renderSettings();try{extModes=(await api('intelligence')).modes||[]}catch(e){extModes=[]}renderExtSegments();showTab();const status=await api('status');standalone=status.standalone;for(const src of status.ui_extensions||[]){const s=document.createElement('script');s.src=src;document.body.append(s)}refreshUpdate()});
+work(async()=>{settings=await api('settings');renderSettings();try{extModes=(await api('intelligence')).modes||[]}catch(e){extModes=[]}renderExtSegments();await loadProviderKinds();showTab();const status=await api('status');standalone=status.standalone;for(const src of status.ui_extensions||[]){const s=document.createElement('script');s.src=src;document.body.append(s)}refreshUpdate()});
 
 $('device-status').onclick=()=>work(async()=>{const status=await api('status');$('pipeline-errors').textContent=JSON.stringify(status.errors,null,2);const root=$('device-calls');root.replaceChildren();for(const call of status.pending_calls||[]){const card=document.createElement('div');card.className='tool-call';const pre=document.createElement('pre');pre.textContent=call.function.name+'\n'+call.function.arguments;const button=document.createElement('button');button.textContent=(call.thread_id?'Подтвердить ':'Выполнить ')+call.function.name;button.onclick=()=>work(async()=>{const result=await api('tool-call','POST',{name:call.function.name,arguments:JSON.parse(call.function.arguments),call_id:call.id});$('studio-result').textContent=JSON.stringify(result,null,2);card.remove()});card.append(pre,button);if(call.thread_id){const reject=document.createElement('button');reject.className='secondary';reject.textContent='Отклонить';reject.onclick=()=>work(async()=>{const result=await api('tool-call','POST',{name:call.function.name,arguments:{},call_id:call.id,reject:true});$('studio-result').textContent=JSON.stringify(result,null,2);card.remove()});card.append(reject)}root.append(card)}});
 

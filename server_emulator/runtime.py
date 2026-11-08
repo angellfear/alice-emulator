@@ -23,7 +23,7 @@ from .endpoints import EndpointCatalog
 from .params import ParamStore
 from .quasar_config import PlatformStore
 from . import aapi_handlers
-from . import music as music_providers
+from . import providers as providers_registry
 from .aapi_handlers import has_handler as aapi_has_handler
 from .voice import Conversation
 from .identity import IdentityRegistry, collect_device_id
@@ -58,6 +58,9 @@ ACTIVITY_STATES = {
 }
 # этап сбоя конвейера (stage в pipeline_error) → речевой сервис красной строки шапки
 SERVICE_BY_STAGE = {"asr": "asr", "model": "llm", "tts": "tts"}
+# Прежний дефолт удалённого параметра server.weather.url — значения с ним переносить
+# не нужно (настройка плагина пуста = тот же URL).
+WEATHER_URL_LEGACY_DEFAULT = "https://api.open-meteo.com/v1/forecast"
 
 
 class Runtime:
@@ -68,6 +71,8 @@ class Runtime:
         proto_schemas.DIRECTORY = self.directory / "proto"  # схемы, импортированные из libquasar_daemons.so
         # B02: единое SQLite-хранилище; legacy JSON мигрируется один раз с backup.
         self.store = StateStore(self.directory / "emulator.sqlite3")
+        from . import music
+        music.load_token(self.store)  # захваченный OAuth аккаунта — из БД в кеш поставщика
         self.migration_report = migrate_legacy(self.directory, self.store)
         # TASK-003 (DEBT-01): дефолты, миграции, валидация и сохранение настроек —
         # в settings_service.SettingsService; runtime держит текущий dict и оркестрацию.
@@ -137,6 +142,7 @@ class Runtime:
         from .extensions.legacy_registry import migrate_registry
         migrate_registry(self)  # TASK-036: прежний реестр сценариев → источник и расширения (единожды)
         self.extensions.load_enabled()
+        self._migrate_weather_url()  # параметр server.weather.url → настройка плагина погоды
         from .sdk import bind_runtime  # TASK-059: sdk.send_push/send_directive без ctx
         bind_runtime(self)
         # TASK-030: check_template (validate.py про runtime не знает) разрешает {ссылки}
@@ -261,14 +267,14 @@ class Runtime:
                 self.fetch_cache[key] = (_time.time(), data)
             return copy.deepcopy(data)
 
-        from .scenario_plugins import weather_plugin  # плагины датасетов (weather — заглушка)
+        from .scenario_plugins import weather_plugin  # плагины датасетов (weather — диспетчер поставщика)
         # TASK-033: встроенные реестры — база пересборки (включённые расширения добавляются
         # поверх при каждом load_enabled); executor.plugins — тот же объект, что scenario_plugins
         # (заглушки тестов и tools подменяют weather на месте).
         self._builtin_actions = {"timer.start": timer_start, "alarm.start": alarm_start,
                                  "timer.cancel": timer_cancel, "device.push": device_push,
                                  "light.set": light_set}
-        self._builtin_plugins = {"weather": weather_plugin(fetch_json, self.lifecycle.client_session)}
+        self._builtin_plugins = {"weather": weather_plugin(self)}
         self.scenario_plugins = dict(self._builtin_plugins)
         from .tts_cache import TtsCache
         self.tts_cache = TtsCache(self.directory / "tts_cache")
@@ -363,6 +369,23 @@ class Runtime:
         # устройств (TASK-044): dispatcher.route_mode_for + upstream.target_for.
         from .upstream import Upstream
         self.upstream = Upstream(self)
+
+    def _migrate_weather_url(self):
+        """Параметр server.weather.url переехал в настройку плагина погоды: непустое
+        значение сервера, отличное от умолчания, становится url плагина
+        builtin.open-meteo (если у плагина ещё пусто — пустая настройка значит дефолт);
+        после чего параметр удаляется из каталога вместе со значениями — миграция
+        однократна, ключа больше нет, без переноса погода молча вернулась бы на дефолт."""
+        old = self.quasar_params.raw_value("server", "server.weather.url")
+        self.quasar_params.def_remove("server.weather.url")
+        if not isinstance(old, str) or not old.strip() or old == WEATHER_URL_LEGACY_DEFAULT:
+            return
+        plugins = self.settings.get("extensions", {}).get("settings", {})
+        if (plugins.get("builtin.open-meteo") or {}).get("url"):
+            return  # у плагина уже своя настройка — старое значение не нужно
+        self.settings.setdefault("extensions", {}).setdefault("settings", {})[
+            "builtin.open-meteo"] = {"url": old}
+        self.store.save_settings(self.settings)
 
     async def close(self):
         """B01: идемпотентная остановка общих ресурсов (клиент, фоновые задачи)."""
@@ -493,7 +516,7 @@ class Runtime:
             runners = self._extension_runners = (ScriptRunner(prefix="ext_actions"),
                                                  ScriptRunner(prefix="ext_datasets"),
                                                  ScriptRunner(prefix="ext_aapi"),
-                                                 ScriptRunner(prefix="ext_music"))
+                                                 ScriptRunner(prefix="ext_providers"))
 
         def folders(kind):
             found = {}
@@ -519,13 +542,19 @@ class Runtime:
 
         action_dirs, dataset_dirs = folders("actions"), folders("datasets")
         aapi_dirs = folders("aapi")  # TASK-059: обработчики событий колонки из расширений
-        music_dirs = folders("music")  # TASK-099: поставщики музыки (music/*.py)
+        # поставщики данных: объявления contributes.providers (модуль называет точку
+        # подключения сам) + папки вида providers.KINDS для расширений без объявления
+        provider_dirs = {kind: folders(spec["folder"])
+                         for kind, spec in providers_registry.KINDS.items()}
+        declarations = {}
+        for ext_id_d, decl, base in extensions.provider_declarations():
+            declarations.setdefault(ext_id_d, []).append((decl, base))
         actions, plugins = dict(self._builtin_actions), dict(self._builtin_plugins)
         action_owner = {name: "" for name in self._builtin_actions}  # "" — встроенное
         dataset_owner = {name: "" for name in self._builtin_plugins}
         bad = {}
         aapi_handlers.drop_extensions()  # TASK-059: пересборка — расширения регистрируются заново
-        music_providers.reset()  # TASK-099: реестр поставщиков собирается заново
+        providers_registry.reset()  # реестр поставщиков данных собирается заново
         for ext_id in sorted(extensions.loaded):
             manifest = extensions.loaded[ext_id]["manifest"]
             prefix = str(extensions.action_prefix(ext_id)).rstrip(".")
@@ -603,10 +632,20 @@ class Runtime:
                                                          registration["enabled"], ext_id,
                                                          observer=registration["observer"])
             if error is None:
-                # TASK-099: music/*.py — поставщики музыки (PROVIDER + search/neighbor/rate);
-                # ошибка модуля или конфликт имени — расширение не включается, как у actions
+                # поставщики данных: сначала объявления contributes.providers (модуль
+                # называет точку подключения сам), затем папки вида providers.KINDS —
+                # для расширений без объявления (совместимость до переноса); ошибка
+                # модуля или конфликт id в пределах вида — расширение не включается,
+                # как у actions
                 try:
-                    music_providers.collect(ext_id, music_dirs.get(ext_id, []), runners[3])
+                    declared = set()
+                    for decl, base in declarations.get(ext_id, []):
+                        providers_registry.collect_declaration(ext_id, decl, base, runners[3])
+                        declared.add(str(decl["kind"]).strip())
+                    for kind in providers_registry.KINDS:
+                        if kind not in declared:
+                            providers_registry.collect(kind, ext_id,
+                                                       provider_dirs[kind].get(ext_id, []), runners[3])
                 except ValueError as exc:
                     error = str(exc)
             if error:
@@ -622,7 +661,7 @@ class Runtime:
             extensions.loaded.pop(ext_id, None)  # «не включается»: без сценариев, режимов и т.д.
             extensions.warnings.append({"id": ext_id, "error": error[:200]})
             log.warning("Расширение %s не подключено к реестрам: %s", ext_id, error)
-        music_providers.apply()  # TASK-099: реестр поставщиков = успешный проход
+        providers_registry.apply()  # реестр поставщиков = успешный проход
         executor.actions.clear()
         executor.actions.update(actions)
         executor.plugins.clear()
@@ -636,6 +675,27 @@ class Runtime:
         dialog = getattr(self, "dialog", None)
         if dialog is not None and hasattr(dialog, "lexicon_sources"):
             dialog.lexicon_sources = self._lexicon_sources()  # новый список — кеш шаблонов пересоберётся
+            # справочник фраз плагинов (каркас «от плагинов»): файлы из объявлений;
+            # битый файл — warning, остальные работают
+            from .scenario_engine.phrases import PhraseDirectory
+            directory = PhraseDirectory(extensions.phrase_files(), dialog.lexicon_sources)
+            for message in directory.warnings:
+                log.warning("Справочник фраз: %s", message)
+            dialog.phrase_directory = lambda: directory
+            dialog.phrase_order = lambda: {**(self.settings.get("phrase_order")
+                                            if isinstance(self.settings.get("phrase_order"), dict)
+                                            else {}),
+                                           "selected": {kind: (providers_registry.selected(kind, self.settings) or {}).get("ext_id", "")
+                                                        for kind in providers_registry.PROVIDERS}}
+            dialog.extension_context = lambda ext_id: (
+                self.extensions.context(ext_id) if ext_id in self.extensions.loaded else None)
+            dialog.search_timeout = lambda: _search_timeout()
+
+            def _search_timeout():
+                try:
+                    return float(self.quasar_params.resolve("server.providers.search_timeout") or 3)
+                except Exception:  # noqa: BLE001 — параметра нет/битый: умолчание
+                    return 3.0
 
     def warm_sound_cache(self, delay=0):
         """Фразы раздела «AI агент» звукового кеша — синтез заранее, в фоне (PCM-движок)."""
@@ -908,6 +968,13 @@ class Runtime:
                 self.identities.text(header_device_id,'DeviceId')
             except ValueError:
                 raise web.HTTPBadRequest(text='Invalid device identifier')
+        oauth_header = request.headers.get('x-uprx-oauth-token')
+        if oauth_header and header_device_id:
+            device = self.identities.resolve(header_device_id)
+            if device and device.get('sn'):
+                # OAuth аккаунта из WS-handshake: только от опознанной колонки — в БД для поставщика
+                from . import music
+                music.note_token(self, oauth_header)
         ws = web.WebSocketResponse(max_msg_size=16 * 1024**2, heartbeat=30)
         await ws.prepare(request)
         if not schemas_ready():  # протокол ещё не извлечён из APK станции
@@ -1046,7 +1113,7 @@ def mount_ui(app, runtime, prefix="/emulator"):
 
     # Каталог картинок устройств (модель по SN): только существующие
     # PNG/WebP из каталога картинок (device_images.images_dir) — путь проверяется на выход за пределы папки.
-    ASSETS = ("index.html", "toast.js", "ws.js", "app.js", "style.css", "users.js", "backend.js", "updates.js", "catalog.js", "replies.js", "animations.js", "endpoints.js", "misses.js", "endpoints.css", "devices_common.js", "device_cards.js", "mcp.js", "agent.js", "memory.js", "routines.js", "scenario_drafts.js", "params.js", "voice_stack.js", "live_status.js", "sound_cache.js", "extensions.js", "setup.js", "server_config.js", "server_log.js", "traffic.js")
+    ASSETS = ("index.html", "toast.js", "ws.js", "app.js", "style.css", "users.js", "backend.js", "updates.js", "catalog.js", "replies.js", "animations.js", "endpoints.js", "misses.js", "endpoints.css", "devices_common.js", "device_cards.js", "mcp.js", "agent.js", "memory.js", "routines.js", "scenario_drafts.js", "params.js", "voice_stack.js", "live_status.js", "sound_cache.js", "extensions.js", "setup.js", "server_config.js", "server_log.js", "traffic.js", "providers.js")
     GENERIC_IMAGES = ROOT / "ui" / "img" / "generic"
     VENDOR = ROOT / "ui" / "vendor"
 

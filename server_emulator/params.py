@@ -380,15 +380,16 @@ class ParamStore:
         # сервер: общее
         {"key": "server.timezone", "scope": "server", "category": "common", "user_editable": False,
          "type": "string", "title": "Часовой пояс по умолчанию", "hint": "IANA", "default_value": "Europe/Moscow"},
-        {"key": "server.weather.url", "scope": "server", "category": "common", "user_editable": False,
-         "type": "string", "title": "Провайдер погоды (URL)", "hint": "Open-Meteo-совместимый",
-         "default_value": "https://api.open-meteo.com/v1/forecast"},
         {"key": "server.weather.max_age_hours", "scope": "server", "category": "common", "user_editable": False,
          "type": "select", "options": ["1", "2", "3", "6"], "title": "Погода: свежесть данных, ч",
-         "hint": "Запись погоды в БД младше — озвучивается сразу; старше — пинок плагина", "default_value": "2"},
+         "hint": "Запись погоды в БД младше — озвучивается сразу; старше — дёргается поставщик", "default_value": "2"},
         {"key": "server.weather.refresh_timeout", "scope": "server", "category": "common", "user_editable": False,
-         "type": "number", "title": "Погода: ожидание плагина, с",
+         "type": "number", "title": "Погода: ожидание поставщика, с",
          "hint": "Не дождались — озвучиваем старые данные с пометкой, сколько им времени", "default_value": 8},
+        {"key": "server.providers.search_timeout", "scope": "server", "category": "common", "user_editable": False,
+         "type": "number", "options": {"min": 1, "max": 30},
+         "title": "Поставщики: ожидание поиска, с",
+         "hint": "Голая фраза «включи X»: параллельный опрос каталогов плагинов, ответ — нашедший", "default_value": 3},
     )
 
     def seed(self, identities_data):

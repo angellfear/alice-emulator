@@ -1,5 +1,6 @@
-"""Погода (scenarios/informers/weather.json): данные из БД (датасет weather),
-свежесть из параметров, пинок плагина с таймаутом, честные ответы без фиктивных данных."""
+"""Погода (scenarios/informers/weather.json): данные у выбранного поставщика
+(builtin.open-meteo на подменном HTTP), датасет weather — кеш записей, свежесть из
+параметров, ожидание с таймаутом, честные ответы без фиктивных данных."""
 import datetime
 
 from aiohttp import web
@@ -23,15 +24,16 @@ def _runtime(tmp_path, url=None):
     runtime.identities.mutate({'operation': 'device', 'sn': 'SN-W', 'user_id': 'owner', 'device_ids': []})
     runtime.quasar_params.set_value("user:owner", "user.location.latitude", LAT)
     runtime.quasar_params.set_value("user:owner", "user.location.longitude", LON)
-    if url:
-        runtime.quasar_params.set_value("server", "server.weather.url", url)
+    if url:  # API поставщика — настройка плагина builtin.open-meteo (не параметр сервера)
+        runtime.settings.setdefault("extensions", {}).setdefault("settings", {})[
+            "builtin.open-meteo"] = {"url": url}
     return runtime
 
 
 def _down(runtime):
     async def plugin(key, args):
-        raise ConnectionError("провайдер недоступен")
-    runtime.scenario_plugins["weather"] = plugin
+        raise ConnectionError("поставщик погоды недоступен")
+    runtime.scenario_plugins["weather"] = plugin  # подмена диспетчера датасета
 
 
 def _age(runtime, seconds):
@@ -91,7 +93,7 @@ async def test_weather_from_plugin_then_from_db(tmp_path):
         assert report["speech_parts"][:4] == ["Сейчас", "+12.", "Сегодня от", "+8"]  # части для кеша озвучки
         record = runtime.store.scenario_data_record("dataset:weather", "system", "", KEY)
         assert record[0]["current"]["temperature_2m"] == 12.4
-        await _say(runtime, "погода на улице")  # свежая запись в БД: плагин не пинается
+        await _say(runtime, "погода на улице")  # свежая запись в БД: поставщик не дёргается
         assert hits["n"] == 1
     finally:
         await runtime.close()
@@ -145,7 +147,7 @@ async def test_no_data_honest(tmp_path):
     try:
         report, sent = await _say(runtime, "погода")
         assert report["status"] == "finished"
-        assert _response(sent).Response.Cards[0].Text == "Нет данных о погоде: плагин погоды не ответил."
+        assert _response(sent).Response.Cards[0].Text == "Нет данных о погоде: поставщик погоды не ответил."
     finally:
         await runtime.close()
 

@@ -1,14 +1,14 @@
 ---
 title: "Параметры: БД, разделы UI, роли"
-status: draft
+status: stable
 date: "2026-10-25"
 module: "server_emulator/state_store.py"
 ---
 
-# Параметры: БД, разделы UI, роли (план)
+# Параметры: БД, разделы UI, роли
 
-Задача (2026-10-25): параметры (wifi_hash, гео, будущие серверные/девайсные) —
-данные в БД с каталогом, а не ad-hoc поля (сейчас users.fields×2 + location).
+Параметры (wifi_hash, гео, серверные/девайсные) — данные в БД с каталогом,
+а не ad-hoc поля.
 Разделы UI: пользовательский (ручной ввод своих) и продвинутый (серверные и
 девайсные). Роли: админ правит всё у всех; пользователь в своей веб-морде —
 только разрешённое (не все серверные/девайсные параметры доступны пользователю).
@@ -22,7 +22,7 @@ module: "server_emulator/state_store.py"
 | device | info | о колонке: name, aliases (имена для команд между колонками), room, location.*, timezone | `device:<sn>` |
 | device | service | служебное колонки (glagol и пр.) | `device:<sn>` |
 | platform | info / service | по платформе (`platform.title`, `platform.display`) | `platform:<name>` |
-| server | common / service | общее: timezone, weather.url, weather.max_age_hours, weather.refresh_timeout | `server` |
+| server | common / service | общее: timezone, weather.max_age_hours (свежесть записи), weather.refresh_timeout (ожидание поставщика) | `server` |
 
 Цепочка разрешения: **device → user → platform → server → default_value** по
 ключу без префикса области. Сценариям — `params.<scope>.*` и `params.effective.*`
@@ -107,23 +107,9 @@ device.name/room (editable); server.* — стартовые серверные 
 | admin | CRUD | да | да | да |
 | user | нет | да (только свои owner) | нет | не виден |
 
-## Этапы
+## Реализация
 
-1. Таблицы + ParamStore (CRUD/валидация) + resolve_param через стор (цепочка
-   device→user→server→default) + сид-миграция + тесты.
-2. Админ-API (params/param_values) + тесты ролей (admin ok, user 403, публичный).
-3. UI админа: параметры в карточке пользователя + раздел «Параметры».
-4. /api/me/* + страница кабинета (/me) + интеграция ролей AuthStore + тесты.
-
-## Вопросы (см. чат)
-
-1. Каталог defs пополняет только код — или админ заводит параметры через UI?
-2. Пользовательская морда — страница этого же сервера (/me)?
-3. Секретные параметры (токены): маскирование `__KEEP__` как у api_key?
-
-## Статус реализации (2026-10-25 18:15)
-
-Готово, 429 тестов зелёные, живая цепочка параметр→шаблон→колонка подтверждена
+Живая цепочка параметр→шаблон→колонка подтверждена
 (X00REC sync 200; wifi_hash/гео собираются из param_values):
 - server_emulator/params.py: ParamStore — каталог param_defs (валидация ключей/
   типов/select-вариантов/числовых пределов), значения param_values, секреты
@@ -143,10 +129,10 @@ device.name/room (editable); server.* — стартовые серверные 
   мидлварь пускает /api/me/* под любой ролью со сессией, админ-API для user
   по-прежнему 403.
 
-## Дополнение (2026-10-26): сертификаты Glagol
+## Сертификаты Glagol
 
 - device.glagol_cert / device.glagol_key — scope=device, type=secret,
   category=glagol; значения всех известных станций перенесены из реальных
   ответов облака (get_sync_info → glagol.security). Ссылки в common.json —
-  `$param`. Алгоритм генерации новых сертификатов — будущая работа
+  `$param`. Алгоритм генерации новых сертификатов облаком не восстановлен
   (см. docs/contracts/quasar-config.md).

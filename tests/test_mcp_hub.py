@@ -199,7 +199,7 @@ async def test_web_tools_builtin_and_local_addresses_denied(tmp_path):
     runtime = home(tmp_path)
     names = {t['name'] for t in mcp_hub.builtin_tools()}
     assert {'web_search', 'web_fetch'} <= names
-    result = await mcp_hub.call(runtime, 'web_fetch', {'url': 'http://127.0.0.1:8090/'})
+    result = await mcp_hub.call(runtime, 'web_fetch', {'url': 'http://0.0.0.0:8090/'})  # отказ мгновенный
     assert result['isError'] and 'локальные' in result['content'][0]['text']
     result = await mcp_hub.call(runtime, 'web_fetch', {'url': 'file:///etc/passwd'})
     assert result['isError']

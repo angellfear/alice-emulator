@@ -1,6 +1,7 @@
 """Музыка: поставщик контента и сборка стека директорий виджета плеера (TASK-099).
 
-Точка подключения расширений music/*.py — по образцу datasets/*.py (реестр собирает
+Точка подключения расширений music/*.py — вид music общего реестра поставщиков
+(server_emulator/providers.py: папка вида + обязательные функции; реестр собирает
 runtime.rebuild_extension_registries; конфликт имён или битый модуль отключает
 расширение целиком, как у actions/datasets):
 
@@ -8,6 +9,8 @@ runtime.rebuild_extension_registries; конфликт имён или биты�
 
     async def search(ctx, query, kind):     # kind: music|tales|podcast|audiobook; "" — «что-нибудь»
         return {"tracks": [Track, ...], "start": 0, "context": {...}}
+        # пустой результат с {"note": текст} — честный отказ: ядро передаёт note сценарию,
+        # сценарий произносит текст пользователю
 
     async def neighbor(ctx, track_id, context, step):   # step +1/-1; None — дальше нечего
         return Track | None
@@ -17,8 +20,9 @@ runtime.rebuild_extension_registries; конфликт имён или биты�
     Track = {"id", "title", "artist", "album"?, "duration_ms", "cover_url"?,
              "stream": {"url", "format": "mp3|aac|flac", "decode_key"?}}
 
-Выбранный поставщик — настройка settings["music"]["provider"] (id; пусто — первый
-включённый по алфавиту). ctx.music (SDK) — запись выбранного поставщика или None.
+Выбранный поставщик — настройка settings["providers"]["music"] (id; пусто — первый
+включённый по алфавиту; прежний settings["music"]["provider"] переносится при
+загрузке настроек). ctx.music (SDK) — запись выбранного поставщика или None.
 Вызов функций поставщика — только через search()/neighbor()/rate() этого модуля:
 они ставят коду поставщика его настройки ctx.extension (как у режимов «Интеллекта»,
 TASK-053) и приводят Track/результат к контракту.
@@ -46,7 +50,12 @@ yandex-music — MUSIC_PROVIDER_YANDEX_MUSIC, у остальных постав
 from __future__ import annotations
 
 import inspect
+import json
+import re
+import time
 from pathlib import Path
+
+from . import providers as _providers
 
 MAX_QUEUE = 5  # очередь поиска: топ-5 результатов (решение владельца, PLAN-spotify-music)
 
@@ -60,64 +69,105 @@ PLAYER_PLAY_ANIMATION = "animations/player_play"  # образец «включ�
 YANDEX_PROVIDER_ID = "yandex-music"
 # имена из enum Alice.Music.MusicProvider для карт меты и поля Entities.MusicProvider:
 PROVIDER_KEYS = {YANDEX_PROVIDER_ID: "MUSIC_PROVIDER_YANDEX_MUSIC"}
+
+# OAuth-токен аккаунта, захваченный из реальных обращений колонки к Яндексу:
+# заголовок Authorization: OAuth … (HTTP к quasar и др.) или X-UPRX-OAUTH-TOKEN (WS-handshake).
+# Кеш модуля для поставщика Яндекс.Музыки (captured_oauth), персистентность — StateStore meta.
+_CAPTURED = {}
+
+
+def note_token(runtime, token):
+    """Захват OAuth-токена аккаунта из реального запроса колонки к Яндексу: кеш для
+    поставщиков музыки + персистентность в БД состояния (meta yandex_oauth). Токен
+    в журнал/лог не пишется; вызывается до маскирования журналом."""
+    token = str(token or "").strip()
+    if not _is_oauth(token):
+        return False
+    known = _CAPTURED.get("oauth")
+    if known == token:
+        return True
+    _CAPTURED["oauth"] = token
+    try:
+        store = getattr(runtime, "store", None)
+        if store is not None:
+            store.set_meta("yandex_oauth", json.dumps(
+                {"token": token, "ts": time.time()}, ensure_ascii=False))
+    except Exception:
+        pass  # сбой хранения не влияет на запрос колонки
+    return True
+
+
+def _is_oauth(token):
+    return bool(re.fullmatch(r"[A-Za-z0-9_-]{20,}", token))
+
+
+def captured_oauth():
+    """Захваченный OAuth-токен аккаунта (кеш) или пусто — поставщик Яндекс.Музыки."""
+    return str(_CAPTURED.get("oauth") or "")
+
+
+def load_token(store):
+    """Гидратация кеша из БД состояния (meta yandex_oauth) — старт сервера: захваченный
+    раньше токен доступен поставщику до первого нового обращения колонки."""
+    if store is None:
+        return
+    raw = store.meta("yandex_oauth")
+    if not raw:
+        _CAPTURED.pop("oauth", None)  # пустая БД (другой Runtime) — чужой токен из кеша убрать
+        return
+    try:
+        token = json.loads(raw).get("token")
+        if _is_oauth(str(token or "")):
+            _CAPTURED["oauth"] = str(token)
+    except (ValueError, AttributeError):
+        pass
+
 UNSPECIFIED_KEY = "MUSIC_PROVIDER_UNSPECIFIED"
 
-PROVIDERS: dict[str, dict] = {}  # id → запись поставщика (реестр пересобирает Runtime)
-_COLLECTED: list = []  # накопитель за пересборку реестра (как drop_extensions у aapi_handlers)
 
-
-# --- реестр поставщиков (пересборка из music/*.py включённых расширений) -------------
-
-def reset():
-    """Начать пересборку реестра (runtime.rebuild_extension_registries)."""
-    _COLLECTED.clear()
-
-
-def collect(ext_id, paths, runner):
-    """Модули music/*.py одного расширения → накопитель. Битый модуль, PROVIDER без id
-    или без search/neighbor — ValueError: расширение не включается (как у actions)."""
-    for path in paths:
-        for file in sorted(Path(path).glob("*.py")):
-            try:
-                module = runner._module(file)
-            except Exception as exc:  # noqa: BLE001 — битый модуль отключает расширение
-                raise ValueError(f"{file.name}: модуль не загружается "
-                                 f"({type(exc).__name__}: {str(exc)[:150]})") from exc
-            provider = getattr(module, "PROVIDER", None)
-            if provider is None:
-                continue  # вспомогательный модуль без PROVIDER — не участвует
-            if not isinstance(provider, dict) or not str(provider.get("id") or "").strip():
-                raise ValueError(f"{file.name}: PROVIDER — объект с непустым id")
-            pid = str(provider["id"]).strip()
-            search, neighbor = getattr(module, "search", None), getattr(module, "neighbor", None)
-            if not callable(search) or not callable(neighbor):
-                raise ValueError(f"{file.name}: нужны async search(ctx, query, kind) и "
-                                 f"neighbor(ctx, track_id, context, step)")
-            if any(item["id"] == pid for item in _COLLECTED):
-                raise ValueError(f"Имя поставщика {pid!r} уже занято другим расширением")
-            rate = getattr(module, "rate", None)
-            _COLLECTED.append({"id": pid, "title": str(provider.get("title") or pid),
-                               "ext_id": str(ext_id), "file": str(file),
-                               "search": search, "neighbor": neighbor,
-                               "rate": rate if callable(rate) else None})
-
-
-def apply():
-    """Завершить пересборку: реестр = накопленное за успешный проход."""
-    PROVIDERS.clear()
-    PROVIDERS.update({item["id"]: item for item in _COLLECTED})
-    _COLLECTED.clear()
+# --- реестр поставщиков музыки (общий реестр видов — server_emulator/providers.py) ----
 
 
 def selected(settings):
-    """Выбранный поставщик: settings["music"]["provider"] (id); пусто/нет — первый
-    включённый по алфавиту id. Выбранный id не в реестре (расширение выключили) — None."""
-    want = str(((settings or {}).get("music") or {}).get("provider") or "").strip()
-    if want:
-        return PROVIDERS.get(want)
-    for pid in sorted(PROVIDERS):
-        return PROVIDERS[pid]
-    return None
+    """Выбранный поставщик музыки: settings["providers"]["music"] (id); пусто/нет —
+    первый включённый по алфавиту id. Выбранный id не в реестре (расширение
+    выключили) — None. Реестр собирает runtime.rebuild_extension_registries."""
+    return _providers.selected("music", settings)
+
+
+def provider_service(provider):
+    """Значение PROVIDER["service"] — признак сервиса вместо id: у Яндекс.Музыки
+    встроенный (builtin.yandex-music) и внешний (yandex-music) поставщики — разные
+    записи реестра с одним service, токен и ключ меты — по нему. Без service —
+    совместимость с уже установленным внешним поставщиком по id."""
+    return str((provider or {}).get("service") or "").strip()
+
+
+def is_yandex_music(provider):
+    """Поставщик Яндекс.Музыки: service="yandex-music"; без service — по id
+    (совместимость с уже установленным внешним расширением)."""
+    service = provider_service(provider)
+    return service == YANDEX_PROVIDER_ID or \
+        (not service and (provider or {}).get("id") == YANDEX_PROVIDER_ID)
+
+
+class _WithSystemValues:
+    """ExtensionContext + системные значения вызова (captured_oauth), только чтение."""
+
+    def __init__(self, base, values):
+        self._base = base
+        self._values = dict(values)
+
+    @property
+    def id(self):
+        return self._base.id
+
+    @property
+    def settings(self):
+        return {**self._base.settings, **self._values}
+
+    def get(self, key, default=None):
+        return self._values.get(key, self._base.get(key, default))
 
 
 def extension_context(ctx, provider):
@@ -125,7 +175,13 @@ def extension_context(ctx, provider):
     runtime = ctx._services_runtime()
     manager = getattr(runtime, "extensions", None)
     build = getattr(manager, "context", None)
-    return build(provider["ext_id"]) if callable(build) else None
+    base = build(provider["ext_id"]) if callable(build) else None
+    if base is None:
+        return None
+    if not is_yandex_music(provider):
+        return base  # захваченный OAuth аккаунта Яндекса — только поставщику Яндекс.Музыки
+    token = _CAPTURED.get("oauth")  # захваченный OAuth — поставщику как системное значение вызова
+    return _WithSystemValues(base, {"captured_oauth": token}) if token else base
 
 
 async def _call(ctx, provider, function, *args):
@@ -147,7 +203,9 @@ async def _call(ctx, provider, function, *args):
 
 async def search(ctx, provider, query, kind="music"):
     """search поставщика → {"tracks": [Track], "start": int, "context": dict} (очередь
-    режется до MAX_QUEUE) или None — нет поставщика/пусто/сбой результата."""
+    режется до MAX_QUEUE) или None — нет поставщика/пусто/сбой результата. Пустой
+    результат с "note" — честный отказ поставщика с объяснением: dict с пустыми
+    треками и note передаётся сценарию."""
     if provider is None:
         return None
     raw = await _call(ctx, provider, provider["search"], ctx, str(query or ""), str(kind or ""))
@@ -156,6 +214,11 @@ async def search(ctx, provider, query, kind="music"):
     tracks = [track for track in (normalize_track(item) for item in raw.get("tracks") or [])
               if track][:MAX_QUEUE]
     if not tracks:
+        note = str(raw.get("note") or "").strip()
+        if note:
+            return {"tracks": [], "start": 0,
+                    "context": raw.get("context") if isinstance(raw.get("context"), dict) else {},
+                    "note": note, "provider": provider}
         return None
     start = raw.get("start")
     start = int(start) if isinstance(start, (int, float)) and 0 <= int(start) < len(tracks) else 0
@@ -208,11 +271,15 @@ def normalize_track(raw):
 # --- сборка стека директорий виджета (по образцу захвата 2026-11-02) -----------------
 
 
-def provider_key(provider_id):
+def provider_key(provider):
     """Имя из enum Alice.Music.MusicProvider для карт меты и поля Entities.MusicProvider:
-    yandex-music — MUSIC_PROVIDER_YANDEX_MUSIC, остальным значения в схеме нет —
-    MUSIC_PROVIDER_UNSPECIFIED (0)."""
-    return PROVIDER_KEYS.get(str(provider_id or ""), UNSPECIFIED_KEY)
+    Яндекс.Музыка (service "yandex-music"; без service — id, совместимость) —
+    MUSIC_PROVIDER_YANDEX_MUSIC, остальным значения в схеме нет — MUSIC_PROVIDER_UNSPECIFIED (0)."""
+    if isinstance(provider, dict):
+        pid = provider_service(provider) or str(provider.get("id") or "")
+    else:  # строка-id (прежние вызовы)
+        pid = str(provider or "")
+    return PROVIDER_KEYS.get(pid, UNSPECIFIED_KEY)
 
 
 def tts_placeholder():
@@ -260,11 +327,11 @@ def _track_meta(track):
     return meta
 
 
-def queue_directive(tracks, index, provider_id):
+def queue_directive(tracks, index, provider):
     """apply_player_playback_queue_directive — очередь из сущностей поиска (решение
     владельца, PLAN-spotify-music) по структуре образца: Entities (по треку, с провайдером),
     CurrentEntityIndex, карта ProviderMeta{провайдер: {TrackMetaRecords}}."""
-    key = provider_key(provider_id)
+    key = provider_key(provider)
     fields = {"MusicPlatformQueue": {
         "Entities": [{"MusicProvider": key,
                       "PlaybackEntity": {"TrackEntity": {"Track": {"Id": str(t["id"]),
@@ -278,11 +345,13 @@ def queue_directive(tracks, index, provider_id):
             "is_led_silent": True, "proto": QUEUE_PROTO, "fields": fields}
 
 
-def sequence_state_directive(current, tracks, provider_id):
+def sequence_state_directive(current, tracks, provider):
     """set_audio_player_sequence_state_directive (TSetSequenceStateDirective):
     CurrentItem — играющий трек, MetaStorage — меты треков/артистов/альбомов очереди
     (карты ProviderTrackMeta/ProviderArtistMeta/ProviderAlbumMeta по образцу)."""
-    key = provider_key(provider_id)
+    key = provider_key(provider)
+    # ProviderTrackMeta — карта провайдер → TrackMeta → track_id (map в proto; провайдер →
+    # ключ из enum Alice.Music.MusicProvider, у не-Яндекса MUSIC_PROVIDER_UNSPECIFIED)
     meta = {"ProviderTrackMeta": {key: {"TrackMeta": {str(t["id"]): _track_meta(t) for t in tracks}}}}
     artists = {}
     for t in tracks:
@@ -337,11 +406,11 @@ def start_reply(result, text=""):
     (образец «включи музыку»: анимация + экран + очередь + состояние + audio_play)."""
     tracks = result["tracks"]
     start = result["start"]
-    provider_id = result["provider"]["id"]
+    provider = result["provider"]
     return {"text": text, "card": False, "directives": [
         tts_placeholder(), draw_player_play(), show_player_screen(tracks[start]),
-        queue_directive(tracks, start, provider_id),
-        sequence_state_directive(tracks[start], tracks, provider_id),
+        queue_directive(tracks, start, provider),
+        sequence_state_directive(tracks[start], tracks, provider),
         audio_play_directive(tracks[start])]}
 
 
@@ -349,10 +418,9 @@ def step_reply(track, provider, text=""):
     """Ответ на «дальше/назад» и колбэк @@mm_stack_engine_get_next: тройка
     очередь+состояние+audio_play без экрана и анимации (образец «дальше»; очередь из
     одного трека — neighbor по контракту 089 отдаёт один Track)."""
-    provider_id = provider["id"] if provider else ""
     tracks = [track]
     return {"text": text, "card": False, "directives": [
         tts_placeholder(),
-        queue_directive(tracks, 0, provider_id),
-        sequence_state_directive(track, tracks, provider_id),
+        queue_directive(tracks, 0, provider),
+        sequence_state_directive(track, tracks, provider),
         audio_play_directive(track)]}

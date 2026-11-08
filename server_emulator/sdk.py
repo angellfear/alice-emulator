@@ -627,14 +627,24 @@ class ScenarioContext:
 
     @property
     def music(self):
-        """Поставщик музыки (2.4.0, TASK-099): выбранный music/*.py включённого расширения —
+        """Поставщик музыки (2.4.0): выбранный music/*.py включённого плагина —
         запись {"id", "title", "search", "neighbor", "rate"} или None (источника нет).
-        Выбранный id — настройка settings["music"]["provider"] (пусто — первый включённый).
+        Выбранный id — настройка settings["providers"]["music"] (пусто — первый включённый).
         Функции поставщика вызываются через server_emulator.music.search/neighbor/rate:
         они дают коду поставщика его настройки (ctx.extension) и приводят Track к контракту
-        (docs/contracts/player.md, «Поставщик контента»)."""
+        (docs/contracts/player.md, «Поставщик контента»). Совпавшая запись справочника
+        фраз сильнее: у сценария есть ctx.phrase_entry — её владелец и отвечает."""
         from . import music as _music
         return _music.selected(self.settings)
+
+    @property
+    def phrase_entry(self):
+        """Запись справочника фраз, которая привела к сценарию (2.5.0): dict
+        {id, ext_id, kind, search_result?} — ext_id определяет плагина-владельца (чей
+        поставщик отвечает), search_result — готовый результат поиска ступени свободных
+        хвостов. Вне справочника — None (прямой запуск: агент, колбэки)."""
+        value = self._ctx.get("phrase_entry")
+        return dict(value) if isinstance(value, dict) else None
 
     @property
     def intelligence(self):
@@ -649,7 +659,7 @@ class ScenarioContext:
         no_data_source (правка текста в настройках действует); «Модель/Агент» — None,
         фраза уходит модели. Использование:
         try:
-            record = await ctx.dataset_record("news", "top")
+            record = await ctx.dataset_record("prices", "USD")
         except SDKError:
             return ctx.no_data_source()"""
         if self.intelligence != "scenarios" or self.route_mode == "hybrid":

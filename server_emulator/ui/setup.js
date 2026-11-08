@@ -66,9 +66,14 @@
     images.onclick = () => openDialog();
     pictures.append(images);
     box.append(protocol, pictures);
-    section.replaceChildren(make('h2', 'Настройка'),
-      make('p', 'Протокол Алисы эмулятор разбирает из libquasar_daemons.so станции или zip с .proto / .pb — локально, файл никуда не отправляется. Картинки устройств скачиваются с сайта умного дома Яндекса по вашему согласию; без них показываются силуэты.', 'hint'),
-      box);
+    const hint = make('p', 'Протокол Алисы эмулятор разбирает из libquasar_daemons.so станции или zip с .proto / .pb — локально, файл никуда не отправляется. Готовый второй источник — zip из репозитория ', 'hint');
+    const protosLink = document.createElement('a');
+    protosLink.href = 'https://github.com/v3rt3p/quasar-protos';
+    protosLink.target = '_blank';
+    protosLink.rel = 'noopener';
+    protosLink.textContent = 'v3rt3p/quasar-protos';
+    hint.append(protosLink, document.createTextNode(' (упаковать содержимое клона в zip). Картинки устройств скачиваются с сайта умного дома Яндекса по вашему согласию; без них показываются силуэты.'));
+    section.replaceChildren(make('h2', 'Настройка'), hint, box);
   }
 
   function render() {

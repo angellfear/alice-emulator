@@ -70,9 +70,15 @@ DEFAULT = {
     # (API публичного репозитория работает без него); restart — кто запускает сервер после обновления.
     "self_update": {"enabled": True, "repo": "angellfear/alice-emulator", "channel": "stable",
                     "interval_hours": 12, "token": "", "skipped": "", "restart": "self"},
-    # Музыка (TASK-099): выбранный поставщик контента — id из music/*.py включённых
-    # расширений; пусто — первый включённый. Реестр — server_emulator/music.py.
-    "music": {"provider": ""},
+    # Поставщики данных: выбранный поставщик по видам — settings["providers"][<вид>]
+    # (id; пусто — первый включённый по алфавиту). Реестр видов —
+    # server_emulator/providers.py; прежний ключ settings["music"]["provider"]
+    # переносится в providers.music при загрузке (миграция ниже).
+    "providers": {},
+    # Ручной порядок справочника фраз (равная точность — выше в списке): порядок
+    # видов для споров между видами и плагинов внутри вида; плагины без вида —
+    # группа «Прочее» (_other). id вне списков — после перечисленных по алфавиту.
+    "phrase_order": {"kinds": [], "plugins": {}},
 }
 
 
@@ -135,8 +141,19 @@ class SettingsService:
         self._migrate_default_route(settings)
         self._migrate_legacy_aliases(settings)
         self._migrate_repo_name(settings)
+        self._migrate_music_provider(settings)
         self.load_scenario_files(settings)
         return settings
+
+    def _migrate_music_provider(self, settings):
+        """Выбор поставщика музыки переехал в общий реестр видов поставщиков:
+        settings["music"]["provider"] → settings["providers"]["music"]; старый ключ
+        читается один раз и удаляется (миграция однократна — после неё ключа нет)."""
+        if not isinstance(settings.get("music"), dict):
+            return
+        from .providers import migrate as migrate_providers
+        if migrate_providers(settings):
+            self.store.save_settings(settings)
 
     def _migrate_standard_replies(self, settings):
         """Новые стандартные ответы доходим по id: изменённые пользователем тексты не трогаем."""
@@ -341,15 +358,34 @@ class SettingsService:
             if su.setdefault("restart", "self") not in ("self", "manager"):
                 raise ValueError("self_update.restart: self | manager")
         # Медиа (TASK-071): список радио «имя → URL»; присланной формы нет — из current.
-        # Музыка (TASK-099): id выбранного поставщика (проверку реестра делает music.selected —
-        # выключенное расширение просто не выбирается); присланной формы UI нет — из current.
-        if "music" not in value:
-            value["music"] = copy.deepcopy(current.get("music") or DEFAULT["music"])
+        # Поставщики данных: выбранный id по видам (проверку реестра делает
+        # providers.selected — выключенное расширение просто не выбирается);
+        # присланной формы UI нет — из current.
+        if "providers" not in value:
+            value["providers"] = copy.deepcopy(current.get("providers") or DEFAULT["providers"])
         else:
-            music_cfg = value["music"]
-            if not isinstance(music_cfg, dict):
-                raise ValueError("music: нужен объект")
-            music_cfg["provider"] = str(music_cfg.get("provider") or "").strip()
+            providers_state = value["providers"]
+            if not isinstance(providers_state, dict):
+                raise ValueError("providers: нужен объект")
+            value["providers"] = {str(k): str(v or "").strip()
+                                  for k, v in providers_state.items()}
+        # Ручной порядок справочника фраз: формы UI пока нет — из current (появится
+        # с редактором порядка); присланное — проверяем по форме.
+        if "phrase_order" not in value:
+            value["phrase_order"] = copy.deepcopy(current.get("phrase_order") or DEFAULT["phrase_order"])
+        else:
+            phrase_order = value["phrase_order"]
+            if not isinstance(phrase_order, dict) or set(phrase_order) - {"kinds", "plugins"}:
+                raise ValueError("phrase_order: объект kinds/plugins")
+            if not isinstance(phrase_order.get("kinds"), list) \
+                    or not all(isinstance(k, str) and k for k in phrase_order["kinds"]):
+                raise ValueError("phrase_order.kinds: список названий видов")
+            plugins = phrase_order.setdefault("plugins", {})
+            if not isinstance(plugins, dict) or not all(
+                    isinstance(k, str) and isinstance(v, list)
+                    and all(isinstance(p, str) and p for p in v)
+                    for k, v in plugins.items()):
+                raise ValueError("phrase_order.plugins: вид → список id расширений")
         # Расширения (TASK-029): устаревшая форма UI присылает настройки без ключа —
         # восстанавливаем из current (состояние расширений UI не редактирует);
         # присланное — проверяем по форме.

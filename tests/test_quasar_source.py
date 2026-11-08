@@ -3,13 +3,14 @@
 Только локальные серверы: «Яндекс» — локальная заглушка, цель подменяется алиасом
 со схемой (settings.aliases[host] = http://127.0.0.1:порт), как в tests/test_upstream.py.
 """
+import asyncio
 import json
 
 from aiohttp import ClientSession, web
 
 from server_emulator.runtime import Runtime
 from server_emulator.server import create_app
-from tests.conftest import listen
+from tests.conftest import listen, types
 
 STUB_CONFIG = {"status": "ok", "config": {"marker": "from-yandex", "device_config": {"name": "stub"}}}
 
@@ -106,7 +107,7 @@ async def test_direct_upstream_down_keeps_last(tmp_path):
     state = dict(state_of(runtime))
     state.update(quasar_source="direct", quasar_direct_last=saved_last)
     runtime.identities.mutate({"operation": "state", "sn": "SN-Q", "state": state})
-    runtime.settings["aliases"] = {"quasar.yandex.net": "http://127.0.0.1:1"}  # порт закрыт
+    runtime.settings["aliases"] = {"quasar.yandex.net": "http://0.0.0.0:1"}  # адрес не существует: отказ мгновенный
     runner, url = await listen(create_app(runtime=runtime))
     try:
         async with ClientSession() as client:
@@ -203,5 +204,35 @@ async def test_generate_matches_composed_and_fetch_uses_headers(tmp_path):
             assert b"secret-token" not in blob  # Authorization только в памяти
     finally:
         await upstream_runner.cleanup()
+        await runner.cleanup()
+        await runtime.close()
+
+
+async def test_push_action_delivery(tmp_path):
+    """action=push — принудительный перезапрос конфига (push_update_config): без живой
+    WS-сессии — 409 push_no_session; сессия колонки есть — директива доставлена."""
+    runtime = Runtime(tmp_path)
+    registry(runtime)
+    client_type, server_type = types()
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        async with ClientSession() as client:
+            async with client.post(url + "/emulator/api/quasar_source",
+                                   json={"sn": "SN-Q", "action": "push"}, headers={"X-Emulator": "1"}) as r:
+                assert r.status == 409
+                assert (await r.json())["error"] == "push_no_session"
+            # живая WS-сессия колонки: идентичность — из заголовка хендшейка
+            async with client.ws_connect(url + "/uni.ws",
+                                         headers={"x-uprx-device-id": "q-id"}) as ws:
+                async with client.post(url + "/emulator/api/quasar_source",
+                                       json={"sn": "SN-Q", "action": "push"}, headers={"X-Emulator": "1"}) as r:
+                    assert r.status == 200
+                    body = await r.json()
+                assert body["delivery"] == "sent" and body["action"] == "push_update_config"
+                packet = await asyncio.wait_for(ws.receive(), 3)
+                assert packet.data.startswith(b"AAPI")
+                message = server_type.FromString(packet.data[4:])
+                assert [d.Name for d in message.Event.Push.Directives] == ["push_update_config"]
+    finally:
         await runner.cleanup()
         await runtime.close()

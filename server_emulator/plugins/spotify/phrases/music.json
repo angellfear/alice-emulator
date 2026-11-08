@@ -1,0 +1,29 @@
+{
+ "entries": [
+  {
+   "id": "play",
+   "sentences": [
+    "включи музыку [{query}]",
+    "(включи|поставь|запусти) музыку [{query}]",
+    "давай послушаем музыку [{query}]",
+    "(включи|поставь) (песню|трек) {query}"
+   ],
+   "handler": "core:media.music"
+  },
+  {
+   "id": "podcast",
+   "sentences": [
+    "(включи|поставь) (подкаст|подкасты) [{query}]"
+   ],
+   "handler": "core:media.music"
+  },
+  {
+   "id": "search",
+   "sentences": [
+    "(включи|запусти|поставь|послушай) {query}"
+   ],
+   "handler": "core:media.music",
+   "search": true
+  }
+ ]
+}

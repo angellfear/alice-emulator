@@ -74,7 +74,7 @@ module: "server_emulator/sdk.py"
 | `ctx.owner` | владелец: id, name, location (гео); комната колонки — `ctx.device.room` |
 | `ctx.now` | aware datetime в таймзоне устройства (params device → user → effective → input.timezone; без имени — таймзона сервера) |
 | `ctx.params` | параметры владельца/устройства/платформы/сервера + `effective` (docs/contracts/params-db.md) |
-| `ctx.timers` | таймеры колонки из состояния её запроса (`EnvironmentStateRaw`, AlarmCapability): `[{timer_id, start_ts, duration, paused, disabled, currently_playing, title}]`; пусто — если колонка ничего не сообщает (своего хранилища у сервера нет, TASK-079) |
+| `ctx.timers` | таймеры колонки из состояния её запроса (`EnvironmentStateRaw`, AlarmCapability): `[{timer_id, start_ts, duration, paused, disabled, currently_playing, title}]`; пусто — если колонка ничего не сообщает (своего хранилища у сервера нет) |
 | `ctx.alarms` | будильники колонки из того же состояния: `[{alarm_id, time{hours,minutes,seconds}, dates, weekdays, disabled, currently_playing, snooze_time, timezone}]` |
 | `ctx.screens` | открытые экраны «Часов» колонки (ClockAppCapability): `timer_active/timer_info/timer_list/alarm_active/alarm_list/alarm_edit` — идентификатор или `true` |
 | `ctx.state` | **живой dict** состояния диалога — переживает шаги |
@@ -86,7 +86,7 @@ module: "server_emulator/sdk.py"
 
 | Вызов | Назначение |
 |---|---|
-| `await ctx.action(name, **arguments)` | действие реестра Executor (`timer.start`, `alarm.start`, `timer.cancel`, `device.push`, `light.set`). С TASK-079 `timer.start`/`alarm.start`/`timer.cancel` отправляют колонке штатные директивы (`open_screen_*` + `timer_set`/`alarm_add`/`timer_cancel`), своего расписания на сервере нет. В dry_run не выполняется: запись `{kind, name, arguments}` в `ctx.effects`, вернётся `None` |
+| `await ctx.action(name, **arguments)` | действие реестра Executor (`timer.start`, `alarm.start`, `timer.cancel`, `device.push`, `light.set`). `timer.start`/`alarm.start`/`timer.cancel` отправляют колонке штатные директивы (`open_screen_*` + `timer_set`/`alarm_add`/`timer_cancel`), своего расписания на сервере нет. В dry_run не выполняется: запись `{kind, name, arguments}` в `ctx.effects`, вернётся `None` |
 | `await ctx.fetch_json(url, ttl=0)` | GET JSON через общий fetcher движка (кеш TTL, лимит 512 КиБ, честная ошибка) |
 | `await ctx.dataset(name, key, max_age=0, args=None)` | данные плагина: свежая запись из БД (age ≤ max_age) — сразу; иначе пинок плагина, запись в БД делает executor. Нет плагина — устаревшая запись, без записи — `SDKError` |
 | `ctx.lexicon(name)` | общий словарь (`scenarios/lexicons.json`) с приоритетом словаря сценария; неизвестное имя → `{}` |
@@ -121,7 +121,7 @@ async def handle(ctx):
 `[{"kind": "action", "name": "timer.start", "arguments": {"seconds": 300}}]` — и их
 показывает проверка.
 
-## 2.1.0 — данные сценария: `ctx.data` (TASK-080)
+## 2.1.0 — данные сценария: `ctx.data`
 
 Хранилище данных py-сценария по владельцу-пользователю: `ctx.data.get(key, default=None)` и
 `ctx.data.set(key, value)` (синхронные). Записи живут в `state_store.scenario_data`
@@ -130,7 +130,7 @@ async def handle(ctx):
 Своих файлов в `state/` сценарии не создают: это единственный контрактный путь сохранения
 произвольных данных сценария (датасеты — только плагины и чтение, параметры — только чтение).
 
-## 2.2.0 — режим «Интеллект» и «нет источника данных» (TASK-090)
+## 2.2.0 — режим «Интеллект» и «нет источника данных»
 
 - `ctx.intelligence` (только чтение): `scenarios | model | agent` — режим «Интеллект».
   Сценарий может уступить фразу модели, вернув `None`.
@@ -145,7 +145,7 @@ async def handle(ctx):
       return ctx.no_data_source()
   ```
 
-## 2.3.0 — маршрут и владелец плеера (TASK-091)
+## 2.3.0 — маршрут и владелец плеера
 
 - `ctx.route_mode` (только чтение): `emulate | hybrid | proxy` — маршрут устройства. В «Вместе»
   сценарии данных (`ctx.no_data_source()`) и `system.unavailable` отказываются (ответ `None`):
@@ -155,7 +155,7 @@ async def handle(ctx):
   `player_owner == "yandex"` отказываются (`None`): колбэки и ходы очереди идут Яндексу.
   Пауза/стоп (`device.player.pause`) — остаётся локальной штатной функцией колонки.
 
-## 2.4.0 — поставщик музыки: `ctx.music` (TASK-099)
+## 2.4.0 — поставщик музыки: `ctx.music`
 
 - `ctx.music` (только чтение): выбранный поставщик `music/*.py` включённого расширения —
   запись `{"id", "title", "search", "neighbor", "rate"}` или `None` (источника нет).
@@ -168,7 +168,7 @@ async def handle(ctx):
 - Стек директорий виджета — `music.start_reply(result, text)` / `step_reply(track,
   provider, text)` (по образцу захвата 2026-11-02-music); сценарий — `media.music`.
 - Маршруты: «Вместе» (`route_mode == "hybrid"`) — сценарий отказывается (Яндекс отвечает
-  сам, релей голоса 098); без поставщика — `ctx.no_data_source()` в «Простом» / отказ в
+  сам, релей голоса); без поставщика — `ctx.no_data_source()` в «Простом» / отказ в
   «Модели»; колбэк `@@mm_stack_engine_get_next` (provide `music.stack_next`) —
   `neighbor(+1)` → следующая очередь + `audio_play`, иначе умолчание маршрута (тихий ack).
 
@@ -317,17 +317,9 @@ Minor: только добавления, форма построенных dict
 - Действия — только через реестр Executor (эффекты без текстов и веток); на вопросы
   без ответа сценарий возвращает `None`, не выдумывает заглушек.
 
-## Не реализовано
-
-- Подключение к исполнению сценариев и dry-run проверка — через движок сценариев.
-- Многошаговые диалоги (`ask` → продолжение, `ShouldListen`, TTL) — поддержаны.
-- Поле `requires.sdk` у расширений; сейчас совместимость фиксирует
-  только `SDK_VERSION` и правило major.
-- Слоты из шаблонных триггеров (`ctx.slots`) наполняются диалоговым слоем.
-
 ## 1.3.1 — медиа: плеер, библиотека, настройки (удалено в 2.0.0)
 
-> **Удалено в 2.0.0 (TASK-087)**: своей медиатеки и очереди у эмулятора нет, музыка —
+> **Удалено в 2.0.0**: своей медиатеки и очереди у эмулятора нет, музыка —
 > на штатном плеере колонки (см. `docs/contracts/player.md`). `ctx.media`, `ctx.library`,
 > `ctx.media_base` и раздача `/media` убраны.
 
@@ -349,7 +341,7 @@ Minor: только добавления, форма построенных dict
   (`TextInput.Request.EnvironmentStateRaw`, capability-типы 21 `NAlice.TAlarmCapability`
   и 144 `NAlice.TClockAppCapability` в `Endpoints[].AnyCapabilities[]`). Разбор —
   `server_emulator/station_state.py`; своего хранилища и планировщика таймеров на
-  сервере больше нет (TASK-079): что колонка не сообщает — того нет.
+  сервере больше нет: что колонка не сообщает — того нет.
 - Остаток таймера — арифметика состояния, как настоящий сервер:
   `remaining = duration − (now − start_ts)` (сверено с ответом «Осталось 47 минут 48
   секунд»). Сигнал (`ringing`) — `currently_playing` у будильника/таймера или истёкший
@@ -372,7 +364,7 @@ Minor: только добавления, форма построенных dict
   `delivery: "sent" | "no_session"`. Адресация директив другой колонке в образцах не
   встречалась — сценарии отвечают отказом.
 
-## 2.0.0 — медиа на штатном плеере колонки, состояние из запроса (TASK-087, TASK-083)
+## 2.0.0 — медиа на штатном плеере колонки, состояние из запроса
 
 Ломающее: удалены `ctx.media`, `ctx.library`, `ctx.media_base` (своя медиатека, очередь
 и раздача `/media` убраны вместе с `server_emulator/media.py`; расширения, их использующие,
@@ -390,10 +382,10 @@ Minor: только добавления, форма построенных dict
   `tests/fixtures/directives/media-pause.json`).
 - Колбэки `music_thin_client_on_started` / `on_stopped` маршрутизируются в `callbacks.ack` —
   тихий ответ, как в образцах (x112/x134). `@@mm_stack_engine_get_next` с 2.4.0 идёт
-  поставщику музыки (`music.stack_next`, TASK-099), без поставщика — тот же тихий ack.
+  поставщику музыки (`music.stack_next`), без поставщика — тот же тихий ack.
   `audio_play` эмулятор отправляет только от поставщика (2.4.0).
 - `ctx.volume` — громкость колонки из **её запроса** (capability 23
-  `NAlice.TVolumeCapability`, есть в каждом `TextInput`, TASK-083):
+  `NAlice.TVolumeCapability`, есть в каждом `TextInput`):
   `{muted, level, max_level, percent_level}`; пустой dict, если колонка ничего не
   сообщает — своего учёта громкости на сервере нет. Сценарий `device.volume` ставит
   уровень тихим ответом по образцу: `sound_set_level{new_level, new_percent_level}`

@@ -154,7 +154,7 @@ async def test_install_zip_enable_disable_and_restart(tmp_path):
             assert current.read_text(encoding="utf-8") == "1.0.0"  # атомарное переключение
             assert runtime.settings["extensions"]["installed"]["coffee"]["version"] == "1.0.0"
             listing = await (await client.get(url + "/emulator/api/extensions")).json()
-            card = listing["extensions"][0]
+            card = next(c for c in listing["extensions"] if c["id"] == "coffee")
             assert card["enabled"] is False and card["class"] == "data"
             assert listing["sdk"] == SDK_VERSION and listing["emulator"] == EMULATOR_VERSION
             await op(client, url, {"op": "enable", "id": "coffee"})
@@ -170,7 +170,7 @@ async def test_install_zip_enable_disable_and_restart(tmp_path):
     runtime2 = Runtime(tmp_path)  # перезапуск: включённое расширение снова загружено
     try:
         runtime2.extensions.load_enabled()
-        assert runtime2.extensions.loaded == {}  # выключено — каталогов нет
+        assert "coffee" not in runtime2.extensions.loaded  # выключено — каталогов нет
     finally:
         await runtime2.close()
 
@@ -189,7 +189,7 @@ async def test_enable_persists_and_loads_on_restart(tmp_path):
             await runtime.close()
         reopened = Runtime(tmp_path)
         try:
-            assert list(reopened.extensions.loaded) == ["coffee"]
+            assert [x for x in reopened.extensions.loaded if not x.startswith("builtin.")] == ["coffee"]
             assert reopened.extensions.action_prefix("coffee") == "coffee"
         finally:
             await reopened.close()
@@ -321,7 +321,7 @@ async def test_hook_failure_rolls_back_install(tmp_path):
             assert "on_install" in body["error"] and "boom" in body["error"]
             assert not (tmp_path / "extensions" / "ha" / "1.0.0").exists()  # файлы откачены
             assert not (tmp_path / "extensions" / "ha" / "current").exists()
-            assert runtime.settings["extensions"]["installed"] == {}
+            assert "ha" not in runtime.settings["extensions"]["installed"]
     finally:
         await app_runner.cleanup()
         await runtime.close()
@@ -356,7 +356,7 @@ async def test_update_and_rollback(tmp_path):
             assert body["version"] == "1.1.0"
             await op(client, url, {"op": "uninstall", "id": "coffee"})
             assert not (tmp_path / "extensions" / "coffee").exists()  # удаление — с файлами
-            assert runtime.settings["extensions"]["installed"] == {}
+            assert "coffee" not in runtime.settings["extensions"]["installed"]
     finally:
         await app_runner.cleanup()
         await runtime.close()
@@ -379,7 +379,7 @@ async def test_local_folder_source_no_copy(tmp_path):
             entry = runtime.settings["extensions"]["installed"]["coffee"]
             assert entry["dev"] == str(dev.resolve())
             assert not (tmp_path / "extensions" / "coffee" / "1.0.0").exists()  # без копирования
-            assert runtime.extensions.loaded == {}
+            assert "coffee" not in runtime.extensions.loaded
             await op(client, url, {"op": "enable", "id": "coffee"})
             assert [p for _, p in runtime.extensions.contribution_dirs("scenarios")] == [dev / "scenarios"]
             (dev / "extension.json").write_text(
@@ -477,7 +477,7 @@ async def test_python_packages_and_settings(tmp_path):
                             expect=400)
             assert "Неизвестные поля" in body["error"]
             listing = await (await client.get(url + "/emulator/api/extensions")).json()
-            card = listing["extensions"][0]
+            card = next(c for c in listing["extensions"] if c["id"] == "coffee")
             assert card["python_packages"] == ["some-package>=1,<2"]
             assert card["settings"]["values"] == {"token": "abc"}
     finally:

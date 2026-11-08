@@ -1,0 +1,60 @@
+{
+ "id": "builtin.spotify",
+ "name": "Spotify",
+ "version": "0.1.0",
+ "description": "Поставщик музыки Spotify (встроенный): «включи музыку <что-то>» ищет по Web API и играет превью 30 с (mp3, p.scdn.co), «дальше/назад» — по своей очереди топ-5. Превью 30 с — лицензионное ограничение Spotify.",
+ "author": "Angell Fear",
+ "license": "MIT",
+ "requires": {
+  "emulator": ">=0.1.0",
+  "sdk": ">=2.0.0",
+  "python_packages": []
+ },
+ "permissions": {
+  "network": [
+   "accounts.spotify.com",
+   "api.spotify.com",
+   "open.spotify.com"
+  ],
+  "actions": [],
+  "device_push": false,
+  "install": false
+ },
+ "settings": {
+  "fields": [
+   {
+    "key": "client_id",
+    "label": "Client ID (Web API)",
+    "type": "text"
+   },
+   {
+    "key": "client_secret",
+    "label": "Client Secret (Web API)",
+    "type": "password"
+   },
+   {
+    "key": "market",
+    "label": "Маркет (market, код страны)",
+    "type": "text"
+   }
+  ],
+  "defaults": {
+   "client_id": "",
+   "client_secret": "",
+   "market": "RU"
+  }
+ },
+ "contributes": {
+  "providers": [
+   {
+    "kind": "music",
+    "title": "Музыка",
+    "module": "music/spotify.py",
+    "capabilities": [
+     "podcasts"
+    ],
+    "phrases": "phrases/music.json"
+   }
+  ]
+ }
+}

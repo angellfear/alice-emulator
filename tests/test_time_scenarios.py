@@ -11,12 +11,14 @@ import datetime
 import json
 import re
 import time
+import types
 from pathlib import Path
 
 import pytest
 from google.protobuf import json_format
 
 from server_emulator import station_state
+from server_emulator import voice
 from server_emulator.runtime import Runtime
 from server_emulator.schema import load_type, schemas_dir, station_file
 from server_emulator.scenario_engine.library import LEXICONS
@@ -221,6 +223,15 @@ def _speech(reply):
     return reply.Event.AliceResponse.VoiceResponse.OutputSpeech.Text
 
 
+def _freeze_clock(monkeypatch, now):
+    """Фиксирует время для WS-сценариев: voice.py кладёт datetime.now() в ctx.clock —
+    подмена модульного datetime делает «сегодня/завтра» в фразах детерминированными
+    (ночные прогоны на границе суток больше не зависят от времени запуска)."""
+    shim = types.SimpleNamespace(datetime=types.SimpleNamespace(now=lambda tz=None: now if tz is None else now.astimezone(tz)),
+                                 timedelta=datetime.timedelta, timezone=datetime.timezone)
+    monkeypatch.setattr(voice, "datetime", shim)
+
+
 # --- сверка с обезличенными образцами (tests/fixtures/directives) --------------------
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "directives"
@@ -366,7 +377,8 @@ async def test_timer_cancel_without_state_says_no_timers(tmp_path):
     assert _speech(reply) == "Активных таймеров нет."
 
 
-async def test_alarm_set_sends_sample_directives(tmp_path):
+async def test_alarm_set_sends_sample_directives(tmp_path, monkeypatch):
+    _freeze_clock(monkeypatch, datetime.datetime(2026, 11, 10, 6, 0))  # 7:30 сегодня: дата детерминирована
     reply = await _ask(tmp_path, "поставь будильник на 7:30")
     assert _names(reply) == ["open_screen_alarm_list_directive", "alarm_add_directive",
                              "tts_play_placeholder"]
@@ -377,8 +389,7 @@ async def test_alarm_set_sends_sample_directives(tmp_path):
     assert TIMER_ID_RE.match(alarm["AlarmId"])
     assert alarm["LocalTime"] == {"Hours": 7, "Minutes": 30}
     dates = [tuple(d["Date"][part] for part in ("Year", "Month", "Day")) for d in alarm["ActivationDays"]]
-    day = datetime.date.today() + datetime.timedelta(days=1 if _speech(reply).endswith("на завтра.") else 0)
-    assert dates == [day.timetuple()[:3]]
+    assert dates == [(2026, 11, 10)]  # время зафиксировано: 7:30 ещё не прошла — сегодня
     assert alarm["SnoozeTime"] == 10
     assert "Timezone" in alarm
     assert _speech(reply).startswith("Будильник на 7:30 поставил")
@@ -417,9 +428,11 @@ async def test_hvatit_without_ringing_stays_media(tmp_path):
 # --- TASK-083: громкость — тихий ответ директивой образца ----------------------------
 
 
-async def test_volume_sample_form_by_ws(tmp_path):
+async def test_volume_sample_form_by_ws(tmp_path, monkeypatch):
     """WS-путь с состоянием колонки (cap 23): «громкость два» — форма обезличенного образца,
-    без речи и карточек (журнал 2026-10-24 00:24:56/23:07:45, 2026-10-29 22:14:24)."""
+    без речи и карточек (журнал 2026-10-24 00:24:56/23:07:45, 2026-10-29 22:14:24). Время
+    зафиксировано: ночные прогоны на границе суток не влияют."""
+    _freeze_clock(monkeypatch, datetime.datetime(2026, 11, 10, 12, 0))
     reply = await _ask(tmp_path, "громкость два",
                        env_state=_state_raw(volume={"level": 4, "max_level": 10}))
     _check_sample("volume-level.json", reply)
@@ -432,13 +445,13 @@ async def test_volume_sample_form_by_ws(tmp_path):
 
 
 async def test_volume_percent_scale_from_station_state(tmp_path):
-    """Проценты и шкала — из MaxLevel колонки: «на 50» при MaxLevel 20 → level 10.0;
-    шкала 0..23 — процент по её шкале (образцы: журнал cap 23)."""
-    reply = await _ask(tmp_path, "громкость на 50",
+    """Уровень — шкала 0..10; MaxLevel колонки — пересчёт в new_percent_level:
+    «на 5» при MaxLevel 20 → 25.0, «семь» при MaxLevel 23 → 30.4 (журнал cap 23)."""
+    reply = await _ask(tmp_path, "громкость на 5",
                        env_state=_state_raw(volume={"level": 4, "max_level": 20}))
     payload = json_format.MessageToDict(_directive(reply, "sound_set_level").Payload,
                                         preserving_proto_field_name=True)
-    assert payload == {"new_level": 10.0, "new_percent_level": 50.0}
+    assert payload == {"new_level": 5.0, "new_percent_level": 25.0}
     reply = await _ask(tmp_path, "громкость семь",
                        env_state=_state_raw(volume={"level": 4, "max_level": 23}))
     payload = json_format.MessageToDict(_directive(reply, "sound_set_level").Payload,

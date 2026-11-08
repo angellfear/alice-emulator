@@ -252,7 +252,7 @@ async def test_action_outside_namespace_rejected(tmp_path):
         "call.py": action_module(marker, refs=("evil.do",), name="do", result='{"ok": True}')})
     runtime.extensions.load_enabled()
     try:
-        assert runtime.extensions.loaded == {}  # «не включается»
+        assert "coffee" not in runtime.extensions.loaded  # «не включается»
         warning = runtime.extensions.warnings[0]
         assert warning["id"] == "coffee"
         assert "evil.do" in warning["error"] and "permissions.actions" in warning["error"]
@@ -268,7 +268,7 @@ async def test_conflict_with_builtin_disables_extension(tmp_path):
         "brew.py": action_module(marker, refs=("coffee.brew", "timer.start"), result='{"ok": True}')})
     runtime.extensions.load_enabled()
     try:
-        assert runtime.extensions.loaded == {}
+        assert "coffee" not in runtime.extensions.loaded
         assert "timer.start" in runtime.extensions.warnings[0]["error"]  # понятная ошибка
         # встроенное действие не подменено, действие расширения не зарегистрировано
         assert runtime.scenario_executor.actions["timer.start"].__module__ == "server_emulator.runtime"
@@ -303,7 +303,7 @@ async def test_dataset_outside_prefix_rejected(tmp_path):
     runtime = await loaded_runtime(tmp_path, datasets={
         "m.py": dataset_module(marker, ref="machines", name="machines")})
     try:
-        assert runtime.extensions.loaded == {}
+        assert "coffee" not in runtime.extensions.loaded
         assert "machines" in runtime.extensions.warnings[0]["error"]  # «Имя датасета …»
         assert "machines" not in runtime.scenario_executor.plugins
         assert "weather" in runtime.scenario_executor.plugins
@@ -317,7 +317,7 @@ async def test_broken_actions_module_disables_extension(tmp_path):
         "brew.py": action_module(marker),
         "broken.py": "ACTIONS = {это не python\n"})
     try:
-        assert runtime.extensions.loaded == {}
+        assert "coffee" not in runtime.extensions.loaded
         assert "broken.py" in runtime.extensions.warnings[0]["error"]
         assert "coffee.brew" not in runtime.scenario_executor.actions
     finally:

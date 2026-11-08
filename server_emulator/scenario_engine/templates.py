@@ -135,11 +135,15 @@ def compile_intents(catalog, sources):
     """Intents hassil из каталога: интент = id сценария, данные = его template-триггеры.
 
     Порядок интентов = порядок каталога (приоритет): recognize_all отдаёт совпадения
-    в этом порядке, первый — победитель. Возвращает (intents, skip_words, numeric)
-    или None, если template-триггеров нет. numeric — имена range-списков (числа
-    hassil приходят float/int — приводятся к int по типу списка)."""
+    в этом порядке, первый — победитель. Возвращает (intents, skip_words, numeric,
+    wildcards) или None, если template-триггеров нет. numeric — имена range-списков
+    (числа hassil приходят float/int — приводятся к int по типу списка); wildcards —
+    имена wildcard-списков (свободные хвосты): совпадение сущности из обычного списка
+    сильнее хвоста (ранжирование)."""
     lists, skip_words = merge_lexicons(sources)
     numeric = {name for name, values in lists.items() if isinstance(values.get("range"), dict)}
+    wildcards = {name for name, values in lists.items()
+                 if isinstance(values, dict) and values.get("wildcard")}
     intents = {}
     for scenario in catalog or []:
         triggers = [t for t in (scenario.get("triggers") or [])
@@ -156,18 +160,37 @@ def compile_intents(catalog, sources):
     if not intents:
         return None
     payload = {"language": LANGUAGE, "intents": intents, "lists": lists}
-    return Intents.from_dict(payload), skip_words, numeric
+    return Intents.from_dict(payload), skip_words, numeric, wildcards
+
+
+def _mid_word_wildcard(cleaned, entities):
+    """True, если граница литерала и wildcard-сущности проходит внутри слова:
+    текст хвоста начинается или заканчивается не на границе слова исходной фразы
+    (соседний символ — буква/цифра). hassil сравнивает литералы без границ слов
+    («свет» совпадает с началом «светлану», остаток уходит в хвост) — такие
+    совпадения отбрасываются, спаны даёт hassil (MatchEntity.text_span)."""
+    for entity in entities:
+        if not entity.is_wildcard or entity.text_span is None:
+            continue
+        start, end = entity.text_span
+        if start > 0 and cleaned[start - 1].isalnum():
+            return True
+        if end < len(cleaned) and cleaned[end].isalnum():
+            return True
+    return False
 
 
 class TemplateIndex:
     """Скомпилированные шаблоны каталога: match(text) → (scenario_id, slots) | None —
-    первый совпавший сценарий (порядок каталога), match_all — все совпадения."""
+    первый совпавший сценарий (порядок каталога), match_all — все совпадения,
+    ranked — совпадения с метриками точности для ранжирования."""
 
     def __init__(self, catalog, sources=None):
         compiled = compile_intents(catalog, [builtin_source()] if sources is None else sources)
         self.intents = compiled[0] if compiled else None
         self.skip_words = compiled[1] if compiled else []
         self.numeric = compiled[2] if compiled else set()
+        self.wildcards = compiled[3] if compiled else set()
 
     def match(self, text):
         """(scenario_id, slots) первого совпавшего сценария или None."""
@@ -178,13 +201,32 @@ class TemplateIndex:
         """[(scenario_id, slots)] в порядке каталога. Ошибка hassil в рантайме (битая
         ссылка на список) — не совпадение, а не падение матчинга: такие шаблоны ловит
         валидатор при сохранении (check_template)."""
+        return [(sid, slots) for sid, slots, _score in self.ranked(text)]
+
+    def ranked(self, text):
+        """[(scenario_id, slots, score)] в порядке каталога; score — кортеж точности
+        в духе hassil recognize_best (_get_result_score): меньше wildcard-сущностей,
+        длиннее совпавший литеральный текст (символы реплики без wildcard-хвостов),
+        меньше текста захвачено хвостами. text_chunks_matched не используется —
+        перечисления-альтернативы раздувают счётчик кусков. Ранжирование кандидатов
+        считает dialog.py по этим кортежам; порядок здесь — каталог, равная точность
+        сохраняет его."""
         if self.intents is None or not text:
             return []
+        cleaned = clean(text)
         try:
-            results = list(recognize_all(clean(text), self.intents, skip_words=self.skip_words))
+            results = list(recognize_all(cleaned, self.intents, skip_words=self.skip_words))
         except HassilError:
             return []
-        return [(result.intent.name, self._slots(result)) for result in results]
+        out = []
+        for result in results:
+            if _mid_word_wildcard(cleaned, result.entities_list):
+                continue  # хвост начинается/кончается посреди слова — не совпадение
+            wild = [entity for entity in result.entities_list if entity.is_wildcard]
+            wild_len = sum(len(entity.text or "") for entity in wild)
+            out.append((result.intent.name, self._slots(result),
+                        (len(wild), -(len(cleaned) - wild_len), wild_len)))
+        return out
 
     def _slots(self, result):
         """Сущности hassil → slots; fixed-слоты данных интента добавляются первыми

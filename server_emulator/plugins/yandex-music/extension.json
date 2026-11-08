@@ -1,0 +1,50 @@
+{
+ "id": "builtin.yandex-music",
+ "name": "Яндекс Музыка",
+ "version": "0.1.0",
+ "description": "Поставщик музыки Яндекс.Музыки (встроенный): «включи музыку <что-то>» ищет по Web API с OAuth-токеном аккаунта, захваченным эмулятором из обращений колонки к Яндексу; играет прямые ссылки storage.yandex.net — полные треки mp3 без DRM из download-info.",
+ "author": "Angell Fear",
+ "license": "MIT",
+ "requires": {
+  "emulator": ">=0.1.0",
+  "sdk": ">=2.0.0",
+  "python_packages": []
+ },
+ "permissions": {
+  "network": [
+   "api.music.yandex.net",
+   "storage.yandex.net"
+  ],
+  "actions": [],
+  "device_push": false,
+  "install": false
+ },
+ "settings": {
+  "fields": [
+   {
+    "key": "market",
+    "label": "Язык/регион (hq, ru, en…)",
+    "type": "text"
+   }
+  ],
+  "defaults": {
+   "market": "ru"
+  }
+ },
+ "contributes": {
+  "providers": [
+   {
+    "kind": "music",
+    "title": "Музыка",
+    "module": "music/yandex_music.py",
+    "capabilities": [
+     "fairy_tales",
+     "podcasts",
+     "audiobooks",
+     "catalog_search"
+    ],
+    "phrases": "phrases/music.json"
+   }
+  ]
+ }
+}

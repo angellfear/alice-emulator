@@ -87,7 +87,7 @@ async def test_proxy_upstream_failure_answers_502(tmp_path):
     runtime = Runtime(tmp_path)
     registry(runtime)
     set_route(runtime, "SN-UP", "proxy")
-    runtime.settings["aliases"] = {"quasar.yandex.net": "http://127.0.0.1:1"}  # закрытый порт
+    runtime.settings["aliases"] = {"quasar.yandex.net": "http://0.0.0.0:1"}  # адрес не существует: отказ мгновенный
     runner, url = await listen(create_app(runtime=runtime))
     try:
         async with ClientSession() as client:
