@@ -1,0 +1,22 @@
+{
+  "id": "builtin.chat",
+  "name": "Болталка",
+  "version": "0.1.0",
+  "description": "Болталка (встроенная): «как дела», «кто тебя создал», «что ты умеешь», скороговорки, стихи, тосты, кричалки, «повтори за мной …» — ответы своими словами. Фразы — в справочнике плагина, сценарий тоже плагина; выключен — фразы болталки неизвестны.",
+  "author": "Angell Fear",
+  "license": "MIT",
+  "requires": {
+    "emulator": ">=0.1.0",
+    "sdk": ">=2.5.0",
+    "python_packages": []
+  },
+  "permissions": {
+    "network": [],
+    "actions": [],
+    "device_push": false,
+    "install": false
+  },
+  "contributes": {
+    "phrases": "phrases/chat.json"
+  }
+}

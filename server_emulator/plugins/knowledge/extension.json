@@ -1,0 +1,22 @@
+{
+  "id": "builtin.knowledge",
+  "name": "Знания",
+  "version": "0.1.0",
+  "description": "Знания (встроенные): факты, перевод, курсы и цены, места рядом, маршруты, пробки, ТВ-программа, рецепты. Фразы — в справочнике плагина, сценарий тоже плагина; данные — поставщик вида knowledge с вкладки «Поставщики данных» (без поставщика — честный отказ). Выключен — фразы знаний неизвестны.",
+  "author": "Angell Fear",
+  "license": "MIT",
+  "requires": {
+    "emulator": ">=0.1.0",
+    "sdk": ">=2.5.0",
+    "python_packages": []
+  },
+  "permissions": {
+    "network": [],
+    "actions": [],
+    "device_push": false,
+    "install": false
+  },
+  "contributes": {
+    "phrases": "phrases/knowledge.json"
+  }
+}

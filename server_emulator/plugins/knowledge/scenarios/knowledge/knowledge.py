@@ -1,11 +1,16 @@
-"""Знания по схеме «сценарий → база → плагин» (081): один сценарий-классификатор на девять
-доменов (обоснование в «Итоге» задания). Сценарий только забирает запись датасета
-(`ctx.dataset_record`, контракт docs/contracts/datasets.md); данные готовят плагины.
-Плагина нет — `ctx.no_data_source()` (090): «Простой» — «Для этого нет источника данных.»,
-«Модель/Агент» — отказ, фраза уходит модели. Запись устарела — говорим, на какое время данные.
-Ответы — своими словами.
+"""Знания: один сценарий-классификатор на девять доменов. Сценарий только забирает значение у выбранного поставщика
+вида knowledge (providers.py: async record(context, domain, key, args); опционально
+supports(context, domain)); таблицу доменов и форму значений задаёт контракт датасетов.
+Поставщика нет — `ctx.no_data_source()`: «Простой» — «Для этого нет источника данных.»,
+«Модель/Агент» — отказ, фраза уходит модели. Поставщик вернул отметку времени
+({"value", "updated_at"}) — говорим, на какое время данные. Ответы — своими словами.
+Фразы объявления плагина (phrases/knowledge.json).
 """
-from server_emulator.sdk import SDKError, format_duration, say
+import time
+
+from server_emulator import providers
+providers.require("knowledge", ("record",), ("supports",))  # потребитель вида объявляет требования
+from server_emulator.sdk import format_duration, say
 
 MAX_AGE = {"facts": None, "translate": None, "prices": 600, "places": 1800, "route": 600,
            "traffic": 300, "tv": 600, "recipes": None}
@@ -29,7 +34,7 @@ def _domain(text):
 
 
 def _query(text, domain):
-    """Хвост фразы — предмет запроса (для плагина-источника)."""
+    """Хвост фразы — предмет запроса (для поставщика данных)."""
     for marker in ("какова ", "какая ", "кто такой ", "кто такая ", "сколько калорий в ",
                    "значение имени ", "где тут рядом ", "где рядом ", "что рядом ",
                    "куда сходить ", "найди ", " поближе", "сколько идти до ",
@@ -56,6 +61,13 @@ def _num(value):
     return int(value) if isinstance(value, float) and value.is_integer() else value
 
 
+def _unwrap(result):
+    """Значение домена или {"value", "updated_at"} (отметка времени данных)."""
+    if isinstance(result, dict) and "updated_at" in result:
+        return result.get("value"), result.get("updated_at")
+    return result, None
+
+
 async def handle(ctx):
     text = ctx.text.lower().strip(" .!?,")
     domain = _domain(text)
@@ -68,14 +80,32 @@ async def handle(ctx):
     elif domain == "places":
         args = {k: (ctx.settings.get("weather") or {}).get(k)
                 for k in ("latitude", "longitude")}
+    # владелец совпавшей записи справочника — его поставщик; иначе выбранный на вкладке
+    entry = ctx.phrase_entry or {}
+    provider = providers.for_ext("knowledge", entry.get("ext_id")) if entry.get("ext_id") else None
+    provider = provider or providers.selected("knowledge", ctx.settings)
+    if provider is None:
+        return ctx.no_data_source()
+    supports = provider.get("supports")
+    if callable(supports):
+        try:
+            if not await providers.invoke(ctx, provider, supports, domain):
+                return ctx.no_data_source()
+        except Exception:  # noqa: BLE001 — сбой supports считаем отсутствием данных
+            return ctx.no_data_source()
     try:
-        record = await ctx.dataset_record(domain, key, max_age=MAX_AGE[domain], args=args)
-    except SDKError:
+        result = await providers.invoke(ctx, provider, provider["record"], domain, key, args)
+    except Exception:  # noqa: BLE001 — сбой поставщика не роняет сценарий
         return ctx.no_data_source()
-    if record is None or record["value"] is None:
+    value, updated_at = _unwrap(result)
+    if value is None:
         return ctx.no_data_source()
-    stale = f" Данные обновлены {format_duration(record['age_s'])} назад." if record["stale"] else ""
-    value = record["value"]
+    stale = ""
+    max_age = MAX_AGE[domain]
+    if updated_at and max_age:
+        age = max(0, time.time() - float(updated_at))
+        if age > max_age:
+            stale = f" Данные обновлены {format_duration(age)} назад."
     if domain == "facts":
         text = str(value.get("answer"))
     elif domain == "translate":

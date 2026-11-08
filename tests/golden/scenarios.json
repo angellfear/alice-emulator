@@ -41,7 +41,180 @@
   },
   "scenarios": [
     {
-      "cases": [],
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "как дела"
+          },
+          "name": "chat.chat-dir0",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Отлично! Всё работает как часы.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Отлично! Всё работает как часы."
+                }
+              ],
+              "reason": "dir:builtin.chat.chat",
+              "scenario": "chat.chat",
+              "speech": "Отлично! Всё работает как часы.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "как дела"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "кто тебя создал"
+          },
+          "name": "chat.chat-dir1",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Я эмулятор умной колонки — исследовательский проект. Меня собрали разработчики этого проекта.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Я эмулятор умной колонки — исследовательский проект. Меня собрали разработчики этого проекта."
+                }
+              ],
+              "reason": "dir:builtin.chat.chat",
+              "scenario": "chat.chat",
+              "speech": "Я эмулятор умной колонки — исследовательский проект. Меня собрали разработчики этого проекта.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "кто тебя создал"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "что ты умеешь"
+          },
+          "name": "chat.chat-dir2",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Я умею говорить время и дату, ставить таймеры и будильники, показывать погоду, управлять громкостью, поболтать и сыграть с вами в простые игры.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Я умею говорить время и дату, ставить таймеры и будильники, показывать погоду, управлять громкостью, поболтать и сыграть с вами в простые игры."
+                }
+              ],
+              "reason": "dir:builtin.chat.chat",
+              "scenario": "chat.chat",
+              "speech": "Я умею говорить время и дату, ставить таймеры и будильники, показывать погоду, управлять громкостью, поболтать и сыграть с вами в простые игры.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "что ты умеешь"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "спой песню"
+          },
+          "name": "chat.chat-dir3",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Петь я не умею — синтез речи не берёт такие ноты. Зато могу включить музыку: скажите «включи музыку».",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Петь я не умею — синтез речи не берёт такие ноты. Зато могу включить музыку: скажите «включи музыку»."
+                }
+              ],
+              "reason": "dir:builtin.chat.chat",
+              "scenario": "chat.chat",
+              "speech": "Петь я не умею — синтез речи не берёт такие ноты. Зато могу включить музыку: скажите «включи музыку».",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "спой песню"
+            }
+          ]
+        }
+      ],
       "id": "chat.chat"
     },
     {
@@ -428,7 +601,7 @@
                   "speech": "Для этого нет источника данных."
                 }
               ],
-              "reason": "template",
+              "reason": "dir:builtin.knowledge.knowledge",
               "scenario": "knowledge.knowledge",
               "speech": "Для этого нет источника данных.",
               "speech_parts": [],
@@ -1983,7 +2156,180 @@
       "id": "informers.weather.widget"
     },
     {
-      "cases": [],
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "как там на дорогах"
+          },
+          "name": "knowledge.knowledge-dir0",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Для этого нет источника данных.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Для этого нет источника данных."
+                }
+              ],
+              "reason": "dir:builtin.knowledge.knowledge",
+              "scenario": "knowledge.knowledge",
+              "speech": "Для этого нет источника данных.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "как там на дорогах"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "где сейчас пробки"
+          },
+          "name": "knowledge.knowledge-dir1",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Для этого нет источника данных.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Для этого нет источника данных."
+                }
+              ],
+              "reason": "dir:builtin.knowledge.knowledge",
+              "scenario": "knowledge.knowledge",
+              "speech": "Для этого нет источника данных.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "где сейчас пробки"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "большие ли пробки"
+          },
+          "name": "knowledge.knowledge-dir2",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Для этого нет источника данных.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Для этого нет источника данных."
+                }
+              ],
+              "reason": "dir:builtin.knowledge.knowledge",
+              "scenario": "knowledge.knowledge",
+              "speech": "Для этого нет источника данных.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "большие ли пробки"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "скажи программу на двадцатью четырьмя сентября"
+          },
+          "name": "knowledge.knowledge-dir3",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Для этого нет источника данных.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Для этого нет источника данных."
+                }
+              ],
+              "reason": "dir:builtin.knowledge.knowledge",
+              "scenario": "knowledge.knowledge",
+              "speech": "Для этого нет источника данных.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "скажи программу на двадцатью четырьмя сентября"
+            }
+          ]
+        }
+      ],
       "id": "knowledge.knowledge"
     },
     {

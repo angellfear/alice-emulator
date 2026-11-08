@@ -150,6 +150,34 @@ async def test_singing_honest_refusal(tmp_path):
         await runtime.close()
 
 
+async def test_chat_phrases_from_builtin_plugin(tmp_path):
+    """Фразы болталки объявляет встроенный плагин chat: совпадение идёт из справочника
+    (reason dir:…), а не из триггеров сценария."""
+    runtime = Runtime(tmp_path)
+    try:
+        report = await _say(runtime, "Алиса, что ты умеешь")
+        assert report["scenario"] == "chat.chat", report
+        assert report["reason"] == "dir:builtin.chat.chat", report["reason"]
+    finally:
+        await runtime.close()
+
+
+async def test_chat_phrases_unknown_when_plugin_off(tmp_path):
+    """Выключенный плагин — фраз болталки нет в справочнике: фраза не отвечает сценарием
+    болталки (сценарий в каталоге остаётся, выбрать его нечему)."""
+    runtime = Runtime(tmp_path)
+    try:
+        await runtime.extensions.disable("builtin.chat")
+        directory = runtime.dialog.phrase_directory()
+        assert not [e for e in directory.entries.values()
+                    if directory.handler_scenario(e) == "chat.chat"]
+        for phrase in ("как дела", "кто ты такая", "скороговорка"):
+            report = await _say(runtime, "Алиса, " + phrase)
+            assert not report["handled"] or report["scenario"] != "chat.chat", (phrase, report)
+    finally:
+        await runtime.close()
+
+
 @pytest.mark.parametrize("phrase", ["подбрось монетку", "брось монетку"])
 async def test_coin(tmp_path, phrase):
     runtime = Runtime(tmp_path)

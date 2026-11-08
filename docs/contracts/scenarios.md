@@ -89,7 +89,8 @@ module: "server_emulator/scenario_engine/"
 | smart_home.light | умный дом (`builtin.home-assistant`) | фразы в файле плагина (`phrases/light.json`: закрытый список ламп из датасета `ha.lights`, падежи — pymorphy3 и словарь `room`; лампы одной площадки — одной командой), сценарий тоже даёт плагин: яркость → `brightness_pct`, исполнение — действие `ha.call_service` (сервисы `light.turn_on`/`turn_off` HA); плагин не настроен или ламп нет — фраз нет; сбой HA при вызове — понятная фраза | test_home_assistant_light |
 | lists.shopping | список покупок (`builtin.shopping-list`) | фразы и сценарий даёт плагин (`phrases/lists.json`, handler `core:lists.shopping`, у сценария `"triggers": []`); список хранится по пользователю (`ctx.data`), владелец записи — id сценария, поэтому перенос уже сохранённых списков не трогает; плагин выключен — фраз списка нет | test_chat_scenarios |
 | games.games | игры (`builtin.games`) | фразы и сценарий даёт плагин (`phrases/games.json`, handler `core:games.games`, у сценария `"triggers": []`); ответ случайный — монетка, кубик, предсказание; плагин выключен — фраз игр нет; свою игру внешний плагин добавляет своими фразами и сценарием (docs/contracts/extensions.md) | test_chat_scenarios |
-| chat.chat, knowledge.knowledge | болталка, знания («Интеллект») | в ядре | test_chat_scenarios, test_knowledge_scenarios |
+| chat.chat | болталка (`builtin.chat`) | фразы и сценарий даёт плагин (`phrases/chat.json`, handler `core:chat.chat`, у сценария `"triggers": []`); плагин выключен — фраз болталки нет | test_chat_scenarios |
+| knowledge.knowledge | знания (`builtin.knowledge`) | фразы и сценарий даёт плагин; данные — поставщик вида knowledge с вкладки «Поставщики данных» (контракт docs/contracts/datasets.md), без поставщика — честный отказ; плагин выключен — фраз знаний нет | test_knowledge_scenarios |
 
 Каталог builtin включается `settings.builtin_scenarios`, отдельные встроенные сценарии —
 `settings.builtin_disabled`.
@@ -221,4 +222,4 @@ API: `GET scenario-drafts` → `{drafts}`; `POST {op: test|activate|discard|hist
 - Голая фраза «включи {X}»: опрос каталогов плагинов с поиском (выбранный поставщик
   первым, отвечает нашедший); после этого ручная отсечка `media_other_domain` для
   маршрутизации не нужна.
-- Встроенные плагины болталки и знаний; вид video.
+- Вид video.
