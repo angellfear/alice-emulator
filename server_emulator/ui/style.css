@@ -342,97 +342,107 @@ body:has(.sc-edit-dialog[open]){overflow:hidden}
 .tree-leaf input.token{outline:1px dashed #6c8;font-family:monospace}
 .tree-leaf.bool{flex-direction:row}
 
-/* Quasar: карточки устройств в слое «Под устройство» */
-.quasar-tree{min-width:260px;max-height:520px;overflow:auto;border:1px solid var(--border,#333);border-radius:8px;padding:6px}
-.quasar-branch{cursor:pointer;padding:3px 6px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.quasar-branch:hover{background:rgba(120,140,255,.12)}
-.quasar-branch.selected{background:rgba(120,140,255,.25)}
-.quasar-branch.leaf{opacity:.75;font-family:monospace;font-size:.85em}
-.quasar-device{display:flex;gap:10px;align-items:center;cursor:pointer;border:1px solid var(--border,#333);border-radius:10px;padding:8px;margin-bottom:8px}
-.quasar-device.selected{outline:1px solid var(--accent,#6c8cff)}
-.quasar-device small{display:block}
-.quasar-device img.thumb{width:40px;height:40px;object-fit:contain}
-
-/* слои конфига: стек слоёв + панель активного слоя */
-.quasar-layers{display:grid;grid-template-columns:210px minmax(0,1fr);gap:18px;align-items:start}
-.quasar-stack{display:flex;flex-direction:column;gap:6px}
+/* Quasar: шаги сборки слева (на узком — сегменты сверху) + панель шага */
+.quasar-layers{display:grid;grid-template-columns:200px minmax(0,1fr);gap:18px;align-items:start}
+.quasar-stack{display:flex;flex-direction:column;gap:6px;position:relative}
 .quasar-stack button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;width:100%;
   min-height:0;padding:8px 12px;background:var(--surface-2);color:var(--text);
-  border:1px solid var(--border);font-weight:500;box-shadow:none}
+  border:1px solid var(--border);border-radius:var(--radius-s);font-weight:500;box-shadow:none}
 .quasar-stack button:hover{border-color:var(--accent-border);background:var(--surface-3);box-shadow:none;color:var(--text)}
 .quasar-stack button.active{background:var(--accent-bg);border-color:var(--accent-border);color:var(--accent-strong);font-weight:600}
-.quasar-stack button b{font-weight:500}
+.quasar-stack button b{font-weight:inherit}
 .quasar-stack button small{color:var(--faint);font-size:11.5px;font-weight:400;max-width:100%;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .quasar-stack .short{display:none}
 @media (max-width:719px){
-  .quasar-layers{grid-template-columns:1fr}
+  .quasar-layers{grid-template-columns:1fr;gap:12px}
   .quasar-stack{flex-direction:row;gap:0;padding:3px;border:1px solid var(--accent-border);
-    border-radius:999px;background:var(--surface-2);margin-bottom:2px}
+    border-radius:999px;background:var(--surface-2)}
   .quasar-stack button{flex:1 1 0;min-width:0;flex-direction:row;justify-content:center;align-items:center;gap:0;
-    background:transparent;border:0;border-radius:999px;padding:5px 6px;font-size:13px;min-height:30px}
+    background:transparent;border:0;border-radius:999px;padding:5px 4px;font-size:13px;min-height:32px}
   .quasar-stack button:hover{background:var(--surface-3)}
-  .quasar-stack button.active{background:var(--accent-bg);font-weight:600}
   .quasar-stack button b.full,.quasar-stack button small{display:none}
   .quasar-stack .short{display:inline;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }
 .quasar-panel-layer{min-width:0;container-type:inline-size}
 .quasar-panel-layer h4{margin:18px 0 8px;font-size:13px;color:var(--muted);font-weight:600}
-.layer-head{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;margin:0 0 10px;min-width:0}
-.layer-head h3{margin:0;flex:0 0 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.layer-select{flex:0 1 auto;min-width:90px;max-width:260px;min-height:32px;padding:4px 8px}
-.layer-head .secondary{flex:0 0 auto;white-space:nowrap;min-height:32px;padding:5px 12px;font-size:12.5px}
+.layer-head{display:flex;align-items:center;gap:8px;margin:0 0 6px;min-width:0}
+.layer-head h3{margin:0;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.layer-select{flex:0 1 auto;width:auto;min-width:90px;max-width:220px;min-height:32px;padding:4px 8px}
 .layer-head .icon-btn{margin-left:0;flex:0 0 auto}
-@media (max-width:480px){
-  .layer-head{gap:6px}
-  .layer-select{min-width:76px;max-width:150px}
-  .layer-head .secondary{padding:5px 8px;font-size:12px}
-  .quasar-lock{display:none}  /* «Только чтение…» уже в пояснении слоя */
-}
-.quasar-lock{flex:0 0 auto;font-size:11px;border:1px solid var(--border-strong);border-radius:999px;padding:1px 8px;color:var(--faint);white-space:nowrap}
-.set-rows{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:var(--radius-s);padding:2px 12px;max-width:720px}
-.set-row{display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);min-width:0}
-.set-row:last-child{border-bottom:none}
-.set-row>span{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
-.set-ctl{width:auto;max-width:230px;min-height:32px;padding:4px 10px;flex:0 1 auto}
-.set-param{width:auto;max-width:230px;min-height:32px;padding:4px 10px;font-weight:400;font-family:Consolas,'Cascadia Mono',monospace;font-size:12px;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:0 1 auto;
-  background:var(--surface-3);color:var(--muted);border-color:var(--border-strong);box-shadow:none}
-.set-param:hover{background:var(--surface-2);color:var(--accent-strong);border-color:var(--accent-border);box-shadow:none}
-.set-row .ui-switch{flex:0 0 auto;margin:0}
-@media (max-width:719px){.set-ctl,.set-param{max-width:150px}}
-.json-filter{max-width:320px;margin-bottom:10px}
-.quasar-json{display:grid;grid-template-columns:1fr;gap:14px;align-items:start}
-/* редактор ветви справа от дерева — только когда панель слоя широка (по ширине
-   панели, не окна: container query) */
-@container (min-width:760px){.quasar-json{grid-template-columns:minmax(220px,300px) minmax(0,1fr)}}
-.layer-chips summary{cursor:pointer;font-size:12.5px;color:var(--muted)}
-.layer-chips .chips-below{margin-top:8px}
-.layer-savebar{position:sticky;bottom:10px;z-index:5;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-  background:var(--surface-2);border:1px solid var(--accent-border);border-radius:var(--radius-s);
-  padding:8px 12px;margin-top:14px;box-shadow:0 6px 18px rgba(0,0,0,.4)}
-.layer-savebar span:first-child{color:var(--text);font-size:13px}
-.layer-savebar .sc-err{margin:0;color:var(--danger);font-size:12.5px;overflow-wrap:anywhere;flex:1 1 120px}
-.layer-savebar button{min-height:32px;padding:5px 14px;font-size:13px}
-.compose-dialog{width:min(900px,calc(100vw - 40px))}
-.compose-dialog .hint{margin:0 0 10px}
+.quasar-panel-layer>.hint{margin:0 0 12px}
 
-/* дерево полного вида: сворачивание +/-, счётчик, кнопка «Шаблон» */
-.quasar-branch{display:flex;align-items:center;gap:4px}
-.quasar-tree .tw{display:inline-block;width:14px;text-align:center;color:var(--muted);cursor:pointer;flex:0 0 auto;user-select:none}
-.quasar-tree .tw:hover{color:var(--accent-strong)}
-.quasar-tree .count{flex:0 0 auto;margin-left:4px;font-size:10.5px;color:var(--faint);border:1px solid var(--border);border-radius:999px;padding:0 6px}
-.tpl-btn{flex:0 0 auto;font-size:11px;padding:1px 8px;border-radius:999px;background:var(--accent-bg);color:var(--accent-strong);border:1px solid var(--accent-border)}
-.tpl-btn:hover{background:var(--accent);color:#081120}
+/* список замен: имя · узел JSON · значение · ⋯ */
+.qr-list{border:1px solid var(--border);border-radius:var(--radius-s);background:var(--surface-2)}
+.qr-empty{margin:0;padding:12px;color:var(--faint);font-size:13px}
+.qr-row{display:grid;grid-template-columns:24px minmax(0,1fr) auto;grid-template-areas:"on name name" "on path path" "on ctl acts";
+  column-gap:10px;row-gap:2px;align-items:center;padding:7px 8px 7px 10px;border-bottom:1px solid var(--border);min-width:0}
+.qr-row:last-child{border-bottom:none}
+.qr-on{grid-area:on;justify-self:center;margin:0;width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+.qr-name{grid-area:name;min-width:0;overflow-wrap:anywhere;font-size:13.5px}
+.qr-path{grid-area:path;justify-self:start;text-align:left;min-width:0;overflow-wrap:anywhere;font-family:Consolas,'Cascadia Mono',monospace;
+  font-size:11.5px;color:var(--faint);background:none;padding:0}
+.qr-ctl{grid-area:ctl;justify-self:start;min-width:0;max-width:100%;display:flex;align-items:center}
+.qr-acts{grid-area:acts;display:flex;gap:2px;justify-content:flex-end}
+.qr-icon{width:30px;height:30px;min-height:0;padding:0;display:inline-flex;align-items:center;justify-content:center;margin:0;
+  background:transparent;border:1px solid transparent;color:var(--muted);box-shadow:none}
+.qr-icon:hover:not(:disabled){border-color:var(--accent-border);background:var(--surface-3);color:var(--accent-strong);box-shadow:none}
+.qr-icon.danger-icon:hover:not(:disabled){border-color:var(--danger-border);color:var(--danger)}
+.qr-icon:disabled{opacity:.25;cursor:default}
+.qr-row.off>.qr-name,.qr-row.off>.qr-path,.qr-row.off>.qr-ctl{opacity:.45}
+.qr-row.off>.qr-name{text-decoration:line-through;text-decoration-color:var(--faint)}
+.qr-head{display:none}
+/* широкая панель — таблица: колонки одинаковой ширины во всех строках */
+@container (min-width:640px){
+  .qr-row{grid-template-columns:24px minmax(110px,190px) minmax(0,1fr) 230px 128px;grid-template-areas:"on name path ctl acts";row-gap:0}
+  .qr-head{display:grid;padding-top:6px;padding-bottom:6px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+  .qr-head>span{font-family:inherit;font-size:inherit;color:inherit;width:auto;height:auto}
+}
+.qr-row .ui-switch{margin:0}
+.qr-value{display:inline-flex;align-items:center;max-width:100%;min-height:32px;padding:3px 8px;background:transparent;
+  border:1px solid transparent;box-shadow:none;color:var(--text);font-weight:400;border-radius:var(--radius-s);text-align:left}
+.qr-value:hover{border-color:var(--accent-border);background:var(--surface-3);box-shadow:none}
+.qr-val{font-family:Consolas,'Cascadia Mono',monospace;font-size:12.5px;color:var(--muted);background:none;padding:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.qr-tpl{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.qr-add{margin-top:8px}
+/* тег параметра/токена: шрифт как у текста, вид — «таблетка» */
+.qtag{display:inline-flex;align-items:center;gap:5px;max-width:100%;vertical-align:baseline;
+  font:inherit;font-family:Consolas,'Cascadia Mono',monospace;font-size:.95em;line-height:1.35;
+  padding:0 8px;border-radius:999px;background:var(--accent-bg);border:1px solid var(--accent-border);color:var(--accent-strong);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qtag b{font-family:system-ui,sans-serif;font-size:.85em;font-weight:600;opacity:.75}
+.qtag.db{background:rgba(143,224,168,.1);border-color:rgba(143,224,168,.4);color:var(--ok)}
+.qtag.run{background:rgba(232,208,106,.1);border-color:rgba(232,208,106,.4);color:#e8d06a}
+.qtag.del{background:var(--danger-bg);border-color:var(--danger-border);color:var(--danger);font-family:inherit}
+.qr-tpl .qtag{margin:0 1px}
+
+/* окно замены */
+.qr-dialog{width:min(560px,calc(100vw - 24px))}
+.qr-dialog label{display:flex;flex-direction:column;gap:4px}
+.qr-dialog label.ui-switch{flex-direction:row;font-weight:500;margin:10px 0 4px}
+.qr-dialog-value{display:flex;flex-direction:column;gap:8px}
+.qr-preview{min-height:22px}
+.qr-dialog .sc-err{margin:8px 0 0;color:var(--danger);overflow-wrap:anywhere}
+.qr-menu-dialog .list{display:flex;flex-direction:column;gap:6px;min-width:220px}
+.qr-menu-dialog .list button{justify-content:flex-start;text-align:left}
+
+/* замены устройств: список колонок + панель выбранной */
+.qd-split{display:grid;grid-template-columns:1fr;gap:12px}
+@container (min-width:760px){.qd-split{grid-template-columns:220px minmax(0,1fr);gap:16px;align-items:start}}
+.qd-list{display:flex;flex-direction:column;gap:6px}
+.qd-body{min-width:0}
+.quasar-device{display:flex;gap:10px;align-items:center;width:100%;text-align:left;padding:7px 10px;min-height:0;
+  background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-s);color:var(--text);font-weight:400;box-shadow:none}
+.quasar-device:hover{border-color:var(--accent-border);background:var(--surface-3);box-shadow:none}
+.quasar-device.selected{background:var(--accent-bg);border-color:var(--accent-border)}
+.quasar-device span{min-width:0}
+.quasar-device b{display:block;font-weight:500}
+.quasar-device small{display:block;color:var(--faint);font-size:11.5px;overflow-wrap:anywhere}
+.quasar-device img.thumb{width:36px;height:36px;object-fit:contain;flex:0 0 auto}
 
 /* редактор/просмотр кода (CodeMirror) */
-.quasar-editor{min-width:0}
 .CodeMirror{font-family:Consolas,'Cascadia Mono',monospace;font-size:12.5px;border:1px solid var(--border);border-radius:8px}
-.quasar-editor .CodeMirror-scroll{min-height:200px}
-.chips-below{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px}
-.chips-below span{font-size:11.5px}
-.chips-below code{cursor:pointer;border:1px dashed var(--border-strong);border-radius:6px;padding:2px 7px;color:var(--accent);white-space:nowrap}
-.chips-below code:hover{border-color:var(--accent-border);color:var(--accent-strong)}
 
 /* тултип происхождения значения в итоговом конфиге */
 .cm-tip{position:fixed;z-index:99;max-width:360px;background:var(--surface-3);border:1px solid var(--accent-border);

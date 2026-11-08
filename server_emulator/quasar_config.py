@@ -1,48 +1,15 @@
-"""Конфиги Quasar: слои common → платформа (merge-patch) → аккаунт → устройство + инлайн-узлы.
+"""Конфиги Quasar: встроенный шаблон и источники значений для замен.
 
-Файлы — только содержание:
-- state/quasar/common.json — ТЕЛО общего конфига (чистый JSON ответа sync);
-- state/quasar/platforms/<platform>.json — чистый merge-patch (RFC 7396);
-  платформа = имя файла, по умолчанию — первая по алфавиту.
+Встроенный шаблон (quasar_defaults/): общий дефолт ответа /get_sync_info плюс квирк
+платформы — generated_base(platform). Замены поверх шаблона — quasar_rules.py.
 
-Слой расширений (TASK-030): common.json и platforms/*.json из quasar/ включённых
-расширений — только чтение, под пользовательскими файлами (merge-patch в обратном
-порядке приоритета); правка в редакторе сохраняет пользовательскую копию.
-
-Сборка ответа /get_sync_info:
-
-    built-in generated (quasar_defaults/common.json + платформенный квирк)
-      ← state/quasar/common.json (тело; перекрывает built-in дефолт)
-      ← merge-patch платформы
-      ← переопределения аккаунта владельца (quasar_overrides пользователя, только config.account_config.*)
-      ← переопределения устройства (quasar_overrides: path+source)
-      → разрешение инлайн-узлов ($-ключи) → динамика ({{токены}} / db / run)
-
-Инлайн-узлы живут В ТЕЛЕ на месте значения — один $-ключ типа со значением,
-плюс опциональные $name/$hint (подпись и пояснение для простого редактора):
-
-    "subscription": {
-      "$name": "Подписка", "$hint": "Состояние подписки устройства",
-      "$select": "Включена",
-      "Включена":  {"enabled": true,  "mode": "subscription", "ttl": 0},
-      "Выключена (invalid_subscription_user)": {"enabled": false, "mode": "subscription",
-                                                "ttl": 0, "disabled_reason": "invalid_subscription_user"}
-    }
-    "device_label": {"$string": "Кухня", "$name": "Подпись"}
-    "volume":       {"$number": 5, "$name": "Громкость"}
-    "alice_pro":    {"$bool": true, "$name": "Alice Pro"}
-    "tags":         {"$list": ["a", "b"], "$name": "Теги"}
-    "owner":        {"$param": "user.name", "$name": "Владелец"}
-
-Разрешение: $select → узел заменяется значением выбранного варианта (ключи
-вариантов = подписи выпадающего списка; вложенность допустима); $string/
-$number/$list → значение (строки проходят шаблонизатор {{токены}}); $bool →
-true/false; $param → параметр-заглушка (device.sn, device.name, user.name,
-session.sn, …; единая система параметров — TODO, функция одна: resolve_param).
-
-Переопределение устройства: {path, source}; source — литерал / {"expr"} /
-{"db"} / {"run"} / {"delete"} ИЛИ переключение селектора: {"$select": "…"} —
-мерджится в существующий узел (варианты не дублируются).
+Источники значений: context_for — {{токены}} строк (время, устройство, владелец);
+resolve_param — параметры (device.sn, user.name, каталог «Параметры», пути реестра);
+db_lookup — значение из реестра эмулятора; run_command — stdout скрипта из белого
+списка state/quasar/scripts. resolve_tree — финальный проход по телу: строки с
+{{токенами}}, маркеры {"expr"|"db"|"run"} и инлайн-узлы прежнего формата тел
+расширений ($select/$bool/$param/$string/$number/$list с $name/$hint) — внутри
+вариантов выбора и значений, перенесённых из прежних тел.
 """
 import copy
 import json
@@ -81,27 +48,6 @@ def merge_patch(target, patch):
         else:
             result[key] = merge_patch(result.get(key), value)
     return result
-
-
-def merge_layer(base, patch):
-    """merge_patch слоёв конфига: инлайн-узел ($-ключ типа) в верхнем слое заменяет
-    значение нижнего слоя целиком — узел описывает значение, а не дополняет его
-    (иначе $bool/$select получают чужие ключи). Узел поверх узла сливается как раньше."""
-    if not isinstance(patch, dict):
-        return copy.deepcopy(patch)
-    if _has_inline_key(patch) and not _has_inline_key(base):
-        return copy.deepcopy(patch)
-    result = copy.deepcopy(base) if isinstance(base, dict) else {}
-    for key, value in patch.items():
-        if value is None:
-            result.pop(key, None)
-        else:
-            result[key] = merge_layer(result.get(key), value)
-    return result
-
-
-def _has_inline_key(node):
-    return isinstance(node, dict) and bool(set(node) & set(INLINE_KEYS))
 
 
 def device_platform(device):
@@ -224,7 +170,8 @@ def resolve_param(name, runtime, device, context):
     if store is not None:
         try:
             user_id = (device or {}).get("user_id")
-            return store.resolve(name, user_id=user_id, sn=(device or {}).get("sn"))
+            return store.resolve(name, user_id=user_id, sn=(device or {}).get("sn"),
+                                 platform=context.get("platform") or None)
         except KeyError:
             pass
         except ParamError:  # секрет-маска и т.п. — ниже попробуем legacy
@@ -268,7 +215,7 @@ def run_command(command, runtime, device, context):
         raise QuasarConfigError(f"run: команда не разбирается ({exc})")
     if not parts:
         raise QuasarConfigError("run: пустая команда")
-    scripts = runtime.quasar_platforms.scripts_dir.resolve()
+    scripts = runtime.quasar_rules.scripts_dir.resolve()
     exe = Path(parts[0])
     target = exe.resolve() if exe.is_absolute() else (scripts / exe).resolve()
     if scripts != target and scripts not in target.parents:
@@ -389,170 +336,7 @@ def resolve_tree(tree, runtime, device, context, trace=None, path="", render=Tru
     return resolve_source(tree, runtime, device, context, trace, path, render)
 
 
-# --- хранилище: чистые файлы без обёрток -------------------------------------------
-
-class PlatformStore:
-    """Слои Quasar-конфига (TASK-030): common.json и platforms/ включённых расширений —
-    только чтение, поверх них — пользовательские файлы state/quasar (перекрытие в
-    обратном порядке: пользовательское > расширение; между расширениями — позднее).
-    extension_dirs — callable → [(ext_id, Path)] каталогов quasar/ расширений, ставит
-    runtime (менеджер расширений создаётся позже хранилища)."""
-
-    def __init__(self, directory, extension_dirs=None):
-        self.directory = Path(directory)
-        self.platforms_dir = self.directory / "platforms"
-        self.scripts_dir = self.directory / SCRIPTS_DIRNAME
-        self.common_path = self.directory / "common.json"
-        self.extension_dirs = extension_dirs
-
-    def _extension_layers(self):
-        if self.extension_dirs is None:
-            return []
-        try:
-            return [(ext_id, Path(path)) for ext_id, path in self.extension_dirs()]
-        except Exception:  # noqa: BLE001 — расширения не должны ломать конфиг
-            return []
-
-    @staticmethod
-    def _read(path):
-        try:
-            return json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            return None
-
-    @staticmethod
-    def _write(path, value):
-        path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = path.with_suffix(".tmp")
-        temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
-        os.replace(temporary, path)
-
-    def load_common(self):
-        """Тело общего конфига: common.json расширений (merge-patch по порядку) →
-        пользовательский common.json (merge-patch поверх). Ни одного слоя — None."""
-        body = None
-        for _ext_id, path in self._extension_layers():
-            item = self._read(path / "common.json")
-            if isinstance(item, dict):
-                body = merge_patch(body if isinstance(body, dict) else {}, item)
-        item = self._read(self.common_path)
-        if isinstance(item, dict):
-            body = merge_patch(body if isinstance(body, dict) else {}, item)
-        return body
-
-    def save_common(self, body):
-        if not isinstance(body, dict):
-            raise QuasarConfigError("Общий конфиг: объект JSON (тело ответа)")
-        self._write(self.common_path, body)
-        return body
-
-    def ensure_common(self):
-        """Скелет общего конфига, если слоёв нет вовсе (вызывается UI/API, не чтением).
-        Пока слой есть (например, только расширение) — пользовательский файл не пишется:
-        правка в редакторе сохранит пользовательскую копию поверх слоя расширения."""
-        body = self.load_common()
-        if body is None:
-            body = {"config": {}}
-            self.save_common(body)
-        return body
-
-    def load(self, platform):
-        if platform == "common":
-            return self.load_common()
-        if not platform or not re.fullmatch(r"[a-z0-9_.-]+", platform):
-            return None
-        patch = None
-        for _ext_id, path in self._extension_layers():  # поздний слой поверх раннего
-            item = self._read(path / "platforms" / (platform + ".json"))
-            if isinstance(item, dict):
-                patch = merge_patch(patch if isinstance(patch, dict) else {}, item)
-        item = self._read(self.platforms_dir / (platform + ".json"))  # пользовательский — сильнее
-        if isinstance(item, dict):
-            patch = merge_patch(patch if isinstance(patch, dict) else {}, item)
-        return patch
-
-    def list(self):
-        """Платформы: пользовательские файлы + платформы расширений (с тем же именем
-        платформы показана пользовательская); первая в списке — по умолчанию.
-        keys — число листовых значений патча (счётчик слоя в UI)."""
-        result, names = [], set()
-        try:
-            paths = sorted(self.platforms_dir.glob("*.json"))
-        except OSError:
-            paths = []
-        for index, path in enumerate(paths):
-            patch = self._read(path)
-            if isinstance(patch, dict):
-                result.append({"platform": path.stem,
-                               "default": index == 0,
-                               "keys": count_keys(patch),
-                               "patch_bytes": len(json.dumps(patch))})
-                names.add(path.stem)
-        for _ext_id, path in self._extension_layers():
-            try:
-                files = sorted((path / "platforms").glob("*.json"))
-            except OSError:
-                continue
-            for file in files:
-                if file.stem in names:
-                    continue
-                patch = self._read(file)
-                if isinstance(patch, dict):
-                    result.append({"platform": file.stem, "default": not result,
-                                   "keys": count_keys(patch),
-                                   "patch_bytes": len(json.dumps(patch))})
-                    names.add(file.stem)
-        return result
-
-    def save(self, platform, patch):
-        if not isinstance(platform, str) or not re.fullmatch(r"[a-z0-9_.-]+", platform) \
-                or platform == "common":
-            raise QuasarConfigError("platform: строка [a-z0-9_.-], common зарезервировано")
-        if not isinstance(patch, dict):
-            raise QuasarConfigError("Платформа: чистый merge-patch (объект JSON)")
-        self._write(self.platforms_dir / (platform + ".json"), patch)  # пользовательская копия
-        return patch
-
-    def remove(self, platform):
-        if platform == "common":
-            raise QuasarConfigError("Общий конфиг не удаляется")
-        target = self.platforms_dir / (platform + ".json")
-        existed = target.exists()
-        try:
-            target.unlink()
-        except OSError:
-            pass
-        return existed
-
-    def platform_for(self, device):
-        """Платформа патчей для устройства: profile.platform → сообщённая колонкой
-        (state.reported_platform). Имени нет в файлах (или пусто) — None: первым файлом
-        не угадываем, патч по чужой платформе опаснее его отсутствия."""
-        name = device_platform(device)
-        if name and self.load(name) is not None:
-            return name
-        return None
-
-    def resolve_files(self, device):
-        """(тело common, патч платформы|None); (None, None) — слоёв нет."""
-        body = self.load_common()
-        if body is None:
-            return None, None
-        name = self.platform_for(device)
-        return body, (self.load(name) if name else None)
-
-
-# --- переопределения и композиция --------------------------------------------------
-
-class _Delete:
-    __slots__ = ()
-
-    def __repr__(self):
-        return "<delete>"
-
-
-_DELETE = _Delete()
-
+# --- пути и предупреждения --------------------------------------------------------
 
 def get_path(tree, dotted):
     node = tree
@@ -561,50 +345,6 @@ def get_path(tree, dotted):
             return None
         node = node[part]
     return node
-
-
-def deep_set(tree, dotted, value):
-    parts = [p for p in dotted.split(".") if p]
-    if not parts:
-        raise QuasarConfigError("override: пустой путь")
-    node = tree
-    for part in parts[:-1]:
-        if not isinstance(node.get(part), dict):
-            node[part] = {}
-        node = node[part]
-    if value is _DELETE:
-        node.pop(parts[-1], None)
-    else:
-        node[parts[-1]] = value
-
-
-def _trace_patch(trace, prefix, patch, label):
-    """Отметить пути, которые merge-patch платформы задаёт/удаляет."""
-    if not isinstance(patch, dict):
-        trace[prefix] = label
-        return
-    for key, value in patch.items():
-        path = f"{prefix}.{key}" if prefix else key
-        if value is None:
-            trace[path] = label + " (удалено)"
-        elif isinstance(value, dict):
-            _trace_patch(trace, path, value, label)
-        else:
-            trace[path] = label
-
-
-def _override_label(source):
-    if isinstance(source, dict) and set(source) == {"delete"}:
-        return "переопределение: удаление"
-    if isinstance(source, dict) and "$select" in source:
-        return f"переопределение: выбор «{source['$select']}»"
-    if isinstance(source, dict) and set(source) == {"expr"}:
-        return f"переопределение: шаблон {source['expr']}"
-    if isinstance(source, dict) and set(source) == {"db"}:
-        return f"переопределение: БД {source['db']}"
-    if isinstance(source, dict) and set(source) == {"run"}:
-        return f"переопределение: скрипт {source['run']}"
-    return "переопределение устройства"
 
 
 POLL_PERIOD_PATH = "config.system_config.syncd.pollPeriodSec"
@@ -659,77 +399,6 @@ def validate_account_overrides(items):
     return result
 
 
-def account_layer(runtime, device):
-    """(переопределения, имя пользователя) владельца устройства; у устройства без владельца
-    слоя аккаунта нет — ([], None)."""
-    user_id = (device or {}).get("user_id")
-    if not user_id:
-        return [], None
-    user = next((u for u in runtime.identities.data["users"] if u["id"] == user_id), None)
-    if not user:
-        return [], None
-    return list(user.get("quasar_overrides") or []), user.get("name") or user["id"]
-
-
-def _apply_overrides(body, overrides, runtime, device, context, trace, label_of):
-    for override in overrides or []:
-        if not isinstance(override, dict) or not isinstance(override.get("path"), str):
-            continue
-        source = override.get("source")
-        if isinstance(source, dict) and set(source) == {"delete"}:
-            deep_set(body, override["path"], _DELETE)
-            if trace is not None:
-                trace[override["path"]] = label_of(source)
-            continue
-        if isinstance(source, dict) and source and all(k.startswith("$") for k in source)                 and inline_type(source) is not None:
-            # переключение инлайн-узла (например {"$select": "…"}): мерджим в
-            # существующий узел — варианты не дублируются
-            existing = get_path(body, override["path"])
-            if isinstance(existing, dict):
-                deep_set(body, override["path"], merge_patch(existing, source))
-                if trace is not None:
-                    trace[override["path"]] = label_of(source)
-                continue
-        value = resolve_source(source, runtime, device, context)
-        deep_set(body, override["path"], copy.deepcopy(value))
-        if trace is not None:
-            trace[override["path"]] = label_of(source)
-
-
-def compose(common_body, platform_patch, overrides, runtime, device,
-            trace=None, platform_label=None, account_overrides=None, account_name=None,
-            render=True):
-    """common → merge-patch платформы → переопределения аккаунта → переопределения устройства
-    → инлайн-узлы → динамика.
-
-    account_overrides — quasar_overrides владельца (только config.account_config.*; путь вне
-    этой части — QuasarConfigError). Устройство сильнее аккаунта.
-    trace: dict dotted-путь → подпись происхождения для просмотрщика UI;
-    без trace поведение и стоимость прежние.
-    render=False — сборка без устройства (просмотр слоёв): инлайн-узлы разрешаются
-    по выбранным вариантам, строки и source-маркеры ({{токены}}/expr/db/run) остаются как есть."""
-    body = copy.deepcopy(common_body or {})
-    if platform_patch is not None:
-        body = merge_layer(body, copy.deepcopy(platform_patch))
-        if trace is not None:
-            label = f"платформа {platform_label}" if platform_label else "платформа"
-            _trace_patch(trace, "", copy.deepcopy(platform_patch), label)
-    context = context_for(runtime, device)
-    if account_overrides:
-        for item in account_overrides:
-            error = account_override_error(item.get("path") if isinstance(item, dict) else None)
-            if error:
-                raise QuasarConfigError(error)
-        owner = f"аккаунт {account_name}" if account_name else "аккаунт"
-
-        def account_label(source):
-            detail = _override_label(source)
-            return owner if detail == "переопределение устройства" else f"{owner} ({detail.removeprefix('переопределение: ')})"
-        _apply_overrides(body, account_overrides, runtime, device, context, trace, account_label)
-    _apply_overrides(body, overrides, runtime, device, context, trace, _override_label)
-    return resolve_tree(body, runtime, device, context, trace, "", render)
-
-
 def count_keys(value):
     """Число листовых значений тела (счётчик размера слоя в UI)."""
     if isinstance(value, dict):
@@ -737,28 +406,3 @@ def count_keys(value):
     if isinstance(value, list):
         return sum(count_keys(v) for v in value)
     return 1
-
-
-def count_inline(value):
-    """Число инлайн-узлов ($-ключ типа) в теле — как их показывает редактор
-    настроек: узел считается одним, вглубь (в варианты $select) не углубляемся."""
-    if isinstance(value, dict):
-        kinds = set(value) & set(INLINE_KEYS)
-        if kinds:
-            return 1
-        return sum(count_inline(v) for v in value.values())
-    if isinstance(value, list):
-        return sum(count_inline(v) for v in value)
-    return 0
-
-
-def trace_layer(trace, before, after, prefix="", label=""):
-    """Пометить пути, которые слой добавил или изменил (diff after относительно before):
-    путь из слоя, отсутствующий/изменённый в before, — trace[path] = label."""
-    for key, value in (after or {}).items():
-        path = f"{prefix}.{key}" if prefix else key
-        old = before.get(key) if isinstance(before, dict) else None
-        if isinstance(value, dict) and isinstance(old, dict) and old:
-            trace_layer(trace, old, value, path, label)
-        elif value != old:
-            trace[path] = label

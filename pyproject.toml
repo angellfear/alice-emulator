@@ -27,6 +27,7 @@ dependencies = [
   "aiodns>=3.2,<4",
   "dulwich>=0.22,<1",
   "packaging>=23,<26",
+  "jsonpointer>=3,<4",
 ]
 
 [project.optional-dependencies]

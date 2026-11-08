@@ -1,18 +1,18 @@
-"""TASK-047: слой аккаунта (quasar_overrides пользователя) между платформой и устройством."""
+"""Замены аккаунта (quasar_overrides пользователя) между платформой и устройством."""
 import pytest
 from aiohttp import ClientSession
 
 from server_emulator.identity import IdentityRegistry
-from server_emulator.quasar_config import (QuasarConfigError, account_layer, compose,
-                                           validate_account_overrides)
+from server_emulator.quasar_config import QuasarConfigError, validate_account_overrides
+from server_emulator.quasar_rules import RuleStore, account_rules, compose_config
 from server_emulator.runtime import Runtime
 from server_emulator.server import create_app
 from server_emulator.state_store import StateStore
 from tests.conftest import listen
 
 HEADERS = {"Host": "quasar.yandex.net"}
-COMMON = {"config": {"account_config": {"spotter": "alisa", "jingle": True},
-                     "device_config": {"name": "x"}, "system_config": {}}}
+COMMON = [{"name": "spotter", "path": "/config/account_config/spotter", "kind": "value", "value": "alisa"},
+          {"name": "jingle", "path": "/config/account_config/jingle", "kind": "bool", "value": True}]
 SPOTTER = "config.account_config.spotter"
 
 
@@ -29,8 +29,9 @@ async def make_runtime(tmp_path):
                                    "profile": {"platform": "chiron"}})
     runtime.identities.mutate({"operation": "device", "sn": "SN-U", "user_id": None, "device_ids": ["id-u"],
                                "profile": {"platform": "chiron"}})
-    runtime.quasar_platforms.save_common(COMMON)
-    runtime.quasar_platforms.save("chiron", {"config": {"device_config": {"platform": "chiron"}}})
+    runtime.quasar_rules.save("common", COMMON)
+    runtime.quasar_rules.save("chiron", [{"name": "platform", "path": "/config/device_config/platform",
+                                          "kind": "value", "value": "chiron"}])
     return runtime
 
 
@@ -89,11 +90,12 @@ def test_path_outside_account_config_is_error(tmp_path):
         identities.mutate(user_overrides("u", [{"path": "config.system_config.x", "source": 1}]))
     with pytest.raises(ValueError, match="не найден"):
         identities.mutate(user_overrides("zzz", []))
-    # compose сам тоже не пропускает путь вне account_config (в обход реестра)
-    runtime = type("R", (), {"identities": identities, "sessions": {}})()
-    with pytest.raises(QuasarConfigError):
-        compose(COMMON, None, None, runtime, None,
-                account_overrides=[{"path": "config.device_config.name", "source": "x"}])
+    # сборка сама тоже не пропускает путь вне account_config (в обход реестра)
+    runtime = type("R", (), {"identities": identities, "sessions": {},
+                             "quasar_rules": RuleStore(tmp_path / "quasar")})()
+    identities.data["users"][0]["quasar_overrides"] = [{"path": "config.device_config.name", "source": "x"}]
+    with pytest.raises(QuasarConfigError, match="account_config"):
+        compose_config(runtime, "", {"sn": "SN", "device_ids": ["SN"], "user_id": "u"})
 
 
 @pytest.mark.asyncio
@@ -101,8 +103,8 @@ async def test_unassigned_device_has_no_account_layer(tmp_path):
     runtime = await make_runtime(tmp_path)
     runtime.identities.mutate(user_overrides("alice", [{"path": SPOTTER, "source": "jarvis"}]))
     unbound = runtime.identities.resolve("id-u")
-    assert account_layer(runtime, unbound) == ([], None)
-    assert account_layer(runtime, runtime.identities.resolve("id-1")) == (
+    assert account_rules(runtime, unbound) == ([], None)
+    assert account_rules(runtime, runtime.identities.resolve("id-1")) == (
         [{"path": SPOTTER, "source": "jarvis"}], "Alice")
     runner, url = await listen(create_app(runtime=runtime))
     try:
@@ -133,13 +135,13 @@ async def test_trace_signs_account_layer(tmp_path):
             async with client.get(url + "/emulator/api/quasar_composed?device=SN-1") as response:
                 body = await response.json()
             origins = body["origins"]
-            assert origins[SPOTTER] == "аккаунт Alice"
+            assert origins[SPOTTER] == "аккаунт Alice: spotter"
             assert origins["config.account_config.jingle"].startswith("аккаунт Alice")
             assert "jingle" not in body["config"]["config"]["account_config"]
             async with client.get(url + "/emulator/api/quasar_composed?device=SN-2") as response:
                 body = await response.json()
             assert body["config"]["config"]["account_config"]["spotter"] == "computer"
-            assert body["origins"][SPOTTER] == "переопределение устройства"
+            assert body["origins"][SPOTTER] == "устройство: spotter"
     finally:
         await runner.cleanup()
         await runtime.close()

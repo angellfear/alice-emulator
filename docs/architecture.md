@@ -78,7 +78,7 @@
 | Адаптеры голосового стека | `state/voice_stack/adapters/*.py` | [voice-stack](contracts/voice-stack.md) |
 | MCP-серверы | `state/mcp.json` | [mcp](contracts/mcp.md) |
 | Сценарии | `state/scenarios/` | [scenarios](contracts/scenarios.md), [JSON v2](contracts/scenario-json-v2.md) |
-| Шаблоны конфигов Quasar | `state/quasar_config/` | [quasar-config](contracts/quasar-config.md) |
+| Замены Quasar-конфига | `state/quasar/rules/` | [quasar-config](contracts/quasar-config.md) |
 
 Приоритет при совпадении имён: **пользовательское > расширение > встроенное**. Расширение с кодом исполняется в процессе сервера без песочницы и ставится только с подтверждением.
 
@@ -174,7 +174,7 @@ agent: ответ готов → TTS заранее → async_reply.keep()
 | Подсистема | Контракт |
 |---|---|
 | Протокол голоса и AAPI | [aapi](contracts/aapi.md), [uniproxy](contracts/uniproxy.md), [ws-handlers](contracts/ws-handlers.md) |
-| HTTP и Quasar | [http](contracts/http.md), [endpoints](contracts/endpoints.md), [quasar-config](contracts/quasar-config.md), [quasar-templates](contracts/quasar-templates.md) |
+| HTTP и Quasar | [http](contracts/http.md), [endpoints](contracts/endpoints.md), [quasar-config](contracts/quasar-config.md) |
 | Фронт TLS | [front](contracts/front.md) |
 | Маршруты и журнал трафика | [routing](contracts/routing.md) |
 | Плеер, громкость, директивы | [player](contracts/player.md), [station-media](contracts/station-media.md), [device-actions](contracts/device-actions.md) |

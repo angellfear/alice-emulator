@@ -72,16 +72,12 @@ def test_seed_idempotent_with_legacy(tmp_path):
     assert runtime.quasar_params.raw_value("user:u1", "user.wifi_hash") == "abc"
     assert runtime.quasar_params.raw_value("user:u1", "user.location.latitude") == 55.7
     # $param читает стор: шаблонная сборка получает значение параметра
-    from server_emulator.quasar_config import compose
-    class R:
-        identities = runtime.identities
-        quasar_platforms = runtime.quasar_platforms
-        quasar_params = runtime.quasar_params
-        sessions = {}
+    from server_emulator.quasar_rules import compose_config
     device = {"sn": "SN1", "device_ids": ["SN1"], "name": "N", "user_id": "u1",
               "profile": {}, "fields": {}}
-    body = compose({"wifi": {"$param": "user.wifi_hash"}}, None, [], R, device)
-    assert body == {"wifi": "abc"}
+    body = compose_config(runtime, "", device, device_rules=[
+        {"name": "wifi", "path": "/wifi", "kind": "param", "value": "user.wifi_hash"}])
+    assert body["wifi"] == "abc"
     runtime.store.close()
 
 

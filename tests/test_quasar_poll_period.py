@@ -1,7 +1,8 @@
-"""TASK-046: предупреждения о границах system_config.syncd.pollPeriodSec ([60, 900] с)."""
+"""Предупреждения о границах system_config.syncd.pollPeriodSec ([60, 900] с)."""
 import pytest
 
-from server_emulator.quasar_config import compose, poll_period_warnings
+from server_emulator.quasar_config import poll_period_warnings
+from server_emulator.quasar_rules import compose_config
 from test_quasar_config import FakeRuntime
 
 
@@ -35,7 +36,9 @@ def test_missing_key_no_warning(body):
 
 def test_compose_value_unchanged(tmp_path):
     runtime = FakeRuntime(tmp_path)
-    body = compose(_body(1200), None, None, runtime, None)
+    runtime.quasar_rules.save("common", [{"name": "poll", "path": "/config/system_config/syncd/pollPeriodSec",
+                                          "kind": "value", "value": 1200}])
+    body = compose_config(runtime, "", None)
     assert body["config"]["system_config"]["syncd"]["pollPeriodSec"] == 1200
     assert len(poll_period_warnings(body)) == 1
 
@@ -52,8 +55,8 @@ async def test_composed_api_returns_warnings(tmp_path):
     runtime.identities.mutate({'operation': 'user', 'id': 'u1', 'name': 'U'})
     runtime.identities.mutate({'operation': 'device', 'sn': 'SN-1', 'user_id': 'u1',
                                'device_ids': ['id-1'], 'profile': {'platform': 'chiron'}})
-    runtime.quasar_platforms.save_common(_body(1200))
-    runtime.quasar_platforms.save("chiron", {"config": {"device_config": {"platform": "chiron"}}})
+    runtime.quasar_rules.save("common", [{"name": "poll", "path": "/config/system_config/syncd/pollPeriodSec",
+                                          "kind": "value", "value": 1200}])
     runner, url = await listen(create_app(runtime=runtime))
     try:
         async with ClientSession() as client:

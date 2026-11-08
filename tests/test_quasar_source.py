@@ -34,7 +34,6 @@ def alias_upstream(runtime, port):
 def registry(runtime, sn="SN-Q", device_id="q-id"):
     runtime.identities.mutate({"operation": "user", "id": "u", "name": "U"})
     runtime.identities.mutate({"operation": "device", "sn": sn, "user_id": "u", "device_ids": [device_id]})
-    runtime.quasar_platforms.ensure_common()  # платформенные файлы: без них get_sync_info отвечает 409
 
 
 HEADERS = {"Host": "quasar.yandex.net", "X-YaQuasarDeviceId": "q-id", "Authorization": "Bearer secret-token"}

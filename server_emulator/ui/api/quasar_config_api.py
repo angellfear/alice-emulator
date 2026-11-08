@@ -1,45 +1,49 @@
-"""Домены quasar_platforms, quasar_composed и quasar_source: слои Quasar-конфига (RF-03).
+"""Домены quasar_platforms, quasar_rules, quasar_composed и quasar_source: конфиг Quasar.
 
-quasar_platforms — редактор «Слои конфига» sync-конфигов: общий common
-(тело, не удаляется) + платформы-патчи (чистый merge-patch в файлах) +
-templates.json (токены/инлайн-узлы/источники значений); GET ?builtin=<platform> —
-встроенная база quasar_defaults (только чтение), GET ?compose=<platform> —
-итог база → common → патч без устройства с происхождением значений
-(инлайн-узлы разрешены, {{токены}} и source-маркеры остаются как есть).
-quasar_composed — итоговый конфиг устройства после всех слоёв + происхождение
-каждого значения (только чтение). quasar_source — источник конфига устройства:
-generated | direct | custom, генерация образца и получение с оригинального
-сервера по запомненным в памяти заголовкам колонки. Guard и маппинг ошибок
-обеспечивает диспетчер реестра ui/api/__init__.py.
+quasar_platforms — обзор раздела «Конфиг колонок»: платформы встроенного шаблона, платформы
+с заменами, счётчики; GET ?builtin=<платформа> — встроенный шаблон (только чтение),
+GET ?compose=<платформа> — итог без устройства (шаблон → общие → платформа) с происхождением;
+POST {action: create|rename, platform, to?} и DELETE ?platform= — файлы замен платформ.
+quasar_rules — замены слоя: GET ?layer=common|platform:<имя>|device:<SN> → {rules, inherited},
+PUT {layer, rules} — проверка и сохранение списка целиком. quasar_composed — итоговый
+конфиг устройства с происхождением значений. quasar_source — источник конфига устройства:
+generated | direct | custom, генерация образца и получение с оригинального сервера по
+запомненным в памяти заголовкам колонки. Guard и маппинг ошибок — ui/api/__init__.py.
 """
 import copy
 
 from aiohttp import web
 
-from ...quasar_config import (account_layer, compose, count_inline, count_keys, device_platform,
-                              generated_base, generated_platforms, merge_layer,
-                              poll_period_warnings, trace_layer)
+from ...quasar_config import (count_keys, device_platform, generated_base, generated_platforms,
+                              poll_period_warnings)
 from ...quasar_replace import preview_replacements, validate_rules
-from ...upstream import UpstreamError, forward_headers
+from ...quasar_rules import compose_config, layer_select_options, rules_as_list
+from ...quasar_rules import validate_rules as validate_quasar_rules
+from ...upstream import UpstreamError
 from ...upstream.forward import decoded_json
 
 from . import route
 
 
-def _sync_body(runtime, device):
-    """Ответ get_sync_info, который собрал бы compose (для action: generate): база —
-    встроенный generated, поверх — пользовательский common (если есть)."""
+def _device(runtime, sn):
+    device = next((d for d in runtime.identities.data['devices'] if d.get('sn') == sn), None)
+    if device is None:
+        raise ValueError('Устройство не найдено в реестре')
+    return device
+
+
+def _legacy(runtime, device):
     state = device.get('state') or {}
-    common, platform_patch = runtime.quasar_platforms.resolve_files(device)
-    if common is None and isinstance((state.get('quasar') or {}).get('config'), dict):
+    return isinstance((state.get('quasar') or {}).get('config'), dict) and runtime.quasar_rules.is_empty()
+
+
+def _sync_body(runtime, device):
+    """Ответ get_sync_info, который собрал бы эмулятор (для action: generate)."""
+    if _legacy(runtime, device):
         raise ValueError('Устройство на legacy-конфиге state.quasar — генерация недоступна')
-    platform_name = device_platform(device)
-    base = generated_base(platform_name)
-    if common is not None:
-        base = merge_layer(base, common)
-    account_overrides, account_name = account_layer(runtime, device)
-    body = compose(base, platform_patch, state.get('quasar_overrides'),
-                   runtime, device, account_overrides=account_overrides, account_name=account_name)
+    state = device.get('state') or {}
+    body = compose_config(runtime, device_platform(device), device,
+                          device_rules=state.get('quasar_overrides'))
     result = {'status': 'ok', **body}
     security = runtime.quasar.glagol_security_with_autogen(device)  # как в ответе колонке
     if security:
@@ -52,109 +56,111 @@ def _sync_body(runtime, device):
     return result
 
 
-@route("quasar_platforms", methods=("GET", "PUT", "DELETE"))
+@route("quasar_platforms", methods=("GET", "POST", "DELETE"))
 async def quasar_platforms(request, runtime, app):
-    # Слои Quasar-конфига: общий common (тело, не удаляется) +
-    # платформы-патчи (чистый merge-patch в файлах) + templates.json.
+    store = runtime.quasar_rules
     if request.method == 'GET':
         platform = request.query.get('builtin')
-        if platform is not None:  # встроенная база; имя вне quasar_defaults/platforms — общий дефолт
+        if platform is not None:  # встроенный шаблон; имя вне quasar_defaults/platforms — общий дефолт
             body = generated_base(platform)
             return web.json_response({'platform': platform, 'config': body, 'keys': count_keys(body)})
         name = request.query.get('compose')
-        if name is not None:  # итог слоёв без устройства; пустая платформа — без патча
-            base = generated_base(name)
-            common = runtime.quasar_platforms.load_common()
-            merged = merge_layer(base, common) if common is not None else base
+        if name is not None:  # итог без устройства: шаблон → общие → замены платформы
             trace = {}
-            trace_layer(trace, base, merged, '', 'общий конфиг')
-            body = compose(merged, runtime.quasar_platforms.load(name) if name else None,
-                           None, runtime, None, trace=trace, platform_label=name or None,
-                           render=False)
+            body = compose_config(runtime, name, None, trace=trace, render=False)
             return web.json_response({'platform': name, 'config': body, 'origins': trace})
-        name = request.query.get('platform')
-        if name:
-            item = runtime.quasar_platforms.load(name)
-            if item is None:
-                raise ValueError('Файл конфига не найден')
-            return web.json_response(item)
-        common = runtime.quasar_platforms.ensure_common()
         return web.json_response({
-            'common': common,
-            'common_keys': count_keys(common),
-            'common_inline': count_inline(common),
             'builtin_platforms': generated_platforms(),
-            'builtin_counts': {'': count_keys(generated_base('')),
-                               **{p: count_keys(generated_base(p))
-                                  for p in generated_platforms()}},
-            'platforms': runtime.quasar_platforms.list(),
-            'tokens': ['now', 'now_ms', 'now_iso', 'uuid', 'device_id', 'device_name',
-                       'platform', 'user_id', 'user.name', 'user.location.*', 'user.fields.*',
-                       'device.name', 'device.room', 'device.fields.*'],
-            'inline': {'$select': 'выбранный вариант (ключи-варианты рядом = подписи)',
-                       '$string/$number/$list': 'литерал (строки — с {{токенами}})',
-                       '$bool': 'вкл/выкл', '$param': 'параметр-заглушка: device.sn, session.sn, user.name…',
-                       '$name/$hint': 'подпись и пояснение для простого редактора'},
-            'sources': {'expr': '{{шаблон}}', 'db': 'user.<путь> | device.<путь>',
-                        'run': 'команда из state/quasar/scripts (белый список, таймаут 3 с)',
-                        'delete': 'только в переопределении: удалить ключ',
-                        'select': 'переключить селектор: {"$select": "вариант"}'}})
-    if request.method == 'PUT':
+            'common_rules': len(store.load('common')),
+            'platforms': [{'platform': p, 'rules': len(store.load(p))} for p in store.platforms()],
+            'devices': len(runtime.identities.data['devices'])})
+    if request.method == 'POST':
         value = await request.json()
+        action, name = value.get('action'), value.get('platform', '')
         async with runtime.lock:
-            if 'common_file' in value:
-                runtime.quasar_platforms.save_common(value['common_file'])
-                return web.json_response({'saved': 'common'})
-            item = value.get('platform_file') or {}
-            runtime.quasar_platforms.save(item.get('platform', ''),
-                                          item.get('patch'))
-            return web.json_response({'saved': item.get('platform')})
+            if action == 'create':
+                store.create_platform(name)
+            elif action == 'rename':
+                store.rename_platform(name, value.get('to', ''))
+                name = value.get('to')
+            else:
+                raise ValueError('action: create | rename')
+        return web.json_response({'platform': name})
     if request.method == 'DELETE':
         async with runtime.lock:
-            removed = runtime.quasar_platforms.remove(request.query.get('platform', ''))
+            removed = store.remove_platform(request.query.get('platform', ''))
         if not removed:
-            raise ValueError('Платформа не найдена (общий конфиг не удаляется)')
+            raise ValueError('Платформа не найдена')
         return web.json_response({'removed': request.query['platform']})
-    raise web.HTTPMethodNotAllowed(request.method, ['GET', 'PUT', 'DELETE'])
+    raise web.HTTPMethodNotAllowed(request.method, ['GET', 'POST', 'DELETE'])
+
+
+def _layer(runtime, layer):
+    """('common'|'platform'|'device', имя) по строке слоя."""
+    if layer == 'common':
+        return 'common', 'common'
+    kind, _, name = str(layer or '').partition(':')
+    if kind == 'platform' and name:
+        runtime.quasar_rules.check_platform(name)
+        return 'platform', name
+    if kind == 'device' and name:
+        return 'device', name
+    raise ValueError('layer: common | platform:<имя> | device:<SN>')
+
+
+@route("quasar_rules", methods=("GET", "PUT"))
+async def quasar_rules(request, runtime, app):
+    """Замены слоя. inherited — правила того же слоя из расширений (только чтение)."""
+    store = runtime.quasar_rules
+    if request.method == 'GET':
+        kind, name = _layer(runtime, request.query.get('layer'))
+        if kind == 'device':
+            device = _device(runtime, name)
+            platform = device_platform(device)
+            rules = rules_as_list((device.get('state') or {}).get('quasar_overrides'),
+                                  layer_select_options(runtime, platform))
+            return web.json_response({'layer': f'device:{name}', 'platform': platform,
+                                      'rules': rules, 'inherited': []})
+        inherited = [{'origin': ext_id, 'rules': rules} for ext_id, rules in store.extension_rules(name)]
+        return web.json_response({'layer': request.query['layer'], 'rules': store.load(name),
+                                  'inherited': inherited})
+    value = await request.json()
+    kind, name = _layer(runtime, value.get('layer'))
+    rules = validate_quasar_rules(value.get('rules'))
+    async with runtime.lock:
+        if kind == 'device':
+            device = _device(runtime, name)
+            state = copy.deepcopy(device.get('state') or {})
+            if rules:
+                state['quasar_overrides'] = rules
+            else:
+                state.pop('quasar_overrides', None)
+            runtime.identities.mutate({'operation': 'state', 'sn': name, 'state': state})
+        else:
+            store.save(name, rules)
+    return web.json_response({'saved': value.get('layer'), 'rules': rules})
 
 
 @route("quasar_composed", methods=("GET",))
 async def quasar_composed(request, runtime, app):
-    # Итоговый конфиг устройства после всех слоёв + происхождение
-    # каждого значения (для просмотрщика в «Переопределении»).
+    # Итоговый конфиг устройства после всех слоёв + происхождение каждого значения.
     if request.method != 'GET':
         raise web.HTTPMethodNotAllowed(request.method, ['GET'])
-    sn = request.query.get('device', '')
-    device = next((d for d in runtime.identities.data['devices']
-                   if d.get('sn') == sn), None)
-    if device is None:
-        raise ValueError('Устройство не найдено в реестре')
+    device = _device(runtime, request.query.get('device', ''))
     state = device.get('state') or {}
-    common, platform_patch = runtime.quasar_platforms.resolve_files(device)
-    platform_name = runtime.quasar_platforms.platform_for(device)
-    if common is None and isinstance((state.get('quasar') or {}).get('config'), dict):
-        # legacy: полный конфиг в state.quasar
+    platform = device_platform(device)
+    if _legacy(runtime, device):
         return web.json_response({'legacy': True, 'platform': None,
-                                  'config': state.get('quasar', {}),
-                                  'origins': {}, 'overrides':
-                                  state.get('quasar_overrides') or []})
-    profile_platform = device_platform(device)
-    base = generated_base(profile_platform)
-    if common is not None:
-        base = merge_layer(base, common)
+                                  'config': state.get('quasar', {}), 'origins': {}})
     trace = {}
-    account_overrides, account_name = account_layer(runtime, device)
+    render = request.query.get('raw') != '1'  # raw=1 — параметры {{ключ}}, db/run маркерами
     try:
-        body = compose(base, platform_patch, state.get('quasar_overrides'),
-                       runtime, device, trace=trace, platform_label=platform_name,
-                       account_overrides=account_overrides, account_name=account_name)
+        body = compose_config(runtime, platform, device, device_rules=state.get('quasar_overrides'),
+                              trace=trace, render=render)
     except Exception as exc:
-        return web.json_response({'error': str(exc) or 'ошибка сборки конфига',
-                                  'platform': platform_name})
-    return web.json_response({'legacy': False, 'platform': platform_name,
-                              'config': body, 'origins': trace,
-                              'warnings': poll_period_warnings(body),
-                              'overrides': state.get('quasar_overrides') or []})
+        return web.json_response({'error': str(exc) or 'ошибка сборки конфига', 'platform': platform})
+    return web.json_response({'legacy': False, 'platform': platform, 'config': body,
+                              'origins': trace, 'warnings': poll_period_warnings(body)})
 
 
 @route("quasar_source", methods=("GET", "PUT", "POST"))
@@ -181,12 +187,8 @@ async def quasar_source(request, runtime, app):
     if request.method == 'GET':
         device = device_of(request.query.get('sn', ''))
         state = device.get('state') or {}
-        common, _ = runtime.quasar_platforms.resolve_files(device)
         mode = state.get('quasar_source') or 'generated'
-        # встроенная база generated: нет пользовательского common и нет legacy-конфига
-        builtin_base = (mode == 'generated' and common is None
-                        and not isinstance((state.get('quasar') or {}).get('config'), dict))
-        return web.json_response({'mode': mode, 'builtin_base': builtin_base,
+        return web.json_response({'mode': mode,
                                   'direct_last': state.get('quasar_direct_last'),
                                   'custom': state.get('quasar_custom'),
                                   'replace': state.get('quasar_direct_replace') or [],

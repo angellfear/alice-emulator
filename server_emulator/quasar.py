@@ -233,22 +233,16 @@ class QuasarBackend:
             # glagol.security поверх собранного конфига: параметры пользователя или
             # автоген (лениво запоминается в state.glagol_security).
             security = self.glagol_security_with_autogen(device)
-            # Слоёная модель: встроенный generated → common → merge-patch платформы →
-            # переопределения аккаунта владельца → переопределения устройства →
-            # инлайн-узлы → динамика. Пользовательского common нет — база built-in
-            # дефолта из server_emulator/quasar_defaults (полный конфиг без захвата).
-            common, platform_patch = self.runtime.quasar_platforms.resolve_files(device)
+            # Встроенный шаблон платформы → общие замены → замены платформы → аккаунт →
+            # устройство → динамика (quasar_rules). Legacy — полный конфиг в state.quasar
+            # без единого слоя замен.
             quasar = state.get('quasar',{})
-            if common is not None or not isinstance(quasar.get('config'),dict):
-                from .quasar_config import account_layer, compose, device_platform, generated_base, merge_layer
-                base = generated_base(device_platform(device))
-                if common is not None:
-                    base = merge_layer(base, common)  # пользовательский common сильнее встроенного
+            if not (isinstance(quasar.get('config'),dict) and self.runtime.quasar_rules.is_empty()):
+                from .quasar_config import device_platform
+                from .quasar_rules import compose_config
                 try:
-                    account_overrides, account_name = account_layer(self.runtime, device)
-                    body = compose(base, platform_patch,
-                                   state.get('quasar_overrides'), self.runtime, device,
-                                   account_overrides=account_overrides, account_name=account_name)
+                    body = compose_config(self.runtime, device_platform(device), device,
+                                          device_rules=state.get('quasar_overrides'))
                 except Exception as exc:  # битый источник: колонке нужен внятный ответ
                     return 409, {'error':'quasar_config_source','hint':str(exc)[:200]}
                 if not isinstance(body, dict) or not isinstance(body.get('config'), dict):

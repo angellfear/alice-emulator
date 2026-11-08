@@ -22,7 +22,7 @@ from .device_images import DeviceImages, images_dir
 from .state_store import StateStore, migrate_legacy
 from .endpoints import EndpointCatalog
 from .params import ParamStore
-from .quasar_config import PlatformStore
+from .quasar_rules import RuleStore
 from . import aapi_handlers
 from . import providers as providers_registry
 from .aapi_handlers import has_handler as aapi_has_handler
@@ -136,8 +136,8 @@ class Runtime:
         self.endpoint_scripts = ScriptRunner()  # обработчики <id>.py (режим script)
         from .voice_stack import VoiceStack
         self.voice_stack = VoiceStack(self)  # варианты ASR/TTS/LLM + локальные речевые серверы
-        self.quasar_platforms = PlatformStore(self.directory / "quasar",  # базовые sync-конфиги по платформам
-                                              extension_dirs=lambda: self._extension_layers("quasar"))
+        self.quasar_rules = RuleStore(self.directory / "quasar",  # замены sync-конфига: общие и по платформам
+                                      extension_dirs=lambda: self._extension_layers("quasar"))
         self.device_images = DeviceImages()  # картинки с веб-версии умного дома — только по согласию (api/setup/images)
         self.auth = AuthStore(self.directory)  # B04: принципалы/сессии панели (нет файла — открытый режим)
         # TASK-029: менеджер расширений; включённые загружаются сразу (без сети и хуков),

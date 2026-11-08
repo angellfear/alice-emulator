@@ -16,7 +16,7 @@ from aiohttp import ClientSession
 
 from server_emulator.endpoint_scripts import ScriptRequest
 from server_emulator.extensions import EMULATOR_VERSION
-from server_emulator.quasar_config import compose
+from server_emulator.quasar_rules import compose_config
 from server_emulator.runtime import Runtime
 from server_emulator.scenario_engine import library as scenario_library
 from server_emulator.scenario_packages.validate import validate_scenario
@@ -259,23 +259,24 @@ async def test_extension_quasar_layers(tmp_path):
     root = make_extension(runtime)
     runtime.extensions.load_enabled()
     try:
-        store = runtime.quasar_platforms
-        assert store.load_common()["config"]["extension_key"] == "coffee"
-        assert store.load("coffee")["config"]["device_config"] == {"drink": "latte"}
-        device = {"sn": "SN-Q", "device_ids": ["dev-q"], "profile": {"platform": "coffee"}}
-        assert store.platform_for(device) == "coffee"
-        common, patch = store.resolve_files(device)
-        body = compose(common, patch, [], runtime, device)
-        assert body["config"] == {"extension_key": "coffee", "device_config": {"drink": "latte"}}
-        # пользовательский common поверх слоя расширения; правка платформы — копия
-        store.save_common({"config": {"user_key": 1}})
-        assert store.load_common()["config"] == {"extension_key": "coffee", "user_key": 1}
-        store.save("coffee", {"config": {"device_config": {"drink": "ristretto"}}})
-        assert store.load("coffee")["config"]["device_config"] == {"drink": "ristretto"}
+        store = runtime.quasar_rules
+        assert "coffee" in store.platforms()
+        [(ext_id, common)] = store.extension_rules("common")
+        assert any(r["path"] == "/config/extension_key" and r["value"] == "coffee" for r in common)
+        body = compose_config(runtime, "coffee", None, render=False)
+        assert body["config"]["extension_key"] == "coffee"
+        assert body["config"]["device_config"]["drink"] == "latte"
+        # свои замены поверх слоя расширения; файл расширения не меняется
+        store.save("common", [{"name": "u", "path": "/config/user_key", "kind": "value", "value": 1}])
+        store.save("coffee", [{"name": "drink", "path": "/config/device_config/drink", "kind": "value",
+                               "value": "ristretto"}])
+        body = compose_config(runtime, "coffee", None, render=False)
+        assert body["config"]["user_key"] == 1 and body["config"]["extension_key"] == "coffee"
+        assert body["config"]["device_config"]["drink"] == "ristretto"
         assert json.loads((root / "quasar/platforms/coffee.json").read_text(encoding="utf-8")
                           )["config"]["device_config"] == {"drink": "latte"}
-        (runtime.directory / "quasar" / "platforms" / "coffee.json").unlink()
-        assert store.load("coffee")["config"]["device_config"] == {"drink": "latte"}
+        store.remove_platform("coffee")
+        assert compose_config(runtime, "coffee", None, render=False)["config"]["device_config"]["drink"] == "latte"
     finally:
         await runtime.close()
 
