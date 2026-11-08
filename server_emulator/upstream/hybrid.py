@@ -21,6 +21,10 @@ AAPI = b"AAPI"
 
 
 class HybridSession:
+    # Таймауты настраиваемы (тесты уменьшают): ответ ветки и хвост её звука.
+    reply_timeout = 10.0  # сколько ждать финальный AliceResponse ветки
+    tail_wait = 1.0       # пауза после ответа: хвост звука ветки уходит колонке
+
     def __init__(self, runtime, request, send, sn=None):
         self.runtime = runtime
         from .forward import forward_headers
@@ -195,7 +199,7 @@ class HybridSession:
         self._answered[message_id] = done
         try:
             await asyncio.wait_for(done.wait(), timeout=timeout)
-            await asyncio.sleep(1.0)  # хвост звука ветки уходит колонке в цикле приёма
+            await asyncio.sleep(self.tail_wait)  # хвост звука ветки уходит колонке в цикле приёма
             return True
         except asyncio.TimeoutError:
             return False

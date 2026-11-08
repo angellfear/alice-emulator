@@ -13,6 +13,7 @@ import asyncio
 import pathlib
 import struct
 import tempfile
+import time
 
 import pytest
 from aiohttp import web
@@ -25,6 +26,49 @@ from server_emulator.schema import load_type
 SN = "SN-H"
 PCM_FORMAT = "audio/x-pcm;bit=16;rate=16000;channels=1"
 PCM_CHUNK = b"\x00\x01" * 320  # 20 мс s16le 16 кГц
+
+
+@pytest.fixture(autouse=True)
+def _fast_hybrid_timeouts(monkeypatch):
+    """Таймауты ветки «Вместе» — атрибуты HybridSession (voice.py читает
+    hybrid.reply_timeout, wait_response — self.tail_wait): в тестах короткие —
+    отказ ветки не ждёт 10 с, хвост звука не держит секунду; гонки с паузами нет —
+    синхронизация в тестах по условным ожиданиям, а не по времени. Умолчания
+    продакшена не трогаем."""
+    monkeypatch.setattr("server_emulator.upstream.hybrid.HybridSession.reply_timeout", 0.5)
+    monkeypatch.setattr("server_emulator.upstream.hybrid.HybridSession.tail_wait", 0.05)
+
+
+async def _wait_until(predicate, what, timeout=3.0, step=0.02):
+    """Ждать событие, а не время: фиксированный sleep не дожидался ответа ветки под
+    нагрузкой xdist — регистрация кадра веткой это событие, у паузы нет длительности."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return
+        await asyncio.sleep(step)
+    raise AssertionError(f"не дождались за {timeout} с: {what}")
+
+
+def _hybrid_sessions(runtime):
+    """Сессии «Вместе» открытых WS: состояние видно по публичным полям
+    (branch_messages/branch_streams)."""
+    return [s["runtime"].hybrid_session for s in runtime.sessions.values()
+            if getattr(s.get("runtime"), "hybrid_session", None) is not None]
+
+
+def _relayed_frames(stub, client_type):
+    """Кадры, которые релей довёл до ветки: ('stream', id) и ('ack', message_id)."""
+    out = []
+    for direction, raw in stub.frames:
+        if direction != "client" or not raw.startswith(b"AAPI"):
+            continue
+        m = client_type.FromString(raw[4:])
+        if m.WhichOneof("Message") == "StreamControl":
+            out.append(("stream", m.StreamControl.StreamId))
+        elif m.Event.WhichOneof("Event") == "Ack":
+            out.append(("ack", m.Event.Ack.ReceivedHeader.MessageId))
+    return out
 
 
 def _types():
@@ -185,8 +229,11 @@ async def test_voice_miss_relays_and_answer_reaches_device(tmp_path):
                 got_binary = got_alice = got_push = False
                 ack_count = 0
                 while True:
+                    expected = got_alice and got_binary and ack_count >= 1
                     try:
-                        packet = await asyncio.wait_for(ws.receive(), 6)
+                        # всё ожидаемое собрано — короткое тихое окно закрывает обмен
+                        # (поздние чужие InputStartAck и Push считались бы здесь)
+                        packet = await asyncio.wait_for(ws.receive(), 0.5 if expected else 6)
                     except asyncio.TimeoutError:
                         break  # поток опустел — конец обмена
                     data = packet.data
@@ -330,9 +377,10 @@ async def test_scenario_answers_itself_in_hybrid(tmp_path):
                 message.Event.TextInput.Request.Event.Text = "проверка сценариев"
                 await ws.send_bytes(b"AAPI" + message.SerializeToString())
                 answered = False
-                for _ in range(6):
+                while True:
                     try:
-                        packet = await asyncio.wait_for(ws.receive(), 3)
+                        # ответ получен — короткое тихое окно закрывает обмен
+                        packet = await asyncio.wait_for(ws.receive(), 0.5 if answered else 3)
                     except asyncio.TimeoutError:
                         break
                     if isinstance(packet.data, int) or not packet.data.startswith(b"AAPI"):
@@ -370,9 +418,18 @@ async def test_branch_frames_journaled_per_record_option(tmp_path):
                     await ws.send_bytes(b"AAPI" + sync.SerializeToString())
                     await asyncio.sleep(0.2)
                     await _voice_exchange(ws, client_type)
-                    await asyncio.sleep(1.0)
+                    # обмен доставлен целиком (Close — последний кадр): к этому моменту
+                    # все его записи в журнал уже сделаны — условие вместо паузы
+                    await _wait_until(lambda: (7, 2) in stub.closes,
+                                      what="ветка получила голосовой ход целиком")
             rows = runtime.upstream.journal.list(source="hybrid")["items"]
             if record == "on":
+                await _wait_until(lambda: any(r["message_id"] == "msg-v" for r in
+                                              runtime.upstream.journal.list(source="hybrid")["items"])
+                                  and any("srv-mid" in hs.branch_messages
+                                          for hs in _hybrid_sessions(runtime)),
+                                  what="кадры ветки в журнале, ответ ветки обработан")
+                rows = runtime.upstream.journal.list(source="hybrid")["items"]
                 assert rows, "ветка должна писаться при «Запись: Включено»"
                 assert {"client_to_server", "server_to_client"} <= {r["direction"] for r in rows}
                 assert all(r["device_sn"] == SN for r in rows)
@@ -408,7 +465,12 @@ async def test_column_protocol_replies_relayed_to_branch(tmp_path):
                 await ws.send_bytes(b"AAPI" + sync.SerializeToString())
                 await asyncio.sleep(0.2)
                 await _voice_exchange(ws, client_type)
-                await asyncio.sleep(0.8)  # ветка ответила: srv-mid в branch_messages, поток 4
+                # ветка зарегистрировала ответ и поток — условие, а не пауза:
+                # Ack/Close уходят только после этого (иначе релей их молча пропускает)
+                await _wait_until(
+                    lambda: any("srv-mid" in hs.branch_messages and 4 in hs.branch_streams
+                                for hs in _hybrid_sessions(runtime)),
+                    what="ветка зарегистрировала srv-mid и поток 4")
                 ack = client_type()
                 ack.Event.Ack.ReceivedHeader.MessageId = "srv-mid"
                 await ws.send_bytes(b"AAPI" + ack.SerializeToString())
@@ -420,16 +482,11 @@ async def test_column_protocol_replies_relayed_to_branch(tmp_path):
                 close_other.StreamControl.StreamId = 9
                 close_other.StreamControl.Close.SetInParent()
                 await ws.send_bytes(b"AAPI" + close_other.SerializeToString())
-                await asyncio.sleep(0.5)
-        relayed = []
-        for direction, raw in stub.frames:
-            if direction != "client" or not raw.startswith(b"AAPI"):
-                continue
-            m = client_type.FromString(raw[4:])
-            if m.WhichOneof("Message") == "StreamControl":
-                relayed.append(("stream", m.StreamControl.StreamId))
-            elif m.Event.WhichOneof("Event") == "Ack":
-                relayed.append(("ack", m.Event.Ack.ReceivedHeader.MessageId))
+                await _wait_until(
+                    lambda: ("ack", "srv-mid") in _relayed_frames(stub, client_type)
+                    and ("stream", 4) in _relayed_frames(stub, client_type),
+                    what="Ack и Close(4) переехали ветке")
+        relayed = _relayed_frames(stub, client_type)
         assert ("ack", "srv-mid") in relayed, "Ack по кадру ветки — ветке"
         assert ("stream", 4) in relayed, "Close потока ветки — ветке"
         assert ("stream", 9) not in relayed, "чужой поток — не релеится"

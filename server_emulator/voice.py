@@ -523,7 +523,7 @@ class Conversation:
             self.runtime.recent = (self.runtime.recent + [
                 {"kind": "hybrid", "error": "Вместе: Яндекс недоступен — фраза ушла прежнему пути"}])[-30:]
             return False
-        answered = await hybrid.wait_response(message_id, timeout=10)  # ответ ветки шлёт колонке сам _on_frame
+        answered = await hybrid.wait_response(message_id, timeout=hybrid.reply_timeout)  # ответ ветки шлёт колонке сам _on_frame
         if not answered:
             self.runtime.recent = (self.runtime.recent + [
                 {"kind": "hybrid", "error": "Вместе: Яндекс не ответил вовремя — фраза ушла прежнему пути"}])[-30:]
