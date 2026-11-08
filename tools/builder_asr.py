@@ -12,7 +12,7 @@ async def main():
     async def create_recognizer():
         return await asyncio.to_thread(sherpa_onnx.OnlineRecognizer.from_t_one_ctc,
         tokens=str(root/"tokens.txt"),model=str(root/"model.onnx"),num_threads=int(os.environ.get("ASR_THREADS","2")),provider=os.environ.get("ASR_PROVIDER","cpu"),sample_rate=8000,
-        enable_endpoint_detection=True,rule1_min_trailing_silence=3.0,rule2_min_trailing_silence=.8,rule3_min_utterance_length=30)
+        enable_endpoint_detection=True,rule1_min_trailing_silence=1.2,rule2_min_trailing_silence=.8,rule3_min_utterance_length=30)
     capacity=max(1,min(8,int(os.environ.get("ASR_WORKERS","2"))))
     workers=asyncio.Queue(maxsize=capacity)
     for _ in range(capacity):await workers.put(await create_recognizer())
