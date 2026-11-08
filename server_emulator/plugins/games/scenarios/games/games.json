@@ -1,0 +1,18 @@
+{
+ "format_version": 2,
+ "version": "2.0.0",
+ "category": "games",
+ "id": "games.games",
+ "title": {
+  "ru": "Простые игры",
+  "en": "Simple games"
+ },
+ "description": {
+  "ru": "«шар судьбы», «подбрось монетку», «брось кубик» — случайный ответ (захват 2026-11-02); остальные игры справки остаются промахами. Фразы объявления плагина (phrases/games.json)"
+ },
+ "priority": 90,
+ "triggers": [],
+ "executor": {
+  "kind": "script"
+ }
+}

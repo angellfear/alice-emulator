@@ -1,0 +1,22 @@
+{
+  "id": "builtin.games",
+  "name": "Простые игры",
+  "version": "0.1.0",
+  "description": "Простые игры (встроенные): «шар судьбы», «подбрось монетку», «брось кубик» — случайные ответы. Фразы — в справочнике плагина, сценарий тоже плагина; выключён — фразы игр неизвестны.",
+  "author": "Angell Fear",
+  "license": "MIT",
+  "requires": {
+    "emulator": ">=0.1.0",
+    "sdk": ">=2.5.0",
+    "python_packages": []
+  },
+  "permissions": {
+    "network": [],
+    "actions": [],
+    "device_push": false,
+    "install": false
+  },
+  "contributes": {
+    "phrases": "phrases/games.json"
+  }
+}

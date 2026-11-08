@@ -1,4 +1,4 @@
-"""Эталонные ответы сценариев: dry-run прогон и запись (TASK-023).
+"""Эталонные ответы сценариев: dry-run прогон и запись.
 
 Для каждого сценария каталога прогоняется набор фраз и служебных колбэков из
 триггеров плюс вариации со значениями («таймер на 5 минут», «свет в спальне»,
@@ -10,7 +10,9 @@ handler `core:<сценарий>`: по фразе-образцу шаблона
 ответом из кейса (continuation диалога).
 
 Детерминизм: время (ctx.clock.now), гео владельца (params) и данные погоды
-(заглушка плагина weather) фиксированы; из ответов берётся проекция без
+(заглушка плагина weather) фиксированы; случайные ответы (монетка, кубик, гадание)
+сидируются на каждый кейс — seed_case, ключ id сценария/кейса, значение кейса
+не зависит от числа random-вызовов в других кейсах; из ответов берётся проекция без
 изменчивых полей — CardId/ResponseId/MessageId (uuid4), SequenceNumber,
 Timings не записываются; трасса шагов (trace) тоже не записывается — деталь
 исполнителя (у JSON-flow и py-сценария она разная). Результат: сценарий, исход (status), текст карточек,
@@ -39,9 +41,11 @@ import copy
 import datetime
 import inspect
 import json
+import random
 import shutil
 import sys
 import tempfile
+import zlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -225,7 +229,7 @@ def apply_setup(runtime, name):
         runtime.identities.mutate({"operation": "state", "sn": SN, "state": {
             "light": {"кухня": {"on": False, "brightness": 70}, "спальня": {"on": True}}}})
         set_ha_lights(runtime, HA_LIGHTS)
-    elif name == "station_timers":  # TASK-079: колонка сообщает два активных таймера
+    elif name == "station_timers":  # колонка сообщает два активных таймера
         STATION.update({
             "timers": [{"timer_id": "11111111-22222222-33333333-44444444",
                         "start_ts": NOW_TS - (75 * 60 - 47 * 60 - 12), "duration": 75 * 60,
@@ -277,7 +281,7 @@ def base_ctx(runtime, dialog_id, sequence=1, text=""):
                      "dialog_id": dialog_id, "sn": SN, "text": text},
            "clock": {"now": NOW}, "sequence": sequence,
            "state": state,
-           "station": station}  # TASK-079: таймеры/будильники колонки
+           "station": station}  # таймеры/будильники колонки
     ctx.update(runtime._scenario_context(sn=SN))
     animations = getattr(runtime, "animations", None)
     if animations is not None:
@@ -351,6 +355,13 @@ def report_view(report, sent=None):
 
 # --- прогон кейсов ---------------------------------------------------------------
 
+def seed_case(scenario_id, case):
+    """Детерминизм случайных ответов (монетка, кубик, гадание): random сидируется
+    на каждый кейс, ключ — id сценария/кейса. Значение кейса зависит только от него,
+    а не от числа random-вызовов в других кейсах; меняется лишь при правке сценария."""
+    random.seed(zlib.crc32(f"{scenario_id}/{case.get('name', '')}".encode("utf-8")))
+
+
 async def run_case(runtime, effects, case):
     """Один кейс: фраза через handle_text (deliver=False, как голосовой тракт)
     или колбэк/событие через handle_event (доставка в сборщик байтов).
@@ -387,7 +398,7 @@ async def run_case(runtime, effects, case):
         else:  # событие без TextInput: @@timer_fired, @@agent_say
             event_name = case["event"]
             ctx = event_ctx(runtime, dialog_id, event_name, case.get("fields"))
-        # TASK-058: колбэк/событие → внутреннее событие-запрос (та же таблица маршрутов,
+        # колбэк/событие → внутреннее событие-запрос (та же таблица маршрутов,
         # что у voice.py); provider-сценарий отвечает как раньше — эталоны не меняются.
         # reason в эталоне — событие, каким его видела реплика сценария: для маршрутизированного
         # колбэка восстанавливается форма исходного event-причины.
@@ -680,6 +691,7 @@ async def record(catalog_dir=None, workdir=None, cases=None):
                 entry_cases = []
                 for case in case_list:
                     apply_setup(runtime, case.get("setup"))
+                    seed_case(scenario_id, case)
                     entry_cases.append(await run_case(runtime, effects, case))
                 entries.append({"id": scenario_id, "cases": entry_cases})
             return {"meta": meta_view(catalog_dir, [entry["id"] for entry in entries]),

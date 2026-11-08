@@ -1,4 +1,4 @@
-"""TASK-080: болталка, дата/время и простые игры — узкие триггеры, свои формулировки.
+"""Болталка, дата/время и простые игры — узкие триггеры, свои формулировки.
 
 Дата/день недели/город сверяются с независимым расчётом в тесте (zoneinfo), игры —
 на множество допустимых ответов, «повтори за мной» — на эхо фразы. Модель в этих
@@ -176,6 +176,34 @@ async def test_fortune_variants(tmp_path):
         first = (await _reply(runtime, "Алиса, шар судьбы"))["speech"]
         second = (await _reply(runtime, "Алиса, давай погадаем"))["speech"]
         assert first and second
+    finally:
+        await runtime.close()
+
+
+async def test_games_phrases_from_builtin_plugin(tmp_path):
+    """Фразы игр объявляет встроенный плагин games: совпадение идёт из справочника
+    (reason dir:…), а не из триггеров сценария."""
+    runtime = Runtime(tmp_path)
+    try:
+        report = await _say(runtime, "Алиса, брось кубик")
+        assert report["scenario"] == "games.games", report
+        assert report["reason"] == "dir:builtin.games.games", report["reason"]
+    finally:
+        await runtime.close()
+
+
+async def test_games_phrases_unknown_when_plugin_off(tmp_path):
+    """Выключенный плагин — фраз игр нет в справочнике: фраза не отвечает сценарием
+    игр (сценарий в каталоге остаётся, выбрать его нечему)."""
+    runtime = Runtime(tmp_path)
+    try:
+        await runtime.extensions.disable("builtin.games")
+        directory = runtime.dialog.phrase_directory()
+        assert not [e for e in directory.entries.values()
+                    if directory.handler_scenario(e) == "games.games"]
+        for phrase in ("брось кубик", "подбрось монетку", "шар судьбы"):
+            report = await _say(runtime, "Алиса, " + phrase)
+            assert not report["handled"] or report["scenario"] != "games.games", (phrase, report)
     finally:
         await runtime.close()
 

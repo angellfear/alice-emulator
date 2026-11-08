@@ -1059,7 +1059,180 @@
       "id": "device.volume"
     },
     {
-      "cases": [],
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "подбрось монетку"
+          },
+          "name": "games.games-dir0",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Решка.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Решка."
+                }
+              ],
+              "reason": "dir:builtin.games.games",
+              "scenario": "games.games",
+              "speech": "Решка.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "подбрось монетку"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "сбрось кубик"
+          },
+          "name": "games.games-dir1",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "На кубике выпало 1.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "На кубике выпало 1."
+                }
+              ],
+              "reason": "dir:builtin.games.games",
+              "scenario": "games.games",
+              "speech": "На кубике выпало 1.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "сбрось кубик"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "шар предсказаний"
+          },
+          "name": "games.games-dir2",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Сегодня хороший день для смелых решений.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Сегодня хороший день для смелых решений."
+                }
+              ],
+              "reason": "dir:builtin.games.games",
+              "scenario": "games.games",
+              "speech": "Сегодня хороший день для смелых решений.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "шар предсказаний"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "давай сыграем в шар судьбы"
+          },
+          "name": "games.games-dir3",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Скоро ждёт приятная новость.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Скоро ждёт приятная новость."
+                }
+              ],
+              "reason": "dir:builtin.games.games",
+              "scenario": "games.games",
+              "speech": "Скоро ждёт приятная новость.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "давай сыграем в шар судьбы"
+            }
+          ]
+        }
+      ],
       "id": "games.games"
     },
     {

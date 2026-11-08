@@ -1,4 +1,4 @@
-"""TASK-023: эталонные ответы встроенных сценариев (tests/golden/scenarios.json).
+"""Эталонные ответы встроенных сценариев (tests/golden/scenarios.json).
 
 tests/golden/scenarios.json записан tools/record_scenario_golden.py на текущем
 коде (до перевода сценариев): для каждого сценария библиотеки — фразы и колбэки
@@ -8,10 +8,11 @@ tests/golden/scenarios.json записан tools/record_scenario_golden.py на 
 
 Эталон фиксирует наблюдаемое поведение (сообщения, речь, директивы, effects, status,
 reason); трасса шагов `trace` — деталь исполнителя (JSON-flow и py-сценарий различаются) —
-в эталон не входит (TASK-050).
+в эталон не входит.
 
 Здесь тот же прогон повторяется и сверяется с эталоном байт-в-байт. Прогон
-детерминирован: время/гео/погода зафиксированы, из ответов берётся проекция без
+детерминирован: время/гео/погода зафиксированы, случайные ответы сидируются на
+каждый кейс (seed_case инструмента записи), из ответов берётся проекция без
 uuid/timestamps, ключи JSON отсортированы — два запуска подряд дают одинаковый
 текст и не меняют эталон. Файл эталона тест не перезаписывает.
 """
@@ -34,14 +35,14 @@ def tool():
 
 
 async def test_golden_covers_builtin_library(tmp_path):
-    """Эталон покрывает весь каталог роутинга: встроенную библиотеку (сейчас 25) и
-    сценарии включённых плагинов (свет — home-assistant, покупки — shopping-list),
-    каждый по одному разу."""
+    """Эталон покрывает весь каталог роутинга: встроенную библиотеку (сейчас 24) и
+    сценарии включённых плагинов (свет — home-assistant, покупки — shopping-list,
+    игры — games), каждый по одному разу."""
     from server_emulator.runtime import Runtime
     from server_emulator.scenario_engine.library import ERRORS, SCENARIOS
 
     assert ERRORS == []
-    assert len(SCENARIOS) == 25  # свет и покупки вынесены во встроенные плагины
+    assert len(SCENARIOS) == 24  # свет, покупки и игры вынесены во встроенные плагины
     runtime = Runtime(tmp_path)
     try:
         expected = sorted(str(scenario.get("id")) for scenario in runtime.dialog.scenarios())
