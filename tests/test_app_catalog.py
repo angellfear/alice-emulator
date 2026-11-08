@@ -4,7 +4,7 @@ import json
 
 from aiohttp import ClientSession
 
-from server_emulator.catalog import Catalog, catalog_view, textfield, vint
+from server_emulator.catalog import BASE_URL, Catalog, catalog_view, textfield, vint
 from server_emulator.runtime import Runtime
 from server_emulator.server import create_app
 from tests.conftest import listen
@@ -53,11 +53,11 @@ def test_own_record_version_in_field_eight(tmp_path):
     write_catalog(tmp_path, {"mode": "own", "apps": [{"id": "a1", "name": "Палитра", "package": "com.test.palette",
                                                       "version": "1.0", "version_code": 5, "sha256": "abc"}]})
     catalog = Catalog(tmp_path)
-    output = catalog.build_own("http://rpc.alice.yandex.net")
+    output = catalog.build_own(BASE_URL)
     apps = [app for group in catalog_view(output) for app in group["apps"]]
     mine = next(app for app in apps if app["name"] == "Палитра")
     assert mine["version_code"] == 5  # колонка видит versionCode в поле 8
-    assert mine["apk_url"] == "http://rpc.alice.yandex.net/__catalog/apk/abc"
+    assert mine["apk_url"] == "https://rpc.alice.yandex.net/__catalog/apk/abc"
     assert mine["package"] == "com.test.palette"
 
 
@@ -76,7 +76,7 @@ def test_modes_direct_merged_own(tmp_path):
     own_group = next(group for group in merged if group["title"] == "Другое")
     assert not any(app["name"] == "Палитра" for app in own_group["apps"])
     catalog.value["mode"] = "own"
-    own = catalog_view(catalog.build_own("http://rpc.alice.yandex.net"))
+    own = catalog_view(catalog.build_own(BASE_URL))
     assert [group["title"] for group in own] == ["Другое"]  # групп Яндекса нет
     assert [app["name"] for app in own[0]["apps"]] == ["Палитра"]
 
@@ -192,3 +192,23 @@ async def test_catalog_api_mode_and_sections(tmp_path):
     finally:
         await runner.cleanup()
         await runtime.close()
+
+
+def test_base_url_https_and_legacy_migration(tmp_path):
+    """Ссылки своих приложений — https (колонка не грузит открытый http): прежние
+    дефолты http://rpc.local и http://rpc.alice.yandex.net переводятся на BASE_URL,
+    свой адрес владельца не трогается."""
+    for legacy in ("http://rpc.local", "http://rpc.alice.yandex.net", "http://rpc.alice.yandex.net/"):
+        write_catalog(tmp_path, {"mode": "own", "public_base_url": legacy, "apps": []})
+        assert Catalog(tmp_path).value["public_base_url"] == BASE_URL == "https://rpc.alice.yandex.net"
+    write_catalog(tmp_path, {"mode": "own", "apps": []})
+    assert Catalog(tmp_path).value["public_base_url"] == BASE_URL
+    write_catalog(tmp_path, {"mode": "own", "public_base_url": "https://apps.example.test", "apps": []})
+    assert Catalog(tmp_path).value["public_base_url"] == "https://apps.example.test"
+    write_catalog(tmp_path, {"mode": "own", "apps": [{"id": "a1", "name": "Палитра", "package": "p",
+                                                      "version": "1", "version_code": 1, "sha256": "abc",
+                                                      "icon": "/__catalog/icon/abc"}]})
+    catalog = Catalog(tmp_path)
+    app = catalog_view(catalog.build_own(None))[0]["apps"][0]
+    assert app["apk_url"] == "https://rpc.alice.yandex.net/__catalog/apk/abc"
+    assert app["icon"] == "https://rpc.alice.yandex.net/__catalog/icon/abc"

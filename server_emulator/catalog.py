@@ -70,7 +70,12 @@ def catalog_view(data):
     return groups
 
 
-LEGACY_BASE_URL = 'http://rpc.local'  # старый дефолт catalog.json (*.local → настоящий домен)
+# Ссылки на иконки и APK своих приложений — https, как у каталога Яндекса
+# (avatars.mds.yandex.net, cdn.app-store.dialogs.yandex.net): приложение каталога на
+# колонке не грузит открытый http — нет иконки, «Что-то пошло не так» при установке.
+# Эмулятор отдаёт /__catalog/ и на фронте TLS (443).
+BASE_URL = 'https://rpc.alice.yandex.net'
+LEGACY_BASE_URLS = ('http://rpc.local', 'http://rpc.alice.yandex.net')  # прежние дефолты catalog.json
 MODES = ('direct', 'merged', 'own')
 
 
@@ -85,15 +90,16 @@ class Catalog:
     @staticmethod
     def _migrate(value):
         """catalog.json: выключатель `enabled` → режим `mode` (true → merged, false → direct);
-        `http://rpc.local` → настоящий домен; разделы и режим присутствуют всегда."""
+        прежние дефолты базового адреса (`http://rpc.local`, `http://rpc.alice.yandex.net`)
+        → BASE_URL; разделы и режим присутствуют всегда."""
         if 'enabled' in value:
             value['mode']='merged' if value.pop('enabled') else 'direct'
         value['mode']=value.get('mode') if value.get('mode') in MODES else 'direct'
         value['sections']=[s for s in value.get('sections') or [] if isinstance(s,dict) and s.get('id')]
-        value.setdefault('public_base_url','http://rpc.alice.yandex.net')
+        value.setdefault('public_base_url',BASE_URL)
         value.setdefault('apps',[])
-        if value.get('public_base_url')==LEGACY_BASE_URL:
-            value['public_base_url']='http://rpc.alice.yandex.net'
+        if str(value.get('public_base_url') or '').rstrip('/') in LEGACY_BASE_URLS:
+            value['public_base_url']=BASE_URL
         return value
 
     # --- слой расширений (TASK-032) ----------------------------------------------------
