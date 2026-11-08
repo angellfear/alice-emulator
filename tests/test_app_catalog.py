@@ -1,6 +1,8 @@
-"""TASK-074: каталог приложений — миграция режима, три режима ответа, разделы,
+"""Каталог приложений — миграция режима, три режима ответа, разделы,
 версия в поле 8 (дефект «Обновить»), перехват get_app_catalog при любом маршруте."""
 import json
+
+import pytest
 
 from aiohttp import ClientSession
 
@@ -212,3 +214,51 @@ def test_base_url_https_and_legacy_migration(tmp_path):
     app = catalog_view(catalog.build_own(None))[0]["apps"][0]
     assert app["apk_url"] == "https://rpc.alice.yandex.net/__catalog/apk/abc"
     assert app["icon"] == "https://rpc.alice.yandex.net/__catalog/icon/abc"
+
+
+def _apk(path, version_code=None):
+    """Минимальный APK с текстовым манифестом (read_apk разбирает его без androguard)."""
+    import zipfile
+    code = f' android:versionCode="{version_code}"' if version_code is not None else ""
+    manifest = ('<manifest xmlns:android="http://schemas.android.com/apk/res/android" '
+                f'package="com.test.nocode"{code}><application android:label="T"/></manifest>')
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("AndroidManifest.xml", manifest)
+    return path
+
+
+def test_apk_without_version_code_is_zero(tmp_path):
+    """Нет versionCode в манифесте — 0, как у Android (иначе колонка видит вечное «обновление»)."""
+    from server_emulator.apk_metadata import read_apk
+    assert read_apk(_apk(tmp_path / "a.apk"))["version_code"] == 0
+    assert read_apk(_apk(tmp_path / "b.apk", 7))["version_code"] == 7
+
+
+def test_uploaded_apk_version_code_synced_and_locked(tmp_path):
+    """Запись загруженного APK с чужим versionCode исправляется по файлу при загрузке
+    каталога; правка package/versionCode такого приложения отклоняется."""
+    import asyncio
+    sha = "a" * 64
+    (tmp_path / "data" / "catalog").mkdir(parents=True, exist_ok=True)
+    _apk(tmp_path / "data" / "catalog" / (sha + ".apk"))
+    write_catalog(tmp_path, {"mode": "own", "apps": [{"id": "u1", "name": "T", "package": "com.test.nocode",
+                                                      "version": "1.1", "version_code": 123, "sha256": sha}]})
+    catalog = Catalog(tmp_path)
+    app = catalog.value["apps"][0]
+    assert app["version_code"] == 0 and app["apk_synced"] is True
+    assert json.loads((tmp_path / "data" / "catalog" / "catalog.json").read_text("utf-8"))["apps"][0]["version_code"] == 0
+
+    class Request:
+        match_info = {"id": "u1"}
+
+        def __init__(self, body):
+            self.body = body
+
+        async def json(self):
+            return self.body
+
+    for body in ({"version_code": 5}, {"package": "com.other.pkg"}):
+        with pytest.raises(ValueError):
+            asyncio.run(catalog.edit(Request(body)))
+    asyncio.run(catalog.edit(Request({"name": "Новое имя", "version_code": 0})))  # то же значение — можно
+    assert catalog.value["apps"][0]["name"] == "Новое имя"

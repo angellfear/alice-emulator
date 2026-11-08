@@ -13,7 +13,8 @@ def read_apk(path):
     icon=None
     if manifest.lstrip().startswith(b'<'):
         root=ET.fromstring(manifest);application=root.find('application')
-        package=root.get('package','');version=root.get(ANDROID+'versionName','1.0');code=root.get(ANDROID+'versionCode','1')
+        # нет versionCode в манифесте — Android считает его 0 (не 1): иначе каталог вечно предлагает «обновление»
+        package=root.get('package','');version=root.get(ANDROID+'versionName','1.0');code=root.get(ANDROID+'versionCode','0')
         name=application.get(ANDROID+'label',package) if application is not None else package
         description=''
     else:
@@ -22,7 +23,7 @@ def read_apk(path):
         from androguard.core.apk import APK
         apk=APK(str(path))
         if not apk.is_valid_APK():raise ValueError('Не удалось прочитать манифест APK')
-        package=apk.get_package();version=apk.get_androidversion_name() or '1.0';code=apk.get_androidversion_code() or '1'
+        package=apk.get_package();version=apk.get_androidversion_name() or '1.0';code=apk.get_androidversion_code() or '0'
         name=apk.get_app_name() or package
         description=apk.get_attribute_value('application','description') or ''
         if description.startswith('@'):

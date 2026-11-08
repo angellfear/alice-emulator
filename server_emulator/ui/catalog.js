@@ -192,6 +192,8 @@
     for (const [key, title, type] of [['name', 'Название', 'text'], ['package', 'Package', 'text'], ['version', 'Версия', 'text'], ['version_code', 'VersionCode', 'number'], ['icon', 'Иконка · URL', 'text']]) {
       const label = node('label', title); const input = node('input'); input.type = type; input.value = app[key] ?? '';
       if (key === 'name') input.required = true;
+      // package и versionCode загруженного APK — из файла: иначе колонка вечно предлагает «обновление»
+      if (app.sha256 && (key === 'package' || key === 'version_code')) { input.readOnly = true; input.title = 'Из APK'; }
       label.append(input); form.append(label); fields[key] = input;
     }
     // Раздел: свои разделы + группы каталога Яндекса (по заголовку), по умолчанию «Другое»

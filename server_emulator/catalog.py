@@ -86,6 +86,22 @@ class Catalog:
         self.extension_dirs=extension_dirs  # callable → [(origin, Path)] — слои catalog/, TASK-032
         value=json.loads(self.path.read_text('utf8')) if self.path.exists() else {}
         self.value=self._migrate(value)
+        if self._sync_apk_metadata():self.save()
+
+    def _sync_apk_metadata(self):
+        """Однократно сверяет package/versionCode загруженных APK с самими файлами (записи до
+        запрета правки и до исправления «нет versionCode → 0»); метка apk_synced — не повторять.
+        Битый или пропавший файл — запись как есть."""
+        from .apk_metadata import read_apk
+        changed=False
+        for app in self.value['apps']:
+            if not app.get('sha256') or app.get('apk_synced'):continue
+            path=self.directory/(app['sha256']+'.apk')
+            try:meta=read_apk(path)
+            except Exception as exc:  # noqa: BLE001 — запись остаётся, причина в журнале
+                log.warning('Каталог: APK %s не разобран: %s',app['sha256'][:12],exc);continue
+            app.update(package=meta['package'],version_code=meta['version_code'],apk_synced=True);changed=True
+        return changed
 
     @staticmethod
     def _migrate(value):
@@ -301,7 +317,7 @@ class Catalog:
             icon=metadata.pop('icon_bytes')
             if icon:(self.directory/(sha+'.icon')).write_bytes(icon)
             previous=next((a for a in self.value['apps'] if a['package']==metadata['package']),{})
-            app={**metadata,'id':previous.get('id',str(uuid.uuid4())),'icon':'/__catalog/icon/'+sha if icon else '', 'sha256':sha,'size':size}
+            app={**metadata,'id':previous.get('id',str(uuid.uuid4())),'icon':'/__catalog/icon/'+sha if icon else '', 'sha256':sha,'size':size,'apk_synced':True}
             package=app['package']
             self.value['apps']=[a for a in self.value['apps'] if a['package']!=package]+[app];self.save()
             return web.json_response(app)
@@ -316,9 +332,15 @@ class Catalog:
         package=updates.get('package',app['package'])
         if not re.fullmatch(r'[A-Za-z_][\w]*(?:\.[A-Za-z_][\w]*)+',package,re.ASCII):raise ValueError('Некорректный package')
         if any(a['id']!=app['id'] and a['package']==package for a in self.value['apps']):raise ValueError('Этот package уже есть в каталоге')
-        if 'version_code' in value:
+        if app.get('sha256'):
+            # загруженный APK: package и versionCode — из файла; иное значение колонка не установит
+            # (INVALID_UPDATE_APP_VERSION) и будет вечно предлагать «обновление»
+            if updates.get('package',app['package'])!=app['package']:raise ValueError('Package загруженного APK берётся из файла')
+            if 'version_code' in value and int(value['version_code'])!=int(app['version_code']):
+                raise ValueError('VersionCode загруженного APK берётся из файла: '+str(app['version_code']))
+        elif 'version_code' in value:
             code=int(value['version_code'])
-            if not 0<code<2**63:raise ValueError('Некорректный versionCode')
+            if not 0<=code<2**63:raise ValueError('Некорректный versionCode')
             updates['version_code']=code
         app.update(updates);self.save()
         return web.json_response(app)
