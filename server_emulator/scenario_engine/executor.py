@@ -597,6 +597,9 @@ class Executor:
         merged["slots"] = execution.slots
         merged["state"] = execution.state
         merged["store"] = execution.state.get("_store") or {}
+        # владелец ctx.data (sdk._ScenarioData) — id сценария, как обещает SDK: без ключа
+        # «scenario» записи расходились бы по message_id каждого запроса
+        merged["scenario"] = {"id": execution.scenario.get("id", "")}
         merged["tables"] = execution.scenario.get("tables") or {}
         merged["lexicon"] = {**self.lexicons, **(execution.scenario.get("lexicon") or {})}
         clock = dict(merged.get("clock") or {})
