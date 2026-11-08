@@ -245,7 +245,7 @@ finish / error`; py-сценарии пишет администратор.
 `timer.cancel {kind,sn?}` → число отменённых (0|1),
 `device.push {action,arguments,sn?}`, `light.set {room,on,brightness?}`
 → `{on,brightness}`. `sn` — колонка-адресат (по умолчанию — та, что спросила).
-С TASK-079 `timer.*`/`alarm.*` — не серверное расписание, а отправка колонке штатных
+`timer.*`/`alarm.*` — не серверное расписание, а отправка колонке штатных
 директив (`timer_set_directive`, `alarm_add_directive`, `timer_cancel_directive`):
 `delivery: "sent"` в живую WS-сессию, `"no_session"` без неё; состояние таймеров
 и будильников сервер не хранит (оно в запросе колонки).

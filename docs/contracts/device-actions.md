@@ -7,7 +7,7 @@ module: "server_emulator/runtime.py"
 
 # Контракты действий над устройством
 
-Два канала доставки: **Push-директивы** (вне диалога, `TServerMessage.Event.Push`) и **директивы внутри AliceResponse** (в ответе на запрос). Разделение delivery (доставлено) / execution (исполнено) обязательно: клиентский `Ack` подтверждает только доставку (runtime.py:375–379), фактическое исполнение подтверждается callback/state (не реализовано — E01).
+Два канала доставки: **Push-директивы** (вне диалога, `TServerMessage.Event.Push`) и **директивы внутри AliceResponse** (в ответе на запрос). Разделение delivery (доставлено) / execution (исполнено) обязательно: клиентский `Ack` подтверждает только доставку (runtime.py), фактическое исполнение подтверждается callback/state (не реализовано — E01).
 
 ## 1. Push-действия эмулятора (actions.py CATALOG, отправка из «Эмулятор → WS → Отправка»)
 
@@ -19,22 +19,22 @@ module: "server_emulator/runtime.py"
 | start_bluetooth / stop_bluetooth | — | 同上 | test_quasar_backend |
 | push_update_config | — | 同上 | test_quasar_backend |
 
-Каркас Push-сообщения: Header.MessageId (новый), Header.Ack (ms), Push.PushIds[]+DeduplicationPushId (новые UUID), Timings.SendingTime. Отправка возможна только в активную WS-сессию устройства с назначенным владельцем (runtime.py:462); чужой SN/чужая сессия → ошибка. Повтор Ack-подтверждённого MessageId не создаёт дубль действия.
+Каркас Push-сообщения: Header.MessageId (новый), Header.Ack (ms), Push.PushIds[]+DeduplicationPushId (новые UUID), Timings.SendingTime. Отправка возможна только в активную WS-сессию устройства с назначенным владельцем (runtime.py); чужой SN/чужая сессия → ошибка. Повтор Ack-подтверждённого MessageId не создаёт дубль действия.
 
 ## 2. Директивы внутри AliceResponse (наблюдается в захвате)
 
 | Директива | Назначение | Evidence |
 |---|---|---|
-| sound_set_level | установка громкости голосом («громкость N/два/на 50») — **тихий** ответ: payload `new_level` + `new_percent_level = level·100/MaxLevel` (шкала колонки, cap 23), без речи и карточек (`IsLedSilent=true`), `tts_play_placeholder` второй | volume-level (tests/fixtures/directives, журнал 2026-10-24 00:24:56/23:07:45, 10-29 22:14:24), tests/test_time_scenarios.py + tests/test_simple_commands.py (TASK-083); шаги «громче/тише» — ответного образца фраз нет, проводной Push из приложения (sound_louder/sound_quiter, журнал 10-23…29) |
+| sound_set_level | установка громкости голосом («громкость N/два/на 50») — **тихий** ответ: payload `new_level` + `new_percent_level = level·100/MaxLevel` (шкала колонки, cap 23), без речи и карточек (`IsLedSilent=true`), `tts_play_placeholder` второй | volume-level (tests/fixtures/directives, журнал 2026-10-24 00:24:56/23:07:45, 10-29 22:14:24), tests/test_time_scenarios.py + tests/test_simple_commands.py; шаги «громче/тише» — ответного образца фраз нет, проводной Push из приложения (sound_louder/sound_quiter, журнал 10-23…29) |
 | divui_show_view | показать DivUI-карточку на экране | fixture screen-divui (+ Payload.div2_card.string_body — JSON-карточка) |
 | tts_play_placeholder | заглушка TTS-фразы | text-basic, screen-divui |
 | set_timezone, set_location, set_upper_shutter | контекст/занавес камеры | captures (не реализованы) |
-| audio_play, apply_player_playback_queue_directive, set_audio_player_sequence_state_directive | медиа-очередь Яндекса (контент и URL потока) | captures (не реализованы: своей очереди у эмулятора нет, 087) |
+| audio_play, apply_player_playback_queue_directive, set_audio_player_sequence_state_directive | медиа-очередь Яндекса (контент и URL потока) | captures (не реализованы: своей очереди у эмулятора нет) |
 | update_all_informers_directive, update_informer_directive, rotate_teasers_directive | инфоценры/ротация тизеров | captures (не реализованы) |
-| divui_hide_view, draw_animation_directive (S3 animations/player_pause), player_pause, clear_queue | пауза штатного плеера («стоп/пауза», без речи) | media-pause (tests/fixtures/directives), tests/test_media_scenarios.py (TASK-087); payload_raw по схеме станции |
+| divui_hide_view, draw_animation_directive (S3 animations/player_pause), player_pause, clear_queue | пауза штатного плеера («стоп/пауза», без речи) | media-pause (tests/fixtures/directives), tests/test_media_scenarios.py; payload_raw по схеме станции |
 | iot_sync_endpoints_directive | IoT | captures (не реализован) |
 | open_screen_timer_info_directive, open_screen_timer_list_directive, open_screen_alarm_list_directive, close_screen_timer_active_directive, close_screen_alarm_active_directive | экраны «Часов» (ClockAppCapability, payload_raw по схеме станции) | timer-set / timer-list / timer-cancel / alarm-set / alarm-stop, tests/fixtures/directives |
-| timer_set_directive, timer_cancel_directive, timer_stop_directive, alarm_add_directive, alarm_stop_directive | таймеры/будильники (AlarmCapability, payload_raw; id 8-8-8-8 hex) | там же; сверка — tests/test_time_scenarios.py (TASK-079) |
+| timer_set_directive, timer_cancel_directive, timer_stop_directive, alarm_add_directive, alarm_stop_directive | таймеры/будильники (AlarmCapability, payload_raw; id 8-8-8-8 hex) | там же; сверка — tests/test_time_scenarios.py |
 
 Полный `TDirective`: Type, Name, AnalyticsType, IgnoreAnswer, Payload(Struct), PayloadRaw(bytes), MultiroomSessionId, RoomDeviceIds, IsLedSilent, EndpointId, IsParallel, TimeBeforeDropMs, PersId, OnFinish, Id, SourceInfo, DirectiveType, Channel (descriptor). Multiroom/Endpoint поля не подтверждаются нашими устройствами — не заполнять без evidence.
 
@@ -50,11 +50,11 @@ module: "server_emulator/runtime.py"
 
 ## 4. Карточки
 
-В захвате все карточки — `simple_text` (Type + Text + CardId; CardId меняется между повторами одинакового ответа — генерируется сервером, класс New identifier по v3 §4). DivUI-контент идёт директивой divui_show_view, не карточкой. Эмулятор генерирует simple_text (voice.py:197); другие типы — E03.
+В захвате все карточки — `simple_text` (Type + Text + CardId; CardId меняется между повторами одинакового ответа — генерируется сервером, класс New identifier по v3 §4). DivUI-контент идёт директивой divui_show_view, не карточкой. Эмулятор генерирует simple_text (voice.py); другие типы — E03.
 
 ## 5. Нереализованное и границы
 
 - Execution-подтверждение (callback/state после действия) — нет; UI показывает `execution: unconfirmed` (test_quasar_backend это закрепляет).
 - Capability/firmware-гейт действий — нет (E01): Push уходит в любую активную сессию устройства.
 - Запуск Activity/deeplink — исследование TSendAndroidAppIntentDirective в v4 §6/§13; в трафике не наблюдался.
-- Цель действия из model tool-call не принимается автоматически (runtime.py:225 — tool calls только предложения).
+- Цель действия из model tool-call не принимается автоматически (runtime.py — tool calls только предложения).

@@ -13,23 +13,23 @@ module: "server_emulator/voice.py"
 
 | Кадр | Формат | Evidence |
 |---|---|---|
-| Управляющий | `b"AAPI"` + сериализованный protobuf `TClientMessage` / `TServerMessage` | все fixtures; runtime.py:370–373 |
-| Аудио канала | 4 байта big-endian ID канала + payload (Ogg/Opus-страницы или PCM по `Format` запроса) | voice-clock (вх. канал 1), volume-set (вых. канал 102); voice.py:93 receive_audio |
+| Управляющий | `b"AAPI"` + сериализованный protobuf `TClientMessage` / `TServerMessage` | все fixtures; runtime.py |
+| Аудио канала | 4 байта big-endian ID канала + payload (Ogg/Opus-страницы или PCM по `Format` запроса) | voice-clock (вх. канал 1), volume-set (вых. канал 102); voice.py receive_audio |
 
-Каналы: входной объявляется в `VoiceInput.Header.StreamId`; исходящий TTS-канал сервер выбирает сам. В реальном трафике наблюдался вых. канал 102 (volume-set) и закрытие вх. канала 1 сервером (voice-clock); эмулятор генерирует чётные каналы с 2 (voice.py:57). Политика выделения каналов сервером не подтверждена — оба варианта валидны для клиентов.
+Каналы: входной объявляется в `VoiceInput.Header.StreamId`; исходящий TTS-канал сервер выбирает сам. В реальном трафике наблюдался вых. канал 102 (volume-set) и закрытие вх. канала 1 сервером (voice-clock); эмулятор генерирует чётные каналы с 2 (voice.py). Политика выделения каналов сервером не подтверждена — оба варианта валидны для клиентов.
 
-Ограничения эмулятора на входное аудио: ≤90 с на канал, суммарно ≤16 MiB, ≤4 одновременных канала (voice.py:100,132).
+Ограничения эмулятора на входное аудио: ≤90 с на канал, суммарно ≤16 MiB, ≤4 одновременных канала (voice.py).
 
 ## 2. Закрытие потока — enum `CloseReason` (из descriptor, не магические числа)
 
 | Значение | Имя | Использование |
 |---|---|---|
 | 0 | OK | нормальное завершение TTS-канала (voice.py close_stream по умолчанию) |
-| 1 | INTERNAL_ERROR | превышение лимитов входа, ошибка STT (voice.py:102,219) |
+| 1 | INTERNAL_ERROR | превышение лимитов входа, ошибка STT (voice.py) |
 | 2 | STOP_RECORDING | не используется эмулятором; наблюдается от клиента |
 | 3 | AUDIO_SOURCE_STOPPED | не используется эмулятором |
-| 4 | CANCEL | отмена/новый запрос вытесняет старый (voice.py:85,110) |
-| 5 | NO_SPEECH | вход без аудио игнорируется (voice.py:145) |
+| 4 | CANCEL | отмена/новый запрос вытесняет старый (voice.py) |
+| 5 | NO_SPEECH | вход без аудио игнорируется (voice.py) |
 
 `StreamControl` несёт `StreamId`, `Close.Reason`, `SpotterEnd`, `LazyTTS` (descriptor).
 
@@ -47,7 +47,7 @@ module: "server_emulator/voice.py"
 | RequestStat | ответ RequestStatAck | cancel-request | test_emulator_and_pcm |
 | MatchedUser | биометрия говорящего: классификация голоса (`Request.Event.BiometryClassification`: Scores ClassName/Confidence/Tag, Simple) → `conversation.speaker` и `sessions[<соединение>]['speaker']`; в контексте сценариев — `speaker`, агенту — kwargs `speaker`. Облако не отвечает — эмулятор тоже | voice-clock (MatchedUser) | test_aapi_handlers |
 | CapabilityUpdateState | состояние возможностей колонки: `CapabilityType` (enum, напр. AccessibilityVoiceControlType) + `AnyCapability.RawCapability` → последнее состояние каждого типа в `sessions[…]['capabilities']` (память, без БД) и `conversation.capabilities`; в контексте сценариев — `device.capabilities` (preview читаемых строк дампа). Облако не отвечает | voice-clock (CapabilityUpdateState) | test_aapi_handlers |
-| ContinueRequest | колонка просит продолжить ответ (`RequestMessageId`). Поведение облака не разобрано (образца нет): ответа нет, событие — в журнал сервера (source ws, предупреждение склеивается); полное поведение — БЛОКЕР задания 069 | — | test_aapi_handlers |
+| ContinueRequest | колонка просит продолжить ответ (`RequestMessageId`). Поведение облака не разобрано (образца нет): ответа нет, событие — в журнал сервера (source ws, предупреждение склеивается); полное поведение — БЛОКЕР | — | test_aapi_handlers |
 | SpotterEnd / Ping | наблюдаются, обработчиков нет — игнорируются без ошибки | voice-clock | replay-тест держит соединение |
 | MusicInput, SyncPushResponse, AsrRecognize, TtsGenerate, DeferredTtsGenerate, DataProxyInput, FileUploadRequest, TtsUpdateState, RecordInput, ClientSubscriptionState, TranslateInput, AudioTranscriptionInputRequest, FinishRequest | не наблюдались в captures; обработчиков нет | — | — |
 
@@ -55,16 +55,16 @@ module: "server_emulator/voice.py"
 
 | Событие | Кто шлёт | Fixture | Эмулятор генерирует |
 |---|---|---|---|
-| InputStartAck | на TextInput/VoiceInput | text-basic, voice-clock | да (voice.py:119,135) |
-| AsrResult | частичные и финальное распознавание | voice-clock (26 partial + final) | да (voice.py:169) |
+| InputStartAck | на TextInput/VoiceInput | text-basic, voice-clock | да (voice.py) |
+| AsrResult | частичные и финальное распознавание | voice-clock (26 partial + final) | да (voice.py) |
 | AliceResponse | ответ с Cards/Directives | text-basic, volume-set, voice-clock, screen-divui | да (simple_text + OutputSpeech) |
 | DeferredAliceResponse | отложенный ответ | screen-divui ×2 | нет (не реализовано) |
-| TtsSpeak | объявление TTS-канала (`Format=audio/opus`) | volume-set, screen-divui | да (voice.py:206) |
+| TtsSpeak | объявление TTS-канала (`Format=audio/opus`) | volume-set, screen-divui | да (voice.py) |
 | TtsTimings | метрики TTS | volume-set ×3, screen-divui | нет |
 | Push | директивы вне диалога | text-basic, cancel-request (notify) | да (actions.py push_message) |
 | GoAway | сервер требует переподключение | reconnect-goaway | нет |
 | SynchronizeStateResponse / RequestStatAck | ответы на запросы | sync-basic, cancel-request | да (legacy_replay.control_response) |
-| LogAck | подтверждение LogSpotter | logspotter-ack | да (runtime.py:396) |
+| LogAck | подтверждение LogSpotter | logspotter-ack | да (runtime.py) |
 | SpotterValidation | валидация фразы активации | screen-divui (наблюдение) | нет |
 | EventException, InvalidAuth, ServerRequestReady, SyncPush, Ping, AsrMusicResult, DataProxyRequest, FileUploadResponse, SpeechControl, ServerSubscriptionState, AudioTranscriptionInputResponse, ChunkAck | не наблюдались/не генерируются | — | — |
 
@@ -84,7 +84,7 @@ module: "server_emulator/voice.py"
 
 WS heartbeat 30 с; max_msg_size 16 MiB; провайдеры model/stt/tts — HTTP total 90 с; MCP 30 с; лимиты аудио из §1. Firmware/capability-гейт ещё не реализован (B05/E01) — статус в coverage.md.
 
-## Обновление 2026-11-01: реестр обработчиков и колбэки
+## Реестр обработчиков и колбэки
 
 Реестр — `aapi_handlers.py`: `@aapi_handler(trigger, enabled=…)` объявляет обработчик рядом
 с кодом; у записи есть источник (`builtin`, у расширений через SDK — `extension:<id>`),
@@ -102,21 +102,21 @@ WS heartbeat 30 с; max_msg_size 16 MiB; провайдеры model/stt/tts — 
 встроенный, поставщика нет — умолчание колбэка (тихое подтверждение, `Dialog.quiet_ack`).
 Колбэк без маршрута и сценария — в `callback_misses` (блок «AAPI без ответа» во вкладке WS).
 
-## Обновление 2026-10-24: карточка и NO_SPEECH
+## Карточка и NO_SPEECH
 
 - Карточка диалога рендерится колонкой при заполненном каркасе (см. docs/contracts/scenarios.md §6): CardId (новый идентификатор на карточку), Header.SequenceNumber, DialogId="", директива tts_play_placeholder{channel:"Dialog"} — восстановлено из реальных ответов (fixtures voice-clock/volume-set).
 - AsrResult: текст экрана колонки — AggregatedRecognition.RecognizedText (Recognition[].Normalized недостаточно); пустые паршлы не отправляются.
 - NO_SPEECH-протокол: см. scenarios.md §7.
 
-## Обновление 2026-10-28: ответ частями (DeferredAliceResponse)
+## Ответ частями (DeferredAliceResponse)
 
 - Перехват screen-divui: облако шлёт `AliceResponse` без текста (`HasVoiceResponse`,
   `tts_play_placeholder`), затем `DeferredAliceResponse {BaseResponse{Text, ShouldListen},
-  ResponsePartialNum, IsLast, RequestId}` и только потом `TtsSpeak` + аудио. Эмулятор использует
-  этот порядок для озвучки ответа модели по фразам (`agent.stream_reply`, docs/contracts/agent.md).
+  ResponsePartialNum, IsLast, RequestId}` и только потом `TtsSpeak` + аудио. Эмулятор этот
+  порядок не воспроизводит — отложенный ответ доставляет `Push` (см. ниже).
   Поведение колонки при многих частях и звуке до `IsLast` на живом устройстве не проверено.
 
-## Обновление 2026-10-28: сбои конвейера видны пользователю
+## Сбои конвейера видны пользователю
 
 - Сбой распознавания, сценария или модели (HTTP-ошибка провайдера, таймаут, нет связи, не
   настроен): входной канал закрывается `INTERNAL_ERROR`, затем уходит обычный `AliceResponse` —
@@ -126,45 +126,29 @@ WS heartbeat 30 с; max_msg_size 16 MiB; провайдеры model/stt/tts — 
 - Сбой TTS: ответ уходит без голоса, а к карточке ответа добавляется вторая карточка
   «Озвучка недоступна: <причина>».
 
-## Обновление 2026-10-28: колонка не уходит в свой таймаут
+## Колонка не уходит в свой таймаут
 
 - Колонка 84 (logcat `quark-native`): без ответа ~17 с после конца речи она играет свою
   фразу о таймауте (`local_audio_file_play`), даже если ответ сервера придёт позже.
 - Синтез ждёт первый звук не дольше `tts_wait_s` (настройка верхнего уровня, по умолчанию 6 с):
   дольше — ответ уходит карточкой без голоса и «Озвучка недоступна: сервис не ответил вовремя».
-- В потоковом режиме (`agent.stream_reply`) ранний `AliceResponse` уходит сразу, как запрос
-  ушёл в модель, а не с первой фразой. Сбой модели после него — последний
-  `DeferredAliceResponse` (`IsLast`) с причиной и голосом, второго `AliceResponse` нет. После
-  первого сбоя синтеза остальные фразы не синтезируются, причина — второй картой в `IsLast`.
 - Карточка ответа на колонке — потоковая (`centaur_streamed_alice_answer`), текст с
-  `ProgressivePrinting` печатается по ходу звука: при сбое модели и TTS сразу карточка вышла
+  `ProgressivePrinting` печатается по ходу звука: при сбое модели и TTS сразу карточка выходит
   пустой. Поэтому `TtsSpeak` уходит только с первым звуком (без звука канала нет), а после
-  сбоя синтеза карточки идут без `ProgressivePrinting` — текст целиком. Трасса
-  `deferred_response` (part, last, text_len, progressive).
-- Нет звука дольше `agent.filler_after_s` (по умолчанию 4 с, 0 — выкл., вкладка «AI агент»)
-  после раннего ответа — канал открывается и в него идёт белый шум ≈ −54 dBFS шагами 0,1 с,
-  пока синтез не даст звук; тот же Opus-поток продолжается речью. Шум подаётся только когда
-  колонка доиграла уже отданное (паузы между фразами тоже), готовую речь не сдвигает.
-- Фразы «пока думаю» (`agent.think_phrases`, выкл. по умолчанию; `think_every_s` — 5 с;
-  `think_words` — список, в UI через запятую): во время шума раз в `think_every_s` вместо
-  шума звучит случайная фраза. Синтез — в фоне; пока фраза не готова, идёт шум. В текст
-  карточки фразы не попадают.
-- Звуковой кеш, раздел «AI агент» (`tts_cache.agent_phrases`, source `agent`): фразы «пока
-  думаю» и озвучиваемые фразы сбоев — все сочетания этапа (распознавание, модель, команда,
-  запрос) и причины (`voice.failure_phrases`). Голос сбоя — без кода HTTP
-  (`failure_speech`), карточка — с кодом (`failure_text`). При PCM-движке эти фразы (и прочие
-  фразы кеша) и в потоке берутся из кеша (`reply_stream.phrase_pcm`); синтез из кеша тоже
-  ограничен `tts_wait_s`.
+  сбоя синтеза карточки идут без `ProgressivePrinting` — текст целиком.
+- Звуковой кеш, раздел «AI агент» (`tts_cache.agent_phrases`, source `agent`): озвучиваемые
+  фразы сбоев — все сочетания этапа (распознавание, модель, команда, запрос) и причины
+  (`voice.failure_phrases`). Голос сбоя — без кода HTTP (`failure_speech`), карточка —
+  с кодом (`failure_text`).
 - Ключ прошивки `vinsRequestTimeout` (рядом с `sendCancelAfterLastDeferred`) не выставляется:
   единица и место в конфиге не подтверждены.
 
 - Колонка ждёт `TtsSpeak` после раннего ответа не дольше ~10 с (logcat: `tts_play_placeholder`
-  → `onTtsPlayerError` через 10 с, затем IDLE) — шум через 4 с укладывается. Когда канал держит
-  шум, синтез фразы ждётся до `OPEN_TTS_WAIT_S` (20 с), а не `tts_wait_s`. Фразы «пока думаю»
-  включены по умолчанию (один шум ≈ −54 dBFS не слышно). Отменённый колонкой запрос пишется в
+  → `onTtsPlayerError` через 10 с, затем IDLE) — синтез до Push (`OPEN_TTS_WAIT_S`, 20 с)
+  укладывается в это окно. Отменённый колонкой запрос пишется в
   журнал агента со статусом `cancelled`.
 
-## Обновление 2026-10-28: отложенный ответ модели через Push
+## Отложенный ответ модели через Push
 
 - Перехват volume-set: облако доставляет сработавшее напоминание сообщением `Push`
   (`Directives: [{Type: server_action, Name: @@mm_semantic_frame, Payload: {analytics:
@@ -177,13 +161,8 @@ WS heartbeat 30 с; max_msg_size 16 MiB; провайдеры model/stt/tts — 
   причина сбоя) хранится до 10 мин, колонке уходит `Push` той же формы с `purpose:
   agent_answer` и id ответа в `analytics.origin_info`. На её `TextInput` с этим server_action
   ответ модели уходит как обычный (карточка, голос, действия, директивы); id не найден —
-  «Ответ уже недоступен.». При включённом отложенном ответе озвучка по фразам не используется.
+  «Ответ уже недоступен.».
 - Трасса: `async_wait`, `async_wait_reply`, `async_push` / `async_push_failed`, `async_answer`.
-- Принимает ли колонка `Push` со своим purpose (а не shoot_reminder) — на живом устройстве не
-  проверено.
-- Фразы «пока думаю» по умолчанию — короткие фразы, а не слова («Секунду, думаю.», «Хм, дайте
-  подумать.» …): синтез с клонированием голоса на одно слово отдаёт почти тишину, и в шуме был
-  провал ~1 с. Результат синтеза тише `AUDIBLE_RMS` (0,01) не вставляется (трасса `think_silent`).
 - Проверено на колонке 84: Push со своим purpose принят — колонка присылает TextInput с
   server_action, ответ звучит. Карточка `simple_text` при этом не видна: экран колонка
   открывает сама только при голосовой активации. Поэтому ответ по Push несёт ещё
@@ -199,11 +178,10 @@ WS heartbeat 30 с; max_msg_size 16 MiB; провайдеры model/stt/tts — 
   ответа на тёмном фоне), голос прозвучал (`onAliceStateChanged: SPEAKING`). Карточка не
   закрывается сразу после речи.
 
-## Обновление 2026-10-30: озвучка по фразам убрана
+## Отложенный ответ: дополнительные свойства
 
-- Ранний `AliceResponse`, `DeferredAliceResponse` частями, шум и фразы «пока думаю»
-  (`agent.stream_reply`, `filler_after_s`, `think_*`, `reply_stream.py`) убраны: медленную
-  модель закрывает отложенный ответ через Push. Разделы выше про них — история.
+- Озвучки по фразам (ранний `AliceResponse`, `DeferredAliceResponse` частями, белый шум,
+  фразы «пока думаю») в эмуляторе нет: медленную модель закрывает отложенный ответ через Push.
 - Ответ модели (обычный и по Push) ставит `VoiceResponse.ShouldListen`, если ждёт
   подтверждения действия (`tool_calls`) или заканчивается «?».
 - Реплики заданий (`delivery: speak`) тоже синтезируются до Push (`Conversation._prerender`).
@@ -215,7 +193,7 @@ WS heartbeat 30 с; max_msg_size 16 MiB; провайдеры model/stt/tts — 
 - Реплика задания попадает и в голосовой тред `voice:<SN>` (agent.md, «Треды»): ответ на вопрос
   задания понятен агенту.
 
-## Обновление 2026-11-01: биометрия и возможности колонки
+## Биометрия и возможности колонки
 
 Промахи рабочего сервера (`MatchedUser` 91, `CapabilityUpdateState` 49, `ContinueRequest` 1) получили
 встроенные обработчики в `voice.py` (реестр `aapi_handlers`, видны в «WS → Входящие»):
@@ -239,19 +217,15 @@ WS heartbeat 30 с; max_msg_size 16 MiB; провайдеры model/stt/tts — 
   Полное поведение — БЛОКЕР: нужен обмен (устройство в «Прозрачно» с «Записью», воспроизвести
   продолжение долгого ответа).
 
-## Обновление 2026-11-01: кнопки экрана плеера
+## Кнопки экрана плеера
 
 Колбэки `@@mm_typed_callback` с `purpose=player_*` (кнопки экрана плеера: next/previous/pause/
-play/liked/unliked/dislike/repeat/shuffle/speed) маршрутизируются на сценарий-поставщик
-`media.player_button` (scenarios/media/buttons.json): next/previous двигают очередь эмулятора, pause/play — `audio_play` с `set_pause`, лайки/повтор/шаффл/скорость — тихое
-подтверждение (без аккаунта Яндекса состояние кнопки показывает колонка).
+play/liked/unliked/dislike/repeat/shuffle/speed) — тихое подтверждение (`callbacks.ack`,
+как в образцах журнала); без аккаунта Яндекса состояние кнопки показывает колонка.
+Тихое подтверждение — и у `music_thin_client_on_started/on_stopped` и
+`@@mm_stack_engine_get_next` без поставщика (`docs/contracts/player.md`).
 
-Обновление 2026-11-02 (TASK-087): своей очереди больше нет — `media.player_button` удалён,
-`purpose=player_*` попадает в общий `callbacks.ack` (тихое подтверждение, как в образцах
-журнала). Тот же итог у `music_thin_client_on_started/on_stopped` и
-`@@mm_stack_engine_get_next` (`docs/contracts/player.md`).
-
-## Обновление 2026-11-04: маршрут «Вместе», фаза 3 — промах релеится голосом (098)
+## Маршрут «Вместе»: промах релеится голосом
 
 - На промахе сценария в `hybrid` ветка `upstream/hybrid.py` получает **исходный голосовой ход
   колонки**: кадр `VoiceInput` + бинарные аудиокадры (с 4-байтовым каналом-префиксом, как на
@@ -264,7 +238,7 @@ play/liked/unliked/dislike/repeat/shuffle/speed) маршрутизируютс�
   пересылаются — её голосовой ход уже отработал эмулятор, чужие StreamId сломали бы канал.
 - Релеи протокольных ответов колонки ветке: `StreamControl` с StreamId, который ветка сама
   упоминала, и `Ack` с MessageId кадра ветки; `RequestStat` не релеится (ранний статотчёт
-  мегамайнда принимает за конец хода и отменяет отложенный ответ — дефект 097).
+  мегамайнда принимает за конец хода и отменяет отложенный ответ).
 - Текстовая пересылка (TextInput из VoiceInput) удалена как мёртвая: мегамайнд не отвечает
   содержанием на текст станции (у станции нет такого потока; единственный образец
   TextInput в захватах — бардж-ин «стоп»).

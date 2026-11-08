@@ -48,15 +48,15 @@ Endpoint'ы (по умолчанию, расширяются списком до
 
 ## 4. Fallback маршрутов
 
-Разделы «Обработчики» и «Поведение» удалены (2026-10-25). Порядок обслуживания маршрута: builtin Quasar → каталог захваченных эндпоинтов (state/endpoints, `docs/contracts/endpoints.md`) → локальный честный 404 `{"error":"emulator_handler_not_found"}`. Тест: test_emulator_runtime.
+Порядок обслуживания маршрута: builtin Quasar → каталог захваченных эндпоинтов (state/endpoints, `docs/contracts/endpoints.md`) → локальный честный 404 `{"error":"emulator_handler_not_found"}`. Прозрачно пустить отдельный маршрут без режима прокси нельзя. Тест: test_emulator_runtime.
 
 ## 5. Общие инварианты
 
 - Клиентский device_id извлекается из query `device_id`, заголовков `X-YaQuasarDeviceId` / `x-uprx-device-id`; IP не участвует в принадлежности.
 - Ответы не содержат cookies/private keys владельца; JWT выдаётся только для устройств с назначенным владельцем.
-- Standalone и embedded дают одинаковые ответы (один runtime.dispatch); в embedded дополнительно пишется capture-запись с `emulated=true`.
+- Standalone обслуживает все маршруты; эмулированные обмены пишутся в журнал трафика (`source=emulator`).
 
-## Обновление 2026-10-24: маршрутизация и идентичность
+## Маршрутизация и идентичность
 
 ### /glagol/token — вызывающий ≠ цель
 Query `device_id` — ЦЕЛЕВОЕ устройство (токен «для него»); вызывающий определяется заголовками (X-YaQuasarDeviceId > x-uprx-device-id). Ветка: непривязанный вызывающий → 403 caller_not_assigned; неизвестная цель → 404 target_unknown; владелец цели ≠ владелец вызывающего → 403 forbidden. Без заголовков — прежняя семантика «токен для себя». Цель resolve-only (не регистрируется как наблюдение вызывающего). Тесты: tests/test_glagol_token.py.
@@ -77,7 +77,7 @@ meta `record_migration`); `record` как значение `route_mode` — 400.
 | Режим | HTTP | WS |
 |---|---|---|
 | `emulate` (Эмуляция) | эмулятор | эмулятор |
-| `hybrid` (Вместе) | эмулятор, где есть обработчик; промах — upstream, промах остаётся в «Без ответа» с отметкой «ушёл в Яндекс» | эмулятор (фаза 1); пересылка отдельных необработанных сообщений — фаза 2 |
+| `hybrid` (Вместе) | эмулятор, где есть обработчик; промах — upstream, промах остаётся в «Без ответа» с отметкой «ушёл в Яндекс» | эмулятор; промах релеится ветке `upstream/hybrid.py` — голосовой ход колонки, ASR и ответ Яндекса (см. `uniproxy.md`) |
 | `proxy` (Прозрачно) | upstream | мост upstream |
 
 Решение — `dispatcher.route_mode_for(request) → (sn, device_id, mode)`: заголовки
@@ -118,11 +118,3 @@ count, first_ts, last_ts}]}]}`; `?device_sn=&key=[&source=&unhandled=1]` → `{i
 HTTP — `METHOD host path` без query; WS — `ws → Event.<имя>` (колонка) / `ws ← Event.<имя>` (сервер),
 `ws open`, `ws close`, `ws unknown →|←`. На пару (устройство, ключ) хранятся последние 10 записей, `count` —
 все случаи.
-
-### H11: HTTP-маршруты эмуляции — отменено
-
-Механизм авторегистрации неизвестных HTTP-маршрутов (`server_emulator/http_routes.py`,
-реестр `http_routes.json`, три состояния enabled/transparent/disabled) удалён насовсем
-(решение 2026-10-25 — см. `quasar-config.md`): вместо реестра с состояниями —
-каталоговые домены с режимами direct/merged/own (задание 074, вкладка «Каталог»).
-Прежний текст раздела — в истории git.
