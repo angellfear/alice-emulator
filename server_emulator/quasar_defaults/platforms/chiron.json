@@ -1,0 +1,48 @@
+{
+  "config": {
+    "system_config": {
+      "hybrid_request_factory": {
+        "hybrid": {
+          "scenarios": {
+            "fast_command_scenario": {
+              "supported_frames": {
+                "personal_assistant.scenarios.bluetooth_off": [],
+                "personal_assistant.scenarios.bluetooth_on": [],
+                "personal_assistant.scenarios.player.continue": [],
+                "personal_assistant.scenarios.player.next_track": [],
+                "personal_assistant.scenarios.player.pause": [],
+                "personal_assistant.scenarios.player.previous_track": [],
+                "personal_assistant.scenarios.quasar.go_back": [
+                  "main",
+                  "centaur_default_screen",
+                  "music_player",
+                  "video_player"
+                ],
+                "personal_assistant.scenarios.quasar.go_down": [
+                  "main",
+                  "centaur_default_screen"
+                ],
+                "personal_assistant.scenarios.quasar.go_forward": [
+                  "main",
+                  "centaur_default_screen"
+                ],
+                "personal_assistant.scenarios.quasar.go_home": [],
+                "personal_assistant.scenarios.quasar.go_left": [
+                  "main",
+                  "centaur_default_screen"
+                ],
+                "personal_assistant.scenarios.quasar.go_up": [
+                  "main",
+                  "centaur_default_screen"
+                ],
+                "personal_assistant.scenarios.sound.louder": [],
+                "personal_assistant.scenarios.sound.quiter": []
+              }
+            }
+          }
+        },
+        "hybrid_voice_inputs": null
+      }
+    }
+  }
+}

@@ -1,0 +1,4628 @@
+{
+  "config": {
+    "account_config": {
+      "aliceAdaptiveVolume": {
+        "enabled": true
+      },
+      "aliceProactivity": true,
+      "alwaysOnMicForShortcuts": false,
+      "audio_player": {
+        "crossfadeEnabled": true
+      },
+      "childContentAccess": "without",
+      "contentAccess": "without",
+      "doNotUseUserLogs": false,
+      "enableChildVad": false,
+      "enabledCommandSpotters": {
+        "call": {
+          "answer": true
+        },
+        "music": {
+          "bluetooth": true,
+          "feedback": true,
+          "navigation": true,
+          "playAndPause": true,
+          "volume": true
+        },
+        "smartHome": {
+          "light": true,
+          "tv": true
+        },
+        "tv": {
+          "backToHome": true,
+          "navigation": true
+        }
+      },
+      "intonationSpotting": {},
+      "jingle": false,
+      "saveHistoryUsage": true,
+      "smartActivation": true,
+      "spotter": "alisa",
+      "useBiometryChildScoring": true,
+      "user_wifi_config": {
+        "wifi_hash": "39671801dd40273b54f83b5c3f7d9a0f0055e5a1b1687a6427241d9be9bf402e"
+      },
+      "useRichModelForPro": true
+    },
+    "device_config": {
+      "beta": false,
+      "dndMode": {
+        "enabled": false,
+        "features": {
+          "allowIncomingCalls": false
+        }
+      },
+      "led": {
+        "brightness": {
+          "auto": true,
+          "value": 0.7
+        },
+        "idle_animation": false,
+        "music_equalizer_visualization": {
+          "auto": false,
+          "style": "lava_beat"
+        },
+        "time_visualization": {
+          "format": "24h"
+        }
+      },
+      "locale": "ru-RU",
+      "location": {},
+      "name": "{{device.name}}",
+      "standby": {
+        "deepStandbyEnabled": true,
+        "deepStandbyTimeoutMinutes": 240
+      },
+      "tv_beta": false
+    },
+    "system_config": {
+      "adbd": {
+        "network": true,
+        "remoteActivation": true
+      },
+      "addAllEmbeddedEndpoints": true,
+      "alarmd": {
+        "disableTimerAfterFire": true,
+        "separatedDefaultSound": true,
+        "timerSoundFilename": "newTimer"
+      },
+      "aliced": {
+        "aliceStreamingV2": {
+          "provideAliceState": true
+        }
+      },
+      "android_app": {
+        "Logging": {
+          "level": "info"
+        }
+      },
+      "androidSettingsConfig": {
+        "enabled": true,
+        "globalSettingsMap": {
+          "is_status_bar_enabled": {
+            "value": "0",
+            "valueType": "Int"
+          },
+          "is_status_bar_enabledV1": {
+            "value": "0",
+            "valueType": "Int"
+          }
+        }
+      },
+      "appmetrikaReportEnvironment": {
+        "quasmodrom_group": "production",
+        "quasmodrom_subgroup": "production",
+        "test_buckets": "1556982,0,4;1561379,0,36;1547992,0,87;721150,0,79;1525886,0,41;1217762,0,78;945524,0,81;950035,0,41;1283447,0,48;1423171,0,62;956122,0,95;1549517,0,96;1550823,0,49;1288685,0,77;1560108,0,48;1287409,0,67;1479393,0,60;1559533,0,28",
+        "testids": "1058670_1058695_1058696_1058739_1058743_1058746_1074585_1098487_1118599_1155918_1294733_1367806_1395542_1420044_1431608_1432181_1450785_1454721_1457247_1457514_1458555_1460807_1479393_1511604_1525886_1559533_721150"
+      },
+      "audio_player_capability": {
+        "enableMusicSets": true,
+        "enableSmartCrossfade": true,
+        "pausePlayerOnStop": true,
+        "qualityChangeReaction": "runtime"
+      },
+      "audioclient": {
+        "extraPlaybackParams": {
+          "apiUrl": "wss://ws.api.music.yandex.net/quasar/websocket"
+        },
+        "gogol": {
+          "keepAlive": true
+        },
+        "playbackParams": {
+          "common": {
+            "gstProperties": {
+              "SPECTRUM": "spectrum interval=40000000 bands=513 threshold=-80"
+            }
+          }
+        },
+        "volume": {
+          "audio": 100,
+          "stream": 100,
+          "voice": 100
+        }
+      },
+      "audioInput": {
+        "audioDevice": {
+          "addInRateRawChannels": true,
+          "dspMetricsEnabled": true,
+          "vqe": {
+            "preset": {
+              "omniChannelGainCoefficient": [
+                30
+              ]
+            },
+            "type": "yandex"
+          },
+          "vqeHardwareConfigV2": {
+            "enableVqeOnDsp": true
+          },
+          "vqeMetricsEnabled": true,
+          "vqeMetricsTimeoutMin": 10,
+          "vqeTelemetryMetricsEnabled": false,
+          "vqeTelemetryMetricsEnabledV1": false
+        },
+        "model_storage": {
+          "models": {},
+          "useFallback": true
+        }
+      },
+      "bio_capability": {
+        "enabled": true,
+        "engine_config": {
+          "context_scoring": {
+            "enabled": true,
+            "guest_threshold": 0.67,
+            "lambda": 0.3,
+            "max_time_diff_seconds": 1140,
+            "min_embedding_cosine": 0.7,
+            "use_exp_formula": true
+          }
+        },
+        "log_storage": true,
+        "model_storage": {
+          "models": {}
+        },
+        "spotter_sound_duration_ms": 500,
+        "use_ondevice_classification": true
+      },
+      "calld": {
+        "audio_processing_config": {
+          "pre_amplifier": {
+            "enabled": true,
+            "fixed_gain_factor": 72
+          }
+        },
+        "auto_gain_control": true,
+        "tx_agc_digital_compression_gain": 72
+      },
+      "capabilityStateSender": {
+        "capabilityIdsWhitelist": [
+          "AccessibilityVoiceControlCapability"
+        ]
+      },
+      "centaur": {
+        "298_nps_onboarding": {
+          "critical": true,
+          "enabled": true
+        },
+        "accessible_voice": {
+          "accessibleVoiceConfig": {
+            "accessibleVoicePackagesFilterConfig": {
+              "filterMode": "BLOCK_LIST"
+            },
+            "enableReceivingOpenedAppEvents": true,
+            "useDialogsBackend": false
+          }
+        },
+        "alice_streaming_settings": {
+          "markdownEnabled": true,
+          "printingDelay": 200,
+          "streamingEnabled": true
+        },
+        "animate_layers": true,
+        "app_store_config": {
+          "enabled": true,
+          "enabled_apps_and_services_title": true,
+          "redesign_enabled": true,
+          "yaos_store_name_enabled": true
+        },
+        "appsVersions": {
+          "debounceMs": 30000,
+          "isEnabled": true,
+          "maxPackagesCount": 25,
+          "usageStatsPeriodDays": 30
+        },
+        "audio_config": {
+          "vqe_metrics_enabled": true,
+          "vqe_metrics_timeout_min": 10
+        },
+        "autoRotate_enabled": true,
+        "bluetooth_player_settings": {
+          "alice_toasts_on_off_events_enable": true,
+          "bluetooth_on_off_events_enable": false
+        },
+        "brightness_settings": {
+          "appmetrica_sending_enabled": true,
+          "appmetrica_sending_interval_seconds": 60,
+          "autobrightness_manual_change": false,
+          "ema_range": 1,
+          "force_night_mode_brightness": true,
+          "logging_enabled": false,
+          "max_for_night_mode": 1,
+          "min_for_off_night_mode": 5,
+          "night_mode_breakout_timeout_milliseconds": 60000,
+          "night_mode_brightness": 0,
+          "night_mode_short_breakout_timeout_milliseconds": 10000,
+          "read_threshold": 100,
+          "read_window_size": 30
+        },
+        "browser_lite_settings": {
+          "clear_data_on_account_changed": true,
+          "launch_from_start_activity_v2": true
+        },
+        "camera_marks_detection": {
+          "colors_threshold": 20,
+          "enabled": true,
+          "max_colors_distance": 5
+        },
+        "carousel_chrome_enabled": true,
+        "carousel_server_updates": true,
+        "centaur_webview": {
+          "analytics": {
+            "allowed_to_report_urls": [
+              "youtube.com",
+              "yandex.ru/iot"
+            ],
+            "enabled": true
+          },
+          "initial_scale_per_url": {
+            "https://m.youtube.com/shorts/": 205
+          },
+          "permissions": [
+            {
+              "name": "android.webkit.resource.AUDIO_CAPTURE",
+              "white_list": [
+                "m.youtube"
+              ]
+            }
+          ]
+        },
+        "channel_list_config": {
+          "tariff_options_supported_v2": true
+        },
+        "click_daemon_settings": {
+          "crash_log_config": {
+            "max_dropbox_text_entry_bytes": 153600,
+            "white_list": [
+              "ru.yandex.",
+              "com.yandex.",
+              "com.herocraft.game.cut.arcade.catchthecandy",
+              "com.kvestiks.quiz",
+              "com.partystation.app",
+              "com.vk.vkvideo",
+              "live.vkplay.app",
+              "ru.imult.mult",
+              "ru.ivi.client",
+              "ru.more.play",
+              "ru.mts.mtstv",
+              "ru.rt.video.app.mobile",
+              "ru.rutube.app"
+            ]
+          }
+        },
+        "common_players_settings": {
+          "is_bluetooth_player_enabled": true,
+          "is_hls_video_play_enabled": true,
+          "is_music_player_enabled_v1": true,
+          "is_tv_player_enabled_v1": true,
+          "is_video_player_enabled": true,
+          "is_web_player_enabled_v2": true,
+          "is_web_rtc_video_play_enabled": true
+        },
+        "cv": {
+          "auto_crop": {
+            "animation": {
+              "fps": 60,
+              "min_horizontal_offset": 0.4,
+              "min_size_ratio": 1.4,
+              "min_vertical_offset": 0.2,
+              "no_faces_timeout_ms": 2000,
+              "poll_rate_ms": 50,
+              "speed": 0.02,
+              "switch_off_duration_ms": 500
+            },
+            "detection": {
+              "max_face_height_ratio": 0.8,
+              "min_face_count_for_max_face_height_ratio": 2,
+              "min_face_score": 0.98,
+              "new_face_delay_ms": 2000,
+              "remove_face_delay_ms": 2000,
+              "same_face_distance_ratio": 2,
+              "same_face_max_size_ratio": 2
+            },
+            "margin_bottom_ratio": 1.2,
+            "margin_left_ratio": 1,
+            "margin_right_ratio": 1,
+            "margin_top_ratio": 0.8,
+            "max_zoom": 2
+          },
+          "auto_crop_portrait": {
+            "animation": {
+              "fps": 60,
+              "min_horizontal_offset": 0.25,
+              "min_size_ratio": 1.1,
+              "min_vertical_offset": 0.2,
+              "no_faces_timeout_ms": 2000,
+              "poll_rate_ms": 50,
+              "speed": 0.02,
+              "switch_off_duration_ms": 500
+            },
+            "detection": {
+              "max_face_height_ratio": 0.8,
+              "min_face_count_for_max_face_height_ratio": 2,
+              "min_face_score": 0.98,
+              "new_face_delay_ms": 2000,
+              "remove_face_delay_ms": 2000,
+              "same_face_distance_ratio": 2,
+              "same_face_max_size_ratio": 2
+            },
+            "margin_bottom_ratio": 1,
+            "margin_left_ratio": 1,
+            "margin_right_ratio": 1,
+            "margin_top_ratio": 0.4,
+            "max_zoom": 3.5
+          },
+          "features": [
+            "gestures",
+            "auto_crop"
+          ],
+          "gesture_recognizer": {
+            "allow_chain": false,
+            "cv_camera": {
+              "camera_block_producer": false,
+              "camera_height": 480,
+              "camera_queue_depth": 6,
+              "camera_width": 640
+            },
+            "disallowed_card_names": [
+              "youtube",
+              "telegram_video_call",
+              "calls_vertical",
+              "video_player",
+              "browser"
+            ],
+            "force_enabled_card_names": [
+              "alarm"
+            ],
+            "gesture_timeout_ms": 300,
+            "holding_max_speed": 0.06,
+            "max_angle": 50,
+            "max_hands_count": 4,
+            "max_x_angle": 40,
+            "max_y_angle": 40,
+            "max_z_angle": 40,
+            "min_angle": -1,
+            "min_hand_detection_confidence": 0.4,
+            "min_hand_presence_confidence": 0.4,
+            "min_holding_duration_ms": 200,
+            "min_score": 0.5,
+            "min_tracking_confidence": 0.4,
+            "min_trigger_period_ms": 300,
+            "min_x_angle": -1,
+            "min_y_angle": -1,
+            "min_z_angle": -1,
+            "on_palm_send_clear_queue": true,
+            "on_palm_send_text_command": true,
+            "on_palm_stop_media": false,
+            "trigger_delay_ms": 200
+          },
+          "gestures": {
+            "card_names_reactions": {
+              "alarm": "stop"
+            },
+            "detection_timeout_ms": 750,
+            "disallowed_activity_names": [
+              "ComponentInfo{ru.yandex.quasar.centaur_app/ru.yandex.quasar.centaur_app.calls.presentation.CallsActivity}",
+              "ComponentInfo{com.yandex.browser.centaur/com.yandex.browser.tv.tvactivity.TvActivity}"
+            ],
+            "disallowed_card_names": [
+              "telegram_video_call",
+              "calls_vertical",
+              "browser"
+            ],
+            "force_enabled_card_names": [
+              "alarm"
+            ],
+            "force_only_stop_reaction": false,
+            "ignore_device_config_setting": false,
+            "intents_gestures": {
+              "stop_or_resume": [
+                "open_palm"
+              ]
+            },
+            "min_gestures_scores": {
+              "open_palm": 0.85
+            },
+            "min_hand_height_ratio": 0.01,
+            "min_repeated_iou": 0.3,
+            "reactions_text_commands": {
+              "resume": "продолжи",
+              "stop": "хватит"
+            },
+            "resumable_pause_duration_ms": 1800000,
+            "resume_reaction_allowed_activities": [
+              "ComponentInfo{com.yandex.devices.player/com.yandex.devices.player.activity.MusicPlayerActivity}",
+              "ComponentInfo{com.yandex.devices.player/com.yandex.devices.player.activity.VideoPlayerActivity}",
+              "ComponentInfo{ru.yandex.quasar.centaur_app/ru.yandex.quasar.centaur_app.youtube_player.YoutubeActivity}"
+            ],
+            "resume_reaction_allowed_cards": [
+              {
+                "name": "music_native"
+              },
+              {
+                "name": "music"
+              },
+              {
+                "name": "video_player"
+              },
+              {
+                "name": "ComponentInfo{ru.yandex.quasar.video_ui_app/ru.yandex.quasar.video_ui_app.MainActivity}"
+              },
+              {
+                "name": "ComponentInfo{com.yandex.devices.player/com.yandex.devices.player.HostActivity}"
+              },
+              {
+                "name": "video_player_native"
+              },
+              {
+                "name": "bluetooth_music_native"
+              }
+            ],
+            "send_setting_tcb": true,
+            "skip_first_activation": true,
+            "system_camera": {
+              "rest_time_ms": -1,
+              "skip_frames_count": 4
+            }
+          },
+          "gestures_portrait": {
+            "allowed_gestures": [
+              "open_palm"
+            ],
+            "card_names_reactions": {
+              "alarm": "stop"
+            },
+            "detection_timeout_ms": 750,
+            "disallowed_activity_names": [
+              "ComponentInfo{ru.yandex.quasar.centaur_app/ru.yandex.quasar.centaur_app.calls.presentation.CallsActivity}",
+              "ComponentInfo{com.yandex.browser.centaur/com.yandex.browser.tv.tvactivity.TvActivity}"
+            ],
+            "disallowed_card_names": [
+              "telegram_video_call",
+              "calls_vertical",
+              "browser"
+            ],
+            "force_enabled_card_names": [
+              "alarm"
+            ],
+            "force_only_stop_reaction": false,
+            "ignore_device_config_setting": false,
+            "intents_gestures": {
+              "stop_or_resume": [
+                "open_palm"
+              ]
+            },
+            "min_gestures_scores": {
+              "open_palm": 0.85
+            },
+            "min_hand_height_ratio": 0.01,
+            "min_repeated_iou": 0.3,
+            "reactions_text_commands": {
+              "resume": "продолжи",
+              "stop": "хватит"
+            },
+            "resumable_pause_duration_ms": 1800000,
+            "resume_reaction_allowed_activities": [
+              "ComponentInfo{com.yandex.devices.player/com.yandex.devices.player.activity.MusicPlayerActivity}",
+              "ComponentInfo{com.yandex.devices.player/com.yandex.devices.player.activity.VideoPlayerActivity}",
+              "ComponentInfo{ru.yandex.quasar.centaur_app/ru.yandex.quasar.centaur_app.youtube_player.YoutubeActivity}"
+            ],
+            "resume_reaction_allowed_cards": [
+              {
+                "name": "music_native"
+              },
+              {
+                "name": "music"
+              },
+              {
+                "name": "video_player"
+              },
+              {
+                "name": "ComponentInfo{ru.yandex.quasar.video_ui_app/ru.yandex.quasar.video_ui_app.MainActivity}"
+              },
+              {
+                "name": "ComponentInfo{com.yandex.devices.player/com.yandex.devices.player.HostActivity}"
+              },
+              {
+                "name": "video_player_native"
+              },
+              {
+                "name": "bluetooth_music_native"
+              }
+            ],
+            "send_setting_tcb": true,
+            "skip_first_activation": true,
+            "system_camera": {
+              "rest_time_ms": -1,
+              "skip_frames_count": 4
+            }
+          },
+          "service_enabled": true,
+          "visual_spotter": {
+            "ignore_device_config_setting": false,
+            "soft_enable_count": 0
+          },
+          "yandex_face_processor": {
+            "models_config": {
+              "models_mapping": {
+                "HAND_GESTURES": [
+                  "YANDEX_FACE_HAND_DETECTOR_V2",
+                  "YANDEX_FACE_GESTURE_CLASSIFIER"
+                ]
+              }
+            }
+          }
+        },
+        "debug": {
+          "adb_enabled": true
+        },
+        "div": {
+          "disable_assertions": true,
+          "disable_black_background": true,
+          "parse_on_background_thread": true,
+          "scroll_angle": 45,
+          "view_pool": {
+            "enabled": true
+          }
+        },
+        "enable_music_informer_next_track_button": true,
+        "enable_music_informer_skeleton": true,
+        "enable_night_mode_capability": true,
+        "enable_vertical_skeleton": true,
+        "enable_web_player_capability": true,
+        "enabled_platform_capabilities_ids": [
+          "AnimationCapability",
+          "GestureRecognitionCapability"
+        ],
+        "familial_settings": {
+          "browser_text": "Если вы авторизовались в Яндекс Браузере на этом\n устройстве и не хотите, чтобы другие пользователи\nСтанции Дуо Макс увидели открытые вкладки, историю\nпоиска и другие данные, связанные с вашим Яндекс ID,\nне забудьте выйти из аккаунта.\nПри смене профиля на устройстве все сохранённые\nв браузере cookie-файлы удалятся.",
+          "show_warnings": true,
+          "telegram_text": "Нажмите «Продолжить», если вы согласны авторизоваться\nв Telegram на этом устройстве.\nВажно: другие пользователи Станции Дуо Макс могут увидеть\nвходящие звонки и историю вызовов. Чтобы этого не\nслучилось, не забудьте выйти из аккаунта.",
+          "youtube_text": "Если вы авторизованы в YouTube на этом устройстве,\nто другие пользователи Станции Дуо Макс могут увидеть ваш\nпрофиль и рекомендуемые видео. Чтобы этого не случилось,\nне забудьте выйти из аккаунта."
+        },
+        "fragments_controller": {
+          "type": "adding"
+        },
+        "framedrops_stats_v3": {
+          "is_enabled": true,
+          "stats_collection_period_ms": 180000,
+          "stats_window_ms": 720000
+        },
+        "generate_204_settings": {
+          "failPeriodMs": 10000,
+          "periodMs": 20000,
+          "timeoutMs": 8000
+        },
+        "image_cache_settings": {
+          "bitmap_cache_size_mb": 50,
+          "compressed_cache_size_mb": 50,
+          "memory_trim_evict_level": "compressed_lru",
+          "use_compressed_cache": true
+        },
+        "informers_appearance_289": "LIGHT",
+        "informers_enabled": true,
+        "iocom": {
+          "enable_cold_capabilities": true,
+          "use_active_connection_for_all_directives": false
+        },
+        "iosdk_reporter_settings": {
+          "events_white_list": [
+            "framedrop_stats",
+            "lmk_kill_process"
+          ]
+        },
+        "iot_devices": {
+          "available_iot_devices_types": [
+            "ILLUMINATION",
+            "LIGHT_TORCHERE",
+            "LIGHT_BRA",
+            "LIGHT_LUSTER",
+            "LIGHT_LAMP",
+            "LIGHT_GARLAND",
+            "LIGHT_STRIP",
+            "SOCKET",
+            "HUMIDIFIER",
+            "KETTLE",
+            "VACUUM_CLEANER"
+          ],
+          "offline_device_status_metrics_enabled": true,
+          "use_new_iot_devices_interactor": true
+        },
+        "is_io_client_features_enabled_v1": true,
+        "js_inject": {
+          "browser_url": "https://dialogs.s3.yandex.net/smart_displays/ariadne/stable/11.0/browser.js",
+          "smart_home_url": "https://dialogs.s3.yandex.net/smart_displays/ariadne/stable/11.0/smarthome.js",
+          "youtube_url": "https://dialogs.s3.yandex.net/smart_displays/ariadne/stable/12.0/youtube.js"
+        },
+        "keyboard_screen_resize-settings": "everywhere",
+        "launcher_config": {
+          "youtube_enabled": false
+        },
+        "lava_level": "waves",
+        "leds": {
+          "bluetooth_music_enabled": true,
+          "bluetooth_play_animation_enabled": false,
+          "enabled": true,
+          "health": {
+            "check_period_ms": 10000,
+            "enabled": true,
+            "max_duration_playing_ms": 3600000,
+            "timeout_ms": 300000
+          },
+          "new_led_in_clock": true
+        },
+        "main_screen": {
+          "design": "tabs_with_icons",
+          "timeout_seconds": 120,
+          "use_timeout": true
+        },
+        "main_screen_server_updates": true,
+        "media_session_service_settings": {
+          "enabled": true,
+          "video_supported_media_session_applications": [
+            "com.yandex.devices.player"
+          ]
+        },
+        "memory_analytics": {
+          "enabled": true,
+          "memory_report_period_ms": 600000
+        },
+        "meson": {
+          "nightIntervalEnd": 6,
+          "nightIntervalStart": 2,
+          "quarkIntegrationVersion": 8,
+          "switchStrategy": "UPDATER_LIKE_REBOOT"
+        },
+        "multi_account": {
+          "enable_accounts_suggest_v2": true,
+          "enabled": true,
+          "enabled_multi_account_capability": true,
+          "need_update_settings": true,
+          "need_update_teasers": true
+        },
+        "multiapp": {
+          "enabled_alice_ui_252": true,
+          "finish_task_on_hide": true,
+          "keep_alive_tasks_whitelist": [
+            "com.yandex.devices.player"
+          ],
+          "registry": {
+            "iosdk_capabilities": {
+              "AccessibilityVoiceControlCapability": {
+                "enable_strategy": "hosts_only",
+                "hosts": [
+                  "ru.yandex.quasar.alice_ui_app"
+                ],
+                "switch_strategy": "instant"
+              },
+              "ClockAppCapability": {
+                "enable_strategy": "hosts_only",
+                "hosts": [
+                  "com.yandex.devices.clock"
+                ],
+                "switch_strategy": "instant"
+              },
+              "PayCapability": {
+                "enable_strategy": "hosts_only",
+                "hosts": [
+                  "com.yandex.devices.payment"
+                ],
+                "switch_strategy": "instant"
+              }
+            }
+          }
+        },
+        "music_player_config": {
+          "debounce_for_lyrics_toggle": 0,
+          "delay_for_lyrics_view": 0,
+          "disclaimer_config": {
+            "enabled": true,
+            "timeout_to_hide_disclaimer": 60000
+          },
+          "enable_bluetooth_player_v1": true,
+          "karaoke_mode_enabled_v1": true,
+          "lyrics_mode_enabled_v1": true,
+          "playlist_config": {
+            "enable_listened_to_checkmarks": true,
+            "enable_modal_dialog": false,
+            "enabled": true
+          },
+          "redesign_enabled": true
+        },
+        "music_player_settings": {
+          "default_cover_image_297_enabled": true,
+          "hide_timeout_in_seconds": 180,
+          "is_timeout_enabled": true
+        },
+        "music_search": {
+          "horizontal_scroll_enabled": false,
+          "indexes_load_extra": 5,
+          "initial_load_size": 20,
+          "max_item_count": 100,
+          "page_size": 20,
+          "prefetch_distance": 11
+        },
+        "native_music_vertical_v2": {
+          "enable_music_search": true,
+          "enable_native_music_vertical": true,
+          "enable_search_history": false,
+          "is_arpc_enabled": true,
+          "play_card_as_my_wave": false,
+          "show_playback_info_in_card": true
+        },
+        "native_tv": {
+          "enable_native_tv_channels_list": true,
+          "is_common_grid_enabled": true,
+          "native_tv_skeleton_enabled": true,
+          "tariff_options_supported": true
+        },
+        "native_video_player": {
+          "enable_native_video_player": true
+        },
+        "new_home_screen": {
+          "enable_teasers_change_by_swipe": true,
+          "enabled": true,
+          "lockscreen_return_delay_s": 60,
+          "whitelisted_package_prefixes_in_grid": [
+            "com.yandex.centaur.webcam",
+            "com.yandex.devices.webcam",
+            "com.yandex.devices.whatsnew"
+          ]
+        },
+        "new_video_skeleton": true,
+        "new_videoplayer_skin_enabled": true,
+        "night_mode_config": {
+          "awake_device_on_alice_spotter": true,
+          "enable_custom_fonts": true,
+          "enable_red_clock_mode": true,
+          "enable_show_clock_switch": true,
+          "is_new_night_mode_enabled_v2": true,
+          "is_new_night_mode_enabled_v4": true
+        },
+        "offline_mode_settings": {
+          "enabled": false,
+          "glass_enabled": false,
+          "internet_not_reachable_toast_enabled": false,
+          "local_teaser_enabled": false
+        },
+        "offline_mode_settings_v2": {
+          "local_teaser_enabled_v2": true
+        },
+        "parentalControlConfig": {
+          "age_restriction_policy_enabled_v2": true,
+          "allowed_pin_enter_attempts": 10,
+          "app_whitelist_supported_v3": true,
+          "can_block_video_search": true,
+          "search_video_restrictions_notification_duration_ms": 1500,
+          "supported": true
+        },
+        "realtime_metrica_config": {
+          "whitelist": [
+            "app_error",
+            "app_crash"
+          ]
+        },
+        "realtime_metrica_settings": {
+          "enable_send_crash_error": true,
+          "enable_send_log_error": true
+        },
+        "recents_informer_config_v2": {
+          "background_update_enabled": true,
+          "enabled": true,
+          "internal_apps": [
+            "com.android.permissioncontroller",
+            "com.android.settings",
+            "com.android.tv.settings",
+            "com.android.providers.settings",
+            "com.yandex.devices.smarthome",
+            "com.yandex.centaur.webcam",
+            "com.yandex.devices.webcam",
+            "com.yandex.centaur.applications.settings",
+            "com.yandex.devices.clock",
+            "com.yandex.devices.payment"
+          ],
+          "is_organic_content_enabled": true,
+          "max_items_count": 2,
+          "update_period_jitter": 0.25,
+          "update_period_s": 14400
+        },
+        "reporting": {
+          "cma_alloc_failed_report_debounce_ms": 60000
+        },
+        "screen_navigation_settings": {
+          "should_close_card_with_keyboard_on_go_back": true,
+          "swipes_enabled": true,
+          "swipes_timeout": 4000,
+          "voice_navigation_enabled": true
+        },
+        "should_filter_1080p_quality": false,
+        "skip_video_fragment_directive_enabled": true,
+        "smart_home_settings": {
+          "enable_v2_app": true,
+          "is_active_in_background": true,
+          "use_app": true
+        },
+        "speaker_calls_enabled": true,
+        "speaker_calls_on_top": true,
+        "status_bar_config_v2": {
+          "enabled": true,
+          "enabled_on_div_screens": true
+        },
+        "system_dialogs": {
+          "system_dialogs_interaction": true
+        },
+        "task_stack": {
+          "enabled": true,
+          "offset_threshold": 12,
+          "velocity_threshold": 17
+        },
+        "teasers_feature_config": {
+          "teasers_settings_metrics_enabled": true,
+          "teasers_settings_metrics_send_period_minutes": 1440
+        },
+        "teasers_settings": {
+          "advanced_bitmap_cache_size_mb": 150,
+          "chunk_size": 5,
+          "live_background_remove_strategy": "view_lock",
+          "native_teasers_enabled": true,
+          "preheat_teasers_count": 1,
+          "teasers_auto_change_period_seconds": 180,
+          "teasers_debounce_config": {
+            "from_min": 0,
+            "to_min": 30
+          },
+          "teasers_request_period_min": 240,
+          "teasers_request_random_period": {
+            "fromMin": 0,
+            "toMin": 90
+          },
+          "use_advanced_image_cache": true,
+          "video_backgrounds_config": {
+            "backgrounds_directory_max_size_mb": 200,
+            "is_external_downloading_enabled": true,
+            "update_period_hours": 12,
+            "video_backgrounds_relevancy_time_days": 14
+          }
+        },
+        "timers_settings": {
+          "auto_hide_card_on_day_delay_minutes": 20,
+          "auto_hide_card_on_night_delay_minutes": 5
+        },
+        "top_sheet_settings": {
+          "advanced_top_sheet_enabled": true,
+          "music_player_enabled": true
+        },
+        "tv_player_config": {
+          "allow_remote_configuration": true
+        },
+        "tv_settings": {
+          "enabled": true,
+          "enabled_channels": true
+        },
+        "use_backend_inactivity_timeout": true,
+        "use_backend_settings": true,
+        "use_local_directive_pipe": [
+          "divui_show_view"
+        ],
+        "use_master_clear_intent_for_reset": true,
+        "use_serverside_activity_kinds": true,
+        "use_stacked_layer_manager": true,
+        "use_yabro_view": false,
+        "video_app_config": {
+          "enabled": true
+        },
+        "video_calls": {
+          "buffer_time_min_for_delete_and_added_contacts": 1,
+          "should_free_egl_on_destroy": false,
+          "telegram_calls_enabled": true
+        },
+        "video_config": {
+          "enable_external_cinemas_v2": true,
+          "enable_horizontal_loader": true,
+          "is_edit_mode_supported": true,
+          "is_organic_content_enabled": true,
+          "is_video_purchase_enabled": true,
+          "native_movie_details_search_button_enabled": true,
+          "native_movie_details_skeleton_enabled": true,
+          "native_seasons_and_episodes_skeleton_enabled": true,
+          "native_video_main_screen_enabled": true,
+          "scroll_angle": 65,
+          "video_vertical_indexes_load_extra": 10
+        },
+        "video_player_config": {
+          "allow_remote_configuration": true,
+          "ignore_videometa_error": true,
+          "use_arpc_for_video_metadata": true
+        },
+        "video_player_control": {
+          "enabled": true
+        },
+        "video_search_config": {
+          "enable_browser_button": false,
+          "enable_native_search": true
+        },
+        "web_player_config": {
+          "doc_2_doc_enabled_v3": true,
+          "supported_players": {
+            "__raw_opengraph_embed_url__": {
+              "additional_video_url_params": {},
+              "sandbox_name": "iframe-default",
+              "use_js_controls_script": true
+            },
+            "default": {
+              "additional_video_url_params": {},
+              "sandbox_name": "iframe-default",
+              "sandbox_version": "0x1c08506a220"
+            },
+            "ebalka": {
+              "additional_video_url_params": {},
+              "sandbox_name": "iframe-default",
+              "use_js_controls_script": true
+            },
+            "izlesene": {
+              "additional_video_url_params": {},
+              "sandbox_name": "izlesene"
+            },
+            "mailru_new": {
+              "additional_video_url_params": {},
+              "sandbox_name": "mailru",
+              "sandbox_version": "0x1c08506a220",
+              "user_agent": "Mozilla/5.0 (Linux; Android 7.0; SM-G570M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.102 Mobile Safari/537.36"
+            },
+            "ok": {
+              "additional_video_url_params": {},
+              "sandbox_name": "ok"
+            },
+            "pornhub": {
+              "additional_video_url_params": {},
+              "sandbox_name": "iframe-default",
+              "use_js_controls_script": true
+            },
+            "rutube": {
+              "additional_video_url_params": {},
+              "ignore_web_view_errors": true,
+              "sandbox_name": "rutube",
+              "sandbox_version": "0x1c08506a220"
+            },
+            "vimeo": {
+              "additional_video_url_params": {},
+              "sandbox_name": "vimeo"
+            },
+            "vk": {
+              "additional_video_url_params": {
+                "partner_name": "yaos"
+              },
+              "ignore_web_view_errors": true,
+              "sandbox_name": "vk"
+            },
+            "yandex": {
+              "additional_video_url_params": {},
+              "sandbox_name": "yandex"
+            },
+            "zen": {
+              "additional_video_url_params": {},
+              "use_js_controls_script": true
+            }
+          },
+          "use_browser_media_session": true,
+          "voice_controls_enabled_v3": true
+        },
+        "web_player_settings": {
+          "supported_players": {
+            "izlesene": {
+              "sandbox_name": "izlesene"
+            },
+            "mailru_new": {
+              "sandbox_name": "mailru",
+              "sandbox_version": "0xe7891f6f377"
+            },
+            "ok": {
+              "sandbox_name": "ok"
+            },
+            "pornhub": {
+              "sandbox_name": "iframe-default",
+              "use_custom_js_script": true
+            },
+            "rutube": {
+              "sandbox_name": "rutube",
+              "sandbox_version": "0x6301cd27658"
+            },
+            "vimeo": {
+              "sandbox_name": "vimeo"
+            },
+            "vk": {
+              "sandbox_name": "vk"
+            },
+            "yandex": {
+              "sandbox_name": "yandex"
+            },
+            "zen": {
+              "sandbox_name": "dzen"
+            }
+          }
+        },
+        "widgets_v2": {
+          "enable": true,
+          "smart_home": {
+            "enabled": true,
+            "open_device_enabled": true
+          }
+        },
+        "youtube_inject": {
+          "enable_voice_navigation": true,
+          "enable_youtube_client": true,
+          "player_codecs": {
+            "allowed": [],
+            "disallowed": [
+              "vp09",
+              "vp9"
+            ],
+            "enabled": true
+          },
+          "shorts_autoplay": true,
+          "voice_item_selection": true
+        },
+        "youtube_player": {
+          "enabled": true
+        },
+        "youtube_urls_whitelist": [
+          "https://accounts.google",
+          "https://myaccount.google",
+          "https://gds.google",
+          "https://support.google",
+          "https://play.google",
+          "https://m.youtube",
+          "https://youtube",
+          "https://fonts.googleapis",
+          "https://ssl.gstatic",
+          "https://accounts.youtube",
+          "https://policies.google"
+        ]
+      },
+      "com.yandex.capabilities": {
+        "accessibleVoiceCapabilityEnabled": true,
+        "appFunctionCapabilityEnabled": true,
+        "appLaunchCapabilityEnabled": true,
+        "brightnessCapabilityEnabled": true,
+        "catalogCapability": {
+          "openCatalogDirectiveEnabled": true
+        },
+        "catalogCapabilityEnabled": true,
+        "deeplinkCapabilityEnabled": true,
+        "detailsCapability": {
+          "openPurchaseProcessDirectiveEnabled": true,
+          "showExternalCinemasDirectiveEnabled": true
+        },
+        "detailsCapabilityEnabled": true,
+        "deviceControlPanelCapabilityV1": {
+          "childModeUnblockDirectiveEnabled": true,
+          "deviceControlPanelAppUsageUpdatePeriodMs": 5000,
+          "enabled": true
+        },
+        "divUiCapabilityBackgroundDirectives": [
+          "add_to_watch_list_directive",
+          "clear_queue",
+          "draw_animation_directive",
+          "go_backward",
+          "go_down",
+          "go_forward",
+          "go_left",
+          "go_up",
+          "load_screensavers",
+          "player_pause",
+          "remove_from_watch_list_directive",
+          "sound_louder",
+          "sound_mute",
+          "sound_quiter",
+          "sound_set_level",
+          "sound_unmute",
+          "tandem_update_media_directive",
+          "tts_play_placeholder",
+          "type"
+        ],
+        "divUiCapabilityEnabledV2": true,
+        "divViewCapabilityEnabled": true,
+        "galleryControlCapabilityEnabled": true,
+        "multiAccountCapability": {
+          "addAccountDirectiveEnabled": true,
+          "addAccountDirectiveV2Enabled": true,
+          "childAccountSwitchBlockEnabled": true,
+          "openAccountListDirectiveEnabled": true
+        },
+        "multiAccountCapabilityEnabled": true,
+        "musicPlatformQueueCapabilityEnabled": true,
+        "onOffCapability": {
+          "screenOffDirectiveEnabled": true
+        },
+        "onOffCapabilityEnabled": true,
+        "screensaverCapability": {
+          "closeScreensaverDirectiveEnabled": true
+        },
+        "screenshotCapabilityEnabledV1": true,
+        "searchCapabilityEnabled": true,
+        "serialNavigatorCapability": {
+          "openPurchaseDirectiveEnabled": true,
+          "showEpisodeDirectiveEnabled": true
+        },
+        "serialNavigatorCapabilityEnabled": true,
+        "sourceInputCapabilityEnabled": true,
+        "tvCategoriesCapabilityEnabled": true,
+        "tvChannelCapabilityEnabledV3": true,
+        "tvChannelCapabilitySizeListPrevNextChannels": 5,
+        "tvUpdateCapability": {
+          "hideTvUpdateDirectiveEnabled": true,
+          "installTvUpdateDirectiveEnabled": true,
+          "retryTvUpdateDirectiveEnabled": true
+        },
+        "tvUpdateCapabilityEnabled": true,
+        "videoPlayerCapabilityEnabled": true,
+        "videoPlayerControlCapability": {
+          "cancelSkipDirectiveEnabled": true,
+          "setSpeedDirectiveEnabled": true,
+          "skipAdDirectiveEnabled": true,
+          "skipVideoFragmentDirectiveEnabled": true
+        },
+        "videoPlayerControlCapabilityEnabled": true,
+        "voiceEnrollmentCapabilityEnabled": true,
+        "watchListCapabilityEnabled": true,
+        "webPlayerCapabilityEnabled": true,
+        "webPlayerControlCapability": {
+          "webPlayerControlCapabilityEnabled": true
+        },
+        "whatsNewCapability": {
+          "whatsNewCapabilityEnabled": true
+        }
+      },
+      "com.yandex.centaur.applications.settings": {
+        "apps_settings_config": {
+          "permissions_whitelist": [
+            "android.permission.CAMERA",
+            "android.permission.RECORD_AUDIO",
+            "android.permission.READ_CONTACTS"
+          ]
+        },
+        "display_settings_config": {
+          "enabled_features": [
+            "wallpapers",
+            "clock_and_widgets",
+            "night_mode"
+          ]
+        },
+        "enabled": true,
+        "enabled_features": [
+          "wifi",
+          "account",
+          "support",
+          "management",
+          "display",
+          "lock",
+          "apps"
+        ],
+        "management_config": {
+          "intonation_interrupting_enabled": true,
+          "intonation_spotter_enabled": true,
+          "visual_spotter_enabled": false
+        },
+        "orientation_settings_config": {
+          "landscape_orientation_v2": false
+        },
+        "support_config": {
+          "os_version": "YaOS X",
+          "show_check_updates_button": true
+        },
+        "wifi_settings_config": {
+          "scan_delay_seconds": 10
+        }
+      },
+      "com.yandex.centaur.feature.auto.deflation": {
+        "use_legacy_auto_deflation": false
+      },
+      "com.yandex.centaur.feature.music-ui": {
+        "native_music_navigation": {
+          "enabled": true
+        }
+      },
+      "com.yandex.centaur.intercom.router": {
+        "shouldLaunchWebcamForIntercomCalls": true
+      },
+      "com.yandex.devices.appstore": {
+        "browserPackageName": "com.yandex.browser.centaur",
+        "debugLoggingEnabled": false,
+        "privateApps": {
+          "enabled": true,
+          "subtitle": "по QR коду или ссылке: ya.cc/quick-apps",
+          "title": "Загружайте свои приложения\nна ваши устройства",
+          "url": "https://ya.cc/quick-apps"
+        },
+        "sendLogError": true,
+        "showColoredGradient": true,
+        "showSearchPlaceholder": false,
+        "showVoiceControls": true
+      },
+      "com.yandex.devices.clock": {
+        "alarms": {
+          "isActionsAvailable": true,
+          "isCardNumsVisible": false,
+          "isOnlyViewMode": false,
+          "isScheduleVoiceHintAvailable": false,
+          "isSoundVoiceHintAvailable": false,
+          "snoozeDurationInMinutes": 5,
+          "useUtcTime": false
+        },
+        "enabled": true,
+        "isCloseButtonVisible": false,
+        "new_playing_anim_enabled": true,
+        "timers": {
+          "isCardNumsVisible": false,
+          "isOnlyViewMode": false,
+          "showRecentTimers": true,
+          "showTimerSetter": true
+        }
+      },
+      "com.yandex.devices.feature.musicplayer": {
+        "debounceForLyricsToggle": 0
+      },
+      "com.yandex.devices.feature.musicplayer.ui": {
+        "coverFlipEnabled": true,
+        "disclaimerConfig": {
+          "enabled": true,
+          "timeoutToHideDisclaimer": 60000
+        },
+        "karaokeModeEnabledV1": true,
+        "keepScreenOnWhilePlayingWithoutLyrics": false,
+        "lyricsModeEnabledV1": true,
+        "playlistConfig": {
+          "enabled": true
+        }
+      },
+      "com.yandex.devices.feature.tariffoffer.ui": {
+        "fullscreenTariffOfferConfig": {
+          "purchaseButtonText": "К оплате"
+        }
+      },
+      "com.yandex.devices.feature.tvchannelgrid.ui": {
+        "channelsUpdatePeriodMinutes": 55,
+        "isAddingToFavoritesEnabled": true,
+        "tvGridVoiceControlsEnabled": true
+      },
+      "com.yandex.devices.feature.tvchannellist": {
+        "channelFavouriteCategoryAtBeginning": true,
+        "defaultChannelsUpdatePeriodMinutes": 25,
+        "programsRequestAdditionalMinutes": 25,
+        "tariffOptionsSupported": true,
+        "useContentIdRequestStrategy": true
+      },
+      "com.yandex.devices.feature.tvchannellist.ui": {
+        "channelListVoiceControlsEnabled": false,
+        "channelsUpdatePeriodMinutes": 55
+      },
+      "com.yandex.devices.feature.tvplayer.ui": {
+        "isProgramsEnabledV1": true,
+        "useNewKinopoiskOttChannelWithScheduler": true
+      },
+      "com.yandex.devices.feature.videoplayer.ui": {
+        "ignoreVideometaError": true,
+        "isSmartSkipEnabledV3": true,
+        "stopAutoPlaybackTimeoutMs": 15000
+      },
+      "com.yandex.devices.feature.webcam.grid.ui": {
+        "showIntercomDevices": true
+      },
+      "com.yandex.devices.feature.webcam.ui": {
+        "enableCameraRotation": true
+      },
+      "com.yandex.devices.feature.webplayer.ui": {
+        "bufferSizeInSeconds": 0.5334,
+        "doc2Doc": {
+          "doc2DocEnabledV2": true,
+          "voiceControlsEnabledV3": true
+        },
+        "isEpisodesButtonEnabled": true,
+        "isNextVideoButtonEnabled": true,
+        "supportedPlayers": {
+          "__raw_opengraph_embed_url__": {
+            "additionalVideoUrlParams": {},
+            "sandboxName": "iframe-default",
+            "sandboxVersion": "0x001cd987dbd",
+            "useJsControlsScript": true
+          },
+          "default": {
+            "additionalVideoUrlParams": {},
+            "sandboxName": "iframe-default",
+            "sandboxVersion": "0x001cd987dbd"
+          },
+          "ebalka": {
+            "additionalVideoUrlParams": {},
+            "sandboxName": "iframe-default",
+            "sandboxVersion": "0x001cd987dbd",
+            "useJsControlsScript": true
+          },
+          "izlesene": {
+            "additionalVideoUrlParams": {},
+            "sandboxName": "izlesene",
+            "sandboxVersion": "0x001cd987dbd"
+          },
+          "mailru_new": {
+            "additionalVideoUrlParams": {},
+            "sandboxName": "mailru",
+            "sandboxVersion": "0x001cd987dbd",
+            "userAgent": "Mozilla/5.0 (Linux; Android 7.0; SM-G570M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.102 Mobile Safari/537.36"
+          },
+          "ok": {
+            "additionalVideoUrlParams": {},
+            "sandboxName": "ok",
+            "sandboxVersion": "0x001cd987dbd"
+          },
+          "pornhub": {
+            "additionalVideoUrlParams": {},
+            "sandboxName": "iframe-default",
+            "sandboxVersion": "0x001cd987dbd",
+            "useJsControlsScript": true
+          },
+          "rutube": {
+            "additionalVideoUrlParams": {},
+            "ignoreWebViewErrors": true,
+            "sandboxName": "rutube",
+            "sandboxVersion": "0x001cd987dbd"
+          },
+          "vimeo": {
+            "additionalVideoUrlParams": {},
+            "sandboxName": "vimeo",
+            "sandboxVersion": "0x001cd987dbd"
+          },
+          "vk": {
+            "additionalVideoUrlParams": {
+              "partner_name": "yaos"
+            },
+            "ignoreWebViewErrors": true,
+            "sandboxName": "vk",
+            "sandboxVersion": "0x001cd987dbd"
+          },
+          "yandex": {
+            "additionalVideoUrlParams": {},
+            "sandboxName": "yandex",
+            "sandboxVersion": "0x001cd987dbd"
+          },
+          "zen": {
+            "additionalVideoUrlParams": {},
+            "sandboxVersion": "0x001cd987dbd",
+            "useJsControlsScript": true
+          }
+        },
+        "useBrowserMediaSessionV2": true,
+        "voiceControlsEnabledV3": true,
+        "voiceControlsTracksEnabled": true
+      },
+      "com.yandex.devices.features.settings.configurer": {
+        "android_settings": {
+          "enabled": true,
+          "secure_settings": {
+            "keyboard_bind_only_with_edit_info": {
+              "value": "1",
+              "value_type": "INT"
+            }
+          }
+        }
+      },
+      "com.yandex.devices.overwatcher": {
+        "enabled": true,
+        "watchPeriodSeconds": 5
+      },
+      "com.yandex.devices.player": {
+        "ageRestrictionPolicyEnabledV2": true,
+        "isCommonChannelListEnabled": true,
+        "usePaymentAppToBuyChannels": true,
+        "useTariffOfferRedesignWithoutQr": true
+      },
+      "com.yandex.devices.smarthome": {
+        "enableEdgeToEdge": true
+      },
+      "com.yandex.devices.whatsnew": {
+        "supportedWhatsNewStorageFeatures": [
+          "main_screen_setup_duo",
+          "alice_skills_duo",
+          "browser_duo",
+          "tv_channels_duo",
+          "smart_home_duo",
+          "clock_duo",
+          "yaos_store_duo",
+          "video",
+          "music_duo",
+          "accounts_duo",
+          "alice_intro_duo",
+          "parental_control_duo",
+          "screensavers_duo",
+          "night_mode_duo"
+        ]
+      },
+      "com.yandex.io.sdk": {
+        "aliceSession": {
+          "enableForceHandleAssist": true,
+          "enableUnconditionalShowSession": true
+        },
+        "appfunction": {
+          "enabledV1": true
+        },
+        "canHandleTvGridDirectives": true,
+        "canHandleTvGridDirectivesV2": true,
+        "canHandleTvGridDirectivesV3": true,
+        "canHandleTvGridDirectivesV4": true,
+        "framedrops": {
+          "isEnabled": true
+        },
+        "framedropsV2": {
+          "isEnabled": true
+        },
+        "integration": {
+          "quarkIntegrationVersion": 9,
+          "shouldListenRemoteEndpoints": true,
+          "switchStrategy": "PROCESS_RESTART_AWAIT"
+        },
+        "ioCom": {
+          "capabilities": {
+            "isConfigCapabilityEnabled": true,
+            "isIotDevicesCapabilitiesEnabledV3": true,
+            "isMusicCapabilitiesEnabledV4": true,
+            "isScreenshotNotificationCapabilityEnabled": true,
+            "useIoComForAlarm": true,
+            "useIoComForScreensaversV3": true
+          },
+          "ioComHostEnabledV4": true,
+          "ioComRegistryEnabled": true,
+          "ioComServerEnabled": true,
+          "isColdMetaEnabledV3": true,
+          "isIoComForMusicEnabled": true,
+          "isIoComForVoiceControlSettingsEnabled": true
+        },
+        "isIoClientFeaturesEnabledV1": true,
+        "isVqeEnabled": true,
+        "leds": {
+          "runLedOnSpotter": true,
+          "spotterCancellationTimeoutMs": 2500
+        },
+        "mediaSession": {
+          "isEnabledV3": true,
+          "lastWatchedEnabled": true,
+          "supportedBackgroundMusicApplications": [
+            "com.yandex.tv.daydream"
+          ],
+          "supportedMediaSessionApplications": [
+            "com.ctcmediagroup.videomore",
+            "com.vk.tv",
+            "com.yandex.tv.webplayer",
+            "com.yandex.tv.ytplayer",
+            "gpm.tnt_premier",
+            "ru.ivi.client",
+            "ru.kinopoisk.yandex.tv",
+            "ru.litres.android.audio",
+            "ru.rt.video.app.tv",
+            "ru.rutube.app",
+            "ru.start.androidmobile"
+          ],
+          "useDialogsBackendForMediaSession": true
+        },
+        "navigateHomeOnSleepTimeoutMsV4": 1800000,
+        "oknyx": {
+          "enableAdjustableOknyxLocationV1": true
+        },
+        "recognitionService": {
+          "recognitionTimeoutMs": 7000
+        },
+        "restartAudioRecordTriesLimit": 10,
+        "tandemSettingsEnabled": false,
+        "videoPlayRouter": {
+          "shouldRouteWebRtcToGoloomV4": true
+        }
+      },
+      "com.yandex.launcher.updaterapp": {
+        "media": {
+          "image": {},
+          "video": {
+            "forcedUpdateBackgroundVideo": {
+              "default": {
+                "file_size": 17757083,
+                "max_download_time": 240,
+                "url": "https://cloudcdn-ams03.cdn.yandex.net/cdnr2gfhoxlvj5gm23vk/suw_video/v2/alice_onboarding_4k_without_find_remote_v1.mp4?lid=289"
+              }
+            },
+            "suwUpdateBackgroundVideo": {
+              "default": {
+                "file_size": 17757083,
+                "max_download_time": 240,
+                "url": "https://cloudcdn-ams03.cdn.yandex.net/cdnr2gfhoxlvj5gm23vk/suw_video/v2/alice_onboarding_4k_without_find_remote_v1.mp4?lid=289"
+              }
+            }
+          }
+        },
+        "settings": {
+          "abSilentInstallV2": {
+            "enabled": true,
+            "strategy": "night"
+          },
+          "allowFirmwareUpdate": {
+            "ota": true
+          },
+          "allowFirmwareUpdateV2": {
+            "ota": true
+          },
+          "apkSilentInstallV2": {
+            "enabled": true,
+            "strategy": "night"
+          },
+          "appsToDeleteEnabled": true,
+          "autoCheckEnabled": true,
+          "clearCachePartitionOnOtaUpdate": true,
+          "commitFirmwarePreferencesEnabled": true,
+          "confirmFirmwareUpdate": {
+            "ota": true
+          },
+          "confirmFirmwareUpdateV2": {
+            "ota": true,
+            "retryPeriodSeconds": 180,
+            "triggerFromBoot": true,
+            "useService": true
+          },
+          "createOtaSessionIdWithRetriesEnabled": true,
+          "fakeStandbySilentOtaPropertyActionV2": "force_true",
+          "forceUiAfterDownload": true,
+          "nightIntervalEnd": 5,
+          "nightIntervalStart": 0,
+          "notifications": "all",
+          "notifyReboot": true,
+          "otaSilentInstallV2": {
+            "enabled": true,
+            "strategy": "night"
+          },
+          "resumeDownloadAfterHide": true,
+          "scheduleForcedSilentIfAllowedEnabled": false,
+          "suwUpdateStrategy": "all",
+          "sysRecoverySilentInstallV2": {
+            "enabled": true,
+            "strategy": "night_fake_standby"
+          },
+          "sysRecoveryUpdatesEnabled": true,
+          "updateFrequencyJitterPercent": 0,
+          "updateFrequencyMin": 50,
+          "updateHomeInterruptFsbOffThrottleHours": 1,
+          "updateInterruptStrategy": "only_home_non_fsb",
+          "updatesV4Api": true,
+          "updateVersionHeader": {
+            "enabled": true,
+            "rom_prop": "ro.build.description",
+            "strategy": "rom"
+          },
+          "voiceButtonsEnabled": true
+        }
+      },
+      "com.yandex.tv.accessiblevoice": {
+        "accessibleVoiceAppConfigMap": {
+          "com.yandex.browser.tv": {
+            "accessibilityServiceConfig": {
+              "enableKeyEventsHandling": true
+            },
+            "drawItemSelectionOverlayDelayMs": 300,
+            "interactiveNodesFilterStrategy": {
+              "minimumViewHeightPxToBeInteractive": 250,
+              "minimumViewWidthPxToBeInteractive": 140
+            },
+            "itemSelectionLabelsEnumerationMode": "ENUMERATE_MATCHES",
+            "itemSelectionLabelsEnumerationStrategies": [
+              {
+                "fieldKey": "androidId",
+                "fieldValues": [
+                  "history_item_root",
+                  "lbro_bookmarks_item_root",
+                  "confirm_button",
+                  "cancel_button",
+                  "show_more_tv"
+                ]
+              },
+              {
+                "fieldKey": "androidId",
+                "fieldValues": [
+                  "lbro_popup_list"
+                ],
+                "includeChildren": true
+              }
+            ],
+            "minVersionCode": 241200432,
+            "showItemSelectionOverlay": true
+          }
+        },
+        "alwaysSendCurrentPackage": true,
+        "dialogsBackendFilterConfig": {
+          "disabledPackageNames": [
+            "com.yandex.tv.webplayer"
+          ],
+          "enabledPackageNames": [
+            "com.yandex.devices.appstore"
+          ]
+        },
+        "enableReceivingOpenedAppEvents": true,
+        "hideLabelsAfterRemoteControlActivity": true,
+        "itemSelectionOverlayType": "SURFACE_VIEW",
+        "packagesFilterConfig": {
+          "filterMode": "allow_list",
+          "packageNames": [
+            "com.yandex.browser.tv",
+            "com.yandex.tv.alice",
+            "com.yandex.launcher.updaterapp",
+            "com.yandex.tv.bugreportsender",
+            "com.yandex.tv.daydream",
+            "com.yandex.tv.home",
+            "com.yandex.tv.input.efir",
+            "com.yandex.tv.live",
+            "com.yandex.tv.setupwizard",
+            "com.yandex.tv.services",
+            "com.yandex.tv.services.platform",
+            "com.yandex.tv.services.privileged",
+            "com.yandex.tv.videoplayer",
+            "com.yandex.tv.ytplayer",
+            "com.yandex.tv.music",
+            "com.yandex.io.sdk",
+            "com.android.tv.settings"
+          ]
+        },
+        "rootNodeUpdateDebounceMs": 1,
+        "showDebugOverlay": false,
+        "showLabelsAfterRemoteControlInactivityMs": 2500,
+        "useDialogsBackend": true,
+        "useDialogsBackendV1": true
+      },
+      "com.yandex.tv.alice": {
+        "alicekitOknyxConfig": {
+          "animationVersion": "SPIRIT",
+          "enabled": true
+        },
+        "alicePremiumAnswer": true,
+        "aliceStreamingV2": {
+          "enabled": true,
+          "expandAnimationDurationMs": 300,
+          "inactivityTimeout": 5,
+          "interpolator": "LINEAR",
+          "localSuggestWhiteList": [
+            "stop",
+            "up",
+            "down"
+          ],
+          "regex": "\\s",
+          "remoteSuggestWhiteList": [
+            "Сохранить",
+            "Источник"
+          ],
+          "runningAnimationDurationMs": 200,
+          "waitingUiDelayMs": 2147483647
+        },
+        "assistApiSettingEnabled": true,
+        "div": {
+          "warmUpDivOnStart": true
+        },
+        "divTextAnswerEnabled": true,
+        "enableScreenshotNotification": true,
+        "ioCom": {
+          "isIoComHostProxyServicesEnabled": true,
+          "isIoComServerEnabled": true
+        },
+        "itemSelectionOverlayEnabled": true,
+        "keepUiContextBetweenSessions": true
+      },
+      "com.yandex.tv.common.device.features": {
+        "usePlatformNtpOnlyV2": true
+      },
+      "com.yandex.tv.daydream": {
+        "ioCom": {
+          "capabilities": {
+            "useIoComForAlarm": true
+          },
+          "ioComHostEnabled": true,
+          "ioComServerEnabled": true,
+          "isIoComHostProxyEnabledV1": true
+        },
+        "music": {
+          "enableMusicWidgetV3": true,
+          "handleRcuMediaButtons": true
+        },
+        "screenSaverConfig": {
+          "aliceOverlayConfig": {
+            "directiveWhitelist": [
+              "add_iot_scenarios_directive",
+              "alarm_add_directive",
+              "alarm_cancel_directive",
+              "alarm_new",
+              "alarm_reset_sound",
+              "alarm_set_max_level",
+              "alarm_set_max_level_directive",
+              "alarm_set_sound",
+              "alarm_snooze_directive",
+              "alarm_sound_settings_update_directive",
+              "alarm_stop_directive",
+              "alarm_update_directive",
+              "alarm_update_sound_level_directive",
+              "alarms_update",
+              "alarms_update_directive",
+              "apply_player_playback_queue_directive",
+              "audio_play",
+              "audio_player_dislike_directive",
+              "audio_player_like_directive",
+              "audio_player_next_directive",
+              "audio_player_play_directive",
+              "audio_player_previous_directive",
+              "audio_player_repeat_all_directive",
+              "audio_player_repeat_one_directive",
+              "audio_player_rewind",
+              "audio_player_shuffle_directive",
+              "audio_player_undislike_directive",
+              "audio_player_unlike_directive",
+              "audio_player_unrepeat_directive",
+              "audio_player_unshuffle_directive",
+              "audio_set_speed_level_directive",
+              "audio_stop",
+              "cancel_timer",
+              "cancel_timer_directive",
+              "clear_queue",
+              "divui_hide_all_views",
+              "divui_hide_view",
+              "divui_show_view",
+              "draw_animation_directive",
+              "iot_cancel_discovery_directive",
+              "iot_endpoints_state_changed_directive",
+              "iot_finish_discovery_directive",
+              "iot_finish_system_discovery_directive",
+              "iot_forget_devices_directive",
+              "iot_restore_networks_directive",
+              "iot_start_discovery_directive",
+              "iot_sync_endpoints_directive",
+              "load_screensavers",
+              "pause_timer_directive",
+              "player_continue",
+              "player_next_track",
+              "player_pause",
+              "player_previous_track",
+              "prepare_media_alarm_directive",
+              "remove_iot_scenarios_directive",
+              "resume_timer_directive",
+              "set_audio_player_sequence_state_directive",
+              "set_brightness_level_directive",
+              "set_iot_account_settings",
+              "set_iot_user_info",
+              "set_location",
+              "set_timer",
+              "set_timer_directive",
+              "set_timezone",
+              "sound_louder",
+              "sound_mute",
+              "sound_quiter",
+              "sound_set_level",
+              "sound_unmute",
+              "start_music_recognizer",
+              "subscribe_iot_endpoints_directive",
+              "sync_iot_scenarios_directive",
+              "timer_cancel_directive",
+              "timer_pause_directive",
+              "timer_resume_directive",
+              "timer_set_directive",
+              "timer_stop_directive",
+              "timer_stop_playing",
+              "timer_stop_playing_directive",
+              "tts_play_placeholder",
+              "unsubscribe_iot_endpoints_directive"
+            ],
+            "enabled": true
+          },
+          "animatedClockEnabledV4": true,
+          "isNewHighlightEnabledV1": true,
+          "screenSaverDownloadLimitBytes": 1073741824,
+          "screenSaverLoadingSnackbarEnabled": true,
+          "screensaverNewArchitectureEnabledV1": true,
+          "screenSaverSettingsEnabled": true,
+          "screenSaverSettingsTipTimeoutSeconds": 180,
+          "showDurationSupportEnabled": true,
+          "themedScreenSaverClearDynamicWidgetsTypedCallbackEnabled": true,
+          "themedScreenSaverConfigTtlMs": 28800000,
+          "themedScreenSaverEnabled": false,
+          "themedScreenSaverVoiceControlsEnabled": true,
+          "useDirectiveDatasourceV1": true
+        }
+      },
+      "com.yandex.tv.feature.app_grid": {
+        "showBadgeNumber": true,
+        "storeBannerConfig": {
+          "tvStoreApplicationName": "Каталог приложений"
+        }
+      },
+      "com.yandex.tv.feature.payment": {
+        "plusSdkEnabled": true
+      },
+      "com.yandex.tv.feature.preinstalled.apps": {
+        "isEnabled": false
+      },
+      "com.yandex.tv.feature.qrpayment": {
+        "fullscreenTariffOfferConfig": {
+          "loginButtonText": "Войти в аккаунт",
+          "loginOfferText": "Авторизуйтесь\nдля оплаты подписки",
+          "purchaseButtonHint": "Может занять больше времени",
+          "purchaseButtonText": "Другой способ оплаты",
+          "qrCodeHeaderText": "Сканируйте QR-код,\nчтобы перейти к оплате"
+        }
+      },
+      "com.yandex.tv.feature.screensaver.settings": {
+        "screensaverIotWidgetsEnabledV3": true
+      },
+      "com.yandex.tv.feature.search": {
+        "searchScreenV2EnabledV1": true,
+        "searchScreenV2EnabledV3": true,
+        "searchTabsEnabled": true
+      },
+      "com.yandex.tv.feature.storage.cleanup": {
+        "excludedTopUsedAppsCount": 5,
+        "maxAppsToRemove": 5,
+        "minRecommendedFreeSpaceMb": 500,
+        "usageStatsPeriodDays": 30,
+        "voiceControlEnabled": true,
+        "whitelistPackages": []
+      },
+      "com.yandex.tv.feature.tvchannelgrid": {
+        "channelsUpdatePeriodMinutes": 55
+      },
+      "com.yandex.tv.feature.tvchannellist": {
+        "channelFavouriteCategoryAtBeginningV1": true,
+        "channelListVoiceControlsEnabled": true,
+        "channelListVoiceControlsEnabledV2": true,
+        "channelListVoiceControlsEnabledV3": true,
+        "channelListVoiceControlsEnabledV4": true,
+        "channelListVoiceControlsUpdatePeriodSeconds": 300,
+        "channelsUpdatePeriodMinutes": 55,
+        "defaultChannelsUpdatePeriodMinutes": 55,
+        "multicatSupported": true,
+        "persistentVoiceControlsEnabled": true,
+        "tariffOptionsSupported": true,
+        "tvGridEnabledV2": true
+      },
+      "com.yandex.tv.feature.tvplayer": {
+        "allowRemoteConfigurationV1": true,
+        "ioCom": {
+          "capabilities": {
+            "useIoComForAlarm": true
+          },
+          "isIoComHostProxyEnabledV1": true
+        },
+        "maxAutoQualityMultiplex": 480,
+        "mbuSettings": {
+          "mbuDoNotOverrideRh": true,
+          "mbuEnableForDynamic": true,
+          "mbuEnableMoveToUnbanned": false,
+          "mbuEnableUpdate": true,
+          "mbuFallbackByAnyExc": true
+        },
+        "preloadVideoDataSettings": {
+          "isPreloadCacheStaticV1": true,
+          "preloadVideoDataLifetime": 18000000
+        },
+        "preventAmlogic2MemoryLeak": true,
+        "recoveredErrorsList": [
+          "FrameDropDetected"
+        ],
+        "secureDecodersForClearVideo": true,
+        "shouldMonitorFrameDrops": true,
+        "shouldUseAutoplayFalseForMultiplex": true,
+        "useBandwidthLastValueProvider": true
+      },
+      "com.yandex.tv.feature.tvplayer.ui": {
+        "freeChannelsLoginWallEnabledV1": false,
+        "freeChannelsLoginWallEnabledV2": false,
+        "multiplexInactivityStopV1": {
+          "notificationDurationMs": 60000,
+          "remainingTimeThresholdPercentage": 10,
+          "timeoutMs": 14400000
+        },
+        "preloadChannelsWindow": 6,
+        "thresholdTimePutChannelToRecentMs": 5000,
+        "useNewKinopoiskOttChannelNonMultiplexStrategyV1": true,
+        "useNewKinopoiskOttChannelStrategyV6": true,
+        "useNewKinopoiskOttChannelWithScheduler": true,
+        "voiceoverButtonEnabled": true
+      },
+      "com.yandex.tv.feature.tvprogramlist.ui": {
+        "isCatchupInProgramListEnabledV1": true
+      },
+      "com.yandex.tv.feature.whatsnew": {
+        "enabledWhatsNewFeatures": [
+          "accessible_voice",
+          "ai_pq",
+          "karaoke_promo",
+          "more_than_a_tv",
+          "night_mode_monet_magritte",
+          "no_vh_recents",
+          "parents_mode_promo",
+          "play_football",
+          "play_hockey",
+          "sport_section"
+        ],
+        "supportedWhatsNewFeatures": [
+          "accessible_voice",
+          "ai_pq",
+          "karaoke_promo",
+          "more_than_a_tv",
+          "night_mode_monet_magritte",
+          "no_vh_recents",
+          "parents_mode_promo",
+          "play_football",
+          "play_hockey",
+          "sport_section"
+        ],
+        "timelinePollingDelayMs": 500,
+        "watchCompletedThreshold": 80,
+        "whatsNewScreenEnabledV2": true
+      },
+      "com.yandex.tv.home": {
+        "appGridEnabledV4": true,
+        "appsMarketCache": {
+          "cacheThrottleTimeMs": 600000,
+          "newCacheLogicV1": true
+        },
+        "appsMarketScreen": {
+          "appCatalogTitle": "YaOS Store",
+          "getFromAppstoreApiV2": true,
+          "localSortingEnabled": false,
+          "redesignEnabled": true,
+          "voicedAppsLayoutEnabledV1": true
+        },
+        "blackHomeBackground": true,
+        "cachingFragmentsCountV5": 3,
+        "cachingFragmentsStrategyV5": "number",
+        "catalogProtoHttpTestEnabled": true,
+        "catalogScreen": {
+          "enumerationEnabled": true,
+          "redesignEnabled": true,
+          "separateGalleryRequest": true,
+          "voiceControlsEnabled": true
+        },
+        "categoriesContentProtoHttpEnabledV2": true,
+        "categoriesMenuProtoHttpV2": {
+          "cacheHoursLifetime": 24,
+          "enabled": true
+        },
+        "coldStartRecommendations": {
+          "coldStartScreenEnabledV1": false
+        },
+        "continueWatchingImageType": "horizontal_poster_and_thumbnail",
+        "detailsBookmarkLoginWall": "login_wall",
+        "detailsButtonsFromApiEnabledV1": true,
+        "detailsExternalOptionsEnabled": true,
+        "detailsNewDesignEnabled": true,
+        "detailsPromoCinemaEnabled": true,
+        "detailsProtoHttpEnabled": true,
+        "detailsProtoSerialNavigatorButtonSearchEnabled": true,
+        "detailsPublicSourceVoiceControlsEnabledV2": true,
+        "detailsPurchaseWithoutPayWall": true,
+        "detailsScreenVideoPreviewV2": {
+          "autoHideUIEnabledV3": true,
+          "enabled": true,
+          "hideUiEnabled": true,
+          "hintMode": "pre_trailer",
+          "repeatEnabled": true,
+          "soundWhenUiHidden": 100,
+          "startMovieAfterTrailer": {
+            "mode": "auto",
+            "offsetSeconds": 10
+          },
+          "volume": 0
+        },
+        "detailsSummaryEnabled": true,
+        "detailsVoiceControls": {
+          "detailsKpVoiceControlsEnabledV2": true,
+          "detailsPirateVoiceControlsEnabledV2": true,
+          "externalCinemasVoiceControlsEnabled": true
+        },
+        "dpadRemoveMusicFromRecent": true,
+        "favoriteEnabled": true,
+        "favoriteOnNonKpEnabled": true,
+        "fullscreenPromo": true,
+        "fullscreenPromoAutoplayIntervalMs": 7000,
+        "getWillWatchCarouselInFeedEnabledV2": true,
+        "giftPromoDelayMs": 15000,
+        "halfPirateDetailsEnabled": true,
+        "hideContinueWatchingCarouselTitles": true,
+        "hideFocusVoiceNavigationGoHomeEnabled": true,
+        "homeCardNumbersEnabled": true,
+        "homeCarouselMusicEnabledV2": true,
+        "homeCarouselsProtoHttpEnabledV2": true,
+        "homePreloadRecentVideosCount": 2,
+        "homeRecentActionsEnabledV2": true,
+        "homeRecentMusicItemEnabledV2": true,
+        "homeRecentWebItemEnabled": true,
+        "homeVoiceControlsEnabled": true,
+        "ioCom": {
+          "capabilities": {
+            "useIoComForAlarm": true
+          },
+          "isIoComHostProxyEnabledV1": true
+        },
+        "isContinueWatchingDurationBadgeHiddenOutOfFocus": true,
+        "isContinueWatchingProgressBackgroundEnabled": true,
+        "isManagingRecommendationsEnabled": true,
+        "loginwallPolicy": {
+          "appsAccessible": true,
+          "profilesAccessible": true,
+          "recentAccessible": true,
+          "showOnConnection": false,
+          "storeAccessible": true,
+          "youtubeAccessible": true
+        },
+        "maxSystemBootWaitTimeMs": 1000,
+        "menuFragmentDebounceMillisV4": 350,
+        "menuFragmentResyncDelayMinutesV5": 20,
+        "mixContinueWatchingWithTop10v3": {
+          "divider": true,
+          "enable": true,
+          "maxCwItemsCount": 1
+        },
+        "moveAppsMarketToCategoriesV2": true,
+        "musicCategory": {
+          "redesignEnabled": true
+        },
+        "musicCategoryContentProtoHttpEnabled": true,
+        "newActorScreenEnabled": true,
+        "newDesignCategoriesIds": [
+          "kids",
+          "music"
+        ],
+        "newSearchCarouselsEnabledV3": true,
+        "noMainCarouselsCache": true,
+        "noMenuFragmentsPreload": true,
+        "periodsToReportFrameMetricsOnStartV2": [
+          30000,
+          60000,
+          90000,
+          120000
+        ],
+        "pimpleOnProfileButtonEnabled": false,
+        "pirateCardButtonsConfig": {
+          "halfPirateCardBrowserActionEnabled": true,
+          "halfPirateCardBrowserButtonText": "Поиск в Браузере",
+          "halfPirateCardSearchActionEnabled": true,
+          "halfPirateCardSearchButtonText": "Поиск по видео",
+          "pirateCardBrowserActionEnabled": true,
+          "pirateCardBrowserButtonText": "Поиск в Браузере",
+          "pirateCardSearchActionEnabled": true,
+          "pirateCardSearchButtonText": "Поиск по видео"
+        },
+        "previewOnCardEnabled": true,
+        "profileButtonWithAvatarEnabled": true,
+        "progressDataForKpContentFromGetCardDetailsEnabledV2": true,
+        "progressDataForKpContentFromGetCardDetailsEnabledV3": true,
+        "progressDataForPublicContentFromGetCardDetailsEnabled": true,
+        "promoButtonForPromoCarouselEnabled": true,
+        "recentInsideContinueWatchingPosition": 0,
+        "recentInsideContinueWatchingSize": 6,
+        "recentsConfig": {
+          "appDeeplinks": {
+            "ru.ivi.client": "ruiviclient://index?partner_entry_point=yaos_zapin"
+          },
+          "appIcons": {
+            "com.vk.tv": "https://avatars.mds.yandex.net/get-ott/236744/vk_carousel_promo_v3/200x200",
+            "ru.ivi.client": "https://avatars.mds.yandex.net/get-ott/18164279/promoinyaos-973_0/200x200",
+            "ru.rutube.app": "https://avatars.mds.yandex.net/get-ott/18701600/PROMOINYAOS-1429-rutube-200x200/orig"
+          },
+          "appNames": {
+            "com.vk.tv": "VK Видео",
+            "ru.ivi.client": "Иви",
+            "ru.rutube.app": "RUTUBE"
+          },
+          "customAppIconsPackages": [
+            "com.fitstars.tv",
+            "ag.tv.a24h"
+          ],
+          "pinnedItems": {
+            "com.vk.tv": 6,
+            "ru.ivi.client": 2,
+            "ru.rutube.app": 4
+          },
+          "recentExternalAppVideoItemsEnabledV1": true
+        },
+        "recentViaTvProviderEnabled": true,
+        "screenSaverShortcutSettings": {
+          "doubleTapInterval": 500,
+          "enabled": true,
+          "longPressInterval": 1000,
+          "mode": "longPress"
+        },
+        "searchPromoBannerEnabled": true,
+        "searchProtoHttpEnabledV2": true,
+        "searchRedesignEnabled": true,
+        "searchViaArpc": true,
+        "searchVideoScenarioEnabled": true,
+        "searchVoiceControlsEnabled": true,
+        "serialNavigatorScreen": {
+          "enumerationEnabled": true,
+          "newSerialNavigatorEnabledV3": true,
+          "resetEpisodeToBeginningAfterPercent": 95,
+          "serialNavigatorRedesignEnabled": true,
+          "useKpIdForRequest": true,
+          "voiceControlsEnabled": true
+        },
+        "showNewNotifications": true,
+        "showRecentIfNoContinueWatching": true,
+        "showRecentInsideContinueWatching": true,
+        "showRecentOnLoadingEnabledV1": true,
+        "sideMenu": {
+          "isAliceManualV2Enabled": true,
+          "isMenuOverContentEnabled": true,
+          "isMenuRedesignEnabledV2": true,
+          "isProfileIconAtBottomV2": true,
+          "isProfileIconInsteadAliceEnabled": true,
+          "useBackendStatedImage": true
+        },
+        "statusBarBackgroundV2": true,
+        "tandem": {
+          "backgrounds": {
+            "bergamot": {
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/bergamot_black.png",
+              "G": "https://androidtvprod.s3.yandex.net/tandem_bg/bergamot_gray.jpg",
+              "K": "https://androidtvprod.s3.yandex.net/tandem_bg/bergamot_black.png",
+              "V": "https://androidtvprod.s3.yandex.net/tandem_bg/bergamot_violet.jpg"
+            },
+            "blackthorn": {
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/blackthorn_black.png",
+              "K": "https://androidtvprod.s3.yandex.net/tandem_bg/blackthorn_black.png"
+            },
+            "cucumber": {
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/cucumber_black.png",
+              "G": "https://androidtvprod.s3.yandex.net/tandem_bg/cucumber_grey.png",
+              "K": "https://androidtvprod.s3.yandex.net/tandem_bg/cucumber_black.png",
+              "N": "https://androidtvprod.s3.yandex.net/tandem_bg/cucumber_pink.png",
+              "Y": "https://androidtvprod.s3.yandex.net/tandem_bg/cucumber_orange.png",
+              "Z": "https://androidtvprod.s3.yandex.net/tandem_bg/cucumber_green.png"
+            },
+            "mango": {
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/station_1.jpg"
+            },
+            "pickle": {
+              "B": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/pickle/station-mini3-pro-blue2.png",
+              "default": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/pickle/station-mini3-pro-black2.png",
+              "K": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/pickle/station-mini3-pro-black2.png",
+              "V": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/pickle/station-mini3-pro-violet2.png",
+              "W": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/pickle/station-mini3-pro-white2.png",
+              "Z": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/pickle/station-mini3-pro-green2.png"
+            },
+            "plum": {
+              "B": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/plum_prune_lylak.png",
+              "C": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/plum_prune_coral.png",
+              "default": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/plum_prune_green.png",
+              "K": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/plum_prune_grey.png",
+              "N": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/plum_prune_pink.png",
+              "V": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/plum_prune_lylak.png",
+              "Z": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/plum_prune_green.png"
+            },
+            "yandexmicro": {
+              "B": "https://androidtvprod.s3.yandex.net/tandem_bg/micro_beige.jpg",
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/micro_green.jpg",
+              "G": "https://androidtvprod.s3.yandex.net/tandem_bg/micro_green.jpg",
+              "N": "https://androidtvprod.s3.yandex.net/tandem_bg/micro_pink.jpg",
+              "P": "https://androidtvprod.s3.yandex.net/tandem_bg/micro_purple.jpg",
+              "R": "https://androidtvprod.s3.yandex.net/tandem_bg/micro_red.jpg",
+              "Y": "https://androidtvprod.s3.yandex.net/tandem_bg/micro_yellow.jpg"
+            },
+            "yandexmidi": {
+              "B": "https://androidtvprod.s3.yandex.net/tandem_bg/midi_blue.jpg",
+              "C": "https://androidtvprod.s3.yandex.net/tandem_bg/midi_copper.jpg",
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/midi_black.jpg",
+              "E": "https://androidtvprod.s3.yandex.net/tandem_bg/midi_beige.jpg",
+              "K": "https://androidtvprod.s3.yandex.net/tandem_bg/midi_black.jpg"
+            },
+            "yandexmini": {
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/mini.jpg"
+            },
+            "yandexmini_2": {
+              "B": "https://androidtvprod.s3.yandex.net/tandem_bg/mini_2_blue.jpg",
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/mini_2_black.jpg",
+              "G": "https://androidtvprod.s3.yandex.net/tandem_bg/mini_2_gray.jpg",
+              "K": "https://androidtvprod.s3.yandex.net/tandem_bg/mini_2_black.jpg",
+              "R": "https://androidtvprod.s3.yandex.net/tandem_bg/mini_2_red.jpg"
+            },
+            "yandexstation": {
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/station_1.jpg"
+            },
+            "yandexstation_2": {
+              "B": "https://androidtvprod.s3.yandex.net/tandem_bg/station_2_blue.jpg",
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/station_2_black.jpg",
+              "K": "https://androidtvprod.s3.yandex.net/tandem_bg/station_2_black.jpg",
+              "R": "https://androidtvprod.s3.yandex.net/tandem_bg/station_2_red.jpg",
+              "W": "https://androidtvprod.s3.yandex.net/tandem_bg/station_2_white.jpg"
+            }
+          }
+        },
+        "tandemColorCodesConfig": {
+          "bergamot": {
+            "14": [
+              "13",
+              "14"
+            ]
+          },
+          "cucumber": {
+            "14": [
+              "13",
+              "14"
+            ]
+          },
+          "pickle": {
+            "14": [
+              "13",
+              "14"
+            ]
+          },
+          "plum": {
+            "14": [
+              "13",
+              "14"
+            ]
+          }
+        },
+        "timersOnScreenEnable": true,
+        "tvChannelsConfig": {
+          "channelsUpdatePeriodMinutes": 55,
+          "epgFragmentEnabled": true,
+          "epgFragmentEnabledV2": true,
+          "epgFragmentEnabledV3": true,
+          "epgFragmentEnabledV4": true,
+          "favouritesEnabledV3": true,
+          "multicatSupported": true,
+          "tariffOptionsSupported": true,
+          "tvGridEnabled": true,
+          "tvGridEnabledV2": true,
+          "tvGridEnabledV3": true,
+          "tvGridEnabledV4": true,
+          "tvGridVoiceControlsEnabled": true,
+          "tvGridVoiceControlsEnabledV2": true,
+          "tvGridVoiceControlsEnabledV3": true,
+          "tvGridVoiceControlsEnabledV4": true,
+          "tvGridVoiceControlsUpdatePeriodSeconds": 300
+        },
+        "updateHomeScreenByButton": true,
+        "updateOnlyFeatureHomeScreen": true,
+        "useBackendBadgeImage": true,
+        "watchButtonForPublicContentEnabled": true,
+        "watchButtonForPublicContentEnabledV2": true
+      },
+      "com.yandex.tv.input.efir": {
+        "adYandexPlayerEnabled": true,
+        "adYandexPlayerEnabledV3": true,
+        "mbuSettings": {
+          "mbuDoNotOverrideRh": true,
+          "mbuEnableForDynamic": true,
+          "mbuEnableMoveToUnbanned": false,
+          "mbuEnableUpdate": true,
+          "mbuFallbackByAnyExc": true
+        },
+        "multicatSupported": true,
+        "preventAmlogic2MemoryLeak": true,
+        "secureDecodersForClearVideo": true,
+        "shouldMonitorFrameDrops": true,
+        "smotreshka_channels_enabled": true,
+        "tariffOptionsSupported": true,
+        "tvGridEnabledV2": true,
+        "tvGridEnabledV3": true,
+        "tvGridEnabledV4": true,
+        "tvGridEnabledV5": true,
+        "tvProgramsProtoHttpEnabledV2": true
+      },
+      "com.yandex.tv.live": {
+        "channelListFragmentEnabled": true,
+        "channelListFragmentEnabledV2": true,
+        "channelListFragmentEnabledV3": true,
+        "channelListFragmentEnabledV4": true,
+        "channelsUpdatePeriodMinutes": 25,
+        "channelSwitching": {
+          "restartInputServiceOnChannelSwitched": false
+        },
+        "channelThumbStubs": [
+          "channelThumbStub01",
+          "channelThumbStub02",
+          "channelThumbStub03",
+          "channelThumbStub04",
+          "channelThumbStub05"
+        ],
+        "checkChannelLicensePeriodMs": 15000,
+        "disableChannelVoiceControls": true,
+        "epgFragmentEnabled": true,
+        "epgFragmentEnabledV2": true,
+        "epgFragmentEnabledV3": true,
+        "epgFragmentEnabledV4": true,
+        "forcedScrollChannelListEnabledV2": true,
+        "forcedScrollChannelListEnabledV3": true,
+        "forcedScrollChannelListEnabledV4": true,
+        "forcedScrollChannelListEnabledV5": true,
+        "gridPlayerLayoutEnabled": true,
+        "gridPlayerLayoutEnabledV2": true,
+        "gridPlayerLayoutEnabledV3": true,
+        "gridPlayerLayoutEnabledV4": true,
+        "isNewPlayerEnabledV2": true,
+        "isNewPlayerEnabledV3": true,
+        "media": {
+          "image": {
+            "channelThumbStub01": {
+              "default": {
+                "file_size": 397603,
+                "max_download_time": 500,
+                "url": "https://androidtvprod.s3.yandex.net/channel_thumbs/thumb01.png"
+              }
+            },
+            "channelThumbStub02": {
+              "default": {
+                "file_size": 396352,
+                "max_download_time": 500,
+                "url": "https://androidtvprod.s3.yandex.net/channel_thumbs/thumb02.png"
+              }
+            },
+            "channelThumbStub03": {
+              "default": {
+                "file_size": 394099,
+                "max_download_time": 500,
+                "url": "https://androidtvprod.s3.yandex.net/channel_thumbs/thumb03.png"
+              }
+            },
+            "channelThumbStub04": {
+              "default": {
+                "file_size": 379494,
+                "max_download_time": 500,
+                "url": "https://androidtvprod.s3.yandex.net/channel_thumbs/thumb04.png"
+              }
+            },
+            "channelThumbStub05": {
+              "default": {
+                "file_size": 390012,
+                "max_download_time": 500,
+                "url": "https://androidtvprod.s3.yandex.net/channel_thumbs/thumb05.png"
+              }
+            }
+          },
+          "video": {}
+        },
+        "newZappingUiEnabled": true,
+        "paidChannelStubV2EnabledProd": true,
+        "sources": {
+          "designV2Enabled": true,
+          "sourcesSortingActiveFirst": true,
+          "sourcesUsbEnabled": true
+        },
+        "sourcesPlayerOverlay": {
+          "dolbyAudioEnabledV1": false,
+          "overlayEnabledV1": true
+        },
+        "sourcesPlayerTcbEnabled": true,
+        "statusBarOnV1": true,
+        "tariffPurchaseStubEnabled": true,
+        "thresholdTimePutChannelToRecentMs": 5000
+      },
+      "com.yandex.tv.music": {
+        "animatedBackground": false,
+        "debounceForLyricsButton": 250,
+        "delayForLyricsViewVisibility": 0,
+        "disclaimerConfig": {
+          "disclaimersEnabled": true
+        },
+        "focusableProgressBar": true,
+        "ioCom": {
+          "capabilities": {
+            "useIoComForAlarm": true
+          },
+          "isIoComHostProxyEnabledV1": true,
+          "useIoComMusicServiceApiV4": true
+        },
+        "isKaraokeModeEnabledV1": true,
+        "isLyricsModeEnabledV1": true,
+        "isNewNativePlayerEnabledV3": true,
+        "isPlaybackSpeedEnabledV1": true,
+        "keepScreenOnWhilePlayingWithoutLyrics": false,
+        "lyricsAlwaysOnWhenKaraokeEnabledV1": true,
+        "musicAppCanStopMusicWhenHiddenV1": false,
+        "playlistConfig": {
+          "enableListenedToCheckmarks": true,
+          "isPlaylistsEnabledV3": true,
+          "itemsToScrollForByVoice": 7
+        },
+        "shouldApplyBlur": false,
+        "statusBarOnV2": true,
+        "stopBackgroundMusicWhenTurnOffScreenEnabledV2": false
+      },
+      "com.yandex.tv.services": {
+        "aiPqEnabled": true,
+        "aiPqTitle": "AI Picture Quality",
+        "allAccountState": true,
+        "appsVersions": {
+          "collectIntervalMinutes": 30,
+          "debounceMs": 30000,
+          "isEnabled": true,
+          "maxPackagesCount": 30,
+          "requiredPackages": [
+            "com.yandex.devices.appstore",
+            "com.yandex.devices.payment",
+            "com.yandex.devices.player",
+            "com.yandex.devices.whatsnew",
+            "com.yandex.io.sdk",
+            "com.yandex.launcher.updaterapp",
+            "com.yandex.tv.alice",
+            "com.yandex.tv.bugreportsender",
+            "com.yandex.tv.companion.screen",
+            "com.yandex.tv.daydream",
+            "com.yandex.tv.demo",
+            "com.yandex.tv.home",
+            "com.yandex.tv.input.efir",
+            "com.yandex.tv.keyboard",
+            "com.yandex.tv.live",
+            "com.yandex.tv.music",
+            "com.yandex.tv.qc",
+            "com.yandex.tv.services",
+            "com.yandex.tv.services.platform",
+            "com.yandex.tv.services.privileged",
+            "com.yandex.tv.setupwizard",
+            "com.yandex.tv.videoplayer",
+            "com.yandex.tv.webplayer",
+            "com.yandex.tv.ytplayer",
+            "ru.kinopoisk.yandex.tv"
+          ],
+          "usageStatsPeriodDays": 30
+        },
+        "appUsageTrackerEnabled": true,
+        "authSuggest": {
+          "enabled": true,
+          "maxShowCount": 5,
+          "showTimeoutSeconds": 2628000
+        },
+        "batteryNotifications": {
+          "levelsForNotifications": [
+            20,
+            15,
+            10
+          ],
+          "requestsEnabled": true,
+          "resetNotificationsLevel": 50
+        },
+        "batteryNotifications_v2": {
+          "batteryNotificationDuration": 5000,
+          "levelsForNotifications": [
+            20,
+            15,
+            10
+          ],
+          "requestFrequencyMinutes": 15,
+          "requestsEnabled": true,
+          "resetNotificationsLevel": 50
+        },
+        "btPairingSettingEnabled": true,
+        "crashSender": {
+          "whitelist": [
+            "ru.yandex.",
+            "com.yandex.",
+            "com.android.providers.media.module",
+            "com.android.providers.tv",
+            "com.android.tv.settings",
+            "com.android.systemui",
+            "com.ctv.android.tvboot",
+            "com.droidlogic",
+            "com.mediatek.tv.agent",
+            "com.mediatek.tvinput",
+            "com.mediatek.androidbox",
+            "com.mediatek.wwtv.tvcenter",
+            "/system/bin/audioserver",
+            "/system/bin/surfaceflinger",
+            "/system/bin/wificond",
+            "media.codec",
+            "media.swcodec",
+            "/vendor/bin/hw/android.hardware.bluetooth",
+            "/vendor/bin/hw/android.hardware.audio",
+            "/vendor/bin/hw/android.hardware.wifi",
+            "/vendor/bin/hw/android.hardware.media.c2",
+            "/vendor/bin/hw/android.hardware.graphics.composer"
+          ]
+        },
+        "enabledPromos": [],
+        "eventRateLimitConfig": {
+          "rateLimitEnabled": true,
+          "rateLimiters": [
+            {
+              "acceptedEventNames": [
+                "app_crash"
+              ],
+              "debounceTime": 60000
+            },
+            {
+              "acceptedEventNames": [
+                "app_error"
+              ],
+              "debounceTime": 5000
+            },
+            {
+              "acceptedEventNames": [
+                "error_screen_show"
+              ],
+              "debounceTime": 60000
+            }
+          ]
+        },
+        "fastWakeupEnabled": true,
+        "fastWakeupSettingsEnabled": true,
+        "freeSpaceInspector": {
+          "enabled": true,
+          "intervalBetweenShowNotificationMs": 7200000,
+          "notificationDurationMs": 15000,
+          "useStorageCleanupScreenV2": true
+        },
+        "giftDesign": {
+          "alternativeLaterButtonAppearanceTimeMs": 10000,
+          "biggerText": true
+        },
+        "giftPromoLackTtl": 10800000,
+        "giftPromoMaxCount": 3,
+        "giftPromoTimeout": 604800000,
+        "hints": {
+          "defaultHintsDuration": 10000,
+          "enabled": true,
+          "minimalHintDuration": 3000,
+          "newReportApiEnabledV2": true,
+          "requestDelay": 360,
+          "screenTriggerThreshold": 5000,
+          "showDelay": 30,
+          "triggers": [
+            "main_screen_opened",
+            "tv_channels_screen_opened",
+            "music_screen_opened",
+            "app_market_screen_opened",
+            "details_screen_opened",
+            "music_player_screen_opened",
+            "profile_screen_opened",
+            "video_player_screen_opened",
+            "main_navigation_on_video_content",
+            "category_navigation_on_video_content",
+            "tv_channels_add_to_favourites"
+          ]
+        },
+        "ioCom": {
+          "ioComServerEnabled": true,
+          "isIoComHostServiceEnabledV1": true
+        },
+        "isAuthErrorForceSyncTimeEnabled": true,
+        "isViewDetailedErrorAboutRegistrationOnTheBackendEnabled": true,
+        "media": {
+          "image": {
+            "passportGiftCardEntrySideImage": {
+              "default": {
+                "file_size": 140624,
+                "max_download_time": 180,
+                "url": "https://androidtvprod.s3.yandex.net/suw_images/plus_sell_gift_v2.webp"
+              }
+            },
+            "passportGiftPromoBackgroundImage": {
+              "default": {
+                "file_size": 140624,
+                "max_download_time": 180,
+                "url": "https://androidtvprod.s3.yandex.net/suw_images/plus_sell_gift_v2.webp"
+              }
+            }
+          },
+          "video": {}
+        },
+        "metricaImportantBindEnabled": true,
+        "newAuthForm": true,
+        "newAuthFormV2": false,
+        "newAuthSkipLoginWall": true,
+        "newAuthSkipLoginWallV2": true,
+        "newAuthSuccessScreen": true,
+        "newAuthSuccessScreenV2": true,
+        "newPinCodeScreenEnabled": true,
+        "nightMode": {
+          "dynamicSoundCompressionSupported": true,
+          "lowBlueLightSupported": true,
+          "nightModeSupported": true
+        },
+        "notifications": {
+          "interactiveNotificationLongPressDurationMs": 2500,
+          "interactiveNotificationsEnabled": true,
+          "serviceEnabled": true,
+          "whitelist": [
+            "purchasedSuccessfulNotification"
+          ]
+        },
+        "passport": {
+          "iosdkUseExternalToken": true,
+          "iosdkUseUnifiedClientId": true,
+          "servicesUseUnifiedClientId": true
+        },
+        "pinCodeSendRequestButtonEnabled": true,
+        "plusPayEnabled": true,
+        "promoProtoHttpEnabled": true,
+        "promoTimeout": 10800000,
+        "qrCodeGiftFlow": true,
+        "qrCodeGiftFlowV2": true,
+        "rcuV1": {
+          "isEnabled": true
+        },
+        "realtimeEvents": {
+          "clickdaemonBatchUri": "https://clck.yandex.net/tv/write/json/batch",
+          "clickdaemonErrorsBatchUri": "https://clck.yandex.net/tv/write/json/batch",
+          "enabled": true,
+          "whitelist": [
+            "app_error",
+            "app_crash",
+            "app_heartbeat",
+            "tv_player_heartbeat",
+            "youtube_player_heartbeat",
+            "native_player_heartbeat",
+            "error_screen_show",
+            "card_show",
+            "restore_state_success",
+            "restore_state_start",
+            "restore_state_fail",
+            "restore_transition_success",
+            "restore_transition_start",
+            "restore_transition_fail",
+            "audio_record_heartbeat",
+            "audio_record_muted_heartbeat",
+            "account_login_fail",
+            "account_login_success",
+            "webview_player_heartbeat",
+            "verification_failed",
+            "tv_network_error"
+          ]
+        },
+        "sendSysRecoveryVersion": true,
+        "showChildAccountSwitchBlockSetting": true,
+        "silentRebootV3": {
+          "alwaysTurnOn": {
+            "enabled": true,
+            "endSec": 18000,
+            "startSec": 82800,
+            "supportRebootOnFSB": true,
+            "uptimeMs": 604800000
+          },
+          "standby": {
+            "enabled": true,
+            "uptimeMs": 126000000
+          }
+        },
+        "sleepModeSettingsScreenEnabled": true,
+        "splitOwnerAndActive": true,
+        "syncTimeDiffToResetSession": 43200000,
+        "tandemSetup": {
+          "backgrounds": {
+            "bergamot": {
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/bergamot_black.png",
+              "G": "https://androidtvprod.s3.yandex.net/tandem_bg/bergamot_gray.jpg",
+              "K": "https://androidtvprod.s3.yandex.net/tandem_bg/bergamot_black.png",
+              "V": "https://androidtvprod.s3.yandex.net/tandem_bg/bergamot_violet.jpg"
+            },
+            "blackthorn": {
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/blackthorn_black.png",
+              "K": "https://androidtvprod.s3.yandex.net/tandem_bg/blackthorn_black.png"
+            },
+            "cucumber": {
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/cucumber_black.png",
+              "G": "https://androidtvprod.s3.yandex.net/tandem_bg/cucumber_grey.png",
+              "K": "https://androidtvprod.s3.yandex.net/tandem_bg/cucumber_black.png",
+              "N": "https://androidtvprod.s3.yandex.net/tandem_bg/cucumber_pink.png",
+              "Y": "https://androidtvprod.s3.yandex.net/tandem_bg/cucumber_orange.png",
+              "Z": "https://androidtvprod.s3.yandex.net/tandem_bg/cucumber_green.png"
+            },
+            "default": "https://androidtvprod.s3.yandex.net/tandem_bg/station_1.jpg",
+            "mango": {
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/station_1.jpg"
+            },
+            "pickle": {
+              "B": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/pickle/station-mini3-pro-blue2.png",
+              "default": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/pickle/station-mini3-pro-black2.png",
+              "K": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/pickle/station-mini3-pro-black2.png",
+              "V": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/pickle/station-mini3-pro-violet2.png",
+              "W": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/pickle/station-mini3-pro-white2.png",
+              "Z": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/pickle/station-mini3-pro-green2.png"
+            },
+            "plum": {
+              "B": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/plum_prune_lylak.png",
+              "C": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/plum_prune_coral.png",
+              "default": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/plum_prune_green.png",
+              "K": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/plum_prune_grey.png",
+              "N": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/plum_prune_pink.png",
+              "V": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/plum_prune_lylak.png",
+              "Z": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/plum_prune_green.png"
+            },
+            "yandexmicro": {
+              "B": "https://androidtvprod.s3.yandex.net/tandem_bg/micro_beige.jpg",
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/micro_green.jpg",
+              "G": "https://androidtvprod.s3.yandex.net/tandem_bg/micro_green.jpg",
+              "N": "https://androidtvprod.s3.yandex.net/tandem_bg/micro_pink.jpg",
+              "P": "https://androidtvprod.s3.yandex.net/tandem_bg/micro_purple.jpg",
+              "R": "https://androidtvprod.s3.yandex.net/tandem_bg/micro_red.jpg",
+              "Y": "https://androidtvprod.s3.yandex.net/tandem_bg/micro_yellow.jpg"
+            },
+            "yandexmidi": {
+              "B": "https://androidtvprod.s3.yandex.net/tandem_bg/midi_blue.jpg",
+              "C": "https://androidtvprod.s3.yandex.net/tandem_bg/midi_copper.jpg",
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/midi_black.jpg",
+              "E": "https://androidtvprod.s3.yandex.net/tandem_bg/midi_beige.jpg",
+              "K": "https://androidtvprod.s3.yandex.net/tandem_bg/midi_black.jpg"
+            },
+            "yandexmini": {
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/mini.jpg"
+            },
+            "yandexmini_2": {
+              "B": "https://androidtvprod.s3.yandex.net/tandem_bg/mini_2_blue.jpg",
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/mini_2_black.jpg",
+              "G": "https://androidtvprod.s3.yandex.net/tandem_bg/mini_2_gray.jpg",
+              "K": "https://androidtvprod.s3.yandex.net/tandem_bg/mini_2_black.jpg",
+              "R": "https://androidtvprod.s3.yandex.net/tandem_bg/mini_2_red.jpg"
+            },
+            "yandexstation": {
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/station_1.jpg"
+            },
+            "yandexstation_2": {
+              "B": "https://androidtvprod.s3.yandex.net/tandem_bg/station_2_blue.jpg",
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/station_2_black.jpg",
+              "K": "https://androidtvprod.s3.yandex.net/tandem_bg/station_2_black.jpg",
+              "R": "https://androidtvprod.s3.yandex.net/tandem_bg/station_2_red.jpg",
+              "W": "https://androidtvprod.s3.yandex.net/tandem_bg/station_2_white.jpg"
+            }
+          },
+          "icons": {
+            "bergamot": {
+              "default": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/bergamot_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/bergamot_black_stereo.png"
+              },
+              "G": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/bergamot_gray.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/bergamot_gray_stereo.png"
+              },
+              "K": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/bergamot_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/bergamot_black_stereo.png"
+              },
+              "V": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/bergamot_violet.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/bergamot_violet_stereo.png"
+              }
+            },
+            "blackthorn": {
+              "default": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/blackthorn_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/blackthorn_black_stereo.png"
+              },
+              "K": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/blackthorn_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/blackthorn_black_stereo.png"
+              }
+            },
+            "cucumber": {
+              "default": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_black_stereo.png"
+              },
+              "G": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_white.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_white_stereo.png"
+              },
+              "K": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_black_stereo.png"
+              },
+              "N": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_pink.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_pink_stereo.png"
+              },
+              "Y": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_yellow.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_yellow_stereo.png"
+              },
+              "Z": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_cyan.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_cyan_stereo.png"
+              }
+            },
+            "default": "https://androidtvprod.s3.yandex.net/tandem_icons/station_1.png",
+            "mango": {
+              "default": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/station_1.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/station_1_stereo.png"
+              }
+            },
+            "pickle": {
+              "B": {
+                "default": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-blue.png",
+                "stereopair": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-tandem-blue.png"
+              },
+              "default": {
+                "default": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-black.png",
+                "stereopair": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-tandem-black.png"
+              },
+              "K": {
+                "default": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-black.png",
+                "stereopair": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-tandem-black.png"
+              },
+              "V": {
+                "default": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-violet.png",
+                "stereopair": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-tandem-violet.png"
+              },
+              "W": {
+                "default": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-gray.png",
+                "stereopair": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-tandem-gray.png"
+              },
+              "Z": {
+                "default": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-green.png",
+                "stereopair": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-tandem-green.png"
+              }
+            },
+            "plum": {
+              "B": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_blue.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_blue_stereo.png"
+              },
+              "C": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_copper.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_copper_stereo.png"
+              },
+              "default": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_black_stereo.png"
+              },
+              "K": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_black_stereo.png"
+              },
+              "N": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_pink.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_pink_stereo.png"
+              },
+              "V": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_violet.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_violet_stereo.png"
+              },
+              "Z": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_green.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_green_stereo.png"
+              }
+            },
+            "yandexmicro": {
+              "B": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_beige.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_beige_stereo.png"
+              },
+              "default": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_green.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_green_stereo.png"
+              },
+              "G": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_green.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_green_stereo.png"
+              },
+              "N": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_pink.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_pink_stereo.png"
+              },
+              "P": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_purple.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_purple_stereo.png"
+              },
+              "R": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_red.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_red_stereo.png"
+              },
+              "Y": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_yellow.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_yellow_stereo.png"
+              }
+            },
+            "yandexmidi": {
+              "B": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/midi_blue.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/midi_blue_stereo.png"
+              },
+              "C": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/midi_copper.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/midi_copper_stereo.png"
+              },
+              "default": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/midi_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/midi_black_stereo.png"
+              },
+              "E": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/midi_beige.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/midi_beige_stereo.png"
+              },
+              "K": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/midi_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/midi_black_stereo.png"
+              }
+            },
+            "yandexmini": {
+              "default": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_1_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_1_black_stereo.png"
+              }
+            },
+            "yandexmini_2": {
+              "B": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_2_blue.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_2_blue_stereo.png"
+              },
+              "default": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_2_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_2_black_stereo.png"
+              },
+              "G": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_2_gray.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_2_gray_stereo.png"
+              },
+              "K": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_2_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_2_black_stereo.png"
+              },
+              "R": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_2_red.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_2_red_stereo.png"
+              }
+            },
+            "yandexstation": {
+              "default": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/station_1.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/station_1_stereo.png"
+              }
+            },
+            "yandexstation_2": {
+              "B": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/station_2_blue.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/station_2_blue_stereo.png"
+              },
+              "default": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/station_2_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/station_2_black_stereo.png"
+              },
+              "K": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/station_2_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/station_2_black_stereo.png"
+              },
+              "R": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/station_2_red.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/station_2_red_stereo.png"
+              },
+              "W": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/station_2_white.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/station_2_white_stereo.png"
+              }
+            }
+          }
+        },
+        "timeLimitSettingsScreenEnabled": true,
+        "timePersistConfig": {
+          "timePersistEnabled": true,
+          "timePersistIntervalMs": 30000
+        },
+        "transparentAuthWebview": true,
+        "voiceEnrollmentEnabled": true,
+        "writeIsActiveAccountChildSystemProperty": true
+      },
+      "com.yandex.tv.services.metrica": {
+        "timePersistConfig": {
+          "timePersistEnabled": true,
+          "timePersistIntervalMs": 30000
+        }
+      },
+      "com.yandex.tv.services.platform": {
+        "accessibilityConfig": {
+          "serviceTypes": [
+            "key-event-metrics",
+            "perform-user-actions"
+          ]
+        },
+        "adbEnabled": true,
+        "androidSettingsConfig": {
+          "enabled": true,
+          "globalSettingsMap": {
+            "captive_portal_fallback_url": {
+              "value": "http://scbh.yandex.net/generate_204",
+              "valueType": "String"
+            },
+            "captive_portal_http_url": {
+              "value": "http://www.google.com/generate_204",
+              "valueType": "String"
+            },
+            "ntp_server": {
+              "value": "ru.pool.ntp.org",
+              "valueType": "String"
+            }
+          },
+          "secureSettingsMap": {
+            "keyboard_bind_only_with_edit_info": {
+              "value": "1",
+              "valueType": "INT"
+            }
+          }
+        },
+        "audioServerStateListenEnabled": true,
+        "defaultVoiceRecognitionService": "iosdk",
+        "externalAppAsCurrentScreenEnabledV3": true,
+        "isForegroundAppListenerEnabledV1": true,
+        "lastWatchedEnabled": true,
+        "lmk": {
+          "configurerEnabled": true,
+          "highPriorityProcesses": [
+            "com.yandex.tv.services:Metrica",
+            "com.yandex.tv.services:passport"
+          ],
+          "highPriorityProcessesEnabled": true
+        },
+        "mediaSessionServiceEnabledV2": false,
+        "osNameDisplayed": true,
+        "screensaver": {
+          "ecoModeV2": {
+            "brightnessPercent": 15,
+            "enabled": true
+          },
+          "pictureModeV3": {
+            "enabled": false
+          },
+          "pictureModeV4": {
+            "enabled": true
+          },
+          "themeChooserSetting": {
+            "settingEnabled": true
+          }
+        },
+        "sendStoragedInfoPeriodMsV2": 3600000,
+        "settings": {
+          "keyboardComponent": "com.yandex.tv.keyboard/.YaOSKeyboardService",
+          "systemPropertyWrite": {
+            "backlight.min_max": "auto_bl",
+            "lmk_metrics_enabled": "true",
+            "memc_enhance": "true"
+          }
+        },
+        "settingsOverlayEnabledV2": true,
+        "sourcesOverlayEnabled": true,
+        "supportedMediaSessionApplications": [
+          "com.ctcmediagroup.videomore",
+          "com.vk.tv",
+          "com.yandex.tv.webplayer",
+          "com.yandex.tv.ytplayer",
+          "gpm.tnt_premier",
+          "ru.ivi.client",
+          "ru.kinopoisk.yandex.tv",
+          "ru.litres.android.audio",
+          "ru.rt.video.app.tv",
+          "ru.rutube.app",
+          "ru.start.androidmobile"
+        ],
+        "systemui": {
+          "islandVolumeEnabled": true
+        },
+        "voiceVolumeStep": 5
+      },
+      "com.yandex.tv.services.privileged": {
+        "foregroundServicesLimiter": {
+          "packagesWhitelist": [
+            "androidx.test.orchestrator",
+            "androidx.test.services",
+            "jp.co.cyberagent.stf"
+          ]
+        }
+      },
+      "com.yandex.tv.settings": {
+        "parentalControlDynamic": true
+      },
+      "com.yandex.tv.setupwizard": {
+        "coldStartRecommendations": {
+          "coldStartChangingTextPhrasesDelayMs": 3000,
+          "coldStartHomeCarouselsReloadTimeoutMs": 10000,
+          "coldStartScreenEnabled": true,
+          "coldStartScreenEnabledV1": true,
+          "coldStartTransitionPhrases": [
+            "Подбираем фильмы специально для вас",
+            "Создаём рецепт идеального киносвидания для вас",
+            "Придумываем сценарий вашего безупречного киновечера",
+            "Ваш вкус безупречен — учитываем ваши киноинтересы",
+            "Момент, и вы окунётесь в мир ваших идеальных фильмов"
+          ]
+        },
+        "media": {
+          "image": {
+            "suwAuthPromoBackgroundImage": {
+              "default": {
+                "file_size": 58964,
+                "max_download_time": 180,
+                "url": "https://androidtvprod.s3.yandex.net/suw_images/suwAuthPromoBackgroundImageV2.webp"
+              }
+            }
+          },
+          "video": {
+            "coldStartRecommendationsLoopVideo": {
+              "default": {
+                "file_size": 2378367,
+                "max_download_time": 180,
+                "url": "https://cdnrsiggl4o3oqvksiom.svc.cdn.yandex.net/suw_video/coldstart_v2/cold_start_recommendations_loop_video_v2.mp4"
+              }
+            },
+            "coldStartRecommendationsTransitionInVideo": {
+              "default": {
+                "file_size": 1296657,
+                "max_download_time": 180,
+                "url": "https://cdnrsiggl4o3oqvksiom.svc.cdn.yandex.net/suw_video/coldstart_v2/cold_start_recommendations_transition_in_video_v2.mp4"
+              }
+            },
+            "coldStartRecommendationsTransitionOutVideo": {
+              "default": {
+                "file_size": 1912124,
+                "max_download_time": 180,
+                "url": "https://cdnrsiggl4o3oqvksiom.svc.cdn.yandex.net/suw_video/coldstart_v2/cold_start_recommendations_transition_out_video_v2.mp4"
+              }
+            }
+          }
+        },
+        "setupSoundEnabled": true,
+        "skipAuthButtonAvailable": true,
+        "tandemSetup": {
+          "backgrounds": {
+            "bergamot": {
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/bergamot_black.png",
+              "G": "https://androidtvprod.s3.yandex.net/tandem_bg/bergamot_gray.jpg",
+              "K": "https://androidtvprod.s3.yandex.net/tandem_bg/bergamot_black.png",
+              "V": "https://androidtvprod.s3.yandex.net/tandem_bg/bergamot_violet.jpg"
+            },
+            "blackthorn": {
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/blackthorn_black.png",
+              "K": "https://androidtvprod.s3.yandex.net/tandem_bg/blackthorn_black.png"
+            },
+            "cucumber": {
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/cucumber_black.png",
+              "G": "https://androidtvprod.s3.yandex.net/tandem_bg/cucumber_grey.png",
+              "K": "https://androidtvprod.s3.yandex.net/tandem_bg/cucumber_black.png",
+              "N": "https://androidtvprod.s3.yandex.net/tandem_bg/cucumber_pink.png",
+              "Y": "https://androidtvprod.s3.yandex.net/tandem_bg/cucumber_orange.png",
+              "Z": "https://androidtvprod.s3.yandex.net/tandem_bg/cucumber_green.png"
+            },
+            "default": "https://androidtvprod.s3.yandex.net/tandem_bg/station_1.jpg",
+            "mango": {
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/station_1.jpg"
+            },
+            "pickle": {
+              "B": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/pickle/station-mini3-pro-blue2.png",
+              "default": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/pickle/station-mini3-pro-black2.png",
+              "K": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/pickle/station-mini3-pro-black2.png",
+              "V": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/pickle/station-mini3-pro-violet2.png",
+              "W": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/pickle/station-mini3-pro-white2.png",
+              "Z": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/pickle/station-mini3-pro-green2.png"
+            },
+            "plum": {
+              "B": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/plum_prune_lylak.png",
+              "C": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/plum_prune_coral.png",
+              "default": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/plum_prune_green.png",
+              "K": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/plum_prune_grey.png",
+              "N": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/plum_prune_pink.png",
+              "V": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/plum_prune_lylak.png",
+              "Z": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_bg/plum_prune_green.png"
+            },
+            "yandexmicro": {
+              "B": "https://androidtvprod.s3.yandex.net/tandem_bg/micro_beige.jpg",
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/micro_green.jpg",
+              "G": "https://androidtvprod.s3.yandex.net/tandem_bg/micro_green.jpg",
+              "N": "https://androidtvprod.s3.yandex.net/tandem_bg/micro_pink.jpg",
+              "P": "https://androidtvprod.s3.yandex.net/tandem_bg/micro_purple.jpg",
+              "R": "https://androidtvprod.s3.yandex.net/tandem_bg/micro_red.jpg",
+              "Y": "https://androidtvprod.s3.yandex.net/tandem_bg/micro_yellow.jpg"
+            },
+            "yandexmidi": {
+              "B": "https://androidtvprod.s3.yandex.net/tandem_bg/midi_blue.jpg",
+              "C": "https://androidtvprod.s3.yandex.net/tandem_bg/midi_copper.jpg",
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/midi_black.jpg",
+              "E": "https://androidtvprod.s3.yandex.net/tandem_bg/midi_beige.jpg",
+              "K": "https://androidtvprod.s3.yandex.net/tandem_bg/midi_black.jpg"
+            },
+            "yandexmini": {
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/mini.jpg"
+            },
+            "yandexmini_2": {
+              "B": "https://androidtvprod.s3.yandex.net/tandem_bg/mini_2_blue.jpg",
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/mini_2_black.jpg",
+              "G": "https://androidtvprod.s3.yandex.net/tandem_bg/mini_2_gray.jpg",
+              "K": "https://androidtvprod.s3.yandex.net/tandem_bg/mini_2_black.jpg",
+              "R": "https://androidtvprod.s3.yandex.net/tandem_bg/mini_2_red.jpg"
+            },
+            "yandexstation": {
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/station_1.jpg"
+            },
+            "yandexstation_2": {
+              "B": "https://androidtvprod.s3.yandex.net/tandem_bg/station_2_blue.jpg",
+              "default": "https://androidtvprod.s3.yandex.net/tandem_bg/station_2_black.jpg",
+              "K": "https://androidtvprod.s3.yandex.net/tandem_bg/station_2_black.jpg",
+              "R": "https://androidtvprod.s3.yandex.net/tandem_bg/station_2_red.jpg",
+              "W": "https://androidtvprod.s3.yandex.net/tandem_bg/station_2_white.jpg"
+            }
+          },
+          "icons": {
+            "bergamot": {
+              "default": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/bergamot_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/bergamot_black_stereo.png"
+              },
+              "G": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/bergamot_gray.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/bergamot_gray_stereo.png"
+              },
+              "K": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/bergamot_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/bergamot_black_stereo.png"
+              },
+              "V": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/bergamot_violet.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/bergamot_violet_stereo.png"
+              }
+            },
+            "blackthorn": {
+              "default": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/blackthorn_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/blackthorn_black_stereo.png"
+              },
+              "K": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/blackthorn_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/blackthorn_black_stereo.png"
+              }
+            },
+            "cucumber": {
+              "default": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_black_stereo.png"
+              },
+              "G": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_white.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_white_stereo.png"
+              },
+              "K": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_black_stereo.png"
+              },
+              "N": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_pink.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_pink_stereo.png"
+              },
+              "Y": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_yellow.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_yellow_stereo.png"
+              },
+              "Z": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_cyan.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/cucumber_cyan_stereo.png"
+              }
+            },
+            "default": "https://androidtvprod.s3.yandex.net/tandem_icons/station_1.png",
+            "mango": {
+              "default": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/station_1.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/station_1_stereo.png"
+              }
+            },
+            "pickle": {
+              "B": {
+                "default": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-blue.png",
+                "stereopair": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-tandem-blue.png"
+              },
+              "default": {
+                "default": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-black.png",
+                "stereopair": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-tandem-black.png"
+              },
+              "K": {
+                "default": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-black.png",
+                "stereopair": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-tandem-black.png"
+              },
+              "V": {
+                "default": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-violet.png",
+                "stereopair": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-tandem-violet.png"
+              },
+              "W": {
+                "default": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-gray.png",
+                "stereopair": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-tandem-gray.png"
+              },
+              "Z": {
+                "default": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-green.png",
+                "stereopair": "https://cdnr2gfhoxlvj5gm23vk.svc.cdn.yandex.net/tandem_icons/pickle/station-mini3-pro-tandem-green.png"
+              }
+            },
+            "plum": {
+              "B": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_blue.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_blue_stereo.png"
+              },
+              "C": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_copper.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_copper_stereo.png"
+              },
+              "default": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_black_stereo.png"
+              },
+              "K": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_black_stereo.png"
+              },
+              "N": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_pink.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_pink_stereo.png"
+              },
+              "V": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_violet.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_violet_stereo.png"
+              },
+              "Z": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_green.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/plum_green_stereo.png"
+              }
+            },
+            "yandexmicro": {
+              "B": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_beige.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_beige_stereo.png"
+              },
+              "default": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_green.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_green_stereo.png"
+              },
+              "G": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_green.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_green_stereo.png"
+              },
+              "N": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_pink.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_pink_stereo.png"
+              },
+              "P": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_purple.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_purple_stereo.png"
+              },
+              "R": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_red.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_red_stereo.png"
+              },
+              "Y": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_yellow.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/micro_yellow_stereo.png"
+              }
+            },
+            "yandexmidi": {
+              "B": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/midi_blue.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/midi_blue_stereo.png"
+              },
+              "C": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/midi_copper.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/midi_copper_stereo.png"
+              },
+              "default": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/midi_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/midi_black_stereo.png"
+              },
+              "E": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/midi_beige.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/midi_beige_stereo.png"
+              },
+              "K": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/midi_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/midi_black_stereo.png"
+              }
+            },
+            "yandexmini": {
+              "default": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_1_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_1_black_stereo.png"
+              }
+            },
+            "yandexmini_2": {
+              "B": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_2_blue.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_2_blue_stereo.png"
+              },
+              "default": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_2_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_2_black_stereo.png"
+              },
+              "G": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_2_gray.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_2_gray_stereo.png"
+              },
+              "K": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_2_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_2_black_stereo.png"
+              },
+              "R": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_2_red.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/mini_2_red_stereo.png"
+              }
+            },
+            "yandexstation": {
+              "default": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/station_1.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/station_1_stereo.png"
+              }
+            },
+            "yandexstation_2": {
+              "B": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/station_2_blue.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/station_2_blue_stereo.png"
+              },
+              "default": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/station_2_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/station_2_black_stereo.png"
+              },
+              "K": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/station_2_black.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/station_2_black_stereo.png"
+              },
+              "R": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/station_2_red.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/station_2_red_stereo.png"
+              },
+              "W": {
+                "default": "https://androidtvprod.s3.yandex.net/tandem_icons/station_2_white.png",
+                "stereopair": "https://androidtvprod.s3.yandex.net/tandem_icons/station_2_white_stereo.png"
+              }
+            }
+          }
+        }
+      },
+      "com.yandex.tv.sport": {
+        "backendMenuItemUnlocked": true,
+        "carouselAutoUpdateEnabled": true,
+        "carouselAutoUpdateInterval": 300,
+        "hintsEnabled": true,
+        "reminderButtonIsVisible": true,
+        "scoreIsVisible": false
+      },
+      "com.yandex.tv.videoplayer": {
+        "adsEnabledProd": true,
+        "adsScenarioId": "188",
+        "allowRemoteConfigurationV1": true,
+        "availableSpeedListV1": [
+          0.25,
+          0.5,
+          0.75,
+          1,
+          1.25,
+          1.5,
+          1.75,
+          2
+        ],
+        "buyPlusButtonV5": {
+          "isVisible": true
+        },
+        "ignoreVideometaError": true,
+        "ioCom": {
+          "capabilities": {
+            "useIoComForAlarm": true
+          },
+          "isIoComHostProxyEnabledV1": true
+        },
+        "isNewPlayerEnabledV1": true,
+        "isNewPlayerEnabledV2": true,
+        "isNewPlayerEnabledV3": true,
+        "isNewPlayerEnabledV4": true,
+        "isNewPlayerEnabledV5": true,
+        "isNewPlayerEnabledV6": true,
+        "isSmartSkipEnabledV2": true,
+        "manifestsDataSourceSettings": {
+          "cachedDataSourceContentIdsCount": 5,
+          "cachedDataSourcePerContentIdsKbSize": 8120,
+          "isCachedDataSourceEnabled": true
+        },
+        "mbuSettings": {
+          "mbuDoNotOverrideRh": true,
+          "mbuEnableForDynamic": true,
+          "mbuEnableMoveToUnbanned": false,
+          "mbuEnableUpdate": true,
+          "mbuFallbackByAnyExc": true
+        },
+        "optimizeConcurrentCommandExecutionV1": true,
+        "preloadVideoDataSettings": {
+          "isPreloadCacheStaticV1": true,
+          "preloadVideoDataLifetime": 18000000
+        },
+        "preventAmlogic2MemoryLeak": true,
+        "secureDecodersForClearVideo": true,
+        "shouldMonitorFrameDrops": true,
+        "statusBarOnV2": true,
+        "stopAutoPlaybackTimeoutMs": 300000,
+        "useArpcForReceiveSubscriptionOfferV5": true,
+        "useArpcForVideoMetadataV4": true,
+        "useBandwidthLastValueProvider": true,
+        "useManualAdBreaks": true,
+        "useNewKinopoiskOttMovieStrategyV1": true,
+        "useNewKinopoiskOttSportStrategyV1": true,
+        "useQuasarPlatformAsFromBlockParameter": true,
+        "useReleaseInsteadStopV1": true
+      },
+      "com.yandex.tv.webplayer": {
+        "bufferSizeInSeconds": 1.0667,
+        "doc2Doc": {
+          "doc2DocEnabledV2": true,
+          "voiceControlsEnabledV2": true
+        },
+        "isEpisodesButtonEnabled": true,
+        "isNextVideoButtonEnabled": true,
+        "pointerEnabledV1": true,
+        "supportedPlayers": {
+          "__raw_opengraph_embed_url__": {
+            "additionalVideoUrlParams": {},
+            "sandboxName": "iframe-default",
+            "sandboxVersion": "0x001cd987dbd",
+            "useJsControlsScript": true
+          },
+          "default": {
+            "additionalVideoUrlParams": {},
+            "sandboxName": "iframe-default",
+            "sandboxVersion": "0x001cd987dbd"
+          },
+          "ebalka": {
+            "additionalVideoUrlParams": {},
+            "sandboxName": "iframe-default",
+            "sandboxVersion": "0x001cd987dbd",
+            "useJsControlsScript": true
+          },
+          "izlesene": {
+            "additionalVideoUrlParams": {},
+            "sandboxName": "izlesene",
+            "sandboxVersion": "0x001cd987dbd"
+          },
+          "mailru_new": {
+            "additionalVideoUrlParams": {},
+            "sandboxName": "mailru",
+            "sandboxVersion": "0x001cd987dbd",
+            "userAgent": "Mozilla/5.0 (Linux; Android 7.0; SM-G570M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.102 Mobile Safari/537.36"
+          },
+          "ok": {
+            "additionalVideoUrlParams": {},
+            "sandboxName": "ok",
+            "sandboxVersion": "0x001cd987dbd",
+            "userAgent": "Mozilla/5.0 (Linux; Android 7.0; SM-G570M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.102 Mobile Safari/537.36"
+          },
+          "pornhub": {
+            "additionalVideoUrlParams": {},
+            "sandboxName": "iframe-default",
+            "sandboxVersion": "0x001cd987dbd",
+            "useJsControlsScript": true
+          },
+          "rutube": {
+            "additionalVideoUrlParams": {
+              "deviceType": "tv",
+              "os": "yaos"
+            },
+            "ignoreWebViewErrors": true,
+            "sandboxName": "rutube",
+            "sandboxVersion": "0x001cd987dbd",
+            "showNativeSubtitles": true,
+            "useNativeOverlayV5": true
+          },
+          "vimeo": {
+            "additionalVideoUrlParams": {},
+            "sandboxName": "vimeo",
+            "sandboxVersion": "0x001cd987dbd"
+          },
+          "vk": {
+            "additionalVideoUrlParams": {
+              "partner_name": "yaos"
+            },
+            "ignoreWebViewErrors": true,
+            "sandboxName": "vk",
+            "sandboxVersion": "0x001cd987dbd"
+          },
+          "yandex": {
+            "additionalVideoUrlParams": {},
+            "sandboxName": "yandex",
+            "sandboxVersion": "0x001cd987dbd"
+          },
+          "zen": {
+            "additionalVideoUrlParams": {},
+            "sandboxName": "dzen",
+            "sandboxVersion": "0x001cd987dbd",
+            "useJsControlsScript": true
+          }
+        },
+        "useBrowserMediaSessionV2": true,
+        "voiceControlsTracksEnabled": true
+      },
+      "commandSpottersMode": "textInput",
+      "commandSpottersSoundDurations": {
+        "включи телевизор": 1000
+      },
+      "counter_activation": {
+        "aliceTimeToWin": 0,
+        "commandTimeToWin": 150,
+        "enabled": true
+      },
+      "device_control_panel": {
+        "checkAliceProSubscription": true
+      },
+      "droidekaUrl": "https://droideka.smarttv.yandex.net",
+      "enableBackCommandSpotterForAnyContent": true,
+      "enableBiometryAccountOptions": true,
+      "enableCommandSpotters": true,
+      "enableUpdateTtsDirectives_261": true,
+      "env": {
+        "quasmodrom_group": "production",
+        "quasmodrom_subgroup": "production",
+        "test_buckets": "1556982,0,4;1561379,0,36;1547992,0,87;721150,0,79;1525886,0,41;1217762,0,78;945524,0,81;950035,0,41;1283447,0,48;1423171,0,62;956122,0,95;1549517,0,96;1550823,0,49;1288685,0,77;1560108,0,48;1287409,0,67;1479393,0,60;1559533,0,28",
+        "testids": "1058670_1058695_1058696_1058739_1058743_1058746_1074585_1098487_1118599_1155918_1294733_1367806_1395542_1420044_1431608_1432181_1450785_1454721_1457247_1457514_1458555_1460807_1479393_1511604_1525886_1559533_721150"
+      },
+      "equalizer": {
+        "type": "hybrid"
+      },
+      "experiments": [
+        "bg_enable_say_with_emotion",
+        "enrollment_x_token_enabled",
+        "hw_enable_audio_speed_scenario",
+        "hw_enable_intonation_stop_word",
+        "hw_enable_say_with_emotion",
+        "hw_music_enable_smart_crossfade",
+        "hw_music_fm_radio_add_safe_timeline_cgi_to_stream_url",
+        "hw_voiceprint_enable_enrollment_sharing"
+      ],
+      "fast_command_requester": {
+        "useTvOnWithBiometry": true
+      },
+      "fluent-bit": {
+        "level": "warn",
+        "samplingRatio": 0.5,
+        "variables": {
+          "daemonsLogsDst": "none",
+          "flushInterval": "60",
+          "httpRetryLimit": "2",
+          "ipcLogsDst": "none",
+          "kernelLogsDst": "none",
+          "libLogsDst": "none",
+          "logcatDst": "none"
+        }
+      },
+      "forceWifiReconfigure": false,
+      "gamerCopilot": {
+        "enableGamerCopilotSettings": true,
+        "sendAskForHdcpInstructionTcb": true,
+        "useCachedScreenshotWhenOnConsoles": true
+      },
+      "geoSyncSchedulerSettings": {
+        "enabled": true
+      },
+      "glagold": {
+        "enabled": true,
+        "enableEndpointProtocol": true,
+        "peersExchange": true,
+        "useFamilyDeviceList": false
+      },
+      "glagolHeartbeat": true,
+      "hybrid_request_factory": {
+        "hybrid": {
+          "scenarios": {
+            "fast_command_scenario": {
+              "enable_local_continue_for_video_player": true,
+              "enable_local_stop_for_video_player": true,
+              "enable_local_tts_stop": true,
+              "supported_frames": [
+                "personal_assistant.scenarios.bluetooth_off",
+                "personal_assistant.scenarios.bluetooth_on",
+                "personal_assistant.scenarios.player.continue",
+                "personal_assistant.scenarios.player.next_track",
+                "personal_assistant.scenarios.player.pause",
+                "personal_assistant.scenarios.player.previous_track",
+                "personal_assistant.scenarios.sound.louder",
+                "personal_assistant.scenarios.sound.quiter"
+              ]
+            }
+          }
+        },
+        "hybrid_text_inputs": true,
+        "hybrid_voice_inputs": true,
+        "local_voice_inputs_when_disconnected": false,
+        "use_protobuf_analytics_info": true,
+        "use_uniproxy_eou_hint": true,
+        "wait_client_approval": true,
+        "wait_spotter_validation_while_disconnected": false
+      },
+      "intonationSpotting": {
+        "defaultEnabled": false,
+        "disableOnNoSpeechAfterSpotter": true,
+        "disableOnNoSpeechContexts": [],
+        "disableOnNoSpeechDetected": true,
+        "doNotIncludeTTS": true,
+        "enableOnActivationTranscripts": [
+          "алиса",
+          "яндекс",
+          "<intonation>"
+        ],
+        "enableTimeMs": 20000,
+        "ledVisualization": true
+      },
+      "iot": {
+        "finishSystemDiscoveryAccumulateTimeout": 120,
+        "maxFinishSystemDiscoveryAccumulateTimeout": 180,
+        "providers": {
+          "Matter": true,
+          "Zenoh": true
+        },
+        "syncApi": true,
+        "syncEndpoints": true,
+        "syncEndpointsRemoveEnable": true,
+        "systemDiscovery": true
+      },
+      "iot_scenarios": {
+        "syncOnNonExistingDb": true
+      },
+      "maind": {
+        "selfDestroyer": {
+          "additionalMemoryLimitsKb": {
+            "intonationInterruptionModel": 3400
+          }
+        }
+      },
+      "matter": {
+        "capability": {
+          "pumpkin": {
+            "useColorAnimationCapability": true
+          }
+        },
+        "diagnosticsServiceEnabled": true,
+        "enableOnOtaSystemDiscovery": true,
+        "enableSystemDiscovery": true,
+        "node_wifi_network_diagnostics_capability": {
+          "enabled": true
+        }
+      },
+      "mediad": {
+        "hlsFragmentDistance": 6,
+        "hlsRandomizePlaylists": true,
+        "useGstreamerAudioPlayer2": true
+      },
+      "metricsDumperPeriodSec": 600,
+      "multiroomd": {
+        "latency_ms": -177
+      },
+      "networkMetricaLoggingEnabled": false,
+      "noise_detector": {
+        "enabled": true,
+        "spotterLogging": true,
+        "throttles": {
+          "alarm": 300000,
+          "break_glass": 20000,
+          "child_cry": 20000,
+          "clap": 1000,
+          "dog_bark": 20000,
+          "meow": 20000,
+          "snap": 1000,
+          "water_sound": 300000
+        }
+      },
+      "nsdInsteadOfAvahi": true,
+      "onlineSpotterEnabled": true,
+      "passportApi": {
+        "useAuthInfoProviderV2": false
+      },
+      "phone_calls": {
+        "account_reg_config": {
+          "timeout_sec": 60
+        },
+        "ats_manager": true,
+        "block_updates_on_call": true,
+        "enabled": true,
+        "execute_server_callbacks": true,
+        "pjsip": {
+          "enabled": true
+        },
+        "register_on_add": false,
+        "webrtc": {
+          "enabled": false
+        }
+      },
+      "pinger": {
+        "pings": [
+          {
+            "host": "quasar.yandex.ru",
+            "intervalMs": 10000,
+            "timeoutMs": 10000
+          },
+          {
+            "gateway": true,
+            "intervalMs": 5000,
+            "timeoutMs": 5000
+          },
+          {
+            "host": "8.8.8.8",
+            "intervalMs": 10000,
+            "timeoutMs": 10000
+          }
+        ],
+        "socketType": "dgram"
+      },
+      "qrPaymentConfig": {
+        "cardDetails": {
+          "playAfterLogin": true,
+          "playAfterPurchase": true,
+          "pollingApiEnabled": false,
+          "showQrAfterLogin": true
+        },
+        "checkActiveUserIsOwnerEnabled": true,
+        "qrPaymentEnabled": true,
+        "redesignEnabledV3": true
+      },
+      "quasmodrom_group": "production",
+      "quasmodrom_subgroup": "production",
+      "quick_pinger": {
+        "pings": [
+          {
+            "gateway": true,
+            "intervalMs": 100,
+            "timeoutMs": 100
+          }
+        ],
+        "socketType": "dgram"
+      },
+      "sendCapabilityStateUpdates": true,
+      "sendVinsRequestProto": true,
+      "shouldCheckWifi": false,
+      "smart_volume": {
+        "_android_overrides": [
+          {
+            "newFields": {
+              "splCalibShift": 116.4
+            },
+            "properties": {
+              "ro.boot.hardware.revision": "1",
+              "ro.yndx.screen.size": "43"
+            }
+          },
+          {
+            "newFields": {
+              "splCalibShift": 117.2
+            },
+            "properties": {
+              "ro.boot.hardware.revision": "1",
+              "ro.yndx.screen.size": "50"
+            }
+          },
+          {
+            "newFields": {
+              "splCalibShift": 112.7
+            },
+            "properties": {
+              "ro.boot.hardware.revision": "1",
+              "ro.yndx.screen.size": "55"
+            }
+          },
+          {
+            "newFields": {
+              "splCalibShift": 112.2
+            },
+            "properties": {
+              "ro.boot.hardware.revision": "1",
+              "ro.yndx.screen.size": "65"
+            }
+          },
+          {
+            "newFields": {
+              "splCalibShift": 112.8
+            },
+            "properties": {
+              "ro.boot.hardware.revision": "2",
+              "ro.yndx.screen.size": "43"
+            }
+          },
+          {
+            "newFields": {
+              "splCalibShift": 112.1
+            },
+            "properties": {
+              "ro.boot.hardware.revision": "2",
+              "ro.yndx.screen.size": "50"
+            }
+          },
+          {
+            "newFields": {
+              "splCalibShift": 111.9
+            },
+            "properties": {
+              "ro.boot.hardware.revision": "2",
+              "ro.yndx.screen.size": "55"
+            }
+          },
+          {
+            "newFields": {
+              "splCalibShift": 113.2
+            },
+            "properties": {
+              "ro.boot.hardware.revision": "2",
+              "ro.yndx.screen.size": "65"
+            }
+          }
+        ],
+        "enabled": true,
+        "percentThresholds": [
+          {
+            "from": 0,
+            "to": [
+              {
+                "upperThresh": null,
+                "vol": null
+              }
+            ]
+          },
+          {
+            "from": 7.5,
+            "to": [
+              {
+                "upperThresh": 38,
+                "vol": null
+              },
+              {
+                "upperThresh": null,
+                "vol": 10
+              }
+            ]
+          },
+          {
+            "from": 12.5,
+            "to": [
+              {
+                "upperThresh": 42,
+                "vol": null
+              },
+              {
+                "upperThresh": null,
+                "vol": 15
+              }
+            ]
+          },
+          {
+            "from": 17.5,
+            "to": [
+              {
+                "upperThresh": 46,
+                "vol": null
+              },
+              {
+                "upperThresh": null,
+                "vol": 20
+              }
+            ]
+          },
+          {
+            "from": 22.5,
+            "to": [
+              {
+                "upperThresh": 50,
+                "vol": null
+              },
+              {
+                "upperThresh": null,
+                "vol": 25
+              }
+            ]
+          },
+          {
+            "from": 27.5,
+            "to": [
+              {
+                "upperThresh": null,
+                "vol": null
+              }
+            ]
+          },
+          {
+            "from": 32.5,
+            "to": [
+              {
+                "upperThresh": null,
+                "vol": null
+              },
+              {
+                "upperThresh": 42,
+                "vol": 25
+              }
+            ]
+          },
+          {
+            "from": 37.5,
+            "to": [
+              {
+                "upperThresh": null,
+                "vol": 30
+              }
+            ]
+          },
+          {
+            "from": 42.5,
+            "to": [
+              {
+                "upperThresh": null,
+                "vol": 35
+              }
+            ]
+          },
+          {
+            "from": 100,
+            "to": [
+              {
+                "upperThresh": null,
+                "vol": null
+              }
+            ]
+          }
+        ],
+        "skipFrames": 31,
+        "soundWindowSize": 256,
+        "splCalibSilence": -150,
+        "splQuantile": 0.15,
+        "volumeChangeDisableTimeout": 300,
+        "volumeLevelSplsPercent": [
+          {
+            "spl": 14.2,
+            "vol": 1
+          },
+          {
+            "spl": 21.5,
+            "vol": 5
+          },
+          {
+            "spl": 29,
+            "vol": 10
+          },
+          {
+            "spl": 35.5,
+            "vol": 15
+          },
+          {
+            "spl": 42.3,
+            "vol": 20
+          },
+          {
+            "spl": 47.8,
+            "vol": 25
+          },
+          {
+            "spl": 53.2,
+            "vol": 30
+          },
+          {
+            "spl": 56.4,
+            "vol": 35
+          },
+          {
+            "spl": 59.7,
+            "vol": 40
+          },
+          {
+            "spl": 62.9,
+            "vol": 45
+          },
+          {
+            "spl": 64.4,
+            "vol": 50
+          },
+          {
+            "spl": 65.8,
+            "vol": 55
+          },
+          {
+            "spl": 67.4,
+            "vol": 60
+          },
+          {
+            "spl": 68.6,
+            "vol": 65
+          },
+          {
+            "spl": 69.7,
+            "vol": 70
+          },
+          {
+            "spl": 70.8,
+            "vol": 75
+          },
+          {
+            "spl": 72,
+            "vol": 80
+          },
+          {
+            "spl": 72.8,
+            "vol": 85
+          },
+          {
+            "spl": 74.2,
+            "vol": 90
+          },
+          {
+            "spl": 75.2,
+            "vol": 95
+          },
+          {
+            "spl": 76.2,
+            "vol": 100
+          }
+        ],
+        "volumeRestoreRule": "save_if_manual",
+        "volumeSelectionStrategy": "percent"
+      },
+      "spectrogramAnimation": {
+        "presets": {
+          "voice": {
+            "alwaysOnLeds": 1,
+            "angleSpeed": 120,
+            "bandCount": 1,
+            "blockMove": true,
+            "blockOnShifting": true,
+            "c0": {
+              "h": 250,
+              "s": 0.94,
+              "v": 1
+            },
+            "c1": {
+              "h": 250,
+              "s": 0.94,
+              "v": 1
+            },
+            "c2": {
+              "h": 195,
+              "s": 0.78,
+              "v": 0.91
+            },
+            "c3": {
+              "h": 150,
+              "s": 1,
+              "v": 1
+            },
+            "center": 0,
+            "colors": {
+              "baseColor": {
+                "b": 255,
+                "g": 15,
+                "r": 55
+              },
+              "defaultColor": {
+                "b": 0,
+                "g": 0,
+                "r": 0
+              },
+              "gradientCenterColor": {
+                "h": 250,
+                "s": 0.94,
+                "v": 1
+              },
+              "gradientMiddleColor": {
+                "h": 195,
+                "s": 0.784,
+                "v": 0.91
+              },
+              "gradientSideColor": {
+                "h": 159,
+                "s": 0.968,
+                "v": 0.867
+              }
+            },
+            "derivation": 0.4,
+            "distanceBetweenPoints": 0.3,
+            "enableMiddleColor": true,
+            "filters": {
+              "twitchFilter": {
+                "decreasingDelta": 20,
+                "enabled": true,
+                "increasingDelta": 30,
+                "maxValue": 400,
+                "minDecreasingDelta": 4,
+                "minDecreasingStateChange": 0,
+                "minDecreasingSwitchDistance": 130,
+                "minIncreasingDelta": 4,
+                "minIncreasingStateChange": 0,
+                "minIncreasingSwitchDistance": 80,
+                "minState": 30,
+                "returnToZero": true
+              }
+            },
+            "gradientColors": [
+              {
+                "h": 250,
+                "s": 0.94,
+                "v": 1
+              },
+              {
+                "h": 250,
+                "s": 0.94,
+                "v": 1
+              },
+              {
+                "h": 195,
+                "s": 0.78,
+                "v": 0.91
+              },
+              {
+                "h": 150,
+                "s": 1,
+                "v": 1
+              }
+            ],
+            "gradientDistribution": [
+              1,
+              0.8,
+              0.6,
+              0.6,
+              0.5,
+              0
+            ],
+            "gradientShifts": [
+              0.1,
+              0.2,
+              0.35,
+              0.5
+            ],
+            "l0": 0.1,
+            "l1": 0.2,
+            "l2": 0.35,
+            "l3": 0.5,
+            "ledLength": 400,
+            "lengthWhenMoving": 1.5,
+            "maxBand": 0.001,
+            "maxFrequency": 400,
+            "maxShift": 6,
+            "minBrightness": [
+              0,
+              0,
+              0,
+              0,
+              256,
+              256,
+              256,
+              256,
+              256,
+              256
+            ],
+            "minFrequency": 200,
+            "minHeight": 400,
+            "pointsToCheckCount": 50,
+            "shiftFromMean": 0,
+            "updateLedFrequency": 20,
+            "useAllSides": true,
+            "useNewProAnimation": true,
+            "usePureColors": false
+          }
+        },
+        "voice_preset": "voice"
+      },
+      "speechkitLogChannels": [
+        "vqe_0",
+        "vqe_bnr_0"
+      ],
+      "spotterRecognizer": {
+        "maxRecognitionTime": 3000
+      },
+      "streamingAnimations": {
+        "ignore_repeated_animations_when_playing": true,
+        "repeated_animations_whitelist": [
+          "neutral"
+        ]
+      },
+      "syncd": {
+        "pollPeriodSec": 1800
+      },
+      "tandemColorCodesConfig": {
+        "bergamot": {
+          "14": [
+            "13",
+            "14"
+          ]
+        },
+        "cucumber": {
+          "14": [
+            "13",
+            "14"
+          ]
+        },
+        "pickle": {
+          "14": [
+            "13",
+            "14"
+          ]
+        },
+        "plum": {
+          "14": [
+            "13",
+            "14"
+          ]
+        }
+      },
+      "teleme3d": {
+        "appmetrica": {
+          "+events": [
+            "directiveHandled",
+            "directiveStarted",
+            "directiveCompleted",
+            "NetInterfaceGotAddress",
+            "NetInterfaceUp",
+            "associationFailed",
+            "connectionStats",
+            "emptyIp",
+            "emptyIpFixed",
+            "emptyNetworks",
+            "emptyNetworksFixed",
+            "emptyScan",
+            "emptyScanFixed",
+            "internetRecovery",
+            "internetRecoveryFail",
+            "internetRecoveryStart",
+            "internetRecoverySuccess",
+            "phraseSpottedWithoutInternet",
+            "processStart",
+            "setupConfigurationError",
+            "wifiConnect",
+            "wifiDisconnect",
+            "wifiReport",
+            "wifiReset",
+            "wrongIp",
+            "wrongIpFixed",
+            "ysk_error_network",
+            "ysk_error_timeout"
+          ],
+          "persistentBatcher": {
+            "enabled": true,
+            "lookForNetworkConnection": true,
+            "maxBatchCollectingWhenNoInternetTimeSec": 360,
+            "maxStorageSizeMb": 1,
+            "storagePath": "${DATA}/appmetrica/persistedBatch",
+            "syncPeriodSec": 360
+          }
+        },
+        "persistentAppmetrica": {
+          "+events": [
+            "wifiReset",
+            "phraseSpottedWithoutInternet",
+            "setupConfigurationError",
+            "internetRecovery",
+            "internetRecoveryStart",
+            "internetRecoverySuccess",
+            "internetRecoveryFail",
+            "associationFailed",
+            "emptyScan",
+            "emptyScanFixed",
+            "emptyIp",
+            "emptyIpFixed",
+            "wrongIp",
+            "wrongIpFixed",
+            "emptyNetworks",
+            "emptyNetworksFixed",
+            "wifiConnect",
+            "wifiDisconnect",
+            "NetInterfaceUp",
+            "NetInterfaceGotAddress",
+            "wifiReport",
+            "connectionStats",
+            "processStart",
+            "ysk_error_network",
+            "ysk_error_timeout"
+          ]
+        }
+      },
+      "telemetry": {
+        "rate_limiter": {
+          "buckets_count": 1,
+          "filtered_events": [
+            "system_app_anr",
+            "system_app_crash",
+            "system_app_native_crash",
+            "init_error_screen_shown",
+            "passport_error",
+            "teasers_loading_error"
+          ],
+          "groups": [
+            {
+              "count_limit": 1,
+              "events": [
+                "ysk_spotter_queue_overflow"
+              ],
+              "interval_ms": 120000
+            }
+          ]
+        }
+      },
+      "ttsAnnotationsMapper": {
+        "enabled": true
+      },
+      "ultrasound": {
+        "detector": {
+          "meta": {
+            "bandWidth": 600,
+            "channelAggregation": "pick_in_sorted_desc",
+            "cooldownPeriod": 5000,
+            "frameWidth": 16384,
+            "freq": 35000,
+            "groupingWindowWidth": 3000,
+            "hopLength": 8192,
+            "numChannels": 4,
+            "numTriggers": 5,
+            "pickChannelIdx": 3,
+            "postclassifier": {
+              "channelAggregation": "pick_in_original",
+              "cooldownPeriod": 0,
+              "groupingWindowWidth": 2700,
+              "numTriggers": 2,
+              "pickChannelIdx": 0,
+              "slidingAvgWidth": 0,
+              "threshold": 0.7
+            },
+            "sampleRate": 96000,
+            "slidingAvgWidth": 0,
+            "thresholdDb": 55.28
+          },
+          "type": "pcagmm_doppler"
+        },
+        "enabled": true,
+        "generator": {
+          "amplitude": 0.025,
+          "blockSize": 65536,
+          "fadeLength": 200,
+          "nChannels": 4,
+          "sampleRate": 96000,
+          "waveFreqHz": 35000,
+          "zeroChannels": [
+            0,
+            1
+          ]
+        },
+        "sendMetricaEvents": true
+      },
+      "unbound": {
+        "checkHosts": [
+          "quasar.yandex.net",
+          "uniproxy.alice.yandex.net",
+          "scbh.yandex.net"
+        ],
+        "enable": true,
+        "forwarders": [
+          "77.88.8.1",
+          "77.88.8.8",
+          "77.88.8.88",
+          "77.88.8.2",
+          "1.1.1.1"
+        ],
+        "serverParams": [
+          "msg-cache-size: 2m",
+          "rrset-cache-size: 2m",
+          "username: \"nobody\""
+        ]
+      },
+      "uniProxyUrl": "wss://uniproxy.alice.yandex.net/uni.ws",
+      "useActiveAccountGuestOptions": true,
+      "useDeviceStateRaw": true,
+      "useEnvironmentStateRaw": true,
+      "useVinsRequestProto": true,
+      "voice_activity_detector": {
+        "events_enabled": true
+      },
+      "voiceDialogSettings": {
+        "activationSpotterSettings": {
+          "spotterLoggingRareEventPercent": 50,
+          "spotterLoggingRareEventTailMillis": 5000,
+          "spotterLoggingVeryRareEventTailMillis": 5000
+        },
+        "backoffUseNew": true,
+        "blockUpdateSettingsWhileActiveRequest": true,
+        "commandSpotterSettings": {
+          "spotterLoggingRareEventPercent": 100
+        },
+        "intonationInterruptionSpotterSettings": {
+          "spotterLoggingRareEventPercent": 100,
+          "spotterLoggingRareEventTailMillis": 5000,
+          "spotterLoggingVeryRareEventTailMillis": 5000
+        },
+        "intonationSpotterSettings": {
+          "spotterLoggingRareEventPercent": 100,
+          "spotterLoggingRareEventTailMillis": 5000,
+          "spotterLoggingVeryRareEventTailMillis": 5000
+        },
+        "protoAliceApi": {
+          "clientEventsWhitelist": [
+            "RequestStat"
+          ],
+          "serverEventsWhitelist": [
+            "RequestStatAck"
+          ]
+        },
+        "recognizer": {
+          "encodingApplication": "audio",
+          "encodingBitrate": 24000,
+          "encodingComplexity": 0,
+          "packSoundBuffer": true,
+          "spotterSubscribePointShiftMs": -80
+        },
+        "resetAfterTrigger": false,
+        "spotterLoggingHeadMillis": 0,
+        "spotterLoggingRareEventPercent": 0,
+        "spotterLoggingTailMillis": 0,
+        "spotterLoggingVeryRareEventPercent": 1,
+        "spotterLoggingVeryRareStreamingLengthMillis": 5000,
+        "useCounterActivation": true,
+        "useProtoAliceApi": true
+      },
+      "wifi_capability": {
+        "enabled_v2": true,
+        "reassociateWhenNoInternet": false
+      },
+      "wifi_reseter2": {
+        "minResetIntervalSec": 120,
+        "noInternet": {
+          "intervalSec": 120,
+          "method": "old"
+        }
+      },
+      "wifi_stats": {
+        "allBss": true,
+        "bothIE": true,
+        "iface": true,
+        "longCpblt": false,
+        "periodSec": 600,
+        "survey": true,
+        "tids": false
+      },
+      "wifiReseter": {},
+      "wifiSettings": {
+        "disableWlan0Monitor": true,
+        "enableInternetRecovery": true,
+        "generate204": {
+          "failPeriodMs": 10000,
+          "maxFailAttempts": 3,
+          "periodOnLastFailAttemptMs": 30000,
+          "periodSec": 300,
+          "timeoutMs": 8000
+        },
+        "wifiReportWindowSec": 0
+      },
+      "YandexMusic": {
+        "volume": 100
+      },
+      "yandexTvGeneral": {
+        "connectivityMaxReachabilityCheckDelayS": 10,
+        "mandatoryAuth": true,
+        "marketUrl": "https://dialogs.yandex.ru/app-store",
+        "networkErrorEventName": "arpc_network_error",
+        "networkMetricaLoggingEnabled": true,
+        "networkRequestEventName": "arpc_network_request",
+        "notifyAndroidAboutNetworkState": true,
+        "notifyAndroidAboutNetworkStateV2": true,
+        "quickPingsEnabled": true,
+        "shouldRetryServerErrors": false,
+        "tvChannelsProtoHttpEnabled": true,
+        "useAndroidConnectivityManager": true,
+        "yandexConnectivityCheckUrl": "http://scbh.yandex.net/generate_204"
+      },
+      "zigbee": {
+        "externalTemperatureMeasurement": {
+          "enabled": true,
+          "reportingIntervalSec": 60
+        }
+      }
+    }
+  },
+  "alice_pro_subscription": {
+    "enabled": true,
+    "ttl": 31536000
+  },
+  "subscription": {
+    "mode": "transaction"
+  },
+  "tags": []
+}

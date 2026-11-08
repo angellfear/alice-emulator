@@ -165,29 +165,33 @@ class QuasarBackend:
                 if not isinstance(custom,dict) or not isinstance(custom.get('config'),dict):
                     return 409, {'error':'quasar_custom_not_set','hint':'Сохраните свой ответ во вкладке «Quasar → Переопределение под устройство»'}
                 return 200, copy.deepcopy(custom)
-            # Слоёная модель: common → merge-patch платформы → переопределения
-            # аккаунта владельца → переопределения устройства → инлайн-узлы → динамика.
+            # Слоёная модель: встроенный generated → common → merge-patch платформы →
+            # переопределения аккаунта владельца → переопределения устройства →
+            # инлайн-узлы → динамика. Пользовательского common нет — база built-in
+            # дефолта из server_emulator/quasar_defaults (полный конфиг без захвата).
             common, platform_patch = self.runtime.quasar_platforms.resolve_files(device)
-            if common is not None:
+            quasar = state.get('quasar',{})
+            if common is not None or not isinstance(quasar.get('config'),dict):
+                from .quasar_config import account_layer, compose, generated_base, merge_layer
+                platform_name = (device.get('profile') or {}).get('platform') or ''
+                base = generated_base(platform_name)
+                if common is not None:
+                    base = merge_layer(base, common)  # пользовательский common сильнее встроенного
                 try:
-                    from .quasar_config import account_layer, compose
                     account_overrides, account_name = account_layer(self.runtime, device)
-                    body = compose(common, platform_patch,
+                    body = compose(base, platform_patch,
                                    state.get('quasar_overrides'), self.runtime, device,
                                    account_overrides=account_overrides, account_name=account_name)
                 except Exception as exc:  # битый источник: колонке нужен внятный ответ
                     return 409, {'error':'quasar_config_source','hint':str(exc)[:200]}
                 if not isinstance(body, dict) or not isinstance(body.get('config'), dict):
-                    return 409, {'error':'quasar_config_no_config','hint':'В файле платформы нет sync.config'}
+                    return 409, {'error':'quasar_config_no_config','hint':'В конфиге нет sync.config'}
                 result = {'status':'ok', **body}
                 group = self.group_payload(device)
                 if group:
                     result['group'] = group  # реестр стереопар главнее узла шаблона
                 return 200, result
             # Legacy-путь (до миграции на платформы): полный конфиг в state.quasar
-            quasar = state.get('quasar',{})
-            if not isinstance(quasar.get('config'),dict):
-                return 409, {'error':'device_config_not_set','hint':'Set state.quasar.config for this SN'}
             result = {'status':'ok','config':quasar['config'],'tags':quasar.get('tags',[])}
             for key in ('glagol','subscription','alice_pro_subscription'):
                 if key in quasar:

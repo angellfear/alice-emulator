@@ -13,7 +13,7 @@ import copy
 
 from aiohttp import web
 
-from ...quasar_config import account_layer, compose, poll_period_warnings
+from ...quasar_config import account_layer, compose, generated_base, merge_layer, poll_period_warnings
 from ...quasar_replace import preview_replacements, validate_rules
 from ...upstream import UpstreamError, forward_headers
 from ...upstream.forward import decoded_json
@@ -22,13 +22,18 @@ from . import route
 
 
 def _sync_body(runtime, device):
-    """Ответ get_sync_info, который собрал бы compose (для action: generate)."""
+    """Ответ get_sync_info, который собрал бы compose (для action: generate): база —
+    встроенный generated, поверх — пользовательский common (если есть)."""
     state = device.get('state') or {}
     common, platform_patch = runtime.quasar_platforms.resolve_files(device)
-    if common is None:
+    if common is None and isinstance((state.get('quasar') or {}).get('config'), dict):
         raise ValueError('Устройство на legacy-конфиге state.quasar — генерация недоступна')
+    platform_name = (device.get('profile') or {}).get('platform') or ''
+    base = generated_base(platform_name)
+    if common is not None:
+        base = merge_layer(base, common)
     account_overrides, account_name = account_layer(runtime, device)
-    body = compose(common, platform_patch, state.get('quasar_overrides'),
+    body = compose(base, platform_patch, state.get('quasar_overrides'),
                    runtime, device, account_overrides=account_overrides, account_name=account_name)
     result = {'status': 'ok', **body}
     group = runtime.quasar.group_payload(device)
@@ -95,15 +100,20 @@ async def quasar_composed(request, runtime, app):
     state = device.get('state') or {}
     common, platform_patch = runtime.quasar_platforms.resolve_files(device)
     platform_name = runtime.quasar_platforms.platform_for(device)
-    if common is None:  # legacy: полный конфиг в state.quasar
+    if common is None and isinstance((state.get('quasar') or {}).get('config'), dict):
+        # legacy: полный конфиг в state.quasar
         return web.json_response({'legacy': True, 'platform': None,
                                   'config': state.get('quasar', {}),
                                   'origins': {}, 'overrides':
                                   state.get('quasar_overrides') or []})
+    profile_platform = (device.get('profile') or {}).get('platform') or ''
+    base = generated_base(profile_platform)
+    if common is not None:
+        base = merge_layer(base, common)
     trace = {}
     account_overrides, account_name = account_layer(runtime, device)
     try:
-        body = compose(common, platform_patch, state.get('quasar_overrides'),
+        body = compose(base, platform_patch, state.get('quasar_overrides'),
                        runtime, device, trace=trace, platform_label=platform_name,
                        account_overrides=account_overrides, account_name=account_name)
     except Exception as exc:
@@ -139,7 +149,12 @@ async def quasar_source(request, runtime, app):
     if request.method == 'GET':
         device = device_of(request.query.get('sn', ''))
         state = device.get('state') or {}
-        return web.json_response({'mode': state.get('quasar_source') or 'generated',
+        common, _ = runtime.quasar_platforms.resolve_files(device)
+        mode = state.get('quasar_source') or 'generated'
+        # встроенная база generated: нет пользовательского common и нет legacy-конфига
+        builtin_base = (mode == 'generated' and common is None
+                        and not isinstance((state.get('quasar') or {}).get('config'), dict))
+        return web.json_response({'mode': mode, 'builtin_base': builtin_base,
                                   'direct_last': state.get('quasar_direct_last'),
                                   'custom': state.get('quasar_custom'),
                                   'replace': state.get('quasar_direct_replace') or [],

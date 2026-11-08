@@ -79,6 +79,10 @@ keywords = ["wifi", "ssid", "password"]
   paths = ['''^server_emulator/params\.py$''']
   regexes = ['''^service$''']
   [[rules.allowlists]]
+  description = "Дефолт wifi_hash, запечённый в публичной zod-схеме upstream quasar-server (входит в встроенный дефолт get_sync_info, quasar_defaults/) — не данные пользователя"
+  paths = ['''^server_emulator/quasar_defaults/''']
+  regexes = ['''^39671801dd40273b54f83b5c3f7d9a0f0055e5a1b1687a6427241d9be9bf402e$''']
+  [[rules.allowlists]]
   description = "Код читает значение из переменной/выражения, а не хранит литерал"
   regexes = ['''^(?i:password|passwd|pwd|value|none|null|true|false|text)$''']
 

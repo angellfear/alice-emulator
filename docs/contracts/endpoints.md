@@ -26,8 +26,10 @@ OTA-обновления, каталог приложений). Остально
   `/tv/api/v1/media`, `/register`;
 - egress.yandex.net `/?size=10` (226) — периодика каждые ~2 минуты с каждой колонки.
 
-Отдельный класс — 409 `device_config_not_set` на `/get_sync_info`: маршрут обслуживается
-builtin-логикой, но устройству нужен реальный `state.quasar.config` (см. «Конфиги sync»).
+Отдельный класс — 409 `device_config_not_set` на `/get_sync_info` (устроенному нужен
+реальный `state.quasar.config`): устранён — без слоёв и legacy builtin собирает ответ из
+встроенных дефолтов `server_emulator/quasar_defaults/` (источник generated,
+`docs/contracts/quasar-config.md`).
 
 В capture-базе уже есть реальные 200-ответы облака почти на всё это (proxy-окна):
 egress — 106, tv/api/v4/settings — 72, gproxy-семейство — 1–54, push_subscribe — 31,
@@ -119,15 +121,17 @@ HTTP-обработчики (пользовательские, scoped)
      ответа capture-события;
    - `--sync-configs`: для каждого известного эмулятору устройства достаёт последний
      реальный ответ `/get_sync_info` и заливает `state.quasar.config` (config/tags/
-     glagol/subscription) через admin-API `identities` (operation=state) — лечит 409
-     `device_config_not_set`.
+     glagol/subscription) через admin-API `identities` (operation=state) — персональный
+     захваченный конфиг вместо встроенного дефолта для legacy-пути.
 
-### Конфиги sync: ответ 409
+### Конфиги sync: персональный ответ из захвата
 
 Реальный ответ `/get_sync_info` содержит `config` (device_config и пр.), `tags`,
 `glagol`, `subscription`, `alice_pro_subscription` — именно их ждёт builtin
 (quasar.py: get_sync_info). Утилита заливает их в `state.quasar` устройства;
 персональные ключи из capture (если есть) вычищаются (оставляем структуру).
+Без legacy-конфига устройство получает встроенный источник generated
+(см. `docs/contracts/quasar-config.md`).
 
 Восстановлено из захватов 19 эндпоинтов (16 маршрутов + device_list/check_token/
 set_device_capability после смягчения builtin: неопределимый вызывающий и protobuf-тело

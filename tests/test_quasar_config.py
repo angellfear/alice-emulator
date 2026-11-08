@@ -1,13 +1,16 @@
 """Quasar-конфиг: слои + инлайн-узлы ($select/$bool/$string/$number/$list/$param)."""
 import json
+from pathlib import Path
 
 import pytest
 from aiohttp import ClientSession
 
+import server_emulator
+
 from server_emulator.quasar_config import (PlatformStore, QuasarConfigError, compose,
-                                           context_for, inline_type,
-                                           merge_patch, resolve_param, resolve_source,
-                                           resolve_tree)
+                                           context_for, generated_base, inline_type,
+                                           merge_layer, merge_patch, resolve_param,
+                                           resolve_source, resolve_tree)
 from server_emulator.runtime import Runtime
 
 SELECTOR = {
@@ -192,8 +195,223 @@ async def test_get_sync_info_inline_end_to_end(tmp_path):
         await runtime.close()
 
 
+def test_quasar_defaults_package():
+    """Встроенные дефолты: 13 платформенных файлов, квирк chiron/magritte доводит
+    общий дефолт до платформенной формы, README несёт происхождение."""
+    defaults = Path(server_emulator.__file__).parent / "quasar_defaults"
+    platforms = sorted(p.stem for p in (defaults / "platforms").glob("*.json"))
+    assert platforms == sorted(["chiron", "cucumber", "magritte", "malevich", "monet",
+                                "yandexmicro", "yandexmidi", "yandexmini", "yandexmini_2",
+                                "yandexmodule", "yandexmodule_2", "yandexstation",
+                                "yandexstation_2"])
+    common = json.loads((defaults / "common.json").read_text(encoding="utf-8"))
+    assert common["config"]["device_config"]["name"] == "{{device.name}}"
+    assert common["alice_pro_subscription"] == {"enabled": True, "ttl": 31536000}
+    assert common["subscription"] == {"mode": "transaction"} and common["tags"] == []
+    chiron = json.loads((defaults / "platforms" / "chiron.json").read_text(encoding="utf-8"))
+    magritte = json.loads((defaults / "platforms" / "magritte.json").read_text(encoding="utf-8"))
+    assert chiron == magritte
+    hybrid = chiron["config"]["system_config"]["hybrid_request_factory"]
+    assert hybrid["hybrid_voice_inputs"] is None  # null = удалить узел
+    frames = hybrid["hybrid"]["scenarios"]["fast_command_scenario"]["supported_frames"]
+    assert isinstance(frames, dict)
+    merged = merge_patch(common, chiron)
+    hybrid_merged = merged["config"]["system_config"]["hybrid_request_factory"]
+    merged_frames = hybrid_merged["hybrid"]["scenarios"]["fast_command_scenario"]["supported_frames"]
+    assert isinstance(merged_frames, dict) and "hybrid_voice_inputs" not in hybrid_merged
+    assert "fefcd58803012c61f8a9f8c88351dabff1305c81" in \
+        (defaults / "README.md").read_text(encoding="utf-8")
+
+
+def test_generated_base_platform_whitelist():
+    """Платформа не попадает в путь файла: белый список platforms/ — traversal
+    («../common», «chiron/../x») даёт общий дефолт (не исключение и не чужой файл),
+    настоящий квирк на месте."""
+    base = generated_base("yandexstation")
+    for bad in ("../common", "chiron/../x", "..\\common"):
+        assert generated_base(bad) == base
+    frames = generated_base("chiron")["config"]["system_config"]["hybrid_request_factory"][
+        "hybrid"]["scenarios"]["fast_command_scenario"]["supported_frames"]
+    assert isinstance(frames, dict) and frames  # квирк chiron применён
+
+
+def test_generated_base_under_common(tmp_path):
+    """generated — нижний этаж слоёв: common перекрывает built-in дефолт (узлы generated
+    целы под ним), платформа перекрывает common."""
+    runtime = FakeRuntime(tmp_path, users=[{"id": "u1", "name": "U"}])
+    device = dict(device_fixture(), profile={"platform": "yandexstation"})
+    common = {"config": {"system_config": {"commandSpottersMode": "из-common"}}}
+    base = merge_layer(generated_base("yandexstation"), common)
+    body = compose(base, None, [], runtime, device)
+    assert body["config"]["system_config"]["commandSpottersMode"] == "из-common"
+    assert body["config"]["system_config"]["uniProxyUrl"].startswith("wss://")  # generated под common
+    assert body["alice_pro_subscription"] == {"enabled": True, "ttl": 31536000}  # узел generated цел
+    body = compose(base, {"config": {"system_config": {"commandSpottersMode": "из-платформы"}}},
+                   [], runtime, device)
+    assert body["config"]["system_config"]["commandSpottersMode"] == "из-платформы"
+
+
+def test_generated_account_and_device_over_platform(tmp_path):
+    """На базе generated: устройство сильнее аккаунта, аккаунт сильнее платформы,
+    платформа сильнее дефолта."""
+    account_overrides = [{"path": "config.account_config.spotter", "source": "аккаунт"}]
+    runtime = FakeRuntime(tmp_path, users=[{"id": "u1", "name": "U",
+                                            "quasar_overrides": account_overrides}])
+    device = device_fixture()
+    platform = {"config": {"account_config": {"spotter": "платформа"}}}
+    body = compose(generated_base("chiron"), platform,
+                   [{"path": "config.account_config.spotter", "source": "устройство"}],
+                   runtime, device, account_overrides=account_overrides, account_name="U")
+    assert body["config"]["account_config"]["spotter"] == "устройство"
+    body = compose(generated_base("chiron"), platform, [], runtime, device,
+                   account_overrides=account_overrides, account_name="U")
+    assert body["config"]["account_config"]["spotter"] == "аккаунт"
+    body = compose(generated_base("chiron"), platform, [], runtime, device)
+    assert body["config"]["account_config"]["spotter"] == "платформа"
+    body = compose(generated_base("chiron"), None, [], runtime, device)
+    assert body["config"]["account_config"]["spotter"] == "alisa"  # дефолт generated
+
+
 @pytest.mark.asyncio
-async def test_get_sync_info_legacy_without_layers(tmp_path):
+async def test_get_sync_info_platform_quirk(tmp_path):
+    """Квирк платформ из встроенных дефолтов: chiron/magritte — supported_frames-объект
+    без hybrid_voice_inputs; остальные платформы — массив с hybrid_voice_inputs."""
+    from server_emulator.server import create_app
+    from tests.conftest import listen
+
+    runtime = Runtime(directory=tmp_path)
+    runtime.identities.mutate({'operation': 'user', 'id': 'u1', 'name': 'U'})
+    for sn, platform in (('SN-C', 'chiron'), ('SN-M', 'magritte'), ('SN-S', 'yandexstation')):
+        runtime.identities.mutate({'operation': 'device', 'sn': sn, 'user_id': 'u1',
+                                   'device_ids': [sn], 'profile': {'platform': platform}})
+    runner, url = await listen(create_app(runtime=runtime))
+
+    async def hybrid_of(client, sn):
+        async with client.get(url + f"/get_sync_info?device_id={sn}",
+                              headers={"Host": "quasar.yandex.net"}) as response:
+            assert response.status == 200
+            body = await response.json()
+            return body["config"]["system_config"]["hybrid_request_factory"]
+
+    try:
+        async with ClientSession() as client:
+            for sn in ("SN-C", "SN-M"):
+                hybrid = await hybrid_of(client, sn)
+                frames = hybrid["hybrid"]["scenarios"]["fast_command_scenario"]["supported_frames"]
+                assert isinstance(frames, dict) and frames  # объект: кадр → условия
+                assert "hybrid_voice_inputs" not in hybrid
+            hybrid = await hybrid_of(client, "SN-S")
+            frames = hybrid["hybrid"]["scenarios"]["fast_command_scenario"]["supported_frames"]
+            assert isinstance(frames, list) and frames
+            assert hybrid["hybrid_voice_inputs"] is True
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
+@pytest.mark.asyncio
+async def test_get_sync_info_common_and_platform_over_generated(tmp_path):
+    """Швы на живом эндпоинте: common перекрывает generated, платформа — common."""
+    from server_emulator.server import create_app
+    from tests.conftest import listen
+
+    runtime = Runtime(directory=tmp_path)
+    runtime.identities.mutate({'operation': 'user', 'id': 'u1', 'name': 'U'})
+    runtime.identities.mutate({'operation': 'device', 'sn': 'SN-1', 'user_id': 'u1',
+                               'device_ids': ['id-1'], 'profile': {'platform': 'yandexstation'}})
+    runtime.quasar_platforms.save_common({"config": {"system_config":
+                                                     {"commandSpottersMode": "из-common"}}})
+    runner, url = await listen(create_app(runtime=runtime))
+
+    async def mode_of(client):
+        async with client.get(url + "/get_sync_info?device_id=id-1",
+                              headers={"Host": "quasar.yandex.net"}) as response:
+            assert response.status == 200
+            body = await response.json()
+            return body["config"]["system_config"]["commandSpottersMode"]
+
+    try:
+        async with ClientSession() as client:
+            assert await mode_of(client) == "из-common"
+            runtime.quasar_platforms.save("yandexstation",
+                                          {"config": {"system_config":
+                                                      {"commandSpottersMode": "из-платформы"}}})
+            assert await mode_of(client) == "из-платформы"
+            runtime.quasar_platforms.remove("yandexstation")
+            assert await mode_of(client) == "из-common"
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
+@pytest.mark.asyncio
+async def test_get_sync_info_custom_and_legacy_unchanged(tmp_path):
+    """custom/legacy работают как раньше: свой ответ как есть, legacy-конфиг без compose
+    (форвардинг «Напрямую» — прежний путь диспетчера, покрытие в test_device_record)."""
+    from server_emulator.server import create_app
+    from tests.conftest import listen
+
+    runtime = Runtime(directory=tmp_path)
+    runtime.identities.mutate({'operation': 'user', 'id': 'u1', 'name': 'U'})
+    for sn in ("SN-1", "SN-2"):
+        runtime.identities.mutate({'operation': 'device', 'sn': sn, 'user_id': 'u1',
+                                   'device_ids': [sn], 'profile': {'platform': 'yandexstation'}})
+    runtime.identities.mutate({'operation': 'state', 'sn': 'SN-1', 'state': {
+        'quasar_source': 'custom',
+        'quasar_custom': {'status': 'ok', 'config': {'a': 1}, 'tags': ['t']}}})
+    runtime.identities.mutate({'operation': 'state', 'sn': 'SN-2', 'state': {
+        'quasar': {'config': {'device_config': {'name': 'legacy'}}, 'tags': ['x'],
+                   'subscription': {'mode': 'legacy'}}}})
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        async with ClientSession() as client:
+            async with client.get(url + "/get_sync_info?device_id=SN-1",
+                                  headers={"Host": "quasar.yandex.net"}) as response:
+                assert response.status == 200
+                assert await response.json() == {'status': 'ok', 'config': {'a': 1}, 'tags': ['t']}
+            async with client.get(url + "/get_sync_info?device_id=SN-2",
+                                  headers={"Host": "quasar.yandex.net"}) as response:
+                assert response.status == 200
+                assert await response.json() == {'status': 'ok',
+                                                 'config': {'device_config': {'name': 'legacy'}},
+                                                 'tags': ['x'], 'subscription': {'mode': 'legacy'}}
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
+@pytest.mark.asyncio
+async def test_get_sync_info_stereo_group_over_template(tmp_path):
+    """Стереопара реестра главнее узла group в собранном теле (в том числе на generated)."""
+    from server_emulator.server import create_app
+    from tests.conftest import listen
+
+    runtime = Runtime(directory=tmp_path)
+    runtime.identities.mutate({'operation': 'user', 'id': 'u1', 'name': 'U'})
+    for sn in ("SN-1", "SN-2"):
+        runtime.identities.mutate({'operation': 'device', 'sn': sn, 'user_id': 'u1',
+                                   'device_ids': [sn], 'profile': {'platform': 'yandexstation'}})
+    runtime.quasar_platforms.save_common({"group": {"name": "шаблон", "from": "common"}})
+    runtime.identities.mutate({'operation': 'group', 'name': 'Пара', 'secret': 'sec',
+                               'devices': [{"sn": "SN-1", "role": "leader"},
+                                           {"sn": "SN-2", "role": "follower"}]})
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        async with ClientSession() as client:
+            async with client.get(url + "/get_sync_info?device_id=SN-1",
+                                  headers={"Host": "quasar.yandex.net"}) as response:
+                assert response.status == 200
+                body = await response.json()
+                assert body["group"]["name"] == "Пара" and body["group"]["secret"] == "sec"
+                assert [m["role"] for m in body["group"]["devices"]] == ["leader", "follower"]
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
+@pytest.mark.asyncio
+async def test_get_sync_info_generated_without_layers(tmp_path):
+    """Чистое состояние (нет custom, слоёв и legacy): встроенный generated — 200, не 409."""
     from server_emulator.server import create_app
     from tests.conftest import listen
 
@@ -205,7 +423,20 @@ async def test_get_sync_info_legacy_without_layers(tmp_path):
         async with ClientSession() as client:
             async with client.get(url + "/get_sync_info?device_id=id-1",
                                   headers={"Host": "quasar.yandex.net"}) as response:
-                assert response.status == 409
+                assert response.status == 200
+                body = await response.json()
+                assert body["status"] == "ok"
+                config = body["config"]
+                assert config["system_config"]["uniProxyUrl"].startswith("wss://")
+                assert "useVinsRequestProto" in config["system_config"]
+                assert "commandSpottersMode" in config["system_config"]
+                fast = config["system_config"]["hybrid_request_factory"]["hybrid"]["scenarios"]["fast_command_scenario"]
+                assert isinstance(fast["supported_frames"], list)  # не chiron/magritte — массив
+                assert "hybrid_voice_inputs" in config["system_config"]["hybrid_request_factory"]
+                assert config["device_config"]["name"]  # {{device.name}} заполнен динамикой
+                assert body["alice_pro_subscription"] == {"enabled": True, "ttl": 31536000}
+                assert body["subscription"] == {"mode": "transaction"}
+                assert body["tags"] == []
     finally:
         await runner.cleanup()
         await runtime.close()

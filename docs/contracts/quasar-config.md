@@ -195,12 +195,36 @@ base(платформа устройства)  →  применить overrides
 ### Порядок слоёв `/get_sync_info`
 
 ```
-common → merge-patch платформы → переопределения аккаунта → переопределения устройства
-       → инлайн-узлы ($select/$string/…) → динамика ({{токены}} / db / run)
+built-in generated (quasar_defaults/common.json + платформенный квирк)
+  → common (state/quasar/common.json) → merge-patch платформы
+  → переопределения аккаунта → переопределения устройства
+  → инлайн-узлы ($select/$string/…) → динамика ({{токены}} / db / run)
 ```
 
 Устройство сильнее аккаунта: одно и то же значение, заданное в обоих слоях, берётся из
 переопределения устройства. Платформа слабее аккаунта: аккаунт всегда поверх патча платформы.
+Инлайн-узел ($-ключ типа) в верхнем слое заменяет значение нижнего слоя целиком — узел
+описывает значение, а не дополняет его (`merge_layer`).
+
+### Встроенный источник generated
+
+Решение владельца: конфиг генерируется целиком — встроенные дефолты `server_emulator/quasar_defaults/`
+— база для всех колонок, а не только замена 409 без слоёв (режимы «Напрямую» и custom —
+индивидуальный конфиг — остаются без изменений). Дефолты — полный ответ без захвата,
+перенесённый из исходников quasar-server (MIT; commit и пересборка —
+`tools/build_quasar_defaults.py` и README рядом с файлами):
+
+- `common.json` — config (account_config/device_config/system_config) +
+  `alice_pro_subscription {enabled: true, ttl: 31536000}` + `subscription {mode: "transaction"}`
+  + `tags: []`. Персональных значений нет: `device_config.name` — токен `{{device.name}}`,
+  остальное заполняет динамика compose;
+- `platforms/<платформа>.json` — merge-patch поверх common.json для 13 платформ;
+  chiron/magritte — квирк `hybrid_request_factory`: `supported_frames` — объект (у остальных
+  массив) и удаление `hybrid_voice_inputs`, остальные файлы — заготовки `{}`.
+
+Платформа для квирка берётся из `device.profile.platform`; у платформы без файла — общий
+дефолт. Пользовательский common перекрывает built-in дефолт, платформа — common. Карточка
+источника в UI показывает «Генерируемый (встроенный)», пока база — только встроенные дефолты.
 
 ### Хранение и формат
 
@@ -250,13 +274,15 @@ common → merge-patch платформы → переопределения а�
 
 | Метка | Режим | Что получает колонка |
 |---|---|---|
-| **Генерируемый** | `generated` (по умолчанию) | конфиг, собранный `compose` (слои 1–6, см. выше) |
+| **Генерируемый** | `generated` (по умолчанию) | конфиг, собранный `compose` над встроенным generated (см. «Встроенный источник generated»); без пользовательского common база — только встроенные дефолты |
 | **Напрямую** | `direct` | ответ настоящего `quasar.yandex.net` без изменений; обмен — в «Журнал» (`source=upstream`) по опции «Запись» устройства; успешный JSON сохраняется в `state.quasar_direct_last` |
 | **Свой** | `custom` | `state.quasar_custom` как есть: без слоёв, инлайн-узлов и подстановки стереопары; нет сохранённого или в нём нет `config` → 409 `quasar_custom_not_set` |
 
 Маршрут API (`ui/api/quasar_config_api.py`, домен `quasar_source`):
 
-- `GET ?sn=` → `{mode, direct_last, custom, replace, transparent, can_fetch}`; `can_fetch` — запомнены ли
+- `GET ?sn=` → `{mode, builtin_base, direct_last, custom, replace, transparent, can_fetch}`;
+  `builtin_base` — база собранного ответа сейчас только встроенные дефолты (нет пользовательского
+  common и legacy-конфига); `can_fetch` — запомнены ли
   заголовки последнего опроса этой колонки; `replace` — правила замен «Напрямую» (по умолчанию `[]`);
   `transparent` — галочка «И в прозрачном маршруте» (по умолчанию `false`);
 - `PUT {sn, mode?, custom?, replace?, transparent?}` — сохранение режима, своего ответа, замен и/или

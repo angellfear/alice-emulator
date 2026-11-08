@@ -11,7 +11,8 @@
 
 Сборка ответа /get_sync_info:
 
-    common.json (тело)
+    built-in generated (quasar_defaults/common.json + платформенный квирк)
+      ← state/quasar/common.json (тело; перекрывает built-in дефолт)
       ← merge-patch платформы
       ← переопределения аккаунта владельца (quasar_overrides пользователя, только config.account_config.*)
       ← переопределения устройства (quasar_overrides: path+source)
@@ -80,6 +81,68 @@ def merge_patch(target, patch):
         else:
             result[key] = merge_patch(result.get(key), value)
     return result
+
+
+def merge_layer(base, patch):
+    """merge_patch слоёв конфига: инлайн-узел ($-ключ типа) в верхнем слое заменяет
+    значение нижнего слоя целиком — узел описывает значение, а не дополняет его
+    (иначе $bool/$select получают чужие ключи). Узел поверх узла сливается как раньше."""
+    if not isinstance(patch, dict):
+        return copy.deepcopy(patch)
+    if _has_inline_key(patch) and not _has_inline_key(base):
+        return copy.deepcopy(patch)
+    result = copy.deepcopy(base) if isinstance(base, dict) else {}
+    for key, value in patch.items():
+        if value is None:
+            result.pop(key, None)
+        else:
+            result[key] = merge_layer(result.get(key), value)
+    return result
+
+
+def _has_inline_key(node):
+    return isinstance(node, dict) and bool(set(node) & set(INLINE_KEYS))
+
+
+# --- встроенный источник generated (server_emulator/quasar_defaults/) -----------
+
+DEFAULTS_DIR = Path(__file__).parent / "quasar_defaults"
+_GENERATED_CACHE: dict[str, dict] = {}
+_PLATFORM_FILES: frozenset | None = None
+
+
+def _platform_file_stems():
+    """Имена файлов quasar_defaults/platforms/ (набор собирается один раз): имя платформы
+    из реестра подставляется в путь файла только из этого белого списка."""
+    global _PLATFORM_FILES
+    if _PLATFORM_FILES is None:
+        try:
+            _PLATFORM_FILES = frozenset(p.stem for p in (DEFAULTS_DIR / "platforms").glob("*.json"))
+        except OSError:
+            _PLATFORM_FILES = frozenset()
+    return _PLATFORM_FILES
+
+
+def generated_base(platform):
+    """Тело built-in источника generated: quasar_defaults/common.json — полный дефолт
+    ответа без захвата (собран из исходников quasar-server, см.
+    tools/build_quasar_defaults.py) — плюс merge-patch платформенного квирка
+    (chiron/magritte; у платформы без файла — общий дефолт). Платформа — только имя
+    файла из белого списка platforms/, иначе общий дефолт без патча (../ traversal
+    не читает чужой файл). Персональные значения в дефолте несут {{...}}-токены —
+    их заполняет динамика compose."""
+    key = str(platform or "")
+    if key not in _platform_file_stems():
+        key = ""  # кэш — только по известным платформам, не по любой строке устройства
+    if key not in _GENERATED_CACHE:
+        body = json.loads((DEFAULTS_DIR / "common.json").read_text(encoding="utf-8"))
+        if key:
+            patch = json.loads((DEFAULTS_DIR / "platforms" / (key + ".json"))
+                               .read_text(encoding="utf-8"))
+            if isinstance(patch, dict):
+                body = merge_patch(body, patch)
+        _GENERATED_CACHE[key] = body
+    return copy.deepcopy(_GENERATED_CACHE[key])
 
 
 # --- контекст и источники значений (динамика) -----------------------------------
@@ -616,7 +679,7 @@ def compose(common_body, platform_patch, overrides, runtime, device,
     без trace поведение и стоимость прежние."""
     body = copy.deepcopy(common_body or {})
     if platform_patch is not None:
-        body = merge_patch(body, copy.deepcopy(platform_patch))
+        body = merge_layer(body, copy.deepcopy(platform_patch))
         if trace is not None:
             label = f"платформа {platform_label}" if platform_label else "платформа"
             _trace_patch(trace, "", copy.deepcopy(platform_patch), label)
