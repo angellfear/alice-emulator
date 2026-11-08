@@ -546,7 +546,8 @@ class Dispatcher:
                                             platform=request.query.get('platform', ''), headers=request.headers)
         else:
             builtin = runtime.quasar.handle(request.method, path or request.path, device, device_id, body,
-                                            client_ip=self.client_ip(request), headers=request.headers) \
+                                            client_ip=self.client_ip(request), headers=request.headers,
+                                            platform=request.query.get('platform', '')) \
                 if canonical_host == 'quasar.yandex.net' else None
         if builtin:
             status, value = builtin

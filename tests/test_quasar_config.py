@@ -8,9 +8,9 @@ from aiohttp import ClientSession
 import server_emulator
 
 from server_emulator.quasar_config import (PlatformStore, QuasarConfigError, compose,
-                                           context_for, generated_base, inline_type,
-                                           merge_layer, merge_patch, resolve_param,
-                                           resolve_source, resolve_tree)
+                                           context_for, device_platform, generated_base,
+                                           inline_type, merge_layer, merge_patch,
+                                           resolve_param, resolve_source, resolve_tree)
 from server_emulator.runtime import Runtime
 
 SELECTOR = {
@@ -113,7 +113,8 @@ def test_store_pure_files_and_default(tmp_path):
     store.save("yandexstation_2", {"config": {"device_config": {"platform": "yandexstation_2"}}})
     assert [m["platform"] for m in store.list()] == ["chiron", "yandexstation_2"]
     assert store.list()[0]["default"] is True  # первая по алфавиту
-    assert store.platform_for({"profile": {}}) == "chiron"
+    assert store.platform_for({"profile": {}}) is None  # без профиля/отчёта — не угадываем
+    assert store.platform_for({"profile": {"platform": "chiron"}}) == "chiron"
     with pytest.raises(QuasarConfigError):
         store.save("common", {})
     with pytest.raises(QuasarConfigError):
@@ -221,6 +222,67 @@ def test_quasar_defaults_package():
     assert isinstance(merged_frames, dict) and "hybrid_voice_inputs" not in hybrid_merged
     assert "fefcd58803012c61f8a9f8c88351dabff1305c81" in \
         (defaults / "README.md").read_text(encoding="utf-8")
+
+
+def test_device_platform_resolution_order():
+    """Платформа базы: profile.platform → сообщённая колонкой (state.reported_platform)
+    → пусто; platform_for первым файлом не угадывает."""
+    store = PlatformStore(Path(tmpdir()) / "quasar")
+    assert device_platform(None) == ""
+    assert device_platform({"profile": {"platform": "chiron"}}) == "chiron"
+    assert device_platform({"state": {"reported_platform": "yandexstation"}}) == "yandexstation"
+    assert device_platform({"profile": {"platform": "chiron"},
+                            "state": {"reported_platform": "yandexstation"}}) == "chiron"
+    assert device_platform({}) == ""  # без профиля и без отчёта — общий дефолт
+    store.save("yandexstation", {"a": 1})  # файл платформ есть
+    assert store.platform_for({"state": {"reported_platform": "chiron"}}) is None  # не угадываем
+
+
+def tmpdir():
+    import tempfile
+    return Path(tempfile.mkdtemp())
+
+
+@pytest.mark.asyncio
+async def test_reported_platform_applies_quirk_without_profile(tmp_path):
+    """Колонка без profile.platform сообщает платформу в query: патч chiron применяется
+    (hybrid_voice_inputs удалён, supported_frames — объект) в ответе колонке, generate
+    и просмотрщике composed; значение запоминается в state."""
+    from server_emulator.server import create_app
+    from tests.conftest import listen
+
+    runtime = Runtime(directory=tmp_path)
+    runtime.identities.mutate({'operation': 'user', 'id': 'u1', 'name': 'U'})
+    runtime.identities.mutate({'operation': 'device', 'sn': 'SN-1', 'user_id': 'u1',
+                               'device_ids': ['id-1']})  # профиль пуст — как у C00NX
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        async with ClientSession() as client:
+            async with client.get(url + "/get_sync_info?device_id=id-1&platform=chiron&version=3.367.41",
+                                  headers={"Host": "quasar.yandex.net"}) as response:
+                assert response.status == 200
+                body = await response.json()
+            hybrid = body["config"]["system_config"]["hybrid_request_factory"]
+            frames = hybrid["hybrid"]["scenarios"]["fast_command_scenario"]["supported_frames"]
+            assert isinstance(frames, dict) and frames  # квирк chiron применён
+            assert "hybrid_voice_inputs" not in hybrid  # ключ общего дефолта удалён
+            assert runtime.identities.resolve('id-1')["state"]["reported_platform"] == "chiron"
+            async with client.post(url + "/emulator/api/quasar_source",
+                                   json={"sn": "SN-1", "action": "generate"},
+                                   headers={"X-Emulator": "1"}) as response:
+                assert response.status == 200
+                generated = await response.json()
+            hybrid = generated["config"]["system_config"]["hybrid_request_factory"]
+            assert "hybrid_voice_inputs" not in hybrid  # generate — по сообщённой платформе
+            async with client.get(url + "/emulator/api/quasar_composed?device=SN-1",
+                                  headers={"X-Emulator": "1"}) as response:
+                composed = await response.json()
+            hybrid = composed["config"]["config"]["system_config"]["hybrid_request_factory"]
+            assert "hybrid_voice_inputs" not in hybrid  # просмотрщик — тоже
+            assert composed["platform"] is None  # пользовательских патчей нет, угадывания нет
+    finally:
+        await runner.cleanup()
+        await runtime.close()
 
 
 def test_generated_base_platform_whitelist():

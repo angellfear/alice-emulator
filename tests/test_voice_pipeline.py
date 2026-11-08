@@ -69,6 +69,8 @@ async def test_websocket_voice_stt_model_tts_and_channel_correlation(tmp_path):
                 await ws.send_bytes(b'AAPI'+sync.SerializeToString())
                 synchronized = server_type.FromString((await ws.receive()).data[4:])
                 assert synchronized.Event.WhichOneof('Event') == 'SynchronizeStateResponse'
+                # Timings.SendingTime — на каждом серверном кадре, как у настоящего сервера
+                assert synchronized.HasField('Timings') and synchronized.Timings.SendingTime.seconds > 0
                 await ws.send_bytes(b'AAPI'+incoming.SerializeToString())
                 await ws.send_bytes(struct.pack('>I', 3)+b'\0\0'*160)
                 await ws.send_bytes(b'AAPI'+close.SerializeToString())
@@ -84,6 +86,10 @@ async def test_websocket_voice_stt_model_tts_and_channel_correlation(tmp_path):
                         break
                     name = message.Event.WhichOneof('Event')
                     seen.append(name)
+                    assert message.HasField('Timings') and message.Timings.SendingTime.seconds > 0
+                    if name == 'InputStartAck':
+                        # RequestStartTime (микросекунды) — как у образца
+                        assert message.Event.InputStartAck.RequestStartTime > 0
                     assert message.Event.Header.RefMessageId == 'voice-message'
                     if name == 'AliceResponse':
                         assert message.Event.AliceResponse.Header.RequestId == 'request'

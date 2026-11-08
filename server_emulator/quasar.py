@@ -215,6 +215,14 @@ class QuasarBackend:
             return 403, {'error':'device_not_assigned','hint':'Bind DeviceId to SN and owner in emulator UI'}
         state = copy.deepcopy(device['state'])
         if path=='/get_sync_info':
+            # Колонка сообщает платформу в query — запоминаем как «последнее» значение
+            # (для generate/просмотрщика, где запроса колонки нет) до выбора слоёв:
+            # патч платформы и база generated берутся уже с ней.
+            reported = str(platform or '')
+            if reported and state.get('reported_platform') != reported:
+                state['reported_platform'] = reported
+                self.runtime.identities.mutate({'operation':'state','sn':device['sn'],'state':copy.deepcopy(state)})
+                device = self.runtime.identities.resolve(device_id) or device  # свежая запись
             # «Свой» источник (TASK-052): сохранённый ответ как есть — без слоёв,
             # инлайн-узлов и подстановки стереопары.
             if state.get('quasar_source')=='custom':
@@ -232,9 +240,8 @@ class QuasarBackend:
             common, platform_patch = self.runtime.quasar_platforms.resolve_files(device)
             quasar = state.get('quasar',{})
             if common is not None or not isinstance(quasar.get('config'),dict):
-                from .quasar_config import account_layer, compose, generated_base, merge_layer
-                platform_name = (device.get('profile') or {}).get('platform') or ''
-                base = generated_base(platform_name)
+                from .quasar_config import account_layer, compose, device_platform, generated_base, merge_layer
+                base = generated_base(device_platform(device))
                 if common is not None:
                     base = merge_layer(base, common)  # пользовательский common сильнее встроенного
                 try:

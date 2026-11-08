@@ -11,6 +11,7 @@ from pathlib import Path
 
 from aiohttp import ClientTimeout, WSMsgType, web
 from google.protobuf import text_format
+from google.protobuf.message import DecodeError
 
 from .dispatcher import Dispatcher
 from .provider_manager import ProviderManager
@@ -1052,6 +1053,19 @@ class Runtime:
         server_type = load_type(ROOT / "schemas", "alice-api.pb", "NAlice.NAliceApi.TServerMessage")
         send_lock = asyncio.Lock()
         async def send(data):
+            if data[:4] == b"AAPI":
+                # Timings.SendingTime на каждом серверном кадре и InputStartAck.RequestStartTime
+                # (микросекунды) — как у настоящего сервера (образец: все его кадры несут
+                # Timings, InputStartAck несёт RequestStartTime).
+                try:
+                    reply = server_type.FromString(data[4:])
+                    reply.Timings.SendingTime.GetCurrentTime()
+                    if reply.Event.WhichOneof("Event") == "InputStartAck" \
+                            and not reply.Event.InputStartAck.RequestStartTime:
+                        reply.Event.InputStartAck.RequestStartTime = time.time_ns() // 1000
+                    data = b"AAPI" + reply.SerializeToString()
+                except DecodeError:
+                    pass  # не серверное сообщение — кадр уходит как есть
             async with send_lock:
                 await ws.send_bytes(data)
             tap.frame("server_to_client", True, data)

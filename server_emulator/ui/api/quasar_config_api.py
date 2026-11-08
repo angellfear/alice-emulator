@@ -13,7 +13,8 @@ import copy
 
 from aiohttp import web
 
-from ...quasar_config import account_layer, compose, generated_base, merge_layer, poll_period_warnings
+from ...quasar_config import (account_layer, compose, device_platform, generated_base,
+                              merge_layer, poll_period_warnings)
 from ...quasar_replace import preview_replacements, validate_rules
 from ...upstream import UpstreamError, forward_headers
 from ...upstream.forward import decoded_json
@@ -28,7 +29,7 @@ def _sync_body(runtime, device):
     common, platform_patch = runtime.quasar_platforms.resolve_files(device)
     if common is None and isinstance((state.get('quasar') or {}).get('config'), dict):
         raise ValueError('Устройство на legacy-конфиге state.quasar — генерация недоступна')
-    platform_name = (device.get('profile') or {}).get('platform') or ''
+    platform_name = device_platform(device)
     base = generated_base(platform_name)
     if common is not None:
         base = merge_layer(base, common)
@@ -111,7 +112,7 @@ async def quasar_composed(request, runtime, app):
                                   'config': state.get('quasar', {}),
                                   'origins': {}, 'overrides':
                                   state.get('quasar_overrides') or []})
-    profile_platform = (device.get('profile') or {}).get('platform') or ''
+    profile_platform = device_platform(device)
     base = generated_base(profile_platform)
     if common is not None:
         base = merge_layer(base, common)

@@ -104,6 +104,18 @@ def _has_inline_key(node):
     return isinstance(node, dict) and bool(set(node) & set(INLINE_KEYS))
 
 
+def device_platform(device):
+    """Платформа базы конфига для устройства: profile.platform → платформа, которую колонка
+    сама сообщила при опросе конфига (state.reported_platform, запоминается в get_sync_info)
+    → '' (общий дефолт). Первым файлом платформ не угадываем."""
+    if not isinstance(device, dict):
+        return ''
+    explicit = (device.get('profile') or {}).get('platform')
+    if explicit:
+        return str(explicit)
+    return str((device.get('state') or {}).get('reported_platform') or '')
+
+
 # --- встроенный источник generated (server_emulator/quasar_defaults/) -----------
 
 DEFAULTS_DIR = Path(__file__).parent / "quasar_defaults"
@@ -499,11 +511,13 @@ class PlatformStore:
         return existed
 
     def platform_for(self, device):
-        name = ((device or {}).get("profile") or {}).get("platform") if isinstance(device, dict) else None
+        """Платформа патчей для устройства: profile.platform → сообщённая колонкой
+        (state.reported_platform). Имени нет в файлах (или пусто) — None: первым файлом
+        не угадываем, патч по чужой платформе опаснее его отсутствия."""
+        name = device_platform(device)
         if name and self.load(name) is not None:
             return name
-        files = self.list()
-        return files[0]["platform"] if files else None
+        return None
 
     def resolve_files(self, device):
         """(тело common, патч платформы|None); (None, None) — слоёв нет."""
