@@ -8,9 +8,10 @@
 ни про сценарии.
 """
 import asyncio
-import importlib.util
+import hashlib
 import inspect
 import traceback
+import types
 
 TIMEOUT = 10.0
 
@@ -29,18 +30,23 @@ class ScriptRunner:
     def __init__(self, prefix="script", timeout=TIMEOUT):
         self.prefix = prefix
         self.timeout = timeout
-        self._cache = {}  # path → (mtime_ns, module)
+        self._cache = {}  # path → (хеш содержимого, module)
 
     def _module(self, path):
-        """Модуль по пути; перечитывается при изменении mtime (правка без рестарта)."""
-        stat = path.stat()
+        """Модуль по пути; перечитывается при изменении файла (правка без рестарта).
+        Ключ кеша — хеш содержимого: две записи в один тик дают одинаковый mtime_ns,
+        по нему устаревший модуль оставался бы живым. Компиляция из содержимого, без
+        importlib-загрузчика: его __pycache__ валидируется по mtime+size и при
+        подмене mtime вернул бы байткод прошлой версии."""
+        source = path.read_bytes()
+        key = hashlib.sha256(source).hexdigest()
         cached = self._cache.get(path)
-        if cached and cached[0] == stat.st_mtime_ns:
+        if cached and cached[0] == key:
             return cached[1]
-        spec = importlib.util.spec_from_file_location(self.prefix + "_" + path.stem.replace(".", "_"), path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        self._cache[path] = (stat.st_mtime_ns, module)
+        module = types.ModuleType(self.prefix + "_" + path.stem.replace(".", "_"))
+        module.__file__ = str(path)
+        exec(compile(source, str(path), "exec"), module.__dict__)
+        self._cache[path] = (key, module)
         return module
 
     def function(self, path, name="handle"):

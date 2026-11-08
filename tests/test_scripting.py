@@ -14,20 +14,22 @@ def _write(tmp_path, name, code):
     return path
 
 
-async def test_module_reread_on_mtime_change(tmp_path):
+async def test_module_reread_on_content_change(tmp_path):
     path = _write(tmp_path, "a.py", "def handle(x):\n    return 1\n")
     runner = ScriptRunner(prefix="test_script")
     assert await runner.run(path, object()) == 1
 
-    # правка содержимого без смены mtime — работает прежний модуль (кеш по mtime_ns)
+    # правка содержимого без смены mtime — модуль перечитывается: ключ кеша — содержимое
+    # (две записи в один тик дают одинаковый mtime_ns, по нему оставался бы старый модуль)
     saved_ns = os.stat(path).st_mtime_ns
     path.write_text("def handle(x):\n    return 2\n", encoding="utf-8")
     os.utime(path, ns=(os.stat(path).st_atime_ns, saved_ns))
-    assert await runner.run(path, object()) == 1
-
-    # смена mtime — перечитывание (шаг в секундах: валидация pyc у importlib — до секунды)
-    os.utime(path, ns=(os.stat(path).st_atime_ns, saved_ns + 5_000_000_000))
     assert await runner.run(path, object()) == 2
+
+    # возврат к прежнему содержимому — прежний модуль (кеш по хешу)
+    path.write_text("def handle(x):\n    return 1\n", encoding="utf-8")
+    os.utime(path, ns=(os.stat(path).st_atime_ns, saved_ns))
+    assert await runner.run(path, object()) == 1
 
 
 async def test_async_function_timeout(tmp_path):
