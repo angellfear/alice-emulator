@@ -249,48 +249,6 @@ async def test_weather_uses_user_location(tmp_path):
         await runtime.close()
 
 
-async def test_light_defaults_to_device_room(tmp_path):
-    """«включи свет» без комнаты: лампа комнаты колонки (device.room).
-
-    Стиль tests/test_light.py: создаём устройство с light-комнатами,
-    указываем device.room, проверяем реплику с этой комнатой.
-    """
-    runtime = Runtime(tmp_path)
-    runtime.settings.update(builtin_scenarios=True)
-
-    # создаём пользователя и устройство с лампами (как в test_light.py)
-    runtime.identities.mutate({'operation': 'user', 'id': 'owner', 'name': 'O'})
-    runtime.identities.mutate({'operation': 'device', 'sn': 'SN-T', 'user_id': 'owner',
-                               'device_ids': ['dev-t'], 'profile': {'aapi_model': True}})
-    device = next(d for d in runtime.identities.data['devices'] if d['sn'] == 'SN-T')
-    runtime.identities.mutate({'operation': 'state', 'sn': 'SN-T',
-                               'state': dict(device['state'],
-                                             light={'кухня': {'on': False, 'brightness': 100},
-                                                    'зал': {'on': False, 'brightness': 100}})})
-    runtime.quasar_params.set_value("device:SN-T", "device.room", "кухня")  # комната колонки (params)
-
-    try:
-        ctx = {"input": {"message_id": "m", "request_id": "r", "dialog_id": "dg",
-                         "sn": "SN-T", "text": "включи свет"},
-               "clock": {"now": datetime.datetime.now()}}
-        ctx.update(runtime._scenario_context(sn="SN-T"))
-        report, sent = await _say(runtime, "включи свет", ctx)
-
-        assert report["scenario"] == "smart_home.light"
-        # проверяем реплику
-        response = None
-        for raw in sent:
-            message = load_type("server_emulator/schemas", "alice-api.pb", "NAlice.NAliceApi.TServerMessage").FromString(raw[4:])
-            if message.Event.WhichOneof("Event") == "AliceResponse":
-                response = message.Event.AliceResponse
-                break
-        assert response is not None
-        text = response.Response.Cards[0].Text
-        assert "кухня" in text and "включён" in text
-    finally:
-        await runtime.close()
-
-
 async def test_identity_user_location_validation(tmp_path):
     runtime = Runtime(tmp_path)
     try:

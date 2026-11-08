@@ -81,20 +81,20 @@ async def test_voice_confirmation_yes_goes_to_agent_not_scenarios(tmp_path, monk
 
 
 async def test_voice_scenario_run_applies_effect_without_confirmation(tmp_path):
-    arguments = json.dumps({"text": "включи свет на кухне"}, ensure_ascii=False)
-    runtime, payloads = _home(tmp_path, [_call("scenario_run", arguments), {"content": "Включила свет и чайник."}])
+    arguments = json.dumps({"text": "включи блютуз"}, ensure_ascii=False)
+    runtime, payloads = _home(tmp_path, [_call("scenario_run", arguments), {"content": "Включила блютуз и чайник."}])
     client, server = types()
     sent = []
 
     async def send(data):
         sent.append(data)
+    runtime.sessions["s"] = {"connection_id": "s", "device_sn": "SN-T", "user_id": "owner", "send": send}
     conv = Conversation(runtime, server, send, trace_context={"sn": "SN-T"})
-    # фраза не сценарная целиком — уходит агенту, тот сам запускает сценарий света
-    await _say(conv, client, "сделай уютно: свет на кухне и чайник", "m1")
+    # фраза не сценарная целиком — уходит агенту, тот сам запускает сценарий (риск device — без подтверждения)
+    await _say(conv, client, "сделай уютно: чайник и блютуз включи", "m1")
     response = _responses(sent, server)[-1]
-    assert response.Response.Cards[0].Text == "Включила свет и чайник."
-    device = next(d for d in runtime.identities.data["devices"] if d["sn"] == "SN-T")
-    assert device["state"]["light"]["кухня"]["on"] is True
+    assert response.Response.Cards[0].Text == "Включила блютуз и чайник."
+    assert any(b"start_bluetooth" in data for data in sent)  # эффект сценария — директива колонке
     assert runtime.pending_calls == []
     await conv.shutdown()
     await runtime.close()

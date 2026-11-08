@@ -76,7 +76,10 @@ async def op(client, url, payload, expect=200):
 
 
 def phrases(runtime):
-    return {s["id"] for s in scenario_library.extension_scenarios(runtime.extensions)[0].values()}
+    """Сценарии установленных из реестра плагинов: встроенные (builtin.*) не считаются —
+    их даёт поставка, к миграции реестра они отношения не имеют."""
+    return {s["id"] for s in scenario_library.extension_scenarios(runtime.extensions)[0].values()
+            if not str(s.get("_origin") or "").startswith("extension:builtin.")}
 
 
 # --- миграция настроек --------------------------------------------------------------
@@ -198,7 +201,8 @@ async def test_registry_source_installs_package_as_extension(tmp_path):
             await op(client, url, {"op": "enable", "id": "pack.greet"})
             assert phrases(runtime) == {"user.hello"}
             listing = await (await client.get(url + "/emulator/api/scenarios")).json()
-            assert [s["extension"] for s in listing["extensions"]] == ["pack.greet"]  # метка источника
+            assert [s["extension"] for s in listing["extensions"]
+                    if not s["extension"].startswith("builtin.")] == ["pack.greet"]  # метка источника (сегменты встроенных плагинов — отдельно)
             # новая версия в реестре → «Обновить», затем «Откатить»
             payload2 = package_bytes(HELLO_V2)
             routes["pack2.json"] = payload2

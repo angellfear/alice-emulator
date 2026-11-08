@@ -1,7 +1,11 @@
-"""Справочник фраз плагинов (contributes.providers[].phrases): записи «на что
-реагировать и кто отвечает» — шаблоны hassil + свои списки + обработчик. Запись —
-не сценарий: свой сценарий плагин подключает только когда у ядра нет штатного
-исполнителя; справочник направляет совпавшую фразу обработчику.
+"""Справочник фраз плагинов (contributes.providers[].phrases и contributes.phrases —
+файлы без вида, группа «Прочее»): записи «на что реагировать и кто отвечает» —
+шаблоны hassil + свои списки + обработчик. Запись — не сценарий: свой сценарий
+плагин подключает только когда у ядра нет штатного исполнителя; справочник
+направляет совпавшую фразу обработчику. Файл фраз readiness по настройкам плагина —
+ключ `requires` (список ключей настроек: не заполнены — файл вне справочника),
+закрытый список из данных плагина — `lists_from` (записи датасета Executor), оба
+готовит manager.phrase_files.
 
 Обработчик: `core:<id сценария>` — штатный исполнитель ядра (музыка — стек директив
 плеера по образцу журнала; плагины вызывают его, не копируют); `<ext-id>.<модуль:функция>`
@@ -77,7 +81,24 @@ class PhraseDirectory:
         self.wildcards = {name for name, values in lists.items()
                           if isinstance(values, dict) and values.get("wildcard")}
         intents = {}
-        for ext_id, path, kind in files or []:
+        for item in files or []:
+            ext_id, path, kind, *rest = item
+            dynamic = rest[0] if rest else None
+            # закрытые списки из записей датасета (manager.phrase_files, lists_from):
+            # values — имена из записи, via — общий словарь: его падежные варианты
+            # (out == имя без регистра) дополняют список — «в спальне» ловится, когда
+            # устройство «Спальня»; перекрывает статический список записи с тем же именем
+            dyn = {}
+            for name, ref in (dynamic or {}).items():
+                values = [str(v) for v in (ref or {}).get("values") or []]
+                spec = [{"in": v, "out": v} for v in values]
+                via = (lists.get(str((ref or {}).get("via") or "")) or {}) if (ref or {}).get("via") else {}
+                by_lower = {v.lower(): v for v in values}
+                for variant in via.get("values") or []:
+                    out = str(variant.get("out") or "").lower()
+                    if out in by_lower and str(variant.get("in") or ""):
+                        spec.append({"in": str(variant["in"]), "out": by_lower[out]})
+                dyn[str(name)] = {"values": spec}
             try:
                 entries = load_entries(ext_id, path)
             except PhraseEntryError as exc:
@@ -91,8 +112,10 @@ class PhraseDirectory:
                     continue
                 self.entries[entry["id"]] = entry
                 data = {"sentences": entry["sentences"]}
-                if entry.get("lists"):
-                    data["lists"] = entry["lists"]
+                entry_lists = dict(entry.get("lists") or {})
+                entry_lists.update(dyn)
+                if entry_lists:
+                    data["lists"] = entry_lists
                 intents[entry["id"]] = {"data": [data]}
         self.intents = Intents.from_dict({"language": LANGUAGE, "intents": intents, "lists": lists}) \
             if intents else None

@@ -1,0 +1,14 @@
+{
+  "id": "ha-tts",
+  "service": "tts",
+  "title": "Home Assistant (TTS)",
+  "description": "Синтез через Home Assistant (tts_get_url → tts_proxy). Движок — entity id TTS-интеграции (например tts.piper).",
+  "adapter": "builtin.home-assistant.ha-tts",
+  "values": {
+    "url": "http://homeassistant.local:8123/api/tts_get_url",
+    "api_key": "",
+    "engine_id": "",
+    "language": "ru",
+    "voice": ""
+  }
+}

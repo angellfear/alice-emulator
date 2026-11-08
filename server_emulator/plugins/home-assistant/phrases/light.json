@@ -1,0 +1,27 @@
+{
+  "requires": ["token"],
+  "lists_from": {
+    "ha_room": ["ha.lights", "rooms", "room"]
+  },
+  "entries": [
+    {
+      "id": "light",
+      "sentences": [
+        "({power}; свет) [[в|на] {ha_room}] [{query}]"
+      ],
+      "lists": {
+        "power": {
+          "values": [
+            {"in": "включи", "out": "on"},
+            {"in": "зажги", "out": "on"},
+            {"in": "включить", "out": "on"},
+            {"in": "выключи", "out": "off"},
+            {"in": "потуши", "out": "off"},
+            {"in": "выключить", "out": "off"}
+          ]
+        }
+      },
+      "handler": "core:smart_home.light"
+    }
+  ]
+}

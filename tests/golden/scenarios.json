@@ -1909,36 +1909,12 @@
           "name": "light-no-lights",
           "runs": [
             {
-              "handled": true,
-              "messages": [
-                {
-                  "cards": [
-                    {
-                      "text": "Лампы не настроены: добавьте state.light устройству.",
-                      "type": "simple_text"
-                    }
-                  ],
-                  "directives": [
-                    {
-                      "analytics": "tts_play_placeholder",
-                      "is_led_silent": true,
-                      "name": "tts_play_placeholder",
-                      "payload": {
-                        "channel": "Dialog"
-                      },
-                      "type": "client_action"
-                    }
-                  ],
-                  "event": "AliceResponse",
-                  "has_voice": false,
-                  "speech": "Лампы не настроены: добавьте state.light устройству."
-                }
-              ],
-              "reason": "template",
-              "scenario": "smart_home.light",
-              "speech": "Лампы не настроены: добавьте state.light устройству.",
+              "handled": false,
+              "reason": "no_match",
+              "scenario": null,
+              "speech": "",
               "speech_parts": [],
-              "status": "finished",
+              "status": null,
               "text": "включи свет"
             }
           ]
@@ -1947,14 +1923,18 @@
           "effects": [
             {
               "arguments": {
-                "on": "on",
-                "room": "кухня"
+                "domain": "light",
+                "entity_id": "light.kitchen",
+                "service": "turn_on"
               },
-              "ref": "light.set",
-              "result": {
-                "brightness": 70,
-                "on": true
-              }
+              "ref": "ha.call_service",
+              "result": [
+                {
+                  "attributes": {},
+                  "entity_id": "light.kitchen",
+                  "state": "on"
+                }
+              ]
             }
           ],
           "input": {
@@ -1969,7 +1949,7 @@
                 {
                   "cards": [
                     {
-                      "text": "Свет (кухня) включён на 70%.",
+                      "text": "Свет (кухня) включён.",
                       "type": "simple_text"
                     }
                   ],
@@ -1986,12 +1966,12 @@
                   ],
                   "event": "AliceResponse",
                   "has_voice": false,
-                  "speech": "Свет (кухня) включён на 70%."
+                  "speech": "Свет (кухня) включён."
                 }
               ],
-              "reason": "template",
+              "reason": "dir:builtin.home-assistant.light",
               "scenario": "smart_home.light",
-              "speech": "Свет (кухня) включён на 70%.",
+              "speech": "Свет (кухня) включён.",
               "speech_parts": [],
               "status": "finished",
               "text": "включи свет на кухне"
@@ -2002,13 +1982,18 @@
           "effects": [
             {
               "arguments": {
-                "on": "off",
-                "room": "спальня"
+                "domain": "light",
+                "entity_id": "light.bedroom",
+                "service": "turn_off"
               },
-              "ref": "light.set",
-              "result": {
-                "on": false
-              }
+              "ref": "ha.call_service",
+              "result": [
+                {
+                  "attributes": {},
+                  "entity_id": "light.bedroom",
+                  "state": "off"
+                }
+              ]
             }
           ],
           "input": {
@@ -2043,7 +2028,7 @@
                   "speech": "Свет (спальня) выключен."
                 }
               ],
-              "reason": "template",
+              "reason": "dir:builtin.home-assistant.light",
               "scenario": "smart_home.light",
               "speech": "Свет (спальня) выключен.",
               "speech_parts": [],
@@ -2056,15 +2041,23 @@
           "effects": [
             {
               "arguments": {
-                "brightness": 50,
-                "on": "on",
-                "room": "кухня"
+                "data": {
+                  "brightness_pct": 50
+                },
+                "domain": "light",
+                "entity_id": "light.kitchen",
+                "service": "turn_on"
               },
-              "ref": "light.set",
-              "result": {
-                "brightness": 50,
-                "on": true
-              }
+              "ref": "ha.call_service",
+              "result": [
+                {
+                  "attributes": {
+                    "brightness_pct": 50
+                  },
+                  "entity_id": "light.kitchen",
+                  "state": "on"
+                }
+              ]
             }
           ],
           "input": {
@@ -2099,7 +2092,7 @@
                   "speech": "Свет (кухня) включён на 50%."
                 }
               ],
-              "reason": "template",
+              "reason": "dir:builtin.home-assistant.light",
               "scenario": "smart_home.light",
               "speech": "Свет (кухня) включён на 50%.",
               "speech_parts": [],
@@ -2142,7 +2135,7 @@
                   "speech": "Не понял, какую лампу: доступны [\"кухня\", \"спальня\"]."
                 }
               ],
-              "reason": "template",
+              "reason": "dir:builtin.home-assistant.light",
               "scenario": "smart_home.light",
               "speech": "Не понял, какую лампу: доступны [\"кухня\", \"спальня\"].",
               "speech_parts": [],
@@ -2185,7 +2178,7 @@
                   "speech": "Лампы «ванная» нет. Доступны: [\"кухня\", \"спальня\"]."
                 }
               ],
-              "reason": "template",
+              "reason": "dir:builtin.home-assistant.light",
               "scenario": "smart_home.light",
               "speech": "Лампы «ванная» нет. Доступны: [\"кухня\", \"спальня\"].",
               "speech_parts": [],

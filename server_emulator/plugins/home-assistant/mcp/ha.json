@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "ha": {
+      "type": "http",
+      "url": "http://homeassistant.local:8123/api/mcp",
+      "headers": {"Authorization": "Bearer test-token"},
+      "disabled": true
+    }
+  }
+}

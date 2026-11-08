@@ -1,0 +1,13 @@
+{
+  "id": "ha-asr",
+  "service": "asr",
+  "title": "Home Assistant (Assist STT)",
+  "description": "Распознавание через STT-провайдер Home Assistant (Piper/Whisper). Токен — долгоживущий, можно env:ИМЯ.",
+  "adapter": "builtin.home-assistant.ha-asr",
+  "values": {
+    "url": "http://homeassistant.local:8123/api/stt/stt.piper",
+    "api_key": "",
+    "language": "ru_ru",
+    "sample_rate": 16000
+  }
+}

@@ -31,11 +31,13 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .auth import secret as _secret
-from .extensions.context import ExtensionContext, action_context  # ExtensionContext — для аннотаций кода расширений
+from .extensions.context import (ExtensionContext, action_context,  # ExtensionContext — для аннотаций кода расширений
+                                 dataset_context)
+
 from .scenario_engine import bindings as _bindings
 from .scenario_engine import parsers as _parsers
 
-SDK_VERSION = "2.4.0"  # 2.4.0: ctx.music (TASK-099); 2.3.0: ctx.route_mode, ctx.player_owner; 2.2.0: ctx.intelligence, no_data_source; 2.1.0: ctx.data
+SDK_VERSION = "2.5.0"  # 2.5.0: dataset_context(name) — настройки для кода datasets/*.py; 2.4.0: ctx.music; 2.3.0: ctx.route_mode, ctx.player_owner; 2.2.0: ctx.intelligence, no_data_source; 2.1.0: ctx.data
 DATASET_REFRESH_TIMEOUT_S = 10.0  # как у шага refresh без timeout
 
 

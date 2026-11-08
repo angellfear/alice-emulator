@@ -528,6 +528,14 @@ class Executor:
     def _dataset_id(name):
         return "dataset:" + str(name)
 
+    def dataset_record(self, name, key):
+        """Запись датасета из БД без запуска плагина и ожидания: (значение,
+        updated_ts) | None — читает сборка справочника фраз (lists_from,
+        extensions.manager.phrase_files)."""
+        if self.data_store is None:
+            return None
+        return self.data_store.scenario_data_record(self._dataset_id(name), "system", "", str(key))
+
     async def refresh_dataset(self, name, key, args=None, timeout=10.0, dataset=None):
         """Обновить запись датасета плагином `name` и дождаться с таймаутом (TASK-050).
 

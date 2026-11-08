@@ -62,6 +62,9 @@ SERVICE_BY_STAGE = {"asr": "asr", "model": "llm", "tts": "tts"}
 # не нужно (настройка плагина пуста = тот же URL).
 WEATHER_URL_LEGACY_DEFAULT = "https://api.open-meteo.com/v1/forecast"
 
+PHRASE_LIST_MAX_AGE = 60.0  # свежесть (с) записи датасета для закрытых списков справочника фраз
+PHRASE_LIST_TIMEOUT = 5.0   # ожидание плагина датасета в фоновом опросе (голос не ждём)
+
 
 class Runtime:
     def __init__(self, directory=None, catalog_root=None):
@@ -71,6 +74,7 @@ class Runtime:
         proto_schemas.DIRECTORY = self.directory / "proto"  # схемы, импортированные из libquasar_daemons.so
         # B02: единое SQLite-хранилище; legacy JSON мигрируется один раз с backup.
         self.store = StateStore(self.directory / "emulator.sqlite3")
+        self.store.on_scenario_data = self._scenario_data_changed  # справочник фраз: lists_from
         from . import music
         music.load_token(self.store)  # захваченный OAuth аккаунта — из БД в кеш поставщика
         self.migration_report = migrate_legacy(self.directory, self.store)
@@ -366,11 +370,7 @@ class Runtime:
                                     lexicon_sources=self._lexicon_sources())
         # справочник фраз плагинов и его окружение — сразу при создании диалога
         # (полная пересборка реестров в старте ранняя, обновление — в rebuild)
-        from .scenario_engine.phrases import PhraseDirectory
-        _phrase_dir = PhraseDirectory(self.extensions.phrase_files(), self.dialog.lexicon_sources)
-        for _w in _phrase_dir.warnings:
-            log.warning("Справочник фраз: %s", _w)
-        self.dialog.phrase_directory = lambda: _phrase_dir
+        self.rebuild_phrase_directory()
         self.dialog.phrase_order = lambda: {**(self.settings.get("phrase_order")
                                              if isinstance(self.settings.get("phrase_order"), dict)
                                              else {}), "selected": {}}
@@ -689,11 +689,7 @@ class Runtime:
             dialog.lexicon_sources = self._lexicon_sources()  # новый список — кеш шаблонов пересоберётся
             # справочник фраз плагинов (каркас «от плагинов»): файлы из объявлений;
             # битый файл — warning, остальные работают
-            from .scenario_engine.phrases import PhraseDirectory
-            directory = PhraseDirectory(extensions.phrase_files(), dialog.lexicon_sources)
-            for message in directory.warnings:
-                log.warning("Справочник фраз: %s", message)
-            dialog.phrase_directory = lambda: directory
+            self.rebuild_phrase_directory()
             dialog.phrase_order = lambda: {**(self.settings.get("phrase_order")
                                             if isinstance(self.settings.get("phrase_order"), dict)
                                             else {}),
@@ -708,6 +704,60 @@ class Runtime:
                     return float(self.quasar_params.resolve("server.providers.search_timeout") or 3)
                 except Exception:  # noqa: BLE001 — параметра нет/битый: умолчание
                     return 3.0
+
+    # --- справочник фраз: закрытые списки из записей датасета плагинов ------------
+    def rebuild_phrase_directory(self):
+        """Скомпилированный справочник фраз плагинов в диалог (файлы из объявлений,
+        manager.phrase_files: contributes.providers[].phrases и contributes.phrases,
+        готовность файла по настройкам `requires`, закрытые списки `lists_from`);
+        битый файл — warning в журнал, остальные работают. Прочитанные записи
+        датасета запоминаются: их изменение пересобирает справочник
+        (_scenario_data_changed), свежесть списков поддерживает фоновый опрос
+        (_refresh_phrase_lists)."""
+        if getattr(self, "dialog", None) is None:
+            return
+        from .scenario_engine.phrases import PhraseDirectory
+        directory = PhraseDirectory(self.extensions.phrase_files(), self.dialog.lexicon_sources)
+        for message in directory.warnings:
+            log.warning("Справочник фраз: %s", message)
+        self.dialog.phrase_directory = lambda: directory
+        self._refresh_phrase_lists()
+
+    def _refresh_phrase_lists(self):
+        """Фоновая свежесть закрытых списков файлов фраз (lists_from): записи старше
+        PHRASE_LIST_MAX_AGE (или нет записи) — обновить плагином датасета; запись
+        проходит scenario_data → извещение → пересборка справочника. Голосовой путь
+        сети не ждёт: реплика ранжируется по уже собранному списку, свежий придёт
+        со следующей сборкой. Нет запущенного цикла (старт, скрипты tools) — ничего:
+        записи обновятся при первом запросе/пересборке в рантайме."""
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+        loop.create_task(self._update_phrase_lists())
+
+    async def _update_phrase_lists(self):
+        executor = self.scenario_executor
+        now = time.time()
+        for dataset, key in self.extensions.watched_phrase_lists():
+            record = executor.dataset_record(dataset, key)
+            if record is not None and now - record[1] < PHRASE_LIST_MAX_AGE:
+                continue
+            try:
+                await executor.refresh_dataset(dataset, key, timeout=PHRASE_LIST_TIMEOUT)
+            except Exception:  # noqa: BLE001 — работает старый список, ждём следующий опрос
+                log.debug("Обновление датасета %s для справочника фраз не удалось", dataset)
+
+    def _scenario_data_changed(self, scenario_id, key):
+        """Записана запись scenario_data (извещает state_store.on_scenario_data):
+        если сборка справочника фраз читала этот датасет (lists_from) — пересобрать
+        справочник, закрытый список попадёт в hassil."""
+        sid = str(scenario_id)
+        manager = getattr(self, "extensions", None)
+        if not sid.startswith("dataset:") or manager is None:
+            return
+        if manager.note_dataset_change(sid[len("dataset:"):], key):
+            self.rebuild_phrase_directory()
 
     def warm_sound_cache(self, delay=0):
         """Фразы раздела «AI агент» звукового кеша — синтез заранее, в фоне (PCM-движок)."""

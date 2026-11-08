@@ -120,12 +120,12 @@ def test_quiet_window_crosses_midnight():
 
 async def test_scenario_routine_runs_without_model(tmp_path):
     runtime, calls = home(tmp_path)
-    saved = runtime.routines.save(routine(kind='scenario', scenario_id='smart_home.light', text='включи свет на кухне',
+    sent = live(runtime)
+    saved = runtime.routines.save(routine(kind='scenario', scenario_id='device.bluetooth.on', text='включи блютуз',
                                           prompt=None, delivery='silent'))
     result = await runtime.routines.fire(saved['id'])
     assert result['status'] == 'finished' and calls == []
-    device = next(d for d in runtime.identities.data['devices'] if d['sn'] == 'SN1')
-    assert device['state']['light']['кухня']['on'] is True
+    assert any(b'start_bluetooth' in data for data in sent)  # эффект — директива колонке
     await runtime.close()
 
 

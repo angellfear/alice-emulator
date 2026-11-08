@@ -166,23 +166,25 @@ async def test_scenario_tools_offered_and_index_in_prompt(tmp_path):
     names = {t['function']['name'] for t in calls[0]['tools']}
     assert {'scenario_list', 'scenario_get', 'scenario_probe', 'scenario_run'} <= names
     system = calls[0]['messages'][0]['content']
-    assert 'Сценарии' in system and 'smart_home.light' in system
+    assert 'Сценарии' in system and 'informers.clock' in system
     await runtime.close()
 
 
-async def test_scenario_run_light_without_confirmation(tmp_path):
+async def test_scenario_run_bluetooth_without_confirmation(tmp_path):
+    """scenario_run (риск device) идёт без подтверждения и даёт эффект колонке (директива Bluetooth)."""
     runtime = home(tmp_path)
-    device = next(d for d in runtime.identities.data['devices'] if d['sn'] == 'SN1')
-    runtime.identities.mutate({'operation': 'state', 'sn': 'SN1',
-                               'state': dict(device['state'], light={'кухня': {'on': False}})})
-    arguments = json.dumps({'text': 'включи свет на кухне'}, ensure_ascii=False)
+    sent = []
+
+    async def send(data):
+        sent.append(data)
+    runtime.sessions['s'] = {'connection_id': 's', 'device_sn': 'SN1', 'user_id': 'u', 'send': send}
+    arguments = json.dumps({'text': 'включи блютуз'}, ensure_ascii=False)
     fake(runtime, [tool_call('scenario_run', arguments), {'content': 'Включила'}])
-    answer = await runtime.chat('сделай светлее на кухне', thread='t1')
+    answer = await runtime.chat('включи-ка блютуз', thread='t1')
     assert answer['tool_calls'] == [] and answer['text'] == 'Включила'
     run = answer['tool_runs'][0]
     assert run['name'] == 'scenario_run' and json.loads(run['result'])['status'] == 'finished'
-    device = next(d for d in runtime.identities.data['devices'] if d['sn'] == 'SN1')
-    assert device['state']['light']['кухня']['on'] is True
+    assert any(b'start_bluetooth' in data for data in sent)
     await runtime.close()
 
 

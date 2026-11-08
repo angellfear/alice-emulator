@@ -33,15 +33,22 @@ def tool():
     return module
 
 
-def test_golden_covers_builtin_library():
-    """Эталон покрывает все сценарии встроенной библиотеки (сейчас 24, TASK-080, TASK-090: + system.unavailable)."""
+async def test_golden_covers_builtin_library(tmp_path):
+    """Эталон покрывает весь каталог роутинга: встроенную библиотеку (сейчас 26) и
+    сценарии включённых плагинов (свет — плагин home-assistant), каждый по одному разу."""
+    from server_emulator.runtime import Runtime
     from server_emulator.scenario_engine.library import ERRORS, SCENARIOS
 
     assert ERRORS == []
-    assert len(SCENARIOS) == 27  # + media.music и informers.news
+    assert len(SCENARIOS) == 26  # свет ушёл в плагин home-assistant
+    runtime = Runtime(tmp_path)
+    try:
+        expected = sorted(str(scenario.get("id")) for scenario in runtime.dialog.scenarios())
+    finally:
+        await runtime.close()
     recorded = json.loads(GOLDEN.read_text(encoding="utf-8"))
     ids = [entry["id"] for entry in recorded["scenarios"]]
-    assert ids == sorted(SCENARIOS)  # все 26, каждый по одному разу
+    assert ids == expected  # все сценарии каталога, каждый по одному разу
 
 
 def test_golden_has_no_executor_trace():

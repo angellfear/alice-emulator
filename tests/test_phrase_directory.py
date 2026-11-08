@@ -88,7 +88,7 @@ async def test_declaration_registry_next_to_folders(tmp_path):
         assert "contributes.providers" in (card.get("provider_hint") or "")
         assert "builtin.spotify" in music and "builtin.yandex-music" in music
         assert music["builtin.spotify"]["origin"] == "builtin"  # реестр из объявлений встроенных
-        assert any(path.name == "music.json" for _e, path, _k in runtime.extensions.phrase_files())
+        assert any(path.name == "music.json" for _e, path, _k, _l in runtime.extensions.phrase_files())
     finally:
         await runtime.close()
 

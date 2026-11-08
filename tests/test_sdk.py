@@ -329,7 +329,7 @@ def ctx_of(text="", executor=None, **inner):
 
 
 def test_sdk_version_is_2_4_0():
-    assert SDK_VERSION == "2.4.0"  # 2.4.0: ctx.music (TASK-099); 2.2.0: ctx.intelligence, no_data_source (TASK-090)
+    assert SDK_VERSION == "2.5.0"  # 2.5.0: dataset_context(name); 2.4.0: ctx.music; 2.2.0: ctx.intelligence, no_data_source
 
 
 def test_devices_come_from_home_and_are_read_only_copy():

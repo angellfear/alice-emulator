@@ -9,7 +9,7 @@ import json
 import pytest
 
 from server_emulator.extensions import EMULATOR_VERSION
-from server_emulator.extensions.manager import BUILTIN_DIR, MANIFEST
+from server_emulator.extensions.manager import BUILTIN_DIR, ExtensionManager, MANIFEST
 from server_emulator import music, providers
 from server_emulator.runtime import Runtime
 
@@ -135,6 +135,34 @@ async def test_install_with_builtin_id_rejected(tmp_path):
         with pytest.raises(ValueError, match="builtin\\."):
             await runtime.extensions.install({"url": str(ext)}, confirm=True)
         assert "builtin.fake" not in runtime.settings["extensions"]["installed"]
+    finally:
+        await runtime.close()
+
+
+async def test_builtin_adopts_external_settings_once(tmp_path):
+    """Перенос настроек внешней копии (общее правило): у встроенного builtin.<имя>
+    сохранённых значений нет, а у установленного внешнего <имя> они есть — встроенный
+    получает однократную копию по ключам своих settings.fields; дальше живут раздельно.
+    Секрет перенесён как есть: ExtensionContext видит тот же токен, в API — маска KEEP."""
+    runtime = Runtime(tmp_path)
+    try:
+        state = runtime.settings.setdefault("extensions", {})
+        state["installed"]["home-assistant"] = {"version": "1.0.0", "builtin": False,
+                                                "source": str(tmp_path / "ext-ha"), "dev": None}
+        state["enabled"]["home-assistant"] = False  # папки нет: adoption читает installed+settings
+        state["settings"]["home-assistant"] = {"url": "http://127.0.0.1:8123",
+                                               "token": "test-token", "market": "sk"}
+        runtime.extensions.load_enabled()
+        ext = "builtin.home-assistant"
+        values = runtime.extensions.values(ext)
+        assert values["url"] == "http://127.0.0.1:8123" and values["token"] == "test-token"
+        assert "market" not in values  # копируются только ключи своих settings.fields
+        assert runtime.extensions.context(ext).get("token") == "test-token"  # код плагина видит токен
+        assert runtime.extensions.public_values(ext)["token"] == ExtensionManager.KEEP
+        await runtime.extensions.set_values(ext, {"url": "http://127.0.0.1:9000"})
+        assert state["settings"]["home-assistant"]["url"] == "http://127.0.0.1:8123"  # внешняя копия цела
+        values = runtime.extensions.values(ext)
+        assert values["url"] == "http://127.0.0.1:9000" and values["token"] == "test-token"
     finally:
         await runtime.close()
 

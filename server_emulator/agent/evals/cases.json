@@ -1,11 +1,11 @@
 [
  {
-  "phrase": "включи свет на кухне",
-  "scenario": "smart_home.light"
+  "phrase": "какое сегодня число",
+  "scenario": "informers.clock.date"
  },
  {
-  "phrase": "выключи свет",
-  "scenario": "smart_home.light"
+  "phrase": "отмени таймер",
+  "scenario": "timers.timer.cancel"
  },
  {
   "phrase": "какая погода",
@@ -48,7 +48,7 @@
   "scenario": "chat.chat"
  },
  {
-  "phrase": "включи свет и поставь таймер на десять минут",
+  "phrase": "включи блютуз и поставь таймер на десять минут",
   "llm": true,
   "tools": [
    "scenario_run"

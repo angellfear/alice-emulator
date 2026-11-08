@@ -16,8 +16,8 @@ server_emulator/plugins/<имя>/ (id builtin.<имя>): установлены 
 как у внешних; удалить/обновить/откатить и установить чужое с id builtin.* нельзя.
 Хуки hooks.py — через
 scripting.ScriptRunner(prefix="extension_hook_<id>"), ошибка хука откатывает
-операцию. Самопроверка tests/ — dry-run механизма TASK-023; пока py-сценарии
-не подключены (TASK-019), каталоги с *.py в scenarios/ дают предупреждение.
+операцию. Самопроверка tests/ — dry-run сценариев расширения (record из
+tools/record_scenario_golden.py: свой runtime, фиксированный мир, без сети).
 """
 from __future__ import annotations
 
@@ -195,7 +195,8 @@ def validate_settings_schema(settings):
 
 def validate_contributes(contributes):
     """contributes: имя папки → путь или список путей; actions → {prefix};
-    providers → список объявлений поставщиков {kind, title, module, capabilities?, phrases?}."""
+    providers → список объявлений поставщиков {kind, title, module, capabilities?, phrases?};
+    phrases → путь или список путей файлов справочника фраз (вид — группа «Прочее»)."""
     if not isinstance(contributes, dict) or not contributes:
         raise ValueError("extension.json: contributes — непустой объект")
     for key, value in contributes.items():
@@ -203,6 +204,13 @@ def validate_contributes(contributes):
             if not isinstance(value, dict) or set(value) - {"prefix"} \
                     or not isinstance(value.get("prefix", "x"), str):
                 raise ValueError("extension.json: contributes.actions — объект {prefix}")
+        elif key == "phrases":
+            paths = [value] if isinstance(value, str) else value
+            if not paths or not isinstance(paths, list) or any(
+                    not isinstance(p, str) or not p or ".." in Path(p).parts
+                    or Path(p).is_absolute() for p in paths):
+                raise ValueError("extension.json: contributes.phrases — путь или список "
+                                 "путей внутри папки расширения")
         elif key == "providers":
             if not isinstance(value, list) or not value:
                 raise ValueError("extension.json: contributes.providers — непустой список объявлений")
@@ -242,6 +250,9 @@ class ExtensionManager:
         self.loaded = {}  # id → {dir, manifest} — включённые, после load_enabled()
         self.warnings = []  # проблемы включённых при старте (сервер не падает)
         self.source_cache = {}  # url каталога → {ts, entries}: список доступных без сети
+        self._phrases_runner = None  # ScriptRunner модулей lists_from файлов фраз (mtime-кеш)
+        self._phrase_watched = []  # датасет-записи, прочитанные последней сборкой справочника
+        self._lists_refreshing = {}  # (датасет, ключ) → задача фонового обновления
         bind_manager(self)  # TASK-053: Executor/SDK находят владельца действия (context.action_context)
 
     # --- состояние ----------------------------------------------------------------
@@ -302,6 +313,32 @@ class ExtensionManager:
             if entry.get("version") != EMULATOR_VERSION:  # версия встроенного = версия эмулятора
                 entry["version"] = EMULATOR_VERSION
             state["enabled"].setdefault(ext_id, True)
+            self._adopt_builtin_settings(ext_id)
+
+    def _adopt_builtin_settings(self, ext_id):
+        """Перенос настроек внешней копии во встроенный плагин (общее правило, не код
+        под одно расширение): у встроенного builtin.<имя> сохранённых значений нет, а
+        у установленного внешнего <имя> они есть — встроенный получает однократную
+        копию значений внешнего по ключам своих settings.fields; дальше значения
+        живут раздельно (правилка встроенного не трогает внешнюю копию и наоборот).
+        Секреты переносятся как есть: ExtensionContext встроенного видит тот же
+        токен, в API он остаётся маской KEEP (public_values)."""
+        state = self._state()
+        if state["settings"].get(ext_id):
+            return  # у встроенного уже есть сохранённые значения — перенос не нужен
+        external = str(ext_id).removeprefix(BUILTIN_PREFIX)
+        source = state["settings"].get(external) or {}
+        if not source or external not in state["installed"]:
+            return  # внешней копии нет в installed или она не настроена
+        try:
+            manifest = self._load_manifest(ext_id)
+        except Exception:  # noqa: BLE001 — битый манифест: ошибку покажет карточка
+            return
+        keys = {f["key"] for f in (manifest.get("settings") or {}).get("fields") or []
+                if isinstance(f, dict) and isinstance(f.get("key"), str)}
+        values = {k: v for k, v in source.items() if k in keys}
+        if values:
+            state["settings"][ext_id] = values
 
     def _builtin_entry(self, ext_id):
         return (self._state()["installed"].get(ext_id) or {}).get("builtin")
@@ -437,8 +474,26 @@ class ExtensionManager:
         return out
 
     def phrase_files(self):
-        """Файлы справочника фраз включённых плагинов: [(ext_id, путь, вид)] — phrases
-        объявлений, путь относительно папки расширения. Выключил плагин — файлов нет."""
+        """Файлы справочника фраз включённых плагинов: [(ext_id, путь, вид, списки)] —
+        paths объявлений contributes.providers (вид из объявления) и contributes.phrases
+        (вид пустой — группа «Прочее» ручного порядка), путь относительно папки
+        расширения. Выключил плагин — файлов нет. Файловые ключи `requires` (ключи
+        настроек расширения) и `lists_from` (закрытые списки из записей датасета
+        Executor) готовит _phrase_file_lists: неготовый файл в справочник не попадает —
+        его фразы не совпадают, как у выключенного плагина. Файл без ключей — списки
+        пустые, поведение не меняется."""
+        self._phrase_watched = []
+        out = []
+        for ext_id, path, kind in self._phrase_sources():
+            lists, error = self._phrase_file_lists(ext_id, path)
+            if error:
+                log.warning("расширение %s: справочник фраз %s: %s", ext_id, path, error)
+            if lists is not None:
+                out.append((ext_id, path, kind, lists))
+        return out
+
+    def _phrase_sources(self):
+        """[(ext_id, путь, вид)] — файлы справочника включённых плагинов по объявлениям."""
         out = []
         for ext_id, decl, base in self.provider_declarations():
             phrases = decl.get("phrases") or []
@@ -446,7 +501,68 @@ class ExtensionManager:
                 phrases = [phrases]
             for rel in phrases:
                 out.append((ext_id, Path(base) / rel, str(decl["kind"]).strip()))
+        for ext_id in sorted(self.loaded):
+            rel = (self.loaded[ext_id]["manifest"].get("contributes") or {}).get("phrases") or []
+            if isinstance(rel, str):
+                rel = [rel]
+            out.extend((ext_id, Path(self._active_dir(ext_id)) / p, "") for p in rel)
         return out
+
+    def _phrase_file_lists(self, ext_id, path):
+        """Готовность файла фраз и его закрытые списки для сборки справочника:
+        `requires` — ключи настроек расширения, любой пустой — файл вне справочника;
+        `lists_from` — {список: [датасет, ключ, словарь?]}, значения берутся из записей
+        датасета Executor (БД scenario_data, пишет refresh_dataset) — живой кеш без
+        своей таблицы: справочник пересобирается при изменении записи
+        (note_dataset_change), свежесть обновляет фоновый опрос (runtime). Нет записи
+        или список пуст — файл вне справочника: закрытый список нечем закрыть, фразы
+        ведут себя как неизвестные (как у выключенного плагина). Третий элемент — имя
+        общего словаря (lexicons): его падежные варианты (out == имя со регистром)
+        дополняют закрытый список — «в спальне» ловится, когда устройство «Спальня».
+        Прочитанные пары запоминаются. Возврат (списки | None, причина | None):
+        None-списки — файл вне справочника; причина только журнал — сборка не падает."""
+        try:
+            data = json.loads(Path(path).read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001 — битый файл отдаётся справочнику: его warning виден в сборке
+            return {}, None
+        if not isinstance(data, dict):
+            return {}, None  # тот же путь: load_entries сообщит причину
+        keys = data.get("requires") or []
+        if isinstance(keys, str):
+            keys = [keys]
+        values = self.values(ext_id)
+        if any(not str(values.get(str(k)) or "").strip() for k in keys):
+            return None, None  # плагин не настроен — его фразы вне справочника
+        spec = data.get("lists_from") or {}
+        if not isinstance(spec, dict):
+            return None, "lists_from — объект {список: [датасет, ключ, словарь?]}"
+        executor = getattr(self.runtime, "scenario_executor", None)
+        out = {}
+        for name, ref in spec.items():
+            if not isinstance(ref, list) or not 2 <= len(ref) <= 3:
+                return None, f"lists_from[{name!r}] — [датасет, ключ, словарь?]"
+            dataset, key = str(ref[0]), str(ref[1])
+            self._phrase_watched.append((dataset, key))
+            record = executor.dataset_record(dataset, key) if executor is not None else None
+            if record is None or not isinstance(record[0], list) or not record[0]:
+                log.info("расширение %s: справочник фраз %s: список %r: запись датасета %s "
+                         "пуста или отсутствует — файл вне справочника",
+                         ext_id, Path(path).name, name, dataset)
+                return None, None
+            out[str(name)] = {"values": [str(item) for item in record[0]],
+                              "via": str(ref[2]) if len(ref) == 3 else None}
+        return out, None
+
+    def note_dataset_change(self, dataset, key):
+        """True, если последняя сборка справочника фраз читала запись датасета
+        (dataset, key) — справочник пора пересобрать (ставит Runtime по извещению
+        state_store о записи scenario_data)."""
+        return (str(dataset), str(key)) in self._phrase_watched
+
+    def watched_phrase_lists(self):
+        """Пары (датасет, ключ), прочитанные последней сборкой справочника, — что
+        фоновому опросу обновлять ради свежих закрытых списков."""
+        return list(dict.fromkeys(self._phrase_watched))
 
     def context(self, ext_id):
         """ExtensionContext расширения (TASK-053): значения values(ext_id), строки
@@ -465,6 +581,14 @@ class ExtensionManager:
                 return self.context(ext_id)
         for ext_id in sorted(self.loaded):  # имена вне префикса, объявленные явно
             if name in (self.loaded[ext_id]["manifest"]["permissions"].get("actions") or []):
+                return self.context(ext_id)
+        return None
+
+    def dataset_context(self, name):
+        """ExtensionContext расширения-владельца датасета name: имя датасета всегда
+        под префиксом расширения (правило регистрации реестров)."""
+        for ext_id in sorted(self.loaded):
+            if str(name).startswith(str(self.action_prefix(ext_id)).rstrip(".") + "."):
                 return self.context(ext_id)
         return None
 

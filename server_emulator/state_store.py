@@ -80,6 +80,7 @@ class StateStore:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._closed = False
+        self.on_scenario_data = None  # fn(scenario_id, key) после записи scenario_data (runtime)
         self.db = sqlite3.connect(self.path, timeout=10)
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA journal_mode=WAL")

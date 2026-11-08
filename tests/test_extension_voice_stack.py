@@ -117,7 +117,8 @@ async def test_extension_contributions_visible_in_api(tmp_path):
             # список llm-пресетов один: его показывают и «Голосовой стек», и «Интеллект → Модель»
             assert any(a["id"] == "vsx.echo" for a in data["llm"]["adapters"])
             assert any(a["id"] == "vsx.echo" for a in data["tts"]["adapters"])
-            assert [p["id"] for p in data["llm"]["presets"]] == ["vsx.echo"]  # свои пресеты появятся рядом
+            assert [p["id"] for p in data["llm"]["presets"]
+                    if p["origin"] == "extension:vsx"] == ["vsx.echo"]  # свои пресеты появятся рядом
     finally:
         await app_runner.cleanup()
         await runtime.close()

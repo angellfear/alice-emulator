@@ -73,6 +73,9 @@ module: "server_emulator/scenario_engine/parsers.py"
  "callback": "NAlice.TGetInformersTypedCallback",
  "purpose": "get_informers", "frame": "weather_semantic_frame"}
 ```
+Фразы сценария может объявлять плагин в файле справочника (`phrases/*.json`, handler
+`core:<id>`) — тогда у самого сценария своих триггеров нет, `"triggers": []`: выбрать
+сценарий может только совпадение из справочника.
 У `event` фильтры `callback`/`purpose`/`frame` необязательны; сравниваются с
 полями служебного запроса (`input.callback`, `input.purpose`, `input.frame`).
 

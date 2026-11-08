@@ -159,9 +159,10 @@ async def test_modes_api_lists_tabs_and_preset(tmp_path):
         async with ClientSession() as client:
             body = await (await client.get(url + "/emulator/api/intelligence")).json()
         assert body["levels"] == ["scenarios", "model", "agent"]
-        assert body["modes"] == [{"id": "coffee.echo", "title": "Эхо", "ext": "coffee",
-                                  "tabs": [{"id": "echo", "title": "Эхо"}, {"id": "cfg", "title": "Настройки"}],
-                                  "preset": {"voice": "echo", "model": "stub"}, "needs": ["network"]}]
+        assert [m for m in body["modes"] if m["ext"] == "coffee"] == [
+            {"id": "coffee.echo", "title": "Эхо", "ext": "coffee",
+             "tabs": [{"id": "echo", "title": "Эхо"}, {"id": "cfg", "title": "Настройки"}],
+             "preset": {"voice": "echo", "model": "stub"}, "needs": ["network"]}]  # сегменты встроенных плагинов — отдельно
     finally:
         await runner.cleanup()
         await runtime.close()
@@ -173,7 +174,7 @@ async def test_modes_api_hides_disabled_extension(tmp_path):
     try:
         async with ClientSession() as client:
             body = await (await client.get(url + "/emulator/api/intelligence")).json()
-        assert body["modes"] == []  # выключенное расширение — сегментов и подвкладок нет
+        assert [m for m in body["modes"] if m["ext"] == "coffee"] == []  # выключенное расширение — сегментов и подвкладок нет
     finally:
         await runner.cleanup()
         await runtime.close()

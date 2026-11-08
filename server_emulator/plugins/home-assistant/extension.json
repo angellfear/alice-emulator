@@ -1,0 +1,32 @@
+{
+  "id": "builtin.home-assistant",
+  "name": "Home Assistant",
+  "version": "0.1.0",
+  "description": "Home Assistant (встроенный): свет умного дома из устройств HA («включи свет на кухне», список ламп из GET /api/states), действие ha.call_service для сценариев, режим «Интеллекта» conversation-агент HA, пресеты ASR/TTS через Assist и MCP-сервер HA.",
+  "author": "Angell Fear",
+  "license": "MIT",
+  "requires": {
+    "emulator": ">=0.1.0",
+    "sdk": ">=2.5.0",
+    "python_packages": []
+  },
+  "permissions": {
+    "network": ["localhost", "127.0.0.1", "homeassistant", "homeassistant.local"],
+    "actions": ["ha.call_service"],
+    "device_push": false,
+    "install": false
+  },
+  "settings": {
+    "fields": [
+      {"key": "url", "label": "Адрес Home Assistant (http://хост:8123)", "type": "text"},
+      {"key": "token", "label": "Долгоживущий токен доступа (или env:ИМЯ)", "type": "password"},
+      {"key": "agent_id", "label": "Агент Assist (id, необязательно)", "type": "text"},
+      {"key": "language", "label": "Язык фраз", "type": "text"}
+    ],
+    "defaults": {"url": "http://homeassistant.local:8123", "token": "", "agent_id": "", "language": "ru"}
+  },
+  "contributes": {
+    "actions": {"prefix": "ha"},
+    "phrases": "phrases/light.json"
+  }
+}

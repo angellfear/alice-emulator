@@ -49,6 +49,19 @@ def action_context(name):
         return None
 
 
+def dataset_context(name):
+    """ExtensionContext расширения-владельца датасета name (имя датасета всегда
+    под префиксом расширения — правило регистрации) или None. Зовёт код
+    datasets/*.py ради своих настроек (url/токен поставщика данных)."""
+    manager = _manager
+    if manager is None or not hasattr(manager, "dataset_context"):
+        return None
+    try:
+        return manager.dataset_context(name)
+    except Exception:  # noqa: BLE001 — поиск контекста не должен ломать датасет
+        return None
+
+
 def _expand(value):
     """env:ИМЯ → значение из окружения (auth.secret); не-строки — как есть."""
     return secret(value) if isinstance(value, str) else value

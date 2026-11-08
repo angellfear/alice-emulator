@@ -158,9 +158,11 @@ async def test_install_zip_enable_disable_and_restart(tmp_path):
             assert card["enabled"] is False and card["class"] == "data"
             assert listing["sdk"] == SDK_VERSION and listing["emulator"] == EMULATOR_VERSION
             await op(client, url, {"op": "enable", "id": "coffee"})
-            assert runtime.extensions.contribution_dirs("scenarios")[0][0] == "coffee"
+            assert [p for e, p in runtime.extensions.contribution_dirs("scenarios")
+                    if not e.startswith("builtin.")] == [version_dir / "scenarios"]  # встроенные плагины не считаем
             await op(client, url, {"op": "disable", "id": "coffee"})
-            assert runtime.extensions.contribution_dirs("scenarios") == []
+            assert [p for e, p in runtime.extensions.contribution_dirs("scenarios")
+                    if not e.startswith("builtin.")] == []  # выключил плагин — его папок нет
             assert (version_dir / "extension.json").is_file()  # выключение не удаляет файлы
             assert runtime.settings["extensions"]["enabled"]["coffee"] is False
     finally:
@@ -381,7 +383,8 @@ async def test_local_folder_source_no_copy(tmp_path):
             assert not (tmp_path / "extensions" / "coffee" / "1.0.0").exists()  # без копирования
             assert "coffee" not in runtime.extensions.loaded
             await op(client, url, {"op": "enable", "id": "coffee"})
-            assert [p for _, p in runtime.extensions.contribution_dirs("scenarios")] == [dev / "scenarios"]
+            assert [p for e, p in runtime.extensions.contribution_dirs("scenarios")
+                    if not e.startswith("builtin.")] == [dev / "scenarios"]  # папка разработчика, без копирования
             (dev / "extension.json").write_text(
                 json.dumps(manifest(version="1.2.0"), ensure_ascii=False), encoding="utf-8")
             body = await op(client, url, {"op": "update", "id": "coffee"})

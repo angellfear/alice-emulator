@@ -34,18 +34,18 @@ async def handled(runtime, text, sn):
 
 async def test_builtin_copy_patch_test_activate(tmp_path):
     runtime = home(tmp_path)
-    draft = scenario_edit.create(runtime, from_id='smart_home.light', by='user')
-    assert draft['scenario']['id'] == 'user.smart_home.light' and draft['disable_builtin'] == 'smart_home.light'
+    draft = scenario_edit.create(runtime, from_id='informers.clock', by='user')
+    assert draft['scenario']['id'] == 'user.informers.clock' and draft['disable_builtin'] == 'informers.clock'
     path = next(f'/triggers/{i}/phrases/-' for i, t in enumerate(draft['scenario']['triggers'])
                 if t.get('kind') == 'phrase' and t.get('phrases') is not None)
-    draft = scenario_edit.patch(runtime, draft['draft_id'], [{'op': 'add', 'path': path, 'value': 'зажги лампу'}])
+    draft = scenario_edit.patch(runtime, draft['draft_id'], [{'op': 'add', 'path': path, 'value': 'скажи времечко'}])
     assert draft['error'] is None
-    report = scenario_edit.test(runtime, draft['draft_id'], ['зажги лампу на кухне'])
-    assert report['results'][0]['scenario'] == 'user.smart_home.light' and report['stolen'] == []
-    assert await handled(runtime, 'зажги лампу на кухне', 'SN1') is None  # черновик в роутинг не попадает
+    report = scenario_edit.test(runtime, draft['draft_id'], ['скажи времечко'])
+    assert report['results'][0]['scenario'] == 'user.informers.clock' and report['stolen'] == []
+    assert await handled(runtime, 'скажи времечко', 'SN1') is None  # черновик в роутинг не попадает
     assert (await scenario_edit.activate(runtime, draft['draft_id']))['status'] == 'active'
-    assert 'smart_home.light' in runtime.settings['builtin_disabled']
-    assert await handled(runtime, 'зажги лампу на кухне', 'SN1') == 'user.smart_home.light'
+    assert 'informers.clock' in runtime.settings['builtin_disabled']
+    assert await handled(runtime, 'скажи времечко', 'SN1') == 'user.informers.clock'
     await runtime.close()
 
 
@@ -65,9 +65,9 @@ async def test_invalid_patch_reports_validator_error(tmp_path):
 async def test_stolen_phrases_detected(tmp_path):
     runtime = home(tmp_path)
     draft = scenario_edit.create(runtime, scenario={**GARLAND, 'id': 'agent.greedy', 'priority': 1,
-                                                    'triggers': [{'kind': 'phrase', 'phrases': ['свет'], 'match': 'contains'}]})
+                                                    'triggers': [{'kind': 'phrase', 'phrases': ['таймер'], 'match': 'contains'}]})
     report = scenario_edit.test(runtime, draft['draft_id'])
-    assert not report['ok'] and any(s['was'] == 'smart_home.light' for s in report['stolen'])
+    assert not report['ok'] and any(s['was'] == 'timers.timer.set' for s in report['stolen'])
     await runtime.close()
 
 

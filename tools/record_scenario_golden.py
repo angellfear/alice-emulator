@@ -159,6 +159,27 @@ def attach_effects_recorder(runtime):
     return effects
 
 
+def ha_service_stub(arguments, execution):
+    """Действие ha.call_service без сети (свет — плагин home-assistant): ответ как у HA —
+    список изменённых состояний с данными вызова (яркость в attributes → реплика процентом)."""
+    entity = str(arguments.get("entity_id") or "")
+    attributes = dict(arguments.get("data") or {})
+    return [{"entity_id": entity, "state": "on" if str(arguments.get("service") or "") == "turn_on" else "off",
+             "attributes": attributes}]
+
+
+HA_LIGHTS = (("кухня", "light.kitchen"), ("спальня", "light.bedroom"))  # лампы мира эталона
+
+
+def set_ha_lights(runtime, lights):
+    """Мир умного дома: записи датасета ha.lights (в бою их пишет плагин из GET /api/states
+    HA) + пересборка справочника фраз — пустой список выносит файл фраз из справочника."""
+    devices = [{"name": name, "entity_id": entity} for name, entity in lights]
+    for key, value in (("rooms", [device["name"] for device in devices]), ("devices", devices)):
+        runtime.store.scenario_data_set("dataset:ha.lights", "system", "", key, value)
+    runtime.rebuild_phrase_directory()
+
+
 def make_runtime(workdir):
     """Владелец + две колонки + гео дома (params) + заглушка погоды."""
     runtime = Runtime(Path(workdir))
@@ -170,7 +191,15 @@ def make_runtime(workdir):
     state = runtime.settings.setdefault("extensions", {})
     for ext_id in ("builtin.spotify", "builtin.yandex-music"):
         state["enabled"][ext_id] = False
+    # свет умного дома — плагин home-assistant: настроен (токен фиктивный), список ламп —
+    # записи датасета (setup кейсов), сервис HA не вызывается (действие ниже)
+    state.setdefault("settings", {})["builtin.home-assistant"] = {"url": "http://127.0.0.1:1",
+                                                                  "token": "test-token"}
     runtime.extensions.load_enabled()
+    if "ha.call_service" not in runtime.dialog.executor.actions:
+        raise ValueError("нет действия ha.call_service — плагин home-assistant не загружен")
+    runtime.dialog.executor.actions["ha.call_service"] = ha_service_stub
+    set_ha_lights(runtime, HA_LIGHTS)  # мир по умолчанию: две лампы HA (setup кейсов меняет их)
     runtime.identities.mutate({"operation": "user", "id": OWNER, "name": "Alex"})
     runtime.identities.mutate({"operation": "device", "sn": SN, "user_id": OWNER, "name": "Станция"})
     runtime.identities.mutate({"operation": "state", "sn": SN,
@@ -191,9 +220,11 @@ def apply_setup(runtime, name):
         return
     if name == "no_lights":
         runtime.identities.mutate({"operation": "state", "sn": SN, "state": {}})
+        set_ha_lights(runtime, [])  # HA без ламп — фразы файла фраз вне справочника
     elif name == "lights_kitchen_bedroom":
         runtime.identities.mutate({"operation": "state", "sn": SN, "state": {
             "light": {"кухня": {"on": False, "brightness": 70}, "спальня": {"on": True}}}})
+        set_ha_lights(runtime, HA_LIGHTS)
     elif name == "station_timers":  # TASK-079: колонка сообщает два активных таймера
         STATION.update({
             "timers": [{"timer_id": "11111111-22222222-33333333-44444444",
@@ -571,12 +602,16 @@ def directory_cases(scenario_id, phrases):
             for index, phrase in enumerate((phrases or {}).get(scenario_id) or [])]
 
 
-def _sample_phrase(sentence, directory):
+def _sample_phrase(sentence, directory, data=None):
     """Фраза-образец шаблона записи: вариант hassil без необязательных групп; подстановки
     (хвосты `{query}`, `_prefix`) отбрасываются — фраза должна быть произносимой.
-    Из вариантов берётся самый информативный — длиннее литеральный текст."""
+    Из вариантов берётся самый информативный — длиннее литеральный текст.
+    Списки берёт общие справочника плюс собственные списки записи (`lists` файла фраз):
+    sample_sentence общие списки знает, собственные — нет."""
+    slot_lists = dict(directory.intents.slot_lists)
+    slot_lists.update(getattr(data, "slot_lists", None) or {})
     samples = []
-    for text in sample_sentence(sentence, slot_lists=directory.intents.slot_lists,
+    for text in sample_sentence(sentence, slot_lists=slot_lists,
                                 language=LANGUAGE, skip_optionals=True):
         text = " ".join(str(text).split())
         if text and not any(char in text for char in "{}[]"):
@@ -600,7 +635,7 @@ def phrase_samples(runtime, catalog):
         intent = directory.intents.intents.get(entry["id"])
         for data in (intent.data if intent is not None else []):
             for sentence in data.sentences:
-                phrase = _sample_phrase(sentence, directory)
+                phrase = _sample_phrase(sentence, directory, data)
                 found = phrases.setdefault(scenario_id, [])
                 if phrase and phrase not in found:
                     found.append(phrase)
