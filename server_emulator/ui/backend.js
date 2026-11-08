@@ -1,21 +1,79 @@
-/* Вкладка «Quasar»: платформенные конфиги sync + переопределения устройств.
-   Сайдбар: «Общие конфиги устройств» (общий конфиг + платформы-патчи; простой
-   вид по инлайн-узлам / полный — граф-дерево со сворачиванием и редактор JSON
-   на CodeMirror) и «Переопределение под устройство» (список устройств,
-   переопределения, просмотр итогового конфига после сборки с происхождением
-   значений — наведение показывает источник, клик создаёт переопределение). */
+/* Вкладка «Quasar»: слои конфига + переопределения устройств.
+   Стек слоёв сборки слева: встроенная база (только чтение) → общий →
+   платформа → под устройство (раздел переопределений в той же панели).
+   Панель слоя — настройки по инлайн-узлам, JSON слоя с деревом, поиском по
+   путям и редактором ветви, полоса несохранённых изменений; «Итог для
+   платформы» — просмотр собранного конфига с происхождением значений. */
 (() => {
   const $=id=>document.getElementById(id);
-  let registry, section='platforms', selectedPlatform='', selectedSn='', mode='simple';
-  let platformFile=null, dirty=false;
-  let selectedBranch='';                 // выбранный путь ветви полного вида
-  const foldState=new Map();             // путь → свёрнуто?; без записи — по умолчанию (глубина ≥ 2)
-  const guard=()=>{if(dirty&&!confirm('Есть несохранённые изменения. Переключить и потерять их?'))return false;dirty=false;return true}
+  let registry, selectedSn='';
+  let dirty=false;                    // несохранённый редактор «Свой ответ» (слой устройств)
+  // слои конфига
+  let layer='common';                 // base | common | platform | devices
+  let basePlatform='';                // платформа встроенной базы ('' — общий дефолт)
+  let selectedPlatform='';            // платформа патча
+  let overview=null;                  // кэш общего GET quasar_platforms
+  let workingFile=null;               // правимая копия тела активного слоя
+  let layerKey='';                    // какое тело загружено ('base:x'|'common'|'platform:x'|'devices')
+  let changes=0;                      // несохранённые изменения активного слоя
+  let saveErr='';                     // ошибка сохранения — в полосе изменений
+  let jsonOpen=false;                 // состояние <details> «JSON слоя»
+  let branchFilter='';                // фильтр «найти ключ»
+  let selectedBranch='';              // выбранный путь ветви JSON-раздела
+  const foldState=new Map();          // путь → свёрнуто?; без записи — по умолчанию (глубина ≥ 2)
+  const readOnlyLayer=()=>layer==='base';
+  const ruPlural=(n,forms)=>{const m10=n%10,m100=n%100;
+    return forms[(m10===1&&m100!==11)?0:(m10>=2&&m10<=4&&(m100<12||m100>14))?1:2]};
   const make=(tag,text)=>{const el=document.createElement(tag);if(text)el.textContent=text;return el};
   async function api(action,value){const response=await fetch('api/'+action,{method:value?'POST':'GET',headers:{'X-Emulator':'1','Content-Type':'application/json'},body:value?JSON.stringify(value):undefined});const result=await response.json();if(!response.ok)throw Error(result.error||response.statusText);return result}
   async function put(action,value){const response=await fetch('api/'+action,{method:'PUT',headers:{'X-Emulator':'1','Content-Type':'application/json'},body:JSON.stringify(value)});const result=await response.json();if(!response.ok)throw Error(result.error||response.statusText);return result}
   async function del(action){const response=await fetch('api/'+action,{method:'DELETE',headers:{'X-Emulator':'1'}});const result=await response.json();if(!response.ok)throw Error(result.error||response.statusText);return result}
   async function work(fn){try{await fn()}catch(e){notify(e.message,{error:true})}}
+
+  // ── диалоги вместо confirm()/prompt(): askDialog → Promise значения кнопки ──
+  function askDialog(text,actions,title){
+    return new Promise(resolve=>{
+      const dlg=document.createElement('dialog');dlg.className='catalog-dialog';
+      dlg.setAttribute('aria-label',title||'Подтверждение');
+      const form=document.createElement('form');dlg.append(form);document.body.append(dlg);
+      if(title)form.append(make('h3',title));
+      const p=make('p',text);p.className='hint';form.append(p);
+      const row=make('div');row.className='row';form.append(row);
+      for(const a of actions){
+        const b=make('button',a.label);b.type='button';
+        if(a.className)b.className=a.className;
+        b.onclick=()=>{dlg.close();resolve(a.value)};
+        row.append(b);
+      }
+      dlg.addEventListener('close',()=>{dlg.remove();resolve(null)});
+      dlg.showModal();
+    });
+  }
+  const confirmDiscard=message=>askDialog(message,[
+    {label:'Остаться',className:'secondary',value:false},{label:'Переключить',value:true}],
+    'Несохранённые изменения');
+  const leaveLayers=()=>askDialog('Что сделать с несохранёнными изменениями слоя?',[
+    {label:'Отмена',className:'secondary',value:'cancel'},
+    {label:'Не сохранять',className:'secondary',value:'discard'},
+    {label:'Сохранить',value:'save'}],'Несохранённые изменения');
+  function askText(title,text,placeholder,value=''){
+    return new Promise(resolve=>{
+      const dlg=document.createElement('dialog');dlg.className='catalog-dialog';
+      dlg.setAttribute('aria-label',title);
+      const form=document.createElement('form');dlg.append(form);document.body.append(dlg);
+      form.append(make('h3',title));
+      if(text){const p=make('p',text);p.className='hint';form.append(p)}
+      const input=make('input');input.value=value;input.placeholder=placeholder||'';input.spellcheck=false;
+      const label=make('label','Имя');label.append(input);form.append(label);
+      const row=make('div');row.className='row';
+      const cancel=make('button','Отмена');cancel.type='button';cancel.className='secondary';cancel.onclick=()=>dlg.close();
+      const save=make('button','Сохранить');save.type='submit';
+      row.append(cancel,save);form.append(row);
+      form.onsubmit=e=>{e.preventDefault();dlg.close();resolve(input.value.trim())};
+      dlg.addEventListener('close',()=>{dlg.remove();resolve(null)});
+      dlg.showModal();input.focus();
+    });
+  }
 
   // ── редактор кода: готовая библиотека CodeMirror (vendor/), запас — textarea
   function makeCM(container,{value='',readOnly=false,height='520px',onDirty=null}={}){
@@ -95,7 +153,7 @@
     while(parts.length&&/^\d+$/.test(parts[parts.length-1]))parts.pop();
     return parts.join('.');
   };
-  const originFor=(path,origins)=>{
+  const originFor=(path,origins,fallback)=>{
     if(path&&origins[path])return origins[path];
     if(path){
       const parts=path.split('.');
@@ -104,7 +162,7 @@
         if(origins[ancestor])return origins[ancestor]+' — унаследовано с '+ancestor;
       }
     }
-    return origins['']||'общий конфиг (common.json)';
+    return origins['']||fallback||'общий конфиг (common.json)';
   };
   let cmTip=null; // единственный тултип происхождения на страницу
   const tipElement=()=>{
@@ -112,199 +170,466 @@
     return cmTip;
   };
 
-  // ── каркас: сайдбар + контент ─────────────────────────────────────────
-  async function render(){registry=await api('identities');const root=$('quasar-http');root.replaceChildren();
-    const layout=make('div');layout.className='quasar-layout';
-    const side=make('nav');side.className='quasar-side';side.setAttribute('aria-label','Разделы Quasar');
-    const bPlatforms=make('button','Общие конфиги устройств');bPlatforms.type='button';
-    const bDevices=make('button','Переопределение под устройство');bDevices.type='button';
-    bPlatforms.onclick=()=>{if(guard()){section='platforms';render()}};
-    bDevices.onclick=()=>{if(guard()){section='devices';render()}};
-    (section==='platforms'?bPlatforms:bDevices).classList.add('active');
-    side.append(bPlatforms,bDevices);
-    const content=make('div');content.className='quasar-content';content.id='quasar-content';
-    layout.append(side,content);root.append(layout);
-    if(section==='platforms')await renderPlatforms(content);else await renderDevices(content);
-  }
-
-  // ── Общие конфиги: общий конфиг (не удаляемый) + платформы-патчи ──────
-  let overview=null; // {common, platforms, tokens, inline, sources} из API
-  async function renderPlatforms(root){
-    root.replaceChildren();  // единый редактор: никакого накопления экземпляров
-    overview=await api('quasar_platforms');
-    if(!selectedPlatform)selectedPlatform='common';
-    const tabs=make('div');tabs.className='sc-toolbar';
-    const commonB=make('button','Общий конфиг');commonB.type='button';commonB.title='База для всех платформ — не удаляется';
-    if(selectedPlatform==='common')commonB.classList.add('active');
-    commonB.onclick=()=>{if(guard()){selectedPlatform='common';mode='simple';selectedBranch='';work(render)}};
-    tabs.append(commonB);
-    for(const meta of overview.platforms){
-      const b=make('button',meta.platform+(meta.default?' · по умолчанию':''));b.type='button';
-      if(meta.platform===selectedPlatform)b.classList.add('active');
-      b.title=meta.title+' · патч '+meta.patch_bytes+' Б';
-      b.onclick=()=>{if(guard()){selectedPlatform=meta.platform;mode='simple';selectedBranch='';work(render)}};
-      tabs.append(b);
+  // ── каркас: стек слоёв + панель активного слоя ────────────────────────
+  async function render(){registry=await api('identities');
+    await renderLayers($('quasar-http'));}
+  async function renderLayers(root){
+    root.replaceChildren();
+    if(!overview)overview=await api('quasar_platforms');
+    if(!selectedPlatform)selectedPlatform=(overview.platforms[0]||{}).platform||'';
+    const key=layer==='base'?'base:'+basePlatform:layer==='common'?'common'
+      :layer==='devices'?'devices':'platform:'+selectedPlatform;
+    if(layer!=='devices'&&(key!==layerKey||workingFile===null)){
+      saveErr='';
+      if(layer==='base'){
+        const data=await api('quasar_platforms?builtin='+encodeURIComponent(basePlatform));
+        workingFile=data.config;
+      }else if(layer==='common'){
+        workingFile=JSON.parse(JSON.stringify(overview.common));
+      }else if(selectedPlatform){
+        workingFile=await api('quasar_platforms?platform='+encodeURIComponent(selectedPlatform));
+      }else workingFile=null;
+      layerKey=key;changes=0;selectedBranch='';branchFilter='';
     }
-    const add=make('button','＋ платформа');add.type='button';add.className='secondary';
-    add.onclick=()=>work(async()=>{const name=prompt('Идентификатор платформы (например station_max):');
-      if(!name)return;await put('quasar_platforms',{platform_file:{platform:name,title:'Платформа '+name,
-        description:'',patch:{}}});selectedPlatform=name;await render()});
-    const delB=make('button','Удалить платформу');delB.type='button';delB.className='secondary danger';
-    delB.onclick=()=>work(async()=>{if(selectedPlatform==='common'||!confirm('Удалить платформу '+selectedPlatform+'?'))return;
-      await del('quasar_platforms?platform='+encodeURIComponent(selectedPlatform));
-      selectedPlatform='common';await render()});
-    tabs.append(add,delB);root.append(tabs);
-    const file=selectedPlatform==='common'?overview.common
-      :await api('quasar_platforms?platform='+encodeURIComponent(selectedPlatform));
-    platformFile=file;
-    const modes=make('div');modes.className='seg';modes.style.margin='10px 0';
-    const simple=make('button','Простой');simple.type='button';
-    const full=make('button','Полный (JSON + граф)');full.type='button';
-    (mode==='simple'?simple:full).classList.add('active');
-    simple.onclick=()=>{if(mode!=='simple'&&guard()){mode='simple';work(render)}};
-    full.onclick=()=>{if(mode!=='full'&&guard()){mode='full';work(render)}};
-    const hint=make('p',selectedPlatform==='common'
-      ?'Общий конфиг — база всех устройств. Инлайн-узлы ($-ключи) превращаются в контролы простого вида; полный вид — граф-дерево и редактор JSON.'
-      :'Платформа — merge-patch (RFC 7396) поверх общего конфига: только отличия; null удаляет ключ. Инлайн-узлы патчатся напрямую.');
-    hint.className='hint';
-    modes.append(simple,full);root.append(hint,modes);
-    const save=async()=>{if(selectedPlatform==='common')await put('quasar_platforms',{common_file:file});
-      else await put('quasar_platforms',{platform_file:{platform:selectedPlatform,patch:file}});
-      dirty=false};
-    if(mode==='simple')renderSimple(root,file,save);else renderFull(root,file,save);
+    const wrap=make('div');wrap.className='quasar-layers';
+    wrap.append(layerStack());
+    if(layer==='devices')wrap.append(await devicesPanel());
+    else wrap.append(await layerPanel());
+    root.append(wrap);
   }
 
-  // Простой вид: контролы по инлайн-узлам ($select/$bool/$string/$number/$list/$param)
-  function renderSimple(root,file,save){
+  function layerStack(){
+    const stack=make('div');stack.className='quasar-stack';
+    const counts=overview.builtin_counts||{};
+    const button=(title,short,small,active,onclick)=>{
+      const b=make('button');b.type='button';
+      const full=make('b',title);full.className='full';
+      const sh=make('span',short);sh.className='short';
+      b.append(full,sh);
+      if(small)b.append(make('small',small));
+      if(active)b.classList.add('active');
+      b.onclick=()=>work(onclick);
+      stack.append(b);return b};
+    button('Встроенная база','База',
+      'ключей '+(counts[basePlatform]??'—')+' · '+(basePlatform||'общий дефолт'),
+      layer==='base',async()=>switchLayer('base'));
+    button('Общий','Общий',
+      'ключей '+overview.common_keys+' · настроек '+overview.common_inline,
+      layer==='common',async()=>switchLayer('common'));
+    const meta=overview.platforms.find(p=>p.platform===selectedPlatform);
+    button('Платформа',selectedPlatform||'Платформа',
+      (selectedPlatform?selectedPlatform+' · ':'')+(selectedPlatform?'ключей '+(meta?meta.keys:0):'нет файлов'),
+      layer==='platform',async()=>switchLayer('platform'));
+    button('Под устройство','Колонки','устройств '+registry.devices.length,
+      layer==='devices',async()=>switchLayer('devices'));
+    return stack;
+  }
+
+  // переход между слоями: слой устройств — потерять правки «Своего ответа»,
+  // конфиг-слои — «Сохранить / Не сохранять / Отмена»
+  async function switchLayer(next){
+    if(next===layer)return;
+    if(layer==='devices'){
+      if(dirty&&!await confirmDiscard('В редакторе «Свой ответ» есть несохранённые изменения. Переключить и потерять их?'))return;
+      dirty=false;
+    }else if(!await guardLayerSwitch())return;
+    layer=next;selectedBranch='';work(render);
+  }
+
+  // переход между слоями/платформами: несохранённое — «Сохранить / Не сохранять / Отмена»
+  async function guardLayerSwitch(){
+    if(!changes)return true;
+    const act=await leaveLayers();
+    if(act==='cancel')return false;
+    if(act==='save'){const ok=await saveLayer();if(!ok)return false}
+    if(act==='discard'){layerKey='';workingFile=null}  // правки теряются — тело перечитать
+    changes=0;saveErr='';return true;
+  }
+  async function switchLayer(next){
+    if(next===layer)return;
+    if(!await guardLayerSwitch())return;
+    layer=next;selectedBranch='';work(render);
+  }
+  async function switchPlatform(name){
+    if(name===selectedPlatform)return;
+    if(!await guardLayerSwitch())return;
+    selectedPlatform=name;selectedBranch='';work(render);
+  }
+  async function switchBasePlatform(name){ // база только для чтения — без сохранений
+    basePlatform=name;selectedBranch='';work(render);
+  }
+
+  async function saveLayer(){
+    try{
+      if(layer==='common')await put('quasar_platforms',{common_file:workingFile});
+      else await put('quasar_platforms',{platform_file:{platform:selectedPlatform,patch:workingFile}});
+      changes=0;saveErr='';overview=null;notify('Слой сохранён');return true;
+    }catch(e){saveErr=e.message;refreshSavebar();return false}
+  }
+  function fillSavebar(bar){
+    bar.replaceChildren();
+    bar.append(make('span',changes+' '+ruPlural(changes,['изменение','изменения','изменений'])));
+    const undo=make('button','Отменить');undo.type='button';undo.className='secondary';
+    undo.onclick=()=>work(async()=>{changes=0;saveErr='';layerKey='';work(render)});
+    const save=make('button','Сохранить');save.type='button';
+    save.onclick=()=>work(async()=>{const ok=await saveLayer();if(ok)work(render)});
+    const err=make('span');err.className='sc-err';err.textContent=saveErr;err.hidden=!saveErr;
+    bar.append(undo,save,err);
+    bar.hidden=!changes&&!saveErr;
+  }
+  function refreshSavebar(){const bar=$('quasar-savebar');if(bar)fillSavebar(bar)}
+  function markChange(){changes++;refreshSavebar()}
+
+  async function layerPanel(){
+    const panel=make('div');panel.className='quasar-panel-layer';
+    const head=make('div');head.className='layer-head';
+    head.append(make('h3',{base:'Встроенная база',common:'Общий',platform:'Платформа'}[layer]));
+    let composeName=layer==='base'?basePlatform:selectedPlatform;
+    if(layer==='base'){
+      const select=make('select');select.className='layer-select';
+      select.title='Платформа встроенной базы: база собирается из общего дефолта плюс квирк платформы';
+      select.append(new Option('общий дефолт',''));
+      for(const name of overview.builtin_platforms||[])select.append(new Option(name,name));
+      select.value=basePlatform;
+      select.onchange=()=>switchBasePlatform(select.value);
+      const lock=make('span','только чтение');lock.className='quasar-lock';
+      head.append(select,lock);
+    }
+    if(layer==='platform'){
+      const select=make('select');select.className='layer-select';select.title='Платформа-патч';
+      if(!selectedPlatform)select.append(new Option('— платформа не выбрана —',''));
+      for(const meta of overview.platforms)
+        select.append(new Option(meta.platform+(meta.default?' · по умолчанию':''),meta.platform));
+      if(selectedPlatform)select.value=selectedPlatform;
+      select.onchange=()=>switchPlatform(select.value);
+      const menu=make('button','⋯');menu.type='button';menu.className='icon-btn';
+      menu.title='Платформы: добавить, переименовать, удалить';
+      menu.onclick=()=>platformMenu();
+      head.append(select,menu);
+    }
+    const composeB=make('button',composeName?'Итог для '+composeName:'Итог (без платформы)');
+    composeB.type='button';composeB.className='secondary';
+    composeB.title='Собранный конфиг без устройства: встроенная база → общий → патч платформы';
+    composeB.onclick=()=>work(()=>composeDialog(composeName));
+    head.append(composeB);
+    panel.append(head);
+    const hint=make('p');hint.className='hint';
+    hint.textContent=readOnlyLayer()
+      ?'Только чтение. Правки — в «Общий» и «Платформа».'
+      :layer==='common'
+        ?'Действует на все колонки поверх встроенной базы.'
+        :'Только отличия от общего; null удаляет ключ.';
+    panel.append(hint);
+    if(!workingFile){
+      panel.append(make('p','Платформ ещё нет — добавьте через меню «⋯» рядом с выбором платформы.'));
+      return panel;
+    }
+    const ro=readOnlyLayer();
+    if(!ro)panel.append(settingsSection(workingFile,ro));
+    panel.append(jsonSection(workingFile,ro));
+    if(!ro){const bar=make('div');bar.className='layer-savebar';bar.id='quasar-savebar';fillSavebar(bar);panel.append(bar)}
+    return panel;
+  }
+
+  // «Настройки»: инлайн-узлы слоя строками «подпись — контрол справа»
+  function settingsSection(file,ro){
+    const box=make('div');
+    box.append(make('h4','Настройки'));
     const found=[];collectInline(file,found,'');
-    const box=make('div');box.className='endpoint-tree';
-    if(!found.length){const p=make('p','Инлайн-узлов нет — простой вид пуст. Добавьте узел в полном редакторе: например {"$select":"Вкл","Вкл":{…},"Выкл":{…},"$name":"Подпись"}.');p.className='hint';box.append(p)}
-    for(const {node,kind,path} of found){
-      const row=make('div');row.className='tree-leaf';row.style.flexWrap='wrap';
-      row.append(make('span',node.$name||path));row.title=(node.$hint||'')+' · '+path;
-      const apply=async fn=>{fn();await save();notify('Применено: '+path);await render()};
-      if(kind==='$select'){
-        const select=make('select');
-        for(const key of Object.keys(node)){
-          if(key.startsWith('$'))continue;
-          const o=make('option',key);o.value=key;
-          if(node.$select===key)o.selected=true;select.append(o)}
-        select.onchange=()=>apply(()=>{node.$select=select.value});
-        row.append(select);
-      }else if(kind==='$bool'){
-        const cb=make('input');cb.type='checkbox';cb.checked=!!node.$bool;
-        cb.onchange=()=>apply(()=>{node.$bool=cb.checked});
-        row.append(cb);
-      }else if(kind==='$list'){
-        const input=make('input');input.type='text';input.value=Array.isArray(node.$list)?node.$list.join(', '):'';
-        input.onchange=()=>apply(()=>{node.$list=input.value.split(',').map(x=>x.trim()).filter(Boolean)});
-        row.append(input);
-      }else if(kind==='$param'){
-        const input=make('input');input.type='text';input.value=node.$param;
-        input.title='Ключ из каталога параметров (раздел «Параметры») или device.sn / user.name…';
-        input.onchange=()=>apply(()=>{node.$param=input.value});
-        row.append(input);
-      }else{ // $string | $number
-        const input=make('input');input.type=kind==='$number'?'number':'text';input.value=node[kind]??'';
-        input.onchange=()=>apply(()=>{node[kind]=kind==='$number'?Number(input.value):input.value});
-        row.append(input);
-      }
-      box.append(row);
+    if(!found.length){const p=make('p','Инлайн-узлов ($-ключей) в слое нет — добавить можно в JSON слоя.');p.className='hint';box.append(p);return box}
+    const rows=make('div');rows.className='set-rows';
+    for(const {node,kind,path} of found)rows.append(settingRow(node,kind,path,ro));
+    box.append(rows);
+    return box;
+  }
+  function settingRow(node,kind,path,ro){
+    const row=make('div');row.className='set-row';
+    row.append(make('span',node.$name||path));
+    row.title=(node.$hint?node.$hint+' · ':'')+path;
+    const commit=fn=>{fn();markChange()};
+    if(kind==='$bool'){
+      const sw=make('label');sw.className='ui-switch';
+      const cb=make('input');cb.type='checkbox';cb.checked=!!node.$bool;cb.disabled=ro;
+      cb.onchange=()=>commit(()=>{node.$bool=cb.checked});
+      sw.append(cb,make('i'));row.append(sw);
+    }else if(kind==='$select'){
+      const select=make('select');select.className='set-ctl';select.disabled=ro;
+      for(const key of Object.keys(node)){
+        if(key.startsWith('$'))continue;
+        const o=make('option',key);o.value=key;
+        if(node.$select===key)o.selected=true;select.append(o)}
+      select.onchange=()=>commit(()=>{node.$select=select.value});
+      row.append(select);
+    }else if(kind==='$param'){
+      const btn=make('button',node.$param||'— задать параметр —');btn.type='button';
+      btn.className='set-param';btn.disabled=ro;btn.title='Параметр узла: '+path;
+      btn.onclick=()=>paramDialog(node,path,btn);
+      row.append(btn);
+    }else{ // $string | $number | $list
+      const input=make('input');
+      input.type=kind==='$number'?'number':'text';input.className='set-ctl';input.disabled=ro;
+      input.value=kind==='$list'?(Array.isArray(node.$list)?node.$list.join(', '):''):node[kind]??'';
+      input.onchange=()=>commit(()=>{node[kind]=kind==='$list'
+        ?input.value.split(',').map(x=>x.trim()).filter(Boolean)
+        :(kind==='$number'?Number(input.value):input.value)});
+      row.append(input);
     }
-    root.append(box);
+    return row;
+  }
+  // ключ $param: выбор из известных путей или ввод — в <dialog>
+  function paramDialog(node,path,btn){
+    const dlg=document.createElement('dialog');dlg.className='catalog-dialog';
+    dlg.setAttribute('aria-label','Параметр узла');
+    const form=document.createElement('form');dlg.append(form);document.body.append(dlg);
+    form.append(make('h3','Параметр узла'));
+    const p=make('p','Ключ из каталога параметров (раздел «Параметры») или путь реестра: device.sn, user.name…');
+    p.className='hint';form.append(p);
+    const input=make('input');input.value=node.$param||'';input.spellcheck=false;
+    const list=make('datalist');list.id='quasar-param-list';
+    for(const name of ['device.sn','device.id','device.name','device.room','device.platform',
+      'user.id','user.name','session.sn'])list.append(new Option(name));
+    input.setAttribute('list',list.id);
+    form.append(list,input);
+    const row=make('div');row.className='row';
+    const cancel=make('button','Отмена');cancel.type='button';cancel.className='secondary';cancel.onclick=()=>dlg.close();
+    const save=make('button','Сохранить');save.type='submit';
+    row.append(cancel,save);form.append(row);
+    form.onsubmit=e=>{e.preventDefault();node.$param=input.value.trim();
+      btn.textContent=node.$param||'— задать параметр —';
+      dlg.close();dlg.remove();markChange()};
+    dlg.addEventListener('close',()=>dlg.remove());
+    dlg.showModal();input.focus();
   }
 
-  // Полный вид: граф-дерево (сворачивание +/-, шаблоны целиком) + редактор
-  // выбранной ветви на CodeMirror (подсветка, фолдинг), чипы-подсказки внизу
-  function renderFull(root,file,save){
-    const split=make('div');split.className='split';
+  // «JSON слоя»: поиск по путям + дерево + редактор ветви (справа на широком,
+  // под деревом на узком); у базы всё только для чтения
+  function jsonSection(file,ro){
+    const det=make('details');det.className='layer-json';det.open=jsonOpen;
+    det.addEventListener('toggle',()=>{jsonOpen=det.open});
+    det.append(make('summary','JSON слоя'));
+    const body=make('div');
+    const filter=make('input');filter.type='search';filter.className='json-filter';
+    filter.placeholder='найти ключ (путь)';filter.value=branchFilter;filter.spellcheck=false;
+    const split=make('div');split.className='quasar-json';
     const tree=make('div');tree.className='quasar-tree';
     const editor=make('div');editor.className='quasar-editor';
     const branchLabel=make('p','Ветвь: корень файла');branchLabel.className='hint';
     const edHolder=make('div');
-    const ed=makeCM(edHolder,{height:'540px',onDirty:()=>{dirty=true}});
-    const applyB=make('button','Сохранить ветвь');applyB.type='button';
-    const chips=make('div');chips.className='chips-below';
-    const hints=[['{{now_iso}}','время ответа'],['{{device_id}}','DeviceId'],['{{device_name}}','имя из реестра'],
-      ['{{user.name}}','имя владельца'],['{{device.room}}','комната'],['{"db":"user.location"}','поле из БД эмулятора'],
-      ['{"run":"script.bat"}','запуск скрипта (state/quasar/scripts)'],
-      ['{"$select":"Вкл","Вкл":{…},"Выкл":{…},"$name":"Подпись"}','инлайн-селектор'],
-      ['{"$bool":true,"$name":"Флаг"}','вкл/выкл'],['{"$string":"{{device_name}}"}','строка с токеном'],
-      ['{"$param":"user.name"}','параметр из каталога']];
-    const chipTitle=make('span','Вставить в позицию курсора:');chipTitle.style.color='var(--faint)';chipTitle.style.fontSize='11.5px';
-    chips.append(chipTitle);
-    for(const [text,title] of hints){const chip=make('code',text);chip.title=title;
-      chip.onclick=()=>ed.insert(text);chips.append(chip)}
-    applyB.onclick=()=>work(async()=>{
-      let value;try{value=JSON.parse(ed.getValue())}catch{throw Error('Ветвь: некорректный JSON')}
-      if(!selectedBranch){for(const key of Object.keys(file))delete file[key];Object.assign(file,value)}
-      else{
-        const parts=selectedBranch.split('.');
-        let node=file;
-        for(const part of parts.slice(0,-1)){
-          let child=Array.isArray(node)?node[Number(part)]:node[part];
-          if(!child||typeof child!=='object'){child={};if(Array.isArray(node))node[Number(part)]=child;else node[part]=child}
-          node=child;
+    const ed=makeCM(edHolder,{readOnly:ro,height:'420px'});
+    split.append(tree,editor);body.append(filter,split);
+    if(!ro){
+      const applyB=make('button','Сохранить ветвь');applyB.type='button';
+      applyB.onclick=()=>work(async()=>{
+        let value;try{value=JSON.parse(ed.getValue())}catch{throw Error('Ветвь: некорректный JSON')}
+        writeBranch(file,selectedBranch,value);
+        markChange();jsonOpen=true;work(render);  // настройки и дерево — по новому телу
+      });
+      const chipsDet=make('details');chipsDet.className='layer-chips';
+      chipsDet.append(make('summary','Вставки'));
+      const chips=make('div');chips.className='chips-below';
+      const chipTitle=make('span','Вставить в позицию курсора:');chips.append(chipTitle);
+      for(const [text,title] of CHIP_HINTS){
+        const chip=make('code',text);chip.title=title;chip.onclick=()=>ed.insert(text);chips.append(chip)}
+      chipsDet.append(chips);
+      editor.append(branchLabel,edHolder,applyB,chipsDet);
+    }else editor.append(branchLabel,edHolder);
+    filter.oninput=()=>{branchFilter=filter.value.trim().toLowerCase();draw()};
+    const visible=()=>visiblePathsFor(file,branchFilter);
+    function draw(){
+      const vis=visible();
+      const rows={};
+      tree.replaceChildren();
+      const select=(node,path)=>{
+        selectedBranch=path;
+        ed.setValue(JSON.stringify(node,null,2));
+        branchLabel.textContent='Ветвь: '+(path||'корень файла');
+        tree.querySelectorAll('.quasar-branch.selected').forEach(x=>x.classList.remove('selected'));
+        if(rows[path])rows[path].classList.add('selected');
+        setTimeout(()=>ed.refresh(),0);
+      };
+      const buildNode=(host,node,path,label,depth)=>{
+        if(vis&&!vis.has(path))return;
+        const row=make('div');row.className='quasar-branch'+(path===selectedBranch?' selected':'');
+        row.style.paddingLeft=(depth*12)+'px';
+        const kind=inlineKindOf(node);
+        if(kind){ // шаблон: содержимое не раскрываем — целиком в редактор
+          const btn=make('button','Шаблон');btn.type='button';btn.className='tpl-btn';
+          row.append(btn,make('span',(node.$name||label)+(kind==='$select'&&node.$select?' · '+node.$select:'')));
+          row.title=(node.$hint||'инлайн-узел '+kind)+' — '+path;
+          row.onclick=()=>select(node,path);
+          host.append(row);rows[path]=row;return;
         }
-        const last=parts[parts.length-1];
-        if(Array.isArray(node))node[Number(last)]=value;else node[last]=value;
-      }
-      await save();notify('Ветвь сохранена: '+(selectedBranch||'файл'))});
-    editor.append(branchLabel,edHolder,applyB,chips);
-    const rows={};
-    const select=(node,path)=>{
-      selectedBranch=path;
-      ed.setValue(JSON.stringify(node,null,2));
-      branchLabel.textContent='Ветвь: '+(path||'корень файла');
-      tree.querySelectorAll('.quasar-branch.selected').forEach(x=>x.classList.remove('selected'));
-      if(rows[path])rows[path].classList.add('selected');
-      setTimeout(()=>ed.refresh(),0);
-    };
-    const buildNode=(host,node,path,label,depth)=>{
-      const row=make('div');row.className='quasar-branch'+(path===selectedBranch?' selected':'');
-      row.style.paddingLeft=(depth*12)+'px';
-      const kind=inlineKindOf(node);
-      if(kind){ // шаблон: содержимое не раскрываем — целиком в редактор справа
-        const btn=make('button','Шаблон');btn.type='button';btn.className='tpl-btn';
-        row.append(btn,make('span',(node.$name||label)+(kind==='$select'&&node.$select?' · '+node.$select:'')));
-        row.title=(node.$hint||'инлайн-узел '+kind)+' — '+path;
-        row.onclick=()=>select(node,path);
-        host.append(row);rows[path]=row;return;
-      }
-      const isObj=node!==null&&typeof node==='object';
-      const entries=isObj?(Array.isArray(node)?node.map((v,i)=>[String(i),v]):Object.entries(node)):[];
-      if(!entries.length){ // пустой объект/массив или скаляр-лист
-        if(!isObj)row.classList.add('leaf');
-        row.textContent=isObj?(label+(Array.isArray(node)?' []':' {}')):(label+': '+JSON.stringify(node));
+        const isObj=node!==null&&typeof node==='object';
+        const entries=isObj?(Array.isArray(node)?node.map((v,i)=>[String(i),v]):Object.entries(node)):[];
+        if(!entries.length){ // пустой объект/массив или скаляр
+          if(!isObj)row.classList.add('leaf');
+          row.textContent=isObj?(label+(Array.isArray(node)?' []':' {}')):(label+': '+JSON.stringify(node));
+          row.title=path;
+          row.onclick=()=>select(node,path);
+          host.append(row);rows[path]=row;return;
+        }
+        const tw=make('span');tw.className='tw';tw.textContent='▾';
+        const head=make('span',label+(Array.isArray(node)?' []':' {}'));head.style.flex='1';
+        const count=make('span',String(entries.length));count.className='count';count.title='элементов';
+        const kids=make('div');
+        const folded=vis?false:(foldState.has(path)?foldState.get(path):depth>=2);
+        kids.hidden=folded;tw.textContent=folded?'▸':'▾';
+        tw.onclick=e=>{e.stopPropagation();
+          const now=!kids.hidden;foldState.set(path,now);kids.hidden=now;tw.textContent=now?'▸':'▾'};
+        row.append(tw,head,count);
         row.title=path;
         row.onclick=()=>select(node,path);
-        host.append(row);rows[path]=row;return;
-      }
-      const tw=make('span');tw.className='tw';tw.textContent='▾';
-      const head=make('span',label+(Array.isArray(node)?' []':' {}'));head.style.flex='1';
-      const count=make('span',String(entries.length));count.className='count';count.title='элементов';
-      const kids=make('div');
-      const folded=foldState.has(path)?foldState.get(path):depth>=2;
-      kids.hidden=folded;tw.textContent=folded?'▸':'▾';
-      tw.onclick=e=>{e.stopPropagation();
-        const now=!kids.hidden;foldState.set(path,now);kids.hidden=now;tw.textContent=now?'▸':'▾'};
-      row.append(tw,head,count);
-      row.title=path;
-      row.onclick=()=>select(node,path);
-      rows[path]=row;
-      host.append(row,kids);
-      for(const [key,child] of entries)buildNode(kids,child,path?path+'.'+key:key,key,depth+1);
+        rows[path]=row;
+        host.append(row,kids);
+        for(const [key,child] of entries)buildNode(kids,child,path?path+'.'+key:key,key,depth+1);
+      };
+      buildNode(tree,file,'','файл',0);
+      const existing=getByPath(file,selectedBranch);
+      select(existing===undefined?file:(existing===null?null:existing),existing===undefined?'':selectedBranch);
+    }
+    draw();
+    det.append(body);
+    return det;
+  }
+  const CHIP_HINTS=[
+    ['{{now_iso}}','время ответа'],['{{device_id}}','DeviceId'],['{{device_name}}','имя из реестра'],
+    ['{{user.name}}','имя владельца'],['{{device.room}}','комната'],['{"db":"user.location"}','поле из БД эмулятора'],
+    ['{"run":"script.bat"}','запуск скрипта (state/quasar/scripts)'],
+    ['{"$select":"Вкл","Вкл":{…},"Выкл":{…},"$name":"Подпись"}','инлайн-селектор'],
+    ['{"$bool":true,"$name":"Флаг"}','вкл/выкл'],['{"$string":"{{device_name}}"}','строка с токеном'],
+    ['{"$param":"user.name"}','параметр из каталога']];
+  function writeBranch(file,path,value){
+    if(!path){for(const key of Object.keys(file))delete file[key];Object.assign(file,value);return}
+    const parts=path.split('.');
+    let node=file;
+    for(const part of parts.slice(0,-1)){
+      let child=Array.isArray(node)?node[Number(part)]:node[part];
+      if(!child||typeof child!=='object'){child={};if(Array.isArray(node))node[Number(part)]=child;else node[part]=child}
+      node=child;
+    }
+    const last=parts[parts.length-1];
+    if(Array.isArray(node))node[Number(last)]=value;else node[last]=value;
+  }
+  // пути, видимые при фильтре «найти ключ»: совпавшие + все их предки (null — без фильтра)
+  function visiblePathsFor(file,filter){
+    if(!filter)return null;
+    const found=new Set();
+    const walk=(node,path)=>{
+      if(path&&path.toLowerCase().includes(filter))found.add(path);
+      if(inlineKindOf(node))return;
+      if(Array.isArray(node))node.forEach((v,i)=>walk(v,path?path+'.'+i:String(i)));
+      else if(node&&typeof node==='object')
+        for(const [key,child] of Object.entries(node))walk(child,path?path+'.'+key:key);
     };
-    buildNode(tree,file,'','файл',0);
-    // листья-скаляры: отдельные строки «ключ: значение»
-    split.append(tree,editor);root.append(split);
-    const existing=getByPath(file,selectedBranch);
-    select(existing===undefined?file:(existing===null?null:existing),existing===undefined?'':selectedBranch);
+    walk(file,'');
+    const visible=new Set(['']);
+    for(const path of found){
+      visible.add(path);
+      const parts=path.split('.');
+      for(let i=1;i<parts.length;i++)visible.add(parts.slice(0,i).join('.'));
+    }
+    return visible;
   }
 
-  // ── Переопределение под устройство ────────────────────────────────────
-  async function renderDevices(root){
-    root.replaceChildren();
+  // меню «⋯»: платформы — добавить / переименовать / удалить (все через <dialog>)
+  function platformMenu(){
+    const actions=[{label:'Добавить платформу',run:addPlatformDialog}];
+    if(selectedPlatform){
+      actions.push({label:'Переименовать платформу',run:()=>renamePlatformDialog(selectedPlatform)});
+      actions.push({label:'Удалить платформу',run:()=>deletePlatformDialog(selectedPlatform)});
+    }
+    const dlg=document.createElement('dialog');dlg.className='catalog-dialog';
+    dlg.setAttribute('aria-label','Платформы');
+    const form=document.createElement('form');dlg.append(form);document.body.append(dlg);
+    form.append(make('h3','Платформы'));
+    const list=make('div');list.className='list';
+    for(const a of actions){
+      const b=make('button',a.label);b.type='button';
+      b.onclick=()=>{dlg.close();dlg.remove();work(a.run)};
+      list.append(b);
+    }
+    form.append(list);
+    const row=make('div');row.className='row';
+    const cancel=make('button','Отмена');cancel.type='button';cancel.className='secondary';cancel.onclick=()=>dlg.close();
+    row.append(cancel);form.append(row);
+    dlg.showModal();
+    dlg.addEventListener('close',()=>dlg.remove());
+  }
+  async function addPlatformDialog(){
+    if(!await guardLayerSwitch())return;
+    const name=await askText('Новая платформа',
+      'Идентификатор платформы: латиница, цифры, точка, подчёркивание, дефис (например station_max).',
+      'station_max');
+    if(!name)return;
+    await put('quasar_platforms',{platform_file:{platform:name,patch:{}}});
+    overview=null;selectedPlatform=name;layerKey='';changes=0;
+    notify('Платформа добавлена: '+name);await render();
+  }
+  async function renamePlatformDialog(oldName){
+    if(!await guardLayerSwitch())return;
+    const name=await askText('Переименовать платформу','Новое имя платформы '+oldName+'.','новое-имя',oldName);
+    if(!name||name===oldName)return;
+    const patch=await api('quasar_platforms?platform='+encodeURIComponent(oldName));
+    await put('quasar_platforms',{platform_file:{platform:name,patch}});
+    await del('quasar_platforms?platform='+encodeURIComponent(oldName));
+    overview=null;selectedPlatform=name;layerKey='';changes=0;
+    notify('Платформа переименована: '+oldName+' → '+name);await render();
+  }
+  async function deletePlatformDialog(name){
+    if(!await guardLayerSwitch())return;
+    const ok=await askDialog('Удалить платформу '+name+'? Патч платформы будет удалён безвозвратно.',
+      [{label:'Отмена',className:'secondary',value:false},{label:'Удалить',className:'danger',value:true}],
+      'Удаление платформы');
+    if(!ok)return;
+    await del('quasar_platforms?platform='+encodeURIComponent(name));
+    overview=null;selectedPlatform='';layerKey='';changes=0;
+    notify('Платформа удалена: '+name);await render();
+  }
+
+  // «Итог для <платформа>»: собранный конфиг без устройства (база → общий → патч),
+  // read-only CodeMirror с подсказкой происхождения значений
+  async function composeDialog(platformName){
+    const data=await api('quasar_platforms?compose='+encodeURIComponent(platformName||''));
+    const dlg=document.createElement('dialog');dlg.className='catalog-dialog compose-dialog';
+    const head=make('div');head.className='dialog-head';
+    head.append(make('h3',platformName?'Итог для '+platformName:'Итог без платформы'));
+    const closeB=make('button','✕');closeB.type='button';closeB.className='icon-btn';
+    closeB.setAttribute('aria-label','Закрыть');closeB.onclick=()=>dlg.close();
+    head.append(closeB);dlg.append(head);
+    const hint=make('p','Собранный конфиг без устройства: встроенная база → общий → патч платформы. '
+      +'Инлайн-узлы разрешены по выбранным вариантам; {{токены}} и маркеры (db/run) остаются как есть. '
+      +'Наведение на строку — происхождение значения.');
+    hint.className='hint';dlg.append(hint);
+    const holder=make('div');
+    const value=data.config&&typeof data.config==='object'?data.config:{};
+    const lines=formatJSON(value);
+    makeCM(holder,{value:lines.map(l=>l.text).join('\n'),readOnly:true,height:'540px'});
+    dlg.append(holder);
+    document.body.append(dlg);
+    dlg.showModal();
+    dlg.addEventListener('close',()=>dlg.remove());
+    const eachCM=()=>[...holder.querySelectorAll('.CodeMirror')].forEach(el=>el.CodeMirror.refresh());
+    setTimeout(eachCM,50);  // создан вне DOM — обязателен пересчёт после вставки
+    requestAnimationFrame(eachCM);
+    if(typeof CodeMirror==='undefined')return;
+    const cm=holder.querySelector('.CodeMirror').CodeMirror;
+    const tip=tipElement();
+    const wrapper=cm.getWrapperElement();
+    wrapper.addEventListener('mousemove',e=>{
+      const pos=cm.coordsChar({left:e.clientX,top:e.clientY});
+      if(!pos||pos.line<0||pos.line>=lines.length){tip.hidden=true;return}
+      const path=lines[pos.line].path;
+      tip.textContent=(path||'корень')+'\n→ '+originFor(path,data.origins||{},'встроенная база (quasar_defaults)');
+      tip.style.left=Math.min(e.clientX+14,window.innerWidth-360)+'px';
+      tip.style.top=(e.clientY+18)+'px';
+      tip.hidden=false;
+    });
+    wrapper.addEventListener('mouseleave',()=>{tip.hidden=true});
+  }
+
+  // ── Слой «Под устройство»: переопределения в панели справа ───────────
+  async function devicesPanel(){
+    const root=make('div');root.className='quasar-panel-layer';
     const split=make('div');split.className='split';
     const list=make('div');list.className='list';
     if(!registry.devices.length)list.append(make('p','Устройств нет — колонка попадёт в реестр сама при первом запросе.'));
@@ -320,7 +645,7 @@
       const status=session?'онлайн · WS':(activity&&Date.now()/1000-activity.ts<600?'виден недавно':'офлайн');
       about.append(make('small',' · '+status+(activity&&activity.ip?' · '+activity.ip:'')));
       card.append(img,about);
-      card.onclick=()=>{if(guard()){selectedSn=device.sn;work(render)}};
+      card.onclick=()=>work(async()=>{if(await confirmDiscard('Есть несохранённые изменения. Переключить и потерять их?')){selectedSn=device.sn;work(render)}});
       list.append(card);
     }
     const panel=make('div');panel.style.flex='1';
@@ -328,6 +653,7 @@
     if(!device)panel.append(make('p','Выберите устройство слева.'));
     else await renderOverrides(panel,device);
     split.append(list,panel);root.append(split);
+    return root;
   }
 
   let selectedPlatformBody=null;

@@ -135,6 +135,12 @@ def _platform_file_stems():
     return _PLATFORM_FILES
 
 
+def generated_platforms():
+    """Имена платформ встроенной базы (файлы quasar_defaults/platforms/) —
+    выбор платформы в редакторе слоёв; сгенерированный список отсортирован."""
+    return sorted(_platform_file_stems())
+
+
 def generated_base(platform):
     """Тело built-in источника generated: quasar_defaults/common.json — полный дефолт
     ответа без захвата (собран из исходников quasar-server, см.
@@ -289,8 +295,12 @@ def run_command(command, runtime, device, context):
         return output
 
 
-def resolve_source(value, runtime, device, context, trace=None, path=""):
-    """Разрешение листа: source-маркеры и строки-шаблоны; остальное как есть."""
+def resolve_source(value, runtime, device, context, trace=None, path="", render=True):
+    """Разрешение листа: source-маркеры и строки-шаблоны; остальное как есть.
+    render=False — сборка без устройства (просмотр слоёв): {{токены}} и
+    source-маркеры (expr/db/run) остаются в тексте, подставлять нечего."""
+    if not render:
+        return value
     if isinstance(value, str):
         if "{{" in value:
             def substitute(match):
@@ -339,7 +349,7 @@ def inline_type(node):
     return kind
 
 
-def resolve_inline(node, kind, runtime, device, context, trace=None, path=""):
+def resolve_inline(node, kind, runtime, device, context, trace=None, path="", render=True):
     if kind == "$select":
         chosen = node[kind]
         option = node.get(chosen) if isinstance(chosen, str) else None
@@ -348,7 +358,7 @@ def resolve_inline(node, kind, runtime, device, context, trace=None, path=""):
                                     f"«{node.get('$name', '?')}»")
         if trace is not None and path not in trace:  # выбор переопределением важнее
             trace[path] = f"шаблон «{node.get('$name') or path}»: вариант «{chosen}»"
-        return resolve_tree(option, runtime, device, context, trace, path)
+        return resolve_tree(option, runtime, device, context, trace, path, render)
     if kind == "$param":
         result = resolve_param(node[kind], runtime, device, context)
         if trace is not None:
@@ -356,26 +366,27 @@ def resolve_inline(node, kind, runtime, device, context, trace=None, path=""):
         return result
     if trace is not None and kind not in ("$select", "$param") and path not in trace:
         trace[path] = f"шаблон «{node.get('$name') or path}»"
-    return resolve_tree(node[kind], runtime, device, context, trace, path)  # $string/$number/$list/$bool
+    return resolve_tree(node[kind], runtime, device, context, trace, path, render)  # $string/$number/$list/$bool
 
 
-def resolve_tree(tree, runtime, device, context, trace=None, path=""):
-    """Обход: инлайн-узлы и source-маркеры разрешаются, строки рендерятся."""
+def resolve_tree(tree, runtime, device, context, trace=None, path="", render=True):
+    """Обход: инлайн-узлы и source-маркеры разрешаются, строки рендерятся.
+    render=False — строки и маркеры остаются как есть (сборка без устройства)."""
     if isinstance(tree, dict):
         kind = inline_type(tree)
         if kind is not None:
-            return resolve_inline(tree, kind, runtime, device, context, trace, path)
+            return resolve_inline(tree, kind, runtime, device, context, trace, path, render)
         marker = set(tree)
         if len(marker) == 1 and next(iter(marker)) in SOURCE_KEYS:
             if "delete" in marker:
                 raise QuasarConfigError("delete-маркер допустим только в переопределении")
-            return resolve_source(tree, runtime, device, context, trace, path)
+            return resolve_source(tree, runtime, device, context, trace, path, render)
         return {k: resolve_tree(v, runtime, device, context, trace,
-                                f"{path}.{k}" if path else k) for k, v in tree.items()}
+                                f"{path}.{k}" if path else k, render) for k, v in tree.items()}
     if isinstance(tree, list):
         return [resolve_tree(item, runtime, device, context, trace,
-                             f"{path}.{i}" if path else str(i)) for i, item in enumerate(tree)]
-    return resolve_source(tree, runtime, device, context, trace, path)
+                             f"{path}.{i}" if path else str(i), render) for i, item in enumerate(tree)]
+    return resolve_source(tree, runtime, device, context, trace, path, render)
 
 
 # --- хранилище: чистые файлы без обёрток -------------------------------------------
@@ -462,7 +473,8 @@ class PlatformStore:
 
     def list(self):
         """Платформы: пользовательские файлы + платформы расширений (с тем же именем
-        платформы показана пользовательская); первая в списке — по умолчанию."""
+        платформы показана пользовательская); первая в списке — по умолчанию.
+        keys — число листовых значений патча (счётчик слоя в UI)."""
         result, names = [], set()
         try:
             paths = sorted(self.platforms_dir.glob("*.json"))
@@ -473,6 +485,7 @@ class PlatformStore:
             if isinstance(patch, dict):
                 result.append({"platform": path.stem,
                                "default": index == 0,
+                               "keys": count_keys(patch),
                                "patch_bytes": len(json.dumps(patch))})
                 names.add(path.stem)
         for _ext_id, path in self._extension_layers():
@@ -486,6 +499,7 @@ class PlatformStore:
                 patch = self._read(file)
                 if isinstance(patch, dict):
                     result.append({"platform": file.stem, "default": not result,
+                                   "keys": count_keys(patch),
                                    "patch_bytes": len(json.dumps(patch))})
                     names.add(file.stem)
         return result
@@ -683,14 +697,17 @@ def _apply_overrides(body, overrides, runtime, device, context, trace, label_of)
 
 
 def compose(common_body, platform_patch, overrides, runtime, device,
-            trace=None, platform_label=None, account_overrides=None, account_name=None):
+            trace=None, platform_label=None, account_overrides=None, account_name=None,
+            render=True):
     """common → merge-patch платформы → переопределения аккаунта → переопределения устройства
     → инлайн-узлы → динамика.
 
     account_overrides — quasar_overrides владельца (только config.account_config.*; путь вне
     этой части — QuasarConfigError). Устройство сильнее аккаунта.
     trace: dict dotted-путь → подпись происхождения для просмотрщика UI;
-    без trace поведение и стоимость прежние."""
+    без trace поведение и стоимость прежние.
+    render=False — сборка без устройства (просмотр слоёв): инлайн-узлы разрешаются
+    по выбранным вариантам, строки и source-маркеры ({{токены}}/expr/db/run) остаются как есть."""
     body = copy.deepcopy(common_body or {})
     if platform_patch is not None:
         body = merge_layer(body, copy.deepcopy(platform_patch))
@@ -710,4 +727,38 @@ def compose(common_body, platform_patch, overrides, runtime, device,
             return owner if detail == "переопределение устройства" else f"{owner} ({detail.removeprefix('переопределение: ')})"
         _apply_overrides(body, account_overrides, runtime, device, context, trace, account_label)
     _apply_overrides(body, overrides, runtime, device, context, trace, _override_label)
-    return resolve_tree(body, runtime, device, context, trace, "")
+    return resolve_tree(body, runtime, device, context, trace, "", render)
+
+
+def count_keys(value):
+    """Число листовых значений тела (счётчик размера слоя в UI)."""
+    if isinstance(value, dict):
+        return sum(count_keys(v) for v in value.values())
+    if isinstance(value, list):
+        return sum(count_keys(v) for v in value)
+    return 1
+
+
+def count_inline(value):
+    """Число инлайн-узлов ($-ключ типа) в теле — как их показывает редактор
+    настроек: узел считается одним, вглубь (в варианты $select) не углубляемся."""
+    if isinstance(value, dict):
+        kinds = set(value) & set(INLINE_KEYS)
+        if kinds:
+            return 1
+        return sum(count_inline(v) for v in value.values())
+    if isinstance(value, list):
+        return sum(count_inline(v) for v in value)
+    return 0
+
+
+def trace_layer(trace, before, after, prefix="", label=""):
+    """Пометить пути, которые слой добавил или изменил (diff after относительно before):
+    путь из слоя, отсутствующий/изменённый в before, — trace[path] = label."""
+    for key, value in (after or {}).items():
+        path = f"{prefix}.{key}" if prefix else key
+        old = before.get(key) if isinstance(before, dict) else None
+        if isinstance(value, dict) and isinstance(old, dict) and old:
+            trace_layer(trace, old, value, path, label)
+        elif value != old:
+            trace[path] = label

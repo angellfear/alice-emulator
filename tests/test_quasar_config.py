@@ -7,10 +7,10 @@ from aiohttp import ClientSession
 
 import server_emulator
 
-from server_emulator.quasar_config import (PlatformStore, QuasarConfigError, compose,
-                                           context_for, device_platform, generated_base,
-                                           inline_type, merge_layer, merge_patch,
-                                           resolve_param, resolve_source, resolve_tree)
+from server_emulator.quasar_config import (PlatformStore, QuasarConfigError, compose, count_inline,
+                                           count_keys, context_for, device_platform, generated_base,
+                                           inline_type, merge_layer, merge_patch, resolve_param,
+                                           resolve_source, resolve_tree, trace_layer)
 from server_emulator.runtime import Runtime
 
 SELECTOR = {
@@ -563,6 +563,106 @@ async def test_quasar_composed_api(tmp_path):
                 assert body["origins"]["subscription"].startswith("шаблон")
             async with client.get(url + "/emulator/api/quasar_composed?device=NOPE") as response:
                 assert response.status == 400
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
+def test_count_keys_and_inline():
+    assert count_keys({"a": 1, "b": {"c": [1, 2]}, "d": None}) == 4
+    assert count_keys({}) == 0 and count_keys([]) == 0 and count_keys("x") == 1
+    body = {"tags": {"$name": "Теги", "$list": ["base"]},
+            "sel": {"$select": "Вкл", "Вкл": {"$bool": True}, "$name": "S"},
+            "plain": {"deep": 1}}
+    assert count_inline(body) == 2  # sel — один узел: в варианты не углубляемся
+    assert count_inline({"plain": [1, 2]}) == 0
+
+
+def test_trace_layer_marks_added_and_changed_paths():
+    trace = {}
+    trace_layer(trace, {"a": 1, "b": {"x": 1, "y": 2}}, {"a": 2, "b": {"x": 1, "z": 3}, "c": 4},
+                "", "общий конфиг")
+    assert trace == {"a": "общий конфиг", "b.z": "общий конфиг", "c": "общий конфиг"}
+    # словарь поверх отсутствующего — весь путь одним узлом, без метки внутри
+    trace = {}
+    trace_layer(trace, {"a": 1}, {"new": {"deep": {"x": 1}}}, "", "слой")
+    assert trace == {"new": "слой"}
+
+
+def test_compose_render_false_keeps_tokens_and_markers(tmp_path):
+    runtime = FakeRuntime(tmp_path, users=[{"id": "u1", "name": "Аня"}])
+    common = {"name": "{{device_name}}", "db": {"db": "user.name"}, "flag": {"$bool": True}}
+    body = compose(common, {"extra": 1}, None, runtime, None, render=False)
+    assert body == {"name": "{{device_name}}", "db": {"db": "user.name"}, "flag": True,
+                    "extra": 1}  # инлайн-узел разрешён, токен и маркер остались как есть
+    trace = {}
+    body = compose({"sel": SELECTOR}, None, None, runtime, None, trace=trace, render=False)
+    assert body["sel"] == SELECTOR["Включена"]  # $select разрешён по выбранному варианту
+    assert body["sel"]["statusUrl"].endswith("{{device_id}}")  # токен внутри не тронут
+    assert trace["sel"].startswith("шаблон")
+
+
+@pytest.mark.asyncio
+async def test_quasar_platforms_api_builtin_and_compose(tmp_path):
+    from server_emulator.server import create_app
+    from tests.conftest import listen
+
+    runtime = Runtime(directory=tmp_path)
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        async with ClientSession() as client:
+            async with client.get(url + "/emulator/api/quasar_platforms") as response:
+                body = await response.json()
+                assert "chiron" in body["builtin_platforms"]
+                assert body["common_keys"] == 0 and body["common_inline"] == 0  # скелет без значений
+                assert body["builtin_counts"]["chiron"] > body["builtin_counts"][""]  # квирк добавляет ключи
+            # встроенная база: квирк платформы; имя вне белого списка — общий дефолт
+            async with client.get(url + "/emulator/api/quasar_platforms?builtin=chiron") as response:
+                chiron = await response.json()
+                fast = chiron["config"]["config"]["system_config"]["hybrid_request_factory"] \
+                    ["hybrid"]["scenarios"]["fast_command_scenario"]
+                assert isinstance(fast["supported_frames"], dict)
+                assert chiron["keys"] > 0
+            async with client.get(url + "/emulator/api/quasar_platforms?builtin=") as response:
+                default = (await response.json())["keys"]
+            async with client.get(url + "/emulator/api/quasar_platforms?builtin=unknown") as response:
+                unknown = await response.json()
+                assert unknown["keys"] == default
+                fast = unknown["config"]["config"]["system_config"]["hybrid_request_factory"] \
+                    ["hybrid"]["scenarios"]["fast_command_scenario"]
+                assert isinstance(fast["supported_frames"], list)
+            async with client.put(url + "/emulator/api/quasar_platforms",
+                                  headers={"X-Emulator": "1"}, json={"common_file": COMMON}) as response:
+                assert (await response.json())["saved"] == "common"
+            async with client.put(url + "/emulator/api/quasar_platforms", headers={"X-Emulator": "1"},
+                                  json={"platform_file": {"platform": "chiron",
+                                                          "patch": {"config": {"device_config": {"platform": "chiron"}}}}}) as response:
+                assert (await response.json())["saved"] == "chiron"
+            async with client.get(url + "/emulator/api/quasar_platforms") as response:
+                body = await response.json()
+                assert body["common_keys"] == 16 and body["common_inline"] == 3  # tags/selector/флаг
+                assert next(p for p in body["platforms"] if p["platform"] == "chiron")["keys"] == 1
+            # итог слоёв без устройства: токены не подставлены, инлайн-узлы разрешены
+            async with client.get(url + "/emulator/api/quasar_platforms?compose=chiron") as response:
+                body = await response.json()
+                assert body["platform"] == "chiron"
+                config = body["config"]
+                assert config["config"]["device_config"]["name"] == "{{device_name}}"
+                assert config["config"]["device_config"]["platform"] == "chiron"
+                assert config["tags"] == ["base"]
+                assert config["alice_pro_subscription"] is True
+                assert config["subscription"]["enabled"] is True
+                assert config["subscription"]["statusUrl"].endswith("{{device_id}}")
+                assert body["origins"]["config.device_config.platform"] == "платформа chiron"
+                assert body["origins"]["config.device_config.name"] == "общий конфиг"
+                assert body["origins"]["tags"] == "общий конфиг"
+                assert "config.config.system_config" not in body["origins"]  # пути базы не помечаются
+            # пустая платформа: итог база + common без патча
+            async with client.get(url + "/emulator/api/quasar_platforms?compose=") as response:
+                body = await response.json()
+                assert body["platform"] == ""
+                assert "device_config.platform" not in body["origins"]
+                assert body["origins"]["tags"] == "общий конфиг"
     finally:
         await runner.cleanup()
         await runtime.close()

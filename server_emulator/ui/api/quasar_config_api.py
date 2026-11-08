@@ -1,10 +1,13 @@
 """Домены quasar_platforms, quasar_composed и quasar_source: слои Quasar-конфига (RF-03).
 
-quasar_platforms — редактор «Переопределение» sync-конфигов: общий common
+quasar_platforms — редактор «Слои конфига» sync-конфигов: общий common
 (тело, не удаляется) + платформы-патчи (чистый merge-patch в файлах) +
-templates.json (токены/инлайн-узлы/источники значений). quasar_composed —
-итоговый конфиг устройства после всех слоёв + происхождение каждого значения
-(только чтение). quasar_source — источник конфига устройства (TASK-052):
+templates.json (токены/инлайн-узлы/источники значений); GET ?builtin=<platform> —
+встроенная база quasar_defaults (только чтение), GET ?compose=<platform> —
+итог база → common → патч без устройства с происхождением значений
+(инлайн-узлы разрешены, {{токены}} и source-маркеры остаются как есть).
+quasar_composed — итоговый конфиг устройства после всех слоёв + происхождение
+каждого значения (только чтение). quasar_source — источник конфига устройства:
 generated | direct | custom, генерация образца и получение с оригинального
 сервера по запомненным в памяти заголовкам колонки. Guard и маппинг ошибок
 обеспечивает диспетчер реестра ui/api/__init__.py.
@@ -13,8 +16,9 @@ import copy
 
 from aiohttp import web
 
-from ...quasar_config import (account_layer, compose, device_platform, generated_base,
-                              merge_layer, poll_period_warnings)
+from ...quasar_config import (account_layer, compose, count_inline, count_keys, device_platform,
+                              generated_base, generated_platforms, merge_layer,
+                              poll_period_warnings, trace_layer)
 from ...quasar_replace import preview_replacements, validate_rules
 from ...upstream import UpstreamError, forward_headers
 from ...upstream.forward import decoded_json
@@ -53,14 +57,36 @@ async def quasar_platforms(request, runtime, app):
     # Слои Quasar-конфига: общий common (тело, не удаляется) +
     # платформы-патчи (чистый merge-patch в файлах) + templates.json.
     if request.method == 'GET':
+        platform = request.query.get('builtin')
+        if platform is not None:  # встроенная база; имя вне quasar_defaults/platforms — общий дефолт
+            body = generated_base(platform)
+            return web.json_response({'platform': platform, 'config': body, 'keys': count_keys(body)})
+        name = request.query.get('compose')
+        if name is not None:  # итог слоёв без устройства; пустая платформа — без патча
+            base = generated_base(name)
+            common = runtime.quasar_platforms.load_common()
+            merged = merge_layer(base, common) if common is not None else base
+            trace = {}
+            trace_layer(trace, base, merged, '', 'общий конфиг')
+            body = compose(merged, runtime.quasar_platforms.load(name) if name else None,
+                           None, runtime, None, trace=trace, platform_label=name or None,
+                           render=False)
+            return web.json_response({'platform': name, 'config': body, 'origins': trace})
         name = request.query.get('platform')
         if name:
             item = runtime.quasar_platforms.load(name)
             if item is None:
                 raise ValueError('Файл конфига не найден')
             return web.json_response(item)
+        common = runtime.quasar_platforms.ensure_common()
         return web.json_response({
-            'common': runtime.quasar_platforms.ensure_common(),
+            'common': common,
+            'common_keys': count_keys(common),
+            'common_inline': count_inline(common),
+            'builtin_platforms': generated_platforms(),
+            'builtin_counts': {'': count_keys(generated_base('')),
+                               **{p: count_keys(generated_base(p))
+                                  for p in generated_platforms()}},
             'platforms': runtime.quasar_platforms.list(),
             'tokens': ['now', 'now_ms', 'now_iso', 'uuid', 'device_id', 'device_name',
                        'platform', 'user_id', 'user.name', 'user.location.*', 'user.fields.*',
