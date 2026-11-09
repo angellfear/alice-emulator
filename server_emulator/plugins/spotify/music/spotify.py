@@ -348,7 +348,8 @@ async def neighbor(ctx, track_id, context, step):
                       if str(track.get("id")) == str(track_id)), None)
         if found is not None:
             current = found
-    index = current + (1 if int(step or 0) >= 0 else -1)
+    step = int(step or 0)
+    index = current + (0 if step == 0 else 1 if step > 0 else -1)  # 0 — текущий (продолжение)
     if not 0 <= index < len(queue):
         return None
     state["current"] = index

@@ -411,6 +411,56 @@ async def test_question_answer_over_ws_with_empty_dialog_id(tmp_path):
         await runtime.close()
 
 
+RESUME_MODULE_PATCH = ('    return NEXT if step > 0 else None',
+                       '    return TRACKS[0] if step == 0 else NEXT if step > 0 else None')
+
+
+@pytest.mark.parametrize("state", ["paused", "stopped"])
+async def test_play_without_query_resumes_paused_track(tmp_path, state):
+    """«включи музыку» без запроса, плеер колонки на паузе с текущим треком поставщика —
+    продолжение с места: очередь + состояние + audio_play с stream.offset_ms (образец
+    «продолжи»), без вопроса и без поиска."""
+    runtime = Runtime(tmp_path)
+    marker = tmp_path / "marker.json"
+    module = _provider_module(marker).replace(*RESUME_MODULE_PATCH)
+    make_music_extension(runtime, files={"music/fake.py": module}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
+    station = {"player": {"state": state, "playing": False, "title": "Хороший день",
+                          "subtitle": "Тестовый Артист", "played_ms": 65662, "duration_ms": 180000}}
+    try:
+        report = await say(runtime, "включи музыку", station=station)
+        assert report["handled"]
+        message = report["messages"][0]
+        assert _reply_names(message) == ["tts_play_placeholder", "apply_player_playback_queue_directive",
+                                         "set_audio_player_sequence_state_directive", "audio_play"]
+        play = _payload_of(message, "audio_play")
+        assert play["stream"]["offset_ms"] == 65662 and play["stream"]["url"] == "https://example.com/t1.mp3"
+        assert not message.Event.AliceResponse.VoiceResponse.ShouldListen
+        calls = json.loads(marker.read_text(encoding="utf-8"))
+        assert ["neighbor", None, None, 0] in calls and not any(c[0] == "search" for c in calls)
+    finally:
+        await runtime.close()
+
+
+@pytest.mark.parametrize("player", [
+    {"state": "paused", "title": "Чужой трек", "played_ms": 1000},  # на паузе не наш трек
+    {"state": "idle", "title": "", "played_ms": 0},                  # ничего не играло
+])
+async def test_play_without_query_no_resume_searches(tmp_path, player):
+    runtime = Runtime(tmp_path)
+    marker = tmp_path / "marker.json"
+    module = _provider_module(marker).replace(*RESUME_MODULE_PATCH)
+    make_music_extension(runtime, files={"music/fake.py": module}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
+    try:
+        report = await say(runtime, "включи музыку", station={"player": player})
+        assert report["handled"]
+        assert json.loads(marker.read_text(encoding="utf-8"))[-1] == ["search", "", "music"]
+        assert "offset_ms" not in _payload_of(report["messages"][0], "audio_play")["stream"]
+    finally:
+        await runtime.close()
+
+
 async def test_search_kind_by_phrase(tmp_path):
     """«включи сказку/аудиокнигу/подкаст» — kind из реплики, хвост — запрос."""
     runtime = Runtime(tmp_path)

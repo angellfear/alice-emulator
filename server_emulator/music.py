@@ -13,7 +13,7 @@ runtime.rebuild_extension_registries; конфликт имён или биты�
         # пустой результат с {"note": текст} — честный отказ: ядро передаёт note сценарию,
         # сценарий произносит текст пользователю
 
-    async def neighbor(ctx, track_id, context, step):   # step +1/-1; None — дальше нечего
+    async def neighbor(ctx, track_id, context, step):   # step +1/-1, 0 — текущий; None — дальше нечего
         return Track | None
 
     async def rate(ctx, track_id, like):    # необязательна; None — не поддерживается
@@ -398,7 +398,7 @@ def sequence_state_directive(current, tracks, provider):
                 "MetaStorage": meta}}}
 
 
-def audio_play_directive(track):
+def audio_play_directive(track, offset_ms=0):
     """audio_play со Struct-payload по образцу (захват 2026-11-02; минимум полей пробы 098
     играл ссылку): stream{url, type: Track, format, duration_ms?, decode_key?} +
     metadata{title, subtitle, art_image_url?} + screen_type Music. decode_key нужен только
@@ -411,6 +411,8 @@ def audio_play_directive(track):
         payload_stream["duration_ms"] = duration
     if stream.get("decode_key"):
         payload_stream["decode_key"] = str(stream["decode_key"])
+    if offset_ms > 0:  # продолжение с места паузы (образец «продолжи»: stream.offset_ms)
+        payload_stream["offset_ms"] = int(offset_ms)
     metadata = {"title": str(track.get("title") or ""),
                 "subtitle": str(track.get("artist") or ""),
                 "hide_progress_bar": False}
@@ -435,13 +437,14 @@ def start_reply(result, text=""):
         audio_play_directive(tracks[start])]}
 
 
-def step_reply(track, provider, text=""):
-    """Ответ на «дальше/назад» и колбэк @@mm_stack_engine_get_next: тройка
-    очередь+состояние+audio_play без экрана и анимации (образец «дальше»; очередь из
-    одного трека — neighbor по контракту 089 отдаёт один Track)."""
+def step_reply(track, provider, text="", offset_ms=0):
+    """Ответ на «дальше/назад», колбэк @@mm_stack_engine_get_next и продолжение с паузы:
+    тройка очередь+состояние+audio_play без экрана и анимации (образцы «дальше» и
+    «продолжи»; очередь из одного трека — neighbor отдаёт один Track). offset_ms —
+    позиция продолжения."""
     tracks = [track]
     return {"text": text, "card": False, "directives": [
         tts_placeholder(),
         queue_directive(tracks, 0, provider),
         sequence_state_directive(track, tracks, provider),
-        audio_play_directive(track)]}
+        audio_play_directive(track, offset_ms)]}

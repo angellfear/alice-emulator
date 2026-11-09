@@ -17,6 +17,8 @@ sequence_state + audio_play). Своей очереди у ядра нет — �
   текст note произносится пользователю вместо общего «не нашла». При пустом
   запросе («включи музыку») note — вопрос уточнения: колонка слушает ответ, он
   становится запросом поиска того же поставщика (on_query).
+- «включи музыку» без запроса, когда плеер колонки на паузе/остановлен с текущим
+  треком поставщика, — продолжение с места (_resume), вопроса нет.
 - Колбэк @@mm_stack_engine_get_next (provide music.stack_next) — neighbor(+1)
   поставщика: следующая очередь + audio_play, как в образце «дальше»; поставщика
   нет или дальше нечего — отказ (умолчание маршрута — тихое подтверждение).
@@ -30,6 +32,7 @@ from server_emulator import music
 from server_emulator.sdk import ask, say
 
 NOT_FOUND = "Не нашла подходящего. Попробуйте назвать исполнителя или песню."
+RESUMABLE = ("paused", "stopped")  # плеер колонки: «включи музыку» продолжает трек
 # ссылка/URI трека Spotify: шаблонный слот режет URL — сырую реплику разбираем сами
 LINK = re.compile(r"(?:open\.spotify\.com/(?:intl-[a-z]{2,5}/)?(?:embed/)?track/|spotify:track:)"
                   r"([0-9A-Za-z]{22})")
@@ -106,6 +109,10 @@ async def handle(ctx):
             return None  # голый шаблон («запусти {query}») без поставщика — следующий кандидат
         return ctx.no_data_source()
 
+    if not query:
+        resumed = await _resume(ctx, provider)
+        if resumed is not None:
+            return resumed
     if "search_result" in entry:  # ступень свободных хвостов: поиск сделал диспетчер
         found = music.normalize_result(entry["search_result"], provider)
     else:
@@ -117,6 +124,20 @@ async def handle(ctx):
         ctx.state["ext_id"] = entry.get("ext_id") or ""
         return ask(str(found["note"]), then="on_query")
     return _reply(found, query)
+
+
+async def _resume(ctx, provider):
+    """«включи музыку» на паузе: колонка сообщает плеер paused/stopped с тем же треком,
+    что текущий у поставщика (по заголовку) — продолжение с места (образец «продолжи»:
+    очередь + состояние + audio_play того же трека с stream.offset_ms). Иначе None."""
+    player = ctx.player
+    title = str(player.get("title") or "").strip().lower()
+    if player.get("state") not in RESUMABLE or not title:
+        return None
+    track = await music.neighbor(ctx, provider, None, None, 0)
+    if track is None or str(track.get("title") or "").strip().lower() != title:
+        return None  # на паузе чужой трек (не этого поставщика) — обычный путь
+    return music.step_reply(track, provider, offset_ms=int(player.get("played_ms") or 0))
 
 
 async def on_query(ctx, answer):
