@@ -92,7 +92,11 @@ async def serve(app, state, config):
         plan.append(("http", config["port"], None))
     # TASK-095: колонка присылает заголовки 16–19 КиБ (Cookie разрастается), дефолт aiohttp
     # 8190 байт отбивал их с 400 ещё до диспетчера; настоящий Яндекс такие принимает
-    runner = web.AppRunner(app, access_log=None, max_field_size=65536, max_line_size=65536)
+    # Остановка/перезапуск мгновенны: открытый WS колонки не удерживает процесс (по умолчанию
+    # aiohttp ждал бы завершения обработчиков shutdown_timeout — 60 с). Ноль нельзя: в aiohttp
+    # ceil_timeout(0) означает «без таймаута» — обработчики ждали бы вечно.
+    runner = web.AppRunner(app, access_log=None, max_field_size=65536, max_line_size=65536,
+                           shutdown_timeout=0.1)
     await runner.setup()
     try:
         listeners = []

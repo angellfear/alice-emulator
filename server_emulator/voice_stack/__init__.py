@@ -630,17 +630,20 @@ class LocalSpeech:
         pid_file.unlink(missing_ok=True)
         kill_tree(pid)
 
-    def stop_key(self, identifier):
+    def stop_key(self, identifier, wait=True):
+        """Остановить процесс. wait=True (панель) — дождаться выхода (5 с, иначе kill);
+        wait=False (остановка сервера) — убить и не ждать: процесс должен закрываться сразу."""
         process = self.processes.pop(identifier, None)
         if process is not None and process.poll() is None:
             if os.name == "nt":
                 kill_tree(process.pid)  # venv\Scripts\python.exe — пускатель: сервер — его дочерний процесс
             else:
                 process.terminate()
-            try:
-                process.wait(5)
-            except subprocess.TimeoutExpired:
-                process.kill()
+            if wait:
+                try:
+                    process.wait(5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
 
 
 def kill_tree(pid):

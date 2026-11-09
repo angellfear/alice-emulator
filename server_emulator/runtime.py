@@ -30,7 +30,8 @@ from .aapi_handlers import has_handler as aapi_has_handler
 from .voice import Conversation
 from .identity import IdentityRegistry, collect_device_id
 from .quasar import QuasarBackend
-from .actions import push_message
+from . import actions
+from .actions import push_message, execute_message
 from .updates import Updates
 from .auth import AuthStore, secret
 from .ws_close import SocketCloser
@@ -73,6 +74,7 @@ PHRASE_LIST_POLL = 5.0      # не чаще (с): проверка свежес�
 # FETCH_STATE_TIMEOUT_S; частота опросов одного устройства ограничена настройкой
 # settings["fetch_state"]["min_interval_s"] (секунды, 0 — без лимита).
 FETCH_STATE_TIMEOUT_S = 5.0
+EXECUTE_TIMEOUT_S = 5.0  # ожидание квитанции SyncPushResponse у ExecuteDirective
 ASSISTANT_NAMES = {"alisa": "Алиса", "yandex": "Яндекс", "yasmina": "Ясмина"}
 
 
@@ -113,14 +115,17 @@ def sync_push_message(schemas_dir):
 
 @aapi_handlers.aapi_handler('SyncPushResponse')
 async def _on_sync_push_response(conversation, incoming, trigger):
-    """Ответ колонки на наш SyncPush{GetDeviceState} — ожидающему fetch_state этого
-    устройства (по сессии, в runtime.fetch_waiters). Событие обработано всегда — это
-    ответ на НАШ push, в «Без ответа» ему не место, наверх в «Вместе» он не релеится
-    (hybrid.relay пересылает только StreamControl и Ack). Квитанции ExecuteDirective*
-    (другой канал push) ожидающего GetDeviceState не будят."""
-    waiter = conversation.runtime.fetch_waiters.get(conversation.trace_context.get('sn') or '')
-    if waiter is not None and not waiter.done() \
-            and incoming.Event.SyncPushResponse.SyncResponse.WhichOneof('Response') == 'GetDeviceStateResponse':
+    """Ответ колонки на наш SyncPush — ожидающему этого устройства (по сессии,
+    в runtime.fetch_waiters / runtime.execute_waiters): GetDeviceStateResponse —
+    fetch_state, ExecuteDirectiveResponse — квитанция push-действия. Событие
+    обработано всегда — это ответ на НАШ push, в «Без ответа» ему не место,
+    наверх в «Вместе» он не релеится (hybrid.relay пересылает только StreamControl
+    и Ack)."""
+    waiters = conversation.runtime.fetch_waiters \
+        if incoming.Event.SyncPushResponse.SyncResponse.WhichOneof('Response') == 'GetDeviceStateResponse' \
+        else conversation.runtime.execute_waiters
+    waiter = waiters.get(conversation.trace_context.get('sn') or '')
+    if waiter is not None and not waiter.done():
         waiter.set_result(incoming)
     return True
 
@@ -172,6 +177,10 @@ class Runtime:
         # fetch_state: sn → Future(SyncPushResponse) — ответ маршрутизирует обработчик
         # SyncPushResponse; словарь общий с корнем (scoped-копии runtime его делят)
         self.fetch_waiters = {}
+        # квитанции ExecuteDirective: sn → Future(SyncPushResponse) — тот же обработчик
+        # SyncPushResponse; на устройстве одно ждущее действие (кнопка панели),
+        # корреляция — RefMessageId нашего кадра
+        self.execute_waiters = {}
         self.closer = SocketCloser()  # TASK-057: закрытие WS колонок в фоне, без ожидания ответа клиента
         self.quasar_sync_headers = {}  # TASK-052: последние заголовки get_sync_info по SN, только память
         self.quasar = QuasarBackend(self)
@@ -477,7 +486,7 @@ class Runtime:
     async def close(self):
         """B01: идемпотентная остановка общих ресурсов (клиент, фоновые задачи)."""
         for variant in list(self.voice_stack.local.processes):  # локальные речевые серверы
-            self.voice_stack.local.stop_key(variant)
+            self.voice_stack.local.stop_key(variant, wait=False)  # убить сразу, выхода не ждать
         if self.routines is not None:
             self.routines.shutdown()
         await self.self_update.close()  # TASK-040: цикл проверки релизов и его клиент
@@ -874,14 +883,21 @@ class Runtime:
         os.replace(temporary, target)
 
     async def push_action(self, sn, action, arguments):
-        """Отправка типизированного Push-действия в живую сессию устройства по SN.
-        Возвращает запись action_log ('sent' | 'failed' | None-сессии)."""
+        """Отправка push-действия в живую сессию устройства по SN: важные действия —
+        квитируемый SyncPush{ExecuteDirective} (EXECUTE_ACTIONS), косметика и push_tts —
+        обычный Push. Возвращает запись action_log: delivery 'sent'|'failed'|'no_session',
+        execution 'unconfirmed' (нет квитанции) или статус 'started'|'completed'|'failed'.
+        Квитанция — SyncPushResponse.ExecuteDirectiveResponse, ждётся не дольше 5 с."""
         cls = load_type(ROOT / "schemas", "alice-api.pb", "NAlice.NAliceApi.TServerMessage")
         session = next((x for x in self.sessions.values()
                         if x.get("device_sn") == sn and x.get("send")), None)
         if session is None:
             return {"action": action, "delivery": "no_session", "execution": "unconfirmed"}
-        message = push_message(cls, action, arguments)
+        execute = action in actions.EXECUTE_ACTIONS
+        if execute:
+            message = execute_message(cls, action, arguments)
+        else:
+            message = push_message(cls, action, arguments)
         item = {"message_id": message.Event.Header.MessageId, "connection_id": session["connection_id"],
                 "device_sn": sn, "user_id": session.get("user_id"), "action": action,
                 "delivery": "sending", "execution": "unconfirmed"}
@@ -892,6 +908,25 @@ class Runtime:
             item["delivery"] = "failed"
             return item
         item["delivery"] = "sent"
+        if not execute:
+            return item
+        receipt = asyncio.get_running_loop().create_future()
+        previous = self.execute_waiters.get(sn)
+        if previous is not None and not previous.done():  # новое действие — прежнее ожидание отменяется
+            previous.cancel()
+        self.execute_waiters[sn] = receipt
+        try:
+            try:
+                response = await asyncio.wait_for(receipt, EXECUTE_TIMEOUT_S)
+            except asyncio.TimeoutError:
+                return item  # execution остаётся 'unconfirmed' — колонка не ответила
+            status = response.Event.SyncPushResponse.SyncResponse.ExecuteDirectiveResponse \
+                .ExecutionStatus.WhichOneof("Status")
+            item["execution"] = {"TExecutionStarted": "started", "TExecutionCompleted": "completed",
+                                 "TExecutionFailed": "failed"}.get(status, "unconfirmed")
+        finally:
+            if self.execute_waiters.get(sn) is receipt:
+                self.execute_waiters.pop(sn, None)
         return item
 
     async def send_message(self, sn, message):

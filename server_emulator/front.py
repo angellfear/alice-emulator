@@ -131,6 +131,7 @@ class Front:
         self.local_domain = ""  # server.json local_domain, обновляется в _policy
         self.seen = {}  # домены вне сертификата с запуска фронта: host → {"count", "first"} (TASK-093)
         self._server = None
+        self._tasks = set()  # задачи _connection: stop() отменяет их, ничего не дожидаясь
 
     def client_peer(self, request):
         """Оригинальный адрес колонки по таблице (dispatcher.client_ip через runtime.client_peer)."""
@@ -158,24 +159,31 @@ class Front:
         return self._server
 
     async def stop(self):
+        """Остановка без ожиданий: слушатель закрыт, обработчики отменены — туннель может ждать
+        upstream хоть вечно, ожидать его закрытия нельзя (wait_closed ждал бы все соединения)."""
         server, self._server = self._server, None
         if server is not None:
             server.close()
-        # Сначала соединения: wait_closed ждёт, пока закроются все они
+        tasks, self._tasks = self._tasks, set()
         for writer in list(self.connections):
             try:
                 writer.close()
             except Exception:  # noqa: BLE001
                 pass
-        if server is not None:
-            try:
-                await server.wait_closed()
-            except Exception:  # noqa: BLE001 — остановка не должна падать
-                pass
+        while tasks:  # отмена выведет finally в _connection: там закрываются и стороны upstream
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            # соединение, принятое перед остановкой, могло начать обработку во время gather —
+            # слушатель уже закрыт, новых не будет: отменяем и его
+            tasks, self._tasks = self._tasks, set()
         self.connections.clear()
         self.peers.clear()
 
     async def _connection(self, reader, writer):
+        task = asyncio.current_task()
+        if task is not None:
+            self._tasks.add(task)
         self.connections.add(writer)
         peer_key = None
         upstream_reader = upstream_writer = None
@@ -220,6 +228,8 @@ class Front:
                 except Exception:  # noqa: BLE001
                     pass
             self.connections.discard(writer)
+            if task is not None:
+                self._tasks.discard(task)
 
     def _policy(self):
         """Режим и лист — живьём из server.json: применяются без перезапуска (TASK-093)."""
