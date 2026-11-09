@@ -5,6 +5,7 @@
   "description": "Home Assistant (встроенный): свет умного дома из устройств HA («включи свет на кухне», список ламп из GET /api/states), действие ha.call_service для сценариев, режим «Интеллекта» conversation-агент HA, пресеты ASR/TTS через Assist и MCP-сервер HA.",
   "author": "Angell Fear",
   "license": "MIT",
+  "category": "Дом",
   "requires": {
     "emulator": ">=0.1.0",
     "sdk": ">=2.5.0",

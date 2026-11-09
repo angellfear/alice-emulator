@@ -62,7 +62,7 @@ HOST_RE = re.compile(r"^(\*\.)?[a-z0-9]([a-z0-9.-]*[a-z0-9])?$")
 FIELD_KEY_RE = re.compile(r"^[a-z0-9_]+$")
 FIELD_TYPES = ("text", "password", "number", "select", "textarea", "file")
 REQUIRED_FIELDS = ("id", "name", "version", "description", "author", "license", "requires", "permissions")
-MANIFEST_FIELDS = set(REQUIRED_FIELDS) | {"homepage", "settings", "contributes"}
+MANIFEST_FIELDS = set(REQUIRED_FIELDS) | {"homepage", "category", "settings", "contributes"}
 
 BUILTIN_PREFIX = "builtin."  # id встроенных плагинов: builtin.<имя папки>
 BUILTIN_DIR = Path(__file__).resolve().parent.parent / "plugins"  # server_emulator/plugins/<имя>/
@@ -147,6 +147,9 @@ def validate_manifest(data):
         raise ValueError(f"extension.json: version {data['version']!r} не semver")
     if "homepage" in data and not isinstance(data["homepage"], str):
         raise ValueError("extension.json: homepage — строка")
+    if "category" in data and (not isinstance(data["category"], str) or not data["category"].strip()
+                               or len(data["category"]) > 40):
+        raise ValueError("extension.json: category — непустая строка до 40 символов (группа в списке расширений)")
     requires = data["requires"]
     if not isinstance(requires, dict) or set(requires) - {"emulator", "sdk", "python_packages"}:
         raise ValueError("extension.json: requires — объект emulator/sdk/python_packages")
@@ -1007,6 +1010,7 @@ class ExtensionManager:
                     card["provider_hint"] = ("есть папка вида (music/weather/news) без объявления — "
                                              "добавьте contributes.providers в extension.json")
                 card.update({"name": manifest["name"], "description": manifest["description"],
+                             "category": str(manifest.get("category") or "").strip(),
                              "author": manifest["author"], "license": manifest["license"],
                              "class": info["class"], "permissions": manifest["permissions"],
                              "folders": folders, "python_packages": info["python_packages"],

@@ -43,6 +43,20 @@
   // Виды поставщиков расширения — по папкам вида в поставке (видны и у выключенного)
   const providerKindsOf = c => Object.keys(PROVIDER_KINDS).filter(k => (c.folders || []).includes(k));
 
+  // Узлы группы: виды поставщиков, затем категории манифеста (по алфавиту), затем «Прочее»
+  function groupCards(parent, prefix, cards, leaf) {
+    const seen = new Set();
+    const add = (key, title, items) => {
+      if (!items.length) return;
+      items.forEach(c => seen.add(c.id));
+      parent.append(kindNode(prefix, key, title, items, leaf));
+    };
+    for (const [kind, title] of Object.entries(PROVIDER_KINDS)) add(kind, title, cards.filter(c => providerKindsOf(c).includes(kind)));
+    const categories = [...new Set(cards.map(c => c.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru'));
+    for (const category of categories) add('cat:' + category, category, cards.filter(c => c.category === category));
+    add('other', 'Прочее', cards.filter(c => !seen.has(c.id)));
+  }
+
   // Узел дерева <details>: раскрытие запоминается в openTree (как формы настроек в openSettings)
   function treeNode(id, label) {
     const details = make('details', 'ext-node');
@@ -357,31 +371,15 @@
     for (const c of list) if (!bodies.has(c.id)) bodies.set(c.id, cardBody(c));
     const leaf = c => leafRow(c, bodies.get(c.id));
 
-    // Дерево: «Встроенные» отдельно от внешних, узлы — виды поставщиков; расширение
-    // без вида поставщика — «Прочее», с несколькими видами — строка в каждом.
+    // Дерево: «Встроенные» отдельно от внешних, узлы — виды поставщиков и категории
+    // манифеста (category); расширение без них — «Прочее», с несколькими — строка в каждом.
     const builtinsNode = treeNode('builtin', 'Встроенные' + (builtins.length ? ' · ' + builtins.length : ''));
     builtinsNode.append(make('p', 'hint', 'Поставляются с эмулятором: включение и настройки — как у внешних, удалить и обновить нельзя.'));
-    const seenBuiltin = new Set();
-    for (const [kind, title] of Object.entries(PROVIDER_KINDS)) {
-      const cards = builtins.filter(c => providerKindsOf(c).includes(kind));
-      if (!cards.length) continue;
-      cards.forEach(c => seenBuiltin.add(c.id));
-      builtinsNode.append(kindNode('builtin', kind, title, cards, leaf));
-    }
-    const restBuiltin = builtins.filter(c => !seenBuiltin.has(c.id));
-    if (restBuiltin.length) builtinsNode.append(kindNode('builtin', 'other', 'Прочее', restBuiltin, leaf));
+    groupCards(builtinsNode, 'builtin', builtins, leaf);
 
     const installedNode = treeNode('installed', 'Установленные' + (external.length ? ' · ' + external.length : ''));
     if (!external.length) installedNode.append(make('p', 'hint', 'Пока ничего не установлено: добавьте источник и нажмите «Установить».'));
-    const seen = new Set();
-    for (const [kind, title] of Object.entries(PROVIDER_KINDS)) {
-      const cards = external.filter(c => providerKindsOf(c).includes(kind));
-      if (!cards.length) continue;
-      cards.forEach(c => seen.add(c.id));
-      installedNode.append(kindNode('installed', kind, title, cards, leaf));
-    }
-    const rest = external.filter(c => !seen.has(c.id));
-    if (rest.length) installedNode.append(kindNode('installed', 'other', 'Прочее', rest, leaf));
+    groupCards(installedNode, 'installed', external, leaf);
 
     root.replaceChildren(sourcesPanel(), builtinsNode, installedNode);
     if (busy) root.querySelectorAll('button,input,select,textarea').forEach(b => { b.disabled = true; });

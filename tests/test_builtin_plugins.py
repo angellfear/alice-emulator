@@ -175,3 +175,23 @@ async def test_builtin_plugin_dir_is_packaged(tmp_path):
     patterns = data["tool"]["setuptools"]["package-data"]["server_emulator"]
     assert "plugins/*/extension.json" in patterns
     assert "plugins/*/music/*.py" in patterns
+
+
+async def test_home_category_and_manifest_check(tmp_path):
+    """Home Assistant и «Список покупок» — категория «Дом» в карточке; category —
+    непустая строка до 40 символов."""
+    from server_emulator.extensions.manager import validate_manifest
+    runtime = Runtime(tmp_path)
+    try:
+        listing = runtime.extensions.listing()
+        cards = {c["id"]: c for c in listing["extensions"]}
+        assert cards["builtin.home-assistant"]["category"] == "Дом"
+        assert cards["builtin.shopping-list"]["category"] == "Дом"
+    finally:
+        await runtime.close()
+    base = {"id": "x.y", "name": "X", "version": "1.0.0", "description": "d", "author": "a",
+            "license": "MIT", "requires": {"emulator": ">=0.1.0", "sdk": ">=1.0.0"}, "permissions": {}}
+    assert validate_manifest({**base, "category": "Дом"})["category"] == "Дом"
+    for bad in ("", " ", "x" * 41, 5):
+        with pytest.raises(ValueError, match="category"):
+            validate_manifest({**base, "category": bad})
