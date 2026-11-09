@@ -922,8 +922,8 @@ class Runtime:
                 return item  # execution остаётся 'unconfirmed' — колонка не ответила
             status = response.Event.SyncPushResponse.SyncResponse.ExecuteDirectiveResponse \
                 .ExecutionStatus.WhichOneof("Status")
-            item["execution"] = {"TExecutionStarted": "started", "TExecutionCompleted": "completed",
-                                 "TExecutionFailed": "failed"}.get(status, "unconfirmed")
+            item["execution"] = {"ExecutionStarted": "started", "ExecutionCompleted": "completed",
+                                 "ExecutionFailed": "failed"}.get(status, "unconfirmed")
         finally:
             if self.execute_waiters.get(sn) is receipt:
                 self.execute_waiters.pop(sn, None)

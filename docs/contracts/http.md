@@ -52,7 +52,10 @@ Endpoint'ы (по умолчанию, расширяются списком до
 
 ## 5. Общие инварианты
 
-- Клиентский device_id извлекается из query `device_id`, заголовков `X-YaQuasarDeviceId` / `x-uprx-device-id`; IP не участвует в принадлежности.
+- Клиентский device_id извлекается единым resolverом (`identity.collect_device_id`) в одном
+  порядке приоритета во всех точках HTTP: заголовки `x-uprx-device-id` → `X-YaQuasarDeviceId` →
+  `X-Ya-Device-Id` → device_id внутри JSON-заголовка `X-Ya-Application` → query `device_id`;
+  IP не участвует в принадлежности.
 - Ответы не содержат cookies/private keys владельца; JWT выдаётся только для устройств с назначенным владельцем.
 - Standalone обслуживает все маршруты; эмулированные обмены пишутся в журнал трафика (`source=emulator`).
 
@@ -80,8 +83,11 @@ meta `record_migration`); `record` как значение `route_mode` — 400.
 | `hybrid` (Вместе) | эмулятор, где есть обработчик; промах — upstream, промах остаётся в «Без ответа» с отметкой «ушёл в Яндекс» | эмулятор; промах релеится ветке `upstream/hybrid.py` — голосовой ход колонки, ASR и ответ Яндекса (см. `uniproxy.md`) |
 | `proxy` (Прозрачно) | upstream | мост upstream |
 
-Решение — `dispatcher.route_mode_for(request) → (sn, device_id, mode)`: заголовки
-uprx/quasar → query device_id → реестр (resolve-only); цель строит `upstream.target_for`
+Решение — `dispatcher.route_mode_for(request) → (sn, device_id, mode)`: та же идентичность и тот
+же порядок приоритета, что у основного пути (заголовки `x-uprx-device-id` → `X-YaQuasarDeviceId` →
+`X-Ya-Device-Id` → `X-Ya-Application.device_id` → query `device_id`, resolver `collect_device_id`) →
+реестр (resolve-only, без регистрации); расхождение источников журналируется в `handle()` после
+повторного сбора; цель строит `upstream.target_for`
 (канонический хост из алиасов, https/wss; алиас может задавать полный `http://…` upstream —
 тесты). У хостов авторизации (oauth.yandex.ru, mobileproxy.passport.yandex.net) — свой
 переключатель `settings["oauth"]["mode"]` (`auto` — по режиму маршрута устройства: emulate/hybrid →

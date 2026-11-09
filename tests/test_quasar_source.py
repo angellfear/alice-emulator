@@ -235,7 +235,9 @@ async def test_push_action_delivery(tmp_path):
                 packet = await asyncio.wait_for(ws.receive(), 3)
                 assert packet.data.startswith(b"AAPI")
                 message = server_type.FromString(packet.data[4:])
-                assert [d.Name for d in message.Event.Push.Directives] == ["push_update_config"]
+                # push_update_config — квитируемый ExecuteDirective (113): колонка
+                # фиктивного теста не отвечает квитанцией — API ждёт 5 с и вернёт unconfirmed
+                assert message.Event.SyncPush.SyncRequest.ExecuteDirective.Directive.Name == "push_update_config"
     finally:
         await runner.cleanup()
         await runtime.close()

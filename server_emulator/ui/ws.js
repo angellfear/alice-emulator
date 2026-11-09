@@ -126,7 +126,9 @@
     }
     const level = make('input'); level.type = 'number'; level.min = 0; level.max = 10; level.step = 0.1; level.value = 5;
     const label = make('label', 'Громкость (0–10)'); label.append(level); form.append(label);
-    action.onchange = () => label.hidden = action.value !== 'sound_set_level'; action.onchange();
+    const text = make('input'); text.type = 'text'; text.placeholder = 'Что произнести';
+    const tlabel = make('label', 'Текст'); tlabel.append(text); form.append(tlabel);
+    action.onchange = () => { label.hidden = action.value !== 'sound_set_level'; tlabel.hidden = action.value !== 'push_tts'; }; action.onchange();
     const sendBtn = make('button', 'Отправить'); sendBtn.type = 'submit';
     sendBtn.disabled = !sessions.options.length;
     form.append(sendBtn);
@@ -135,9 +137,11 @@
       work(async () => {
         sendBtn.disabled = true;
         try {
-          await api('actions', { connection_id: sessions.value, device_sn: sessions.selectedOptions[0].dataset.sn,
-            action: action.value, arguments: action.value === 'sound_set_level' ? { level: Number(level.value) } : {} });
-          notify('Команда отправлена. Выполнение ещё не подтверждено.');
+          const result = await api('actions', { connection_id: sessions.value, device_sn: sessions.selectedOptions[0].dataset.sn,
+            action: action.value, arguments: action.value === 'sound_set_level' ? { level: Number(level.value) }
+              : action.value === 'push_tts' ? { text: text.value } : {} });
+          notify(result.execution === 'unconfirmed' ? 'Команда отправлена. Выполнение не подтверждено.'
+            : 'Команда выполнена: ' + result.execution + '.');
           await load();
         } finally { sendBtn.disabled = !sessions.options.length; }
       });

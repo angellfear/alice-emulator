@@ -137,6 +137,12 @@ def _is_weather_tap(fields):
     return fields.get("purpose") == "weather_informer_tap_action"
 
 
+def _is_tts_frame(fields):
+    """frame=tts_semantic_frame (действие «Произнести текст»: колонка вернула фрейм
+    push_tts и ждёт реплику с этим текстом)"""
+    return fields.get("frame") == "tts_semantic_frame"
+
+
 def _is_timesync(fields):
     """callback=NAlice.TDeviceControlTimesyncTypedCallback или purpose=sync_timezone"""
     return fields.get("callback") == "NAlice.TDeviceControlTimesyncTypedCallback" or fields.get("purpose") == "sync_timezone"
@@ -154,6 +160,8 @@ callback_route('@@mm_typed_callback', 'callbacks.ack', None, 'прочие ко�
                'event:@@mm_typed_callback')
 callback_route('@@mm_semantic_frame', 'weather.opened', _is_weather_tap, 'тап по виджету погоды',
                'event:@@mm_semantic_frame[purpose=weather_informer_tap_action]')
+callback_route('@@mm_semantic_frame', 'tts.speak', _is_tts_frame, 'Произнести текст (push_tts)',
+               'event:@@mm_semantic_frame[frame=tts_semantic_frame]')
 callback_route('@@mm_semantic_frame', 'callbacks.ack', None, 'семантический фрейм — тихое подтверждение',
                'event:@@mm_semantic_frame')
 # Колбэки штатного плеера колонки (TASK-087): своей очереди у эмулятора нет — на

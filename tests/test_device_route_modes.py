@@ -145,6 +145,40 @@ async def test_hybrid_handled_stays_local_miss_goes_upstream(tmp_path):
         await runtime.close()
 
 
+async def test_hybrid_route_by_x_ya_device_id(tmp_path):
+    """Экранные запросы станции с экраном (com.yandex.tv.home) не несут
+    x-uprx-device-id/X-YaQuasarDeviceId — устройство представляется одним
+    X-Ya-Device-Id; маршрут устройства применяется и по нему."""
+    runtime = Runtime(tmp_path)
+    registry(runtime, "SN-H", "h-id")
+    calls = []
+    upstream_runner, port = await start_upstream(calls)
+    alias_upstream(runtime, port)
+    set_route(runtime, "SN-H", "hybrid")
+    runtime.identities.mutate({"operation": "record", "sn": "SN-H", "mode": "misses"})
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        async with ClientSession() as client:
+            # промах с одним X-Ya-Device-Id у hybrid-устройства — наверх, как по uprx/quasar
+            async with client.get(url + "/gproxy/no/handler",
+                                  headers={"Host": "rpc.alice.yandex.net", "X-Ya-Device-Id": "h-id"}) as response:
+                assert (await response.json())["from"] == "upstream"
+            # тот же промах без заголовка — устройство неизвестно, прежний честный 404
+            async with client.get(url + "/gproxy/no/handler",
+                                  headers={"Host": "rpc.alice.yandex.net"}) as response:
+                assert response.status == 404
+                assert (await response.json())["error"] == "emulator_handler_not_found"
+            assert len(calls) == 1
+            await runtime.upstream.journal.flush()
+            async with client.get(url + "/emulator/api/misses", headers={"X-Emulator": "1"}) as response:
+                misses = (await response.json())["http"]
+            assert any(m.get("forwarded") == "upstream" for m in misses)
+    finally:
+        await upstream_runner.cleanup()
+        await runner.cleanup()
+        await runtime.close()
+
+
 async def test_ws_modes_bridge_or_local(tmp_path):
     runtime = Runtime(tmp_path)
     registry(runtime, "SN-W", "w-id")

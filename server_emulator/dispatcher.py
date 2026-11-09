@@ -64,13 +64,18 @@ class Dispatcher:
         return str(identifier).strip() if identifier else ''
 
     def route_mode_for(self, request):
-        """(sn, device_id, mode) маршрута запроса (TASK-044). Идентичность —
-        заголовки соединения (uprx/quasar), затем query device_id; разрешение чистым
-        resolve (без регистрации). Устройство без route_mode и неизвестное — emulate."""
+        """(sn, device_id, mode) маршрута запроса (TASK-044). Идентичность — тот же
+        resolver и в том же порядке приоритета, что у основного пути (collect_device_id:
+        uprx → quasar → ya → X-Ya-Application.device_id → query); расхождение источников
+        здесь не журналируется — журнал ведёт handle() после повторного сбора. Разрешение
+        чистым resolve (без регистрации). Устройство без route_mode и неизвестное — emulate."""
         runtime = self.runtime
-        device_id = (request.headers.get('x-uprx-device-id')
-                     or request.headers.get('X-YaQuasarDeviceId')
-                     or request.query.get('device_id') or '')
+        device_id, _report = collect_device_id(
+            ('header.x-uprx-device-id', request.headers.get('x-uprx-device-id')),
+            ('header.x-yaquasar-device-id', request.headers.get('X-YaQuasarDeviceId')),
+            ('header.x-ya-device-id', request.headers.get('X-Ya-Device-Id')),
+            ('header.x-ya-application.device_id', self.application_device_id(request.headers.get('X-Ya-Application'))),
+            ('query.device_id', request.query.get('device_id')))
         device = runtime.identities.resolve(device_id) if device_id else None
         if device:
             return device.get('sn'), device_id or None, (device.get('route_mode') or 'emulate')

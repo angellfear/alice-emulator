@@ -155,9 +155,14 @@ def service_event_fields(request, event_obj):
 
     params = _struct_member(event_obj.Payload, 'request_params')
 
+    frame_struct = _struct_member(event_obj.Payload, 'typed_semantic_frame')
+
+    frame_value = next(iter(frame_struct.fields.values()), None) if frame_struct is not None else None
+
     return {'event_name': getattr(event_obj, 'Name', '') or '',
             'callback': _typed_callback_type(event_obj.Payload),
             'frame': _semantic_frame_name(event_obj.Payload),
+            'frame_text': _string_member(frame_value.struct_value, 'text') if frame_value is not None and frame_value.WhichOneof('kind') == 'struct_value' else '',
 
             'purpose': _string_member(analytics, 'purpose'),
 
@@ -954,6 +959,39 @@ class Conversation:
     async def _synthesize_cached(self, parts, wait=None):
         return await synthesize_cached(self.runtime, parts, wait)
 
+    async def _deliver_provide_report(self, report, incoming, trace, event_name):
+        """Доставка ответа поставщика колбэка с озвучкой реплики: синтез — до
+        отправки, HasVoiceResponse — только у AliceResponse с аудио (станция играет
+        голос лишь с этим флагом), TTS-кадры — отдельным каналом (как у фразового
+        пути). Служебные ответы (envelope service) и плеерные стеки речи не имеют —
+        доставляются без аудио, как раньше."""
+        messages = report.get('messages') or []
+        pages = speech = None
+        plain = re.sub(r'<[^>]+>', '', report.get('speech') or '').strip()
+        if self.runtime.settings.get('aapi_tts') and voice_output(self.runtime)[0] and plain:
+            try:
+                if trace:
+                    trace.event('tts_start', 'server')
+                pages, speech = await self._synthesize_cached(report.get('speech_parts') or [plain])
+                if trace:
+                    trace.event('tts_done', 'server', first_page_bytes=len(pages[0]) if pages else 0)
+            except Exception as exc:
+                if trace:
+                    trace.event('tts_failed', 'server', error=type(exc).__name__)
+                self.runtime.recent = (self.runtime.recent + [{'kind': 'tts', 'error': type(exc).__name__ + ': ' + str(exc)[:120]}])[-30:]
+        if trace:
+            trace.event('server_action_handled', 'server',
+                        event=event_name, scenario=report.get('scenario'), voice=bool(pages))
+        for message in messages:
+            if pages and message.WhichOneof('Message') == 'Event' \
+                    and message.Event.WhichOneof('Event') == 'AliceResponse':
+                message.Event.AliceResponse.VoiceResponse.HasVoiceResponse = True
+            await self.send(b'AAPI' + message.SerializeToString())
+        if pages:
+            await self._stream_tts_channel(incoming, pages, speech, trace)
+        elif speech:
+            await speech.aclose()
+
     async def _stream_tts_channel(self, incoming, pages, speech, trace=None):
 
         """TtsSpeak + аудио-канал + close — проводка озвучки (общая для путей)."""
@@ -1202,11 +1240,20 @@ class Conversation:
 
                 handled = False
 
+                provide_report = None
+
                 if provide:
 
-                    report = await dialog.handle_event(provide, ctx, dialog_id, self.send)
+                    # ответ поставщика доставляем сами: реплика озвучивается
+                    # голосовым конвейером (_deliver_provide_report)
+
+                    report = await dialog.handle_event(provide, ctx, dialog_id, None, deliver=False)
 
                     handled = bool(report.get('handled'))
+
+                    if handled:
+
+                        provide_report = report
 
                 if not handled:
 
@@ -1229,6 +1276,12 @@ class Conversation:
                 if handled:
 
                     aapi_handlers.count(event_name, handled=True)
+
+                    if provide_report is not None:
+
+                        await self._deliver_provide_report(provide_report, incoming, trace, event_name)
+
+                        return
 
                     if trace:
 

@@ -117,10 +117,14 @@ def set_weather_provider(runtime, forecast):
     providers.PROVIDERS["weather"] = {"golden-weather": weather_provider(forecast)}
 
 
-def service_request(purpose="", timezone=TIMEZONE, name="@@mm_typed_callback"):
-    """TextInput с server_action — как на wire (tests/test_timesync_scenario.py)."""
+def service_request(purpose="", timezone=TIMEZONE, name="@@mm_typed_callback",
+                    frame="", frame_text=""):
+    """TextInput с server_action — как на wire (tests/test_timesync_scenario.py).
+    frame/frame_text — семантический фрейм колбэка (typed_semantic_frame)."""
     payload = {"request_params": {"disable_output_speech": True, "is_parallel": True},
                "analytics": {"purpose": purpose, "origin": "SmartSpeaker"}}
+    if frame:
+        payload["typed_semantic_frame"] = {frame: {"text": frame_text}}
     return json_format.ParseDict({"Event": {"TextInput": {
         "Header": {"RequestId": "golden-req"},
         "Application": {"Timezone": timezone, "DeviceId": SN},
@@ -289,9 +293,11 @@ def base_ctx(runtime, dialog_id, sequence=1, text=""):
     return ctx
 
 
-def callback_ctx(runtime, dialog_id, purpose="", timezone=TIMEZONE, name="@@mm_typed_callback"):
+def callback_ctx(runtime, dialog_id, purpose="", timezone=TIMEZONE, name="@@mm_typed_callback",
+                 frame="", frame_text=""):
     """Контекст служебного колбэка: поля wire-запроса + контекст сценариев."""
-    request = service_request(purpose=purpose, timezone=timezone, name=name)
+    request = service_request(purpose=purpose, timezone=timezone, name=name,
+                              frame=frame, frame_text=frame_text)
     fields = service_event_fields(request.Event.TextInput, request.Event.TextInput.Request.Event)
     ctx = base_ctx(runtime, dialog_id)
     ctx["input"].update(fields)
@@ -394,7 +400,8 @@ async def run_case(runtime, effects, case):
         if kind == "callback":
             event_name = case.get("event") or "@@mm_typed_callback"
             ctx = callback_ctx(runtime, dialog_id, purpose=case.get("purpose") or "",
-                               timezone=case.get("timezone") or TIMEZONE, name=event_name)
+                               timezone=case.get("timezone") or TIMEZONE, name=event_name,
+                               frame=case.get("frame") or "", frame_text=case.get("frame_text") or "")
         else:  # событие без TextInput: @@timer_fired, @@agent_say
             event_name = case["event"]
             ctx = event_ctx(runtime, dialog_id, event_name, case.get("fields"))
@@ -411,7 +418,8 @@ async def run_case(runtime, effects, case):
         runs.append(report_view(report, sent))
     return {"name": case["name"],
             "input": {key: value for key, value in case.items()
-                      if key in ("kind", "phrase", "answer", "event", "purpose", "fields")},
+                      if key in ("kind", "phrase", "answer", "event", "purpose", "fields",
+                                 "frame", "frame_text")},
             "runs": runs, "effects": copy.deepcopy(effects)}
 
 
@@ -497,6 +505,10 @@ CASES = {
         {"name": "service_ack-screensaver", "kind": "callback", "purpose": "screensaver_callback_get_config"},
         {"name": "service_ack-stack-engine", "kind": "callback", "event": "@@mm_stack_engine_get_next"},
         {"name": "service_ack-music-started", "kind": "callback", "event": "music_thin_client_on_started"},
+    ],
+    "system.push_tts": [
+        {"name": "push_tts.frame", "kind": "callback", "event": "@@mm_semantic_frame",
+         "frame": "tts_semantic_frame", "frame_text": "Проверка связи"},
     ],
     "system.timesync": [
         {"name": "timesync-sync", "kind": "callback", "purpose": "sync_timezone"},

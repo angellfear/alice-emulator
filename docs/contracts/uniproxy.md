@@ -117,6 +117,40 @@ TextInput от станции в захватах — бардж-ин «стоп
   открывает карточку «Состояние (опрос)» с последними данными и повторным опросом.
 - Тесты: `tests/test_fetch_state.py`; релей — `tests/test_ws_hybrid.py`.
 
+## 9a. Push-действия: Push и квитируемый SyncPush{ExecuteDirective}
+
+Два канала доставки действий панели/MCP (`server_emulator/actions.py`, `runtime.push_action`):
+
+- **Push** (`Event.Push{Directives:[TDirective]}`) — без квитанции: `execution: unconfirmed`
+  до ответа колонки. Косметика и push_tts.
+- **SyncPush{ExecuteDirective}** (`Event.SyncPush{PushId, DeduplicationPushId, SyncRequest=
+  {ExecuteDirective={Directive (TDirective), ResponsePolicy{OnFinishedPolicy}}}}`) — важные
+  действия: колонка отвечает `SyncPushResponse{SyncResponse{ExecuteDirectiveResponse{
+  ExecutionStatus: oneof TExecutionStarted=1 | TExecutionCompleted=2 | TExecutionFailed=3}}}`
+  (поля — quasar-protos `sync_push/**`, сборка — `actions.execute_message`). Квитанция ждётся
+  не дольше 5 с (`EXECUTE_TIMEOUT_S`): статус `started`/`completed`/`failed` — в action_log и
+  в ответ API-действия; нет ответа вовремя — `unconfirmed`. Обработчик `_on_sync_push_response`
+  маршрутизирует по ветке `SyncResponse` (GetDeviceState → fetch_state, ExecuteDirective →
+  квитанция); на устройстве одно ждущее действие, новый опрос/действие отменяет прежнее
+  ожидание. Корреляция кадра — `RefMessageId` заголовка (тело ответа идентификатор push не
+  несёт); живого обмена квитанциями на станции не снято — поведение при реальной колонке
+  подтверждает владелец.
+
+| Действие | Канал | Примечание |
+|---|---|---|
+| push_update_config | ExecuteDirective | конфигурация — со статусом |
+| player_pause {—} | ExecuteDirective | директива `player_pause{smooth:false}` (образец media-pause) |
+| clear_queue {—} | ExecuteDirective | директива `clear_queue` |
+| sound_louder / sound_quiter / sound_set_level | Push | косметика |
+| start_bluetooth / stop_bluetooth | Push | косметика |
+| draw_led_screen {frames} | Push | LED-анимация |
+| push_tts {text} | Push | директива `@@mm_semantic_frame` (server_action) с payload
+  `{typed_semantic_frame: {tts_semantic_frame: {text}}}` — колонка возвращает тот же фрейм
+  TextInput'ом, сервер отвечает репликой с этим текстом через голосовой конвейер: маршрут
+  колбэка `tts.speak` (frame=tts_semantic_frame), поставщик — сценарий `system.push_tts`
+  (текст фрейма — `input.frame_text` в `service_event_fields`); у реплики синтез TTS и
+  `HasVoiceResponse` как у фразового пути |
+
 ## 10. Зонд фраз-блокеров
 
 Один прогон — одна фраза: TTS/WAV → Opus → sync-кадр → VoiceInput (реальный кадр колонки,

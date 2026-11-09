@@ -1,0 +1,33 @@
+{
+ "format_version": 2,
+ "version": "1.0.0",
+ "category": "system",
+ "id": "system.push_tts",
+ "title": {
+  "ru": "Произнести текст",
+  "en": "Say text"
+ },
+ "description": {
+  "ru": "Действие «Произнести текст» (push_tts): Push @@mm_semantic_frame → колонка возвращает тот же фрейм TextInput'ом → реплика с этим текстом через голосовой конвейер"
+ },
+ "priority": 10,
+ "triggers": [
+  {
+   "kind": "provide",
+   "event": "tts.speak"
+  }
+ ],
+ "flow": [
+  {
+   "id": "reply",
+   "op": "compose",
+   "reply": {
+    "text": "{{input.frame_text}}"
+   }
+  },
+  {
+   "id": "done",
+   "op": "finish"
+  }
+ ]
+}

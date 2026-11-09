@@ -27,6 +27,7 @@
       "smart_home.light",
       "system.agent_say",
       "system.dialog.reset",
+      "system.push_tts",
       "system.service_ack",
       "system.timesync",
       "system.unavailable",
@@ -3022,6 +3023,55 @@
         }
       ],
       "id": "system.dialog.reset"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "event": "@@mm_semantic_frame",
+            "frame": "tts_semantic_frame",
+            "frame_text": "Проверка связи",
+            "kind": "callback"
+          },
+          "name": "push_tts.frame",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Проверка связи",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Проверка связи"
+                }
+              ],
+              "reason": "event:@@mm_semantic_frame[frame=tts_semantic_frame]",
+              "scenario": "system.push_tts",
+              "speech": "Проверка связи",
+              "speech_parts": [],
+              "status": "finished"
+            }
+          ]
+        }
+      ],
+      "id": "system.push_tts"
     },
     {
       "cases": [

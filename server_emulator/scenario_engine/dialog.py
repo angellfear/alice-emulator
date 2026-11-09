@@ -363,9 +363,11 @@ class DialogManager:
         return await self._finish(outcome, ctx, send, deliver, "search:" + entry["id"],
                                   scenario.get("id"))
 
-    async def handle_event(self, event_name, ctx, dialog_id, send):
+    async def handle_event(self, event_name, ctx, dialog_id, send, deliver=True):
         """Служебное событие (event-триггеры с фильтрами callback/purpose/frame).
-        Порядок — priority каталога; fallback-сценарии (catch-all) последними."""
+        Порядок — priority каталога; fallback-сценарии (catch-all) последними.
+        deliver=False — сообщения возвращаются в report['messages'] неотправленными
+        (голосовой конвейер синтезирует озвучку реплики перед доставкой)."""
         fields = {key: (ctx.get("input") or {}).get(key) for key in EVENT_FILTERS}
         for scenario, reason in candidates(self.scenarios(), event_name=event_name, event=fields):
             verdict, dep_reason = dependencies_ok(scenario, self.executor)
@@ -377,7 +379,7 @@ class DialogManager:
             outcome = await self.executor.execute(scenario, ctx, dialog_id)
             if outcome.status == "declined":  # py-сценарий отказался — следующий кандидат
                 continue
-            return await self._finish(outcome, ctx, send, True, reason, scenario.get("id"))
+            return await self._finish(outcome, ctx, send, deliver, reason, scenario.get("id"))
         return {"handled": False, "verdict": "unsupported", "reason": "no_match", "status": None}
 
     async def quiet_ack(self, ctx):

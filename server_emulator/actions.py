@@ -12,12 +12,39 @@ CATALOG = [
     {'id':'stop_bluetooth','name':'Выключить Bluetooth','parameters':{}},
     {'id':'push_update_config','name':'Обновить конфигурацию','parameters':{}},
     {'id':'draw_led_screen','name':'Показать анимацию (LED)','parameters':{'animation':'id или URL'}},
+    {'id':'player_pause','name':'Пауза плеера','parameters':{}},
+    {'id':'clear_queue','name':'Очистить очередь','parameters':{}},
+    {'id':'push_tts','name':'Произнести текст','parameters':{'text':'строка'}},
 ]
+
+# Каналы доставки push-действий. Важные действия — квитируемый
+# SyncPush{ExecuteDirective} со статусом выполнения (started/completed/failed);
+# косметика — обычный Push без квитанции, push_tts — Push (реплику колонка
+# запрашивает сама TextInput'ом с тем же фреймом).
+EXECUTE_ACTIONS = {'push_update_config', 'player_pause', 'clear_queue'}
 
 
 def push_message(server_type, action, arguments):
     if action not in {a['id'] for a in CATALOG}:
         raise ValueError('Неизвестное действие')
+    if action=='push_tts':
+        text = arguments.get('text') if isinstance(arguments, dict) else None
+        if not isinstance(text, str) or not text.strip():
+            raise ValueError('Произнести текст: {text: строка}')
+        output=server_type()
+        output.Event.Header.MessageId=uuid.uuid4().hex
+        output.Event.Header.Ack=int(time.time()*1000)
+        push=output.Event.Push
+        push.DeduplicationPushId=uuid.uuid4().hex
+        push.PushIds.append(uuid.uuid4().hex)
+        directive=push.Directives.add()
+        directive.Name='@@mm_semantic_frame'
+        directive.Type='server_action'
+        directive.IsLedSilent=True
+        json_format.ParseDict({'typed_semantic_frame': {'tts_semantic_frame': {'text': text.strip()}}},
+                              directive.Payload, descriptor_pool=server_type.DESCRIPTOR.file.pool)
+        output.Timings.SendingTime.seconds=int(time.time())
+        return output
     if action=='draw_led_screen':
         frames = arguments.get('frames') if isinstance(arguments, dict) else None
         if not (isinstance(frames, list) and frames and all(isinstance(u, str) and u.startswith('http') for u in frames)):
@@ -61,28 +88,48 @@ def push_message(server_type, action, arguments):
     return output
 
 
+def execute_message(server_type, action, arguments=None):
+    """Квитируемое действие: SyncPush{ExecuteDirective{Directive, ResponsePolicy{
+    OnFinishedPolicy}}} — колонка отвечает SyncPushResponse с ExecutionStatus
+    (started/completed/failed), корреляция — RefMessageId нашего кадра. Payload
+    директивы — как у Push-пути: каталог задаёт форму wire (player_pause{smooth:false})."""
+    if action not in EXECUTE_ACTIONS:
+        raise ValueError('Действие не квитируется: ' + action)
+    output = server_type()
+    output.Event.Header.MessageId = uuid.uuid4().hex
+    output.Event.Header.Ack = int(time.time() * 1000)
+    push = output.Event.SyncPush
+    push.PushId = uuid.uuid4().hex
+    push.DeduplicationPushId = uuid.uuid4().hex
+    directive = push.SyncRequest.ExecuteDirective.Directive
+    directive.Name = action
+    directive.Type = 'client_action'
+    directive.IsLedSilent = True
+    payload = {}
+    if action == 'player_pause':
+        payload = {'smooth': False}
+    if isinstance(arguments, dict) and arguments:
+        raise ValueError('Недопустимые параметры действия')
+    if payload:
+        json_format.ParseDict(payload, directive.Payload,
+                              descriptor_pool=server_type.DESCRIPTOR.file.pool)
+    push.SyncRequest.ExecuteDirective.ResponsePolicy.OnFinishedPolicy.SetInParent()
+    output.Timings.SendingTime.seconds = int(time.time())
+    return output
+
+
 async def send_action(runtime, sn, action, arguments):
     """Команда колонке по SN: push в её живую WS-сессию, запись в журнал действий.
-    Общая для MCP-инструмента alice_speaker_command (mcp_hub)."""
-    from pathlib import Path
-    from .schema import load_type
+    Общая для MCP-инструмента alice_speaker_command (mcp_hub). Квитируемые действия
+    ждут SyncPushResponse (runtime.push_action)."""
     session = next((s for s in runtime.sessions.values()
                     if s.get('device_sn') == sn and s.get('send') and s.get('user_id')), None)
     if session is None:
         raise ValueError('Колонка не в сети: нет активной WS-сессии ' + sn)
-    cls = load_type(Path(__file__).parent/'schemas', 'alice-api.pb', 'NAlice.NAliceApi.TServerMessage')
-    message = push_message(cls, action, arguments or {})
-    item = {'message_id': message.Event.Header.MessageId, 'connection_id': session['connection_id'],
-            'device_sn': sn, 'user_id': session['user_id'], 'action': action,
-            'delivery': 'sending', 'execution': 'unconfirmed', 'origin': 'mcp'}
-    runtime.action_log.append(item)  # на месте: сессионная копия runtime делит список с панелью
-    del runtime.action_log[:-100]
-    try:
-        await session['send'](b'AAPI' + message.SerializeToString())
-    except (ConnectionError, RuntimeError):
-        item['delivery'] = 'failed'
+    item = await runtime.push_action(sn, action, arguments or {})
+    if item.get('delivery') == 'no_session':
         raise ValueError('Сессия закрылась до отправки команды')
-    item['delivery'] = 'sent'
+    item['origin'] = 'mcp'
     return item
 
 
