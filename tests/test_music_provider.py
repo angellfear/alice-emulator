@@ -109,6 +109,12 @@ MUSIC_PHRASES = {"entries": [
      "handler": "core:media.music"},
     {"id": "audiobook", "sentences": ["(включи|поставь) аудиокнигу {query}"], "handler": "core:media.music"},
     {"id": "tales", "sentences": ["(включи|поставь) (сказку|сказки) {query}"], "handler": "core:media.music"},
+    {"id": "next", "sentences": ["дальше", "(следующий|следующая|следующую) [(трек|песня|песню)]"],
+     "handler": "core:media.music"},
+    {"id": "prev", "sentences": ["(предыдущий|предыдущая|предыдущую) [(трек|песня|песню)]"],
+     "handler": "core:media.music"},
+    {"id": "continue", "sentences": ["(продолжи|продолжить|продолжай) [(музыку|играть)]"],
+     "handler": "core:media.music"},
     {"id": "search", "sentences": ["(включи|запусти|поставь|послушай) {query}"],
      "handler": "core:media.music", "search": True}]}
 
@@ -886,8 +892,9 @@ async def test_start_reply_carries_recover_commit_token(tmp_path):
         await runtime.close()
 
 
-async def test_commit_serves_next_track_and_chains_token(tmp_path):
-    """Токен совпал — следующий трек стеком «дальше» (тройка без экрана) и с новым токеном."""
+async def test_commit_is_silent_and_consumes_token(tmp_path):
+    """Колонка подтверждает старт каждого трека — ответ тихий, трек не переключается,
+    токен снимается; соседа заранее не запрашиваем (neighbor сдвигает очередь поставщика)."""
     runtime = Runtime(tmp_path)
     marker = tmp_path / "marker.json"
     make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)}, phrases=MUSIC_PHRASES)
@@ -895,20 +902,14 @@ async def test_commit_serves_next_track_and_chains_token(tmp_path):
     try:
         report = await say(runtime, "включи музыку", deliver=False)
         token = _play_payload(report)["callbacks"]["on_started"]["payload"]["music"]["recoverCommitToken"]
-        for _ in range(5):  # префетч соседа — фоновая задача
+        for _ in range(10):
             await asyncio.sleep(0)
-        sent = []
         commit_report = await runtime.dialog.handle_event(
-            "music.recover_commit", _commit_ctx(runtime, token), "dlg-1", await _collect(sent))
-        assert commit_report["handled"], commit_report
-        [message] = _sent_messages(sent)
-        assert _reply_names(message) == ["tts_play_placeholder", "apply_player_playback_queue_directive",
-                                         "set_audio_player_sequence_state_directive", "audio_play"]
-        assert "show_audio_player_screen_directive" not in _reply_names(message)
-        play = _payload_of(message, "audio_play")
-        assert play["stream"]["url"] == "https://example.com/t9.mp3"  # NEXT поставщика
-        chained = play["callbacks"]["on_started"]["payload"]["music"]  # переход с t9 тоже квантуется
-        assert chained["type"] == "recoverCommit" and chained["recoverCommitToken"] != token
+            "music.recover_commit", _commit_ctx(runtime, token), "dlg-1", await _collect([]))
+        assert not commit_report["handled"]  # умолчание маршрута — тихое подтверждение
+        assert music.take_commit(token) is None  # токен снят
+        calls = json.loads(marker.read_text(encoding="utf-8"))
+        assert not [call for call in calls if call[0] == "neighbor"]
     finally:
         await runtime.close()
 
@@ -930,23 +931,28 @@ async def test_commit_with_foreign_token_stays_silent(tmp_path):
         await runtime.close()
 
 
-async def test_commit_prefetch_avoids_second_neighbor(tmp_path):
-    """Живой префетч: commit не дёргает neighbor второй раз — сосед уже подготовлен."""
+async def test_next_prev_continue_phrases_use_provider_queue(tmp_path):
+    """При треке в плеере колонки: «дальше» — neighbor(+1) стеком «дальше»; «предыдущий»
+    без соседа — «Это первый трек.»; «продолжи» не на паузе — текущий трек поставщика.
+    Плеер пуст — фразы не музыке (игры: «дальше» — ход модели)."""
     runtime = Runtime(tmp_path)
     marker = tmp_path / "marker.json"
     make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)}, phrases=MUSIC_PHRASES)
     _disable_builtin_providers(runtime)
     try:
-        report = await say(runtime, "включи музыку", deliver=False)
-        token = _play_payload(report)["callbacks"]["on_started"]["payload"]["music"]["recoverCommitToken"]
-        for _ in range(10):  # префетч соседа успевает
-            await asyncio.sleep(0)
-        sent = []
-        await runtime.dialog.handle_event(
-            "music.recover_commit", _commit_ctx(runtime, token), "dlg-1", await _collect(sent))
+        assert not (await say(runtime, "дальше", deliver=False))["handled"]  # плеер пуст
+        station = {"player": {"state": "playing", "playing": True, "title": "Трек 1"}}
+        report = await say(runtime, "дальше", station=station, deliver=False)
+        assert report["handled"] and report["scenario"] == "media.music", report
+        [message] = report["messages"]
+        assert _reply_names(message) == ["tts_play_placeholder", "apply_player_playback_queue_directive",
+                                         "set_audio_player_sequence_state_directive", "audio_play"]
+        assert _payload_of(message, "audio_play")["stream"]["url"] == "https://example.com/t9.mp3"
+        report = await say(runtime, "предыдущий трек", station=station, deliver=False)
+        assert report["scenario"] == "media.music" and report["speech"] == "Это первый трек.", report
+        report = await say(runtime, "продолжи", station=station, deliver=False)
+        assert report["scenario"] == "media.music", report
         calls = json.loads(marker.read_text(encoding="utf-8"))
-        neighbor_calls = [call for call in calls if call[0] == "neighbor"]
-        assert len(neighbor_calls) == 1  # только префетч: commit взял готовый сосед
-        assert neighbor_calls[0][:2] == ["neighbor", "t1"]
+        assert [call[3] for call in calls if call[0] == "neighbor"] == [1, -1, 0]
     finally:
         await runtime.close()

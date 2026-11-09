@@ -446,7 +446,7 @@ def start_reply(result, text="", commit_token=None):
 
 
 def step_reply(track, provider, text="", offset_ms=0, commit_token=None):
-    """Ответ на «дальше/назад», колбэк @@mm_stack_engine_get_next, recoverCommit и
+    """Ответ на «дальше/назад», колбэк @@mm_stack_engine_get_next и
     продолжение с паузы: тройка очередь+состояние+audio_play без экрана и анимации
     (образцы «дальше» и «продолжи»; очередь из одного трека — neighbor отдаёт один
     Track). offset_ms — позиция продолжения; commit_token — recoverCommit-колбэк."""
@@ -461,44 +461,20 @@ def step_reply(track, provider, text="", offset_ms=0, commit_token=None):
 # --- recoverCommit: подтверждённый переход трека -----------------------------------
 # audio_play несёт callbacks.on_started.payload.music {type: recoverCommit,
 # recoverCommitToken}; колонка при старте трека возвращает токен TextInput'ом —
-# сервер отдаёт следующий трек. Записи живут в памяти процесса (колонка могла
+# сервер снимает токен и отвечает тихо (audio_play в ответ заменил бы начавшийся трек). Записи живут в памяти процесса (колонка могла
 # переподключиться — сессия по SN, токены общие), чужой/устаревший токен — тихий ack.
-COMMITS = {}  # token → {current_id, ext_id, next: Track|None, ts}
+COMMITS = {}  # token → {current_id, ext_id, ts}
 COMMIT_KEEP_S = 600  # неполученный токен живёт 10 минут
 
 
 def keep_commit(current, ext_id=""):
-    """Токен для audio_play: запись с текущим треком (сосед префетчится задачей —
-    music.prefetch_commit; не успел/нет соседа → токен без префетча)."""
+    """Токен для audio_play: запись с текущим треком (колонка вернёт его в recoverCommit)."""
     token = uuid.uuid4().hex
     now = time.time()
     for key in [k for k, v in COMMITS.items() if now - v["ts"] > COMMIT_KEEP_S]:
         COMMITS.pop(key, None)
-    COMMITS[token] = {"current_id": str(current["id"]), "ext_id": str(ext_id or ""),
-                      "next": None, "ts": now}
+    COMMITS[token] = {"current_id": str(current["id"]), "ext_id": str(ext_id or ""), "ts": now}
     return token
-
-
-def prefetch_commit(ctx, token, provider):
-    """Сосед текущего трека — задача в фоне (ответ не ждём); результат попадает в
-    запись токена и используется при commit, иначе сосед берётся на commit."""
-    entry = COMMITS.get(token)
-    if entry is None:
-        return
-    from . import providers as _prov
-
-    async def run():
-        try:
-            track = await neighbor(ctx, provider, entry["current_id"], None, 1)
-        except Exception:  # noqa: BLE001 — префетч не обязателен: commit доберёт сам
-            track = None
-        fresh = COMMITS.get(token)
-        if fresh is not None:
-            fresh["next"] = track
-    try:
-        asyncio.get_running_loop().create_task(run())
-    except RuntimeError:  # вне цикла (проверка эталона) — токен без префетча
-        pass
 
 
 def take_commit(token):

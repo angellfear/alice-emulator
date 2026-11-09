@@ -164,7 +164,9 @@ def service_event_fields(request, event_obj):
 
     frame_body = frame_value.struct_value if frame_value is not None and frame_value.WhichOneof('kind') == 'struct_value' else None
 
-    music_struct = _struct_member(frame_body, 'music') or frame_body
+    # recoverCommit: music — во фрейме (@@mm_semantic_frame) или прямо в Payload (server_action без имени)
+    music_struct = (_struct_member(frame_body, 'music') or _struct_member(event_obj.Payload, 'music')
+                    or frame_body)
 
     return {'event_name': getattr(event_obj, 'Name', '') or '',
             'callback': _typed_callback_type(event_obj.Payload),
@@ -1261,7 +1263,8 @@ class Conversation:
 
             event_name = getattr(event_obj, 'Name', None) if event_obj else None
 
-            if dialog is not None and event_type is not None and event_name:
+            if (dialog is not None and event_type is not None
+                    and (event_name or _struct_member(event_obj.Payload, 'music') is not None)):
 
                 # Service callback (e.g. @@mm_typed_callback, @@mm_semantic_frame, etc.)
 

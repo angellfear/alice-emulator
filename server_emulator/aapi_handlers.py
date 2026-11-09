@@ -171,6 +171,9 @@ callback_route('@@mm_semantic_frame', 'tts.speak', _is_tts_frame, 'Произн�
 callback_route('@@mm_semantic_frame', 'music.recover_commit', _is_recover_commit,
                'recoverCommit — подтверждённый переход трека плеера',
                'event:@@mm_semantic_frame[music=recoverCommit]')
+callback_route('', 'music.recover_commit', _is_recover_commit,
+               'recoverCommit без имени события (server_action с music в Payload)',
+               'event:[music=recoverCommit]')
 callback_route('@@mm_semantic_frame', 'callbacks.ack', None, 'семантический фрейм — тихое подтверждение',
                'event:@@mm_semantic_frame')
 # Колбэки штатного плеера колонки (TASK-087): своей очереди у эмулятора нет — на

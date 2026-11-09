@@ -24,8 +24,10 @@ sequence_state + audio_play). Своей очереди у ядра нет — �
   нет или дальше нечего — отказ (умолчание маршрута — тихое подтверждение).
 - recoverCommit (provide music.recover_commit): audio_play уходил с токеном
   (callbacks.on_started.payload.music) — колонка подтвердила старт трека; токен
-  совпал (music.py COMMITS) — следующий трек стеком «дальше», чужой/устаревший
-  токен — тихое подтверждение (как у quasar-server music/manager.ts).
+  снимается, ответ тихий (следующий трек здесь заменил бы начавшийся).
+- Фразы «дальше»/«предыдущий»/«продолжи» — записи next/prev/continue справочника фраз
+  поставщика: neighbor(±1) стеком «дальше»; «продолжи» — с места паузы (_resume),
+  иначе текущий трек поставщика сначала.
 
 Не-музыкальные домены голого шаблона отклоняет guard сценария (music.json,
 привязка media_other_domain в scenario_engine.bindings).
@@ -36,6 +38,9 @@ from server_emulator import music
 from server_emulator.sdk import ask, say
 
 NOT_FOUND = "Не нашла подходящего. Попробуйте назвать исполнителя или песню."
+STEPS = {"next": 1, "prev": -1}
+PLAYER_INTENTS = ("next", "prev", "continue")  # только при треке в плеере колонки  # записи справочника фраз поставщика → шаг очереди
+NOTHING = {"next": "Дальше ничего нет.", "prev": "Это первый трек."}
 RESUMABLE = ("paused", "stopped")  # плеер колонки: «включи музыку» продолжает трек
 # ссылка/URI трека Spotify: шаблонный слот режет URL — сырую реплику разбираем сами
 LINK = re.compile(r"(?:open\.spotify\.com/(?:intl-[a-z]{2,5}/)?(?:embed/)?track/|spotify:track:)"
@@ -97,10 +102,9 @@ async def handle(ctx):
     event = ctx.event.name or ""
     if event in GET_NEXT:
         return await _stack_next(ctx)
-    # маршрутизатор даёт provide-имя, voice.py кладёт в ctx wire-имя события —
-    # recoverCommit различаем по полю колбэка
-    if event == RECOVER or (event == "@@mm_semantic_frame"
-                            and ctx.event.music_type == "recoverCommit"):
+    # маршрутизатор даёт provide-имя, voice.py кладёт в ctx wire-имя события (у колонки
+    # @@mm_semantic_frame или пустое) — recoverCommit различаем по полю колбэка
+    if event == RECOVER or ctx.event.music_type == "recoverCommit":
         return await _recover_commit(ctx)
     if ctx.route_mode == "hybrid":
         return None  # «Вместе»: музыку отдаёт Яндекс (релей голоса)
@@ -118,6 +122,18 @@ async def handle(ctx):
         if query and not _explicit_music(ctx.text):
             return None  # голый шаблон («запусти {query}») без поставщика — следующий кандидат
         return ctx.no_data_source()
+    intent = str(entry.get("id") or "").rsplit(".", 1)[-1]  # id записи — «<плагин>.<запись>»
+    if intent in PLAYER_INTENTS and not str(ctx.player.get("title") or "").strip():
+        return None  # плеер колонки пуст: «дальше»/«продолжи» — не музыке (игры, модель)
+    if intent in STEPS:  # «дальше» / «предыдущий» — сосед в очереди поставщика
+        track = await music.neighbor(ctx, provider, None, None, STEPS[intent])
+        return _with_commit(ctx, provider, track) if track is not None else say(NOTHING[intent])
+    if intent == "continue":  # «продолжи»: с места паузы, иначе текущий трек сначала
+        resumed = await _resume(ctx, provider)
+        if resumed is not None:
+            return resumed
+        track = await music.neighbor(ctx, provider, None, None, 0)
+        return _with_commit(ctx, provider, track) if track is not None else say(NOT_FOUND)
 
     if not query:
         resumed = await _resume(ctx, provider)
@@ -174,35 +190,20 @@ def _reply(ctx, found, query, ext_id=""):
         return say(str(found.get("note") or NOT_FOUND))
     track = found["tracks"][found["start"]]
     token = music.keep_commit(track, ext_id)
-    music.prefetch_commit(ctx, token, found["provider"])
     return music.start_reply(found, text=f"Включаю {track['title']}." if query else "Включаю.",
                              commit_token=token)
 
 
 def _with_commit(ctx, provider, track, offset_ms=0):
-    """step_reply «дальше»/«продолжи» с токеном recoverCommit: колонка сама
-    запросит следующий трек, когда подтвердит старт этого."""
+    """step_reply «дальше»/«продолжи» с токеном recoverCommit (колонка вернёт его при
+    старте трека)."""
     token = music.keep_commit(track)
-    music.prefetch_commit(ctx, token, provider)
     return music.step_reply(track, provider, offset_ms=offset_ms, commit_token=token)
 
 
 async def _recover_commit(ctx):
-    """recoverCommit: колонка подтвердила старт трека — следующий стеком «дальше».
-    Чужой/устаревший токен, поставщика нет, дальше нечего — тихое подтверждение."""
-    if ctx.route_mode == "hybrid":
-        return None  # контент Яндекса ушёл наверх до маршрута
-    entry = music.take_commit(ctx.event.music_token)
-    if entry is None:
-        return None
-    from server_emulator import providers
-    provider = providers.for_ext("music", entry["ext_id"]) if entry["ext_id"] else None
-    provider = provider or ctx.music
-    if provider is None:
-        return None
-    track = entry["next"]
-    if track is None:  # префетч не успел/не удался — сосед добирается на commit
-        track = await music.neighbor(ctx, provider, entry["current_id"], None, 1)
-    if track is None:
-        return None
-    return _with_commit(ctx, provider, track)
+    """recoverCommit: колонка подтвердила старт трека (присылает его при старте каждого
+    трека) — токен снимается, ответ тихий. Следующий трек здесь не отдаётся: audio_play
+    в ответ заменил бы только что начавшийся трек."""
+    music.take_commit(ctx.event.music_token)
+    return None
