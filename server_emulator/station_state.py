@@ -1,4 +1,5 @@
 """Состояние колонки из её запроса (TASK-079): таймеры, будильники, экраны «Часов».
+Тот же разбор — для ответа на SyncPush{GetDeviceState} (fetch_state_result).
 
 Колонка сообщает своё состояние в КАЖДОМ запросе — `Request.EnvironmentStateRaw`
 (NAlice.NAliceApi.TEnvironmentState, образец: журнал 2026-10-22…2026-10-27):
@@ -23,6 +24,8 @@ CapabilityUpdateState колонка этими типами ничего не �
 у будильника/таймера (образец 2026-10-27 19:05) либо истёкший активный таймер.
 """
 from __future__ import annotations
+
+import time
 
 # capability-типы из ECapabilityType (alice-api.pb), образец — журнал захвата
 ALARM_CAPABILITY = 21
@@ -191,6 +194,36 @@ def from_request(request):
     """Состояние из запроса колонки (TTextInput/TVoiceInput): Request.EnvironmentStateRaw."""
     raw = getattr(getattr(request, "Request", None), "EnvironmentStateRaw", b"") or b""
     return parse(raw)
+
+
+def fetch_state_result(response, assistant_name=""):
+    """Ответ колонки на SyncPush{GetDeviceState} (TClientMessage.Event.SyncPushResponse)
+    → {ts, alarms, timers, volume, player, assistant_name}: будильники/таймеры/плеер —
+    из EnvironmentState (parse), у таймеров — remaining на момент опроса; громкость —
+    DeviceState (SoundLevel/SoundMaxLevel/SoundMuted), в DeviceState пусто —
+    TVolumeCapability из parse. Битый ответ — пустое состояние, не исключение."""
+    inner = response.Event.SyncPushResponse.SyncResponse.GetDeviceStateResponse
+    state = parse(bytes(inner.EnvironmentState.SerializeToString())) \
+        if inner.HasField("EnvironmentState") else {}
+    now = time.time()
+    timers = []
+    for timer in state.get("timers") or []:
+        item = dict(timer)
+        if item.get("start_ts"):
+            item["remaining"] = remaining_seconds(item, int(now))
+        timers.append(item)
+    device_state = inner.DeviceState
+    if device_state.SoundLevel or device_state.SoundMaxLevel or device_state.SoundMuted:
+        volume = {"level": int(device_state.SoundLevel or 0),
+                  "max_level": int(device_state.SoundMaxLevel or 0),
+                  "muted": bool(device_state.SoundMuted)}
+        if volume["max_level"]:
+            volume["percent"] = round(volume["level"] / volume["max_level"] * 100, 1)
+    else:
+        volume = state.get("volume") or {}
+    return {"ts": now, "alarms": state.get("alarms") or [], "timers": timers,
+            "volume": volume, "player": state.get("player") or {},
+            "assistant_name": assistant_name}
 
 
 # --- хелперы сценариев: остаток, активные, сигнал -------------------------------

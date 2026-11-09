@@ -529,3 +529,41 @@ async def test_request_stat_not_relayed(tmp_path):
     finally:
         await runner.cleanup()
         await runtime.close()
+
+
+async def test_sync_push_response_not_relayed(tmp_path):
+    """SyncPushResponse — ответ на НАШ SyncPush{GetDeviceState}: наверх в «Вместе» не
+    релеится (как RequestStat) и в «Без ответа» не попадает."""
+    stub, stub_base = await make_stub()
+    runtime = _runtime(tempfile.mkdtemp(), stub_base)
+    _stub_stt(runtime)
+    runner, url = await listen(_client_app(runtime))
+    try:
+        client_type, server_type = _types()
+        from aiohttp import ClientSession
+        async with ClientSession() as client:
+            async with client.ws_connect(url + "/uni.ws",
+                                         headers={"x-uprx-device-id": "dev-h"}) as ws:
+                sync = client_type()
+                sync.Event.Header.MessageId = "sync-id"
+                sync.Event.SynchronizeStateRequest.Application.DeviceId = "dev-h"
+                await ws.send_bytes(b"AAPI" + sync.SerializeToString())
+                await asyncio.sleep(0.2)
+                await _voice_exchange(ws, client_type)
+                await asyncio.sleep(0.8)
+                response = client_type()
+                response.Event.SyncPushResponse.SyncResponse.GetDeviceStateResponse.DeviceState.SoundLevel = 4
+                await ws.send_bytes(b"AAPI" + response.SerializeToString())
+                await asyncio.sleep(0.5)
+        relayed = [client_type.FromString(raw[4:]) for direction, raw in stub.frames
+                   if direction == "client" and raw.startswith(b"AAPI")]
+        assert any(m.WhichOneof("Message") == "Event"
+                   and m.Event.WhichOneof("Event") == "VoiceInput" for m in relayed)
+        assert not any(m.WhichOneof("Message") == "Event"
+                       and m.Event.WhichOneof("Event") == "SyncPushResponse" for m in relayed), \
+            "SyncPushResponse — ответ на наш push, наверх не релеится"
+        assert runtime.aapi_misses.public() == []  # и не в «Без ответа»
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+

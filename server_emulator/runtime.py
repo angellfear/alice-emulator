@@ -18,6 +18,7 @@ from .provider_manager import ProviderManager
 from .lifecycle import Lifecycle, RequestContext
 from .settings_service import DEFAULT, RECORD_MODES, ROUTE_MODES, SettingsService, masked_secret, validate_url
 from .schema import SetupRequired, load_type, schemas_ready
+from . import station_state
 from .device_images import DeviceImages, images_dir
 from .state_store import StateStore, migrate_legacy
 from .endpoints import EndpointCatalog
@@ -66,6 +67,62 @@ WEATHER_URL_LEGACY_DEFAULT = "https://api.open-meteo.com/v1/forecast"
 PHRASE_LIST_MAX_AGE = 60.0  # свежесть (с) записи датасета для закрытых списков справочника фраз
 PHRASE_LIST_TIMEOUT = 5.0   # ожидание плагина датасета в фоновом опросе (голос не ждём)
 
+# Опрос состояния колонки: сервер шлёт SyncPush{GetDeviceState}, колонка отвечает
+# SyncPushResponse (протокол — quasar-protos sync_push/**). Ожидание ответа — не дольше
+# FETCH_STATE_TIMEOUT_S; частота опросов одного устройства ограничена настройкой
+# settings["fetch_state"]["min_interval_s"] (секунды, 0 — без лимита).
+FETCH_STATE_TIMEOUT_S = 5.0
+ASSISTANT_NAMES = {"alisa": "Алиса", "yandex": "Яндекс", "yasmina": "Ясмина"}
+
+
+class FetchStateThrottled(Exception):
+    """Опрос состояния чаще settings["fetch_state"]["min_interval_s"]. API отвечает 429;
+    программный вызов ловит исключение и пропускает (тихий отказ)."""
+
+    def __init__(self, retry_after_s):
+        super().__init__("Опрос состояния: повторите через %d с" % max(1, int(retry_after_s)))
+        self.retry_after_s = float(retry_after_s)
+
+
+class FetchStateTimeout(Exception):
+    """Колонка не ответила SyncPushResponse за отведённое время."""
+
+
+class FetchStateSuperseded(Exception):
+    """Ожидание ответа отменено: по устройству пришёл новый опрос."""
+
+
+def sync_push_message(schemas_dir):
+    """SyncPush{GetDeviceState} на проводе: TServerMessage{Event{Header{MessageId: uuid,
+    Ack: now_ms}, SyncPush{PushId=1, DeduplicationPushId=2, SyncRequest=3{GetDeviceState=1{
+    GetDeviceStateOptions=1{}, GetEnvironmentStateOptions=2{}}}}}} — пустые опции в кадре
+    есть (SetInParent), как у настоящего сервера."""
+    cls = load_type(schemas_dir, "alice-api.pb", "NAlice.NAliceApi.TServerMessage")
+    message = cls()
+    message.Event.Header.MessageId = uuid.uuid4().hex
+    message.Event.Header.Ack = int(time.time() * 1000)
+    push = message.Event.SyncPush
+    push.PushId = uuid.uuid4().hex
+    push.DeduplicationPushId = uuid.uuid4().hex
+    push.SyncRequest.GetDeviceState.GetDeviceStateOptions.SetInParent()
+    push.SyncRequest.GetDeviceState.GetEnvironmentStateOptions.SetInParent()
+    message.Timings.SendingTime.seconds = int(time.time())
+    return message
+
+
+@aapi_handlers.aapi_handler('SyncPushResponse')
+async def _on_sync_push_response(conversation, incoming, trigger):
+    """Ответ колонки на наш SyncPush{GetDeviceState} — ожидающему fetch_state этого
+    устройства (по сессии, в runtime.fetch_waiters). Событие обработано всегда — это
+    ответ на НАШ push, в «Без ответа» ему не место, наверх в «Вместе» он не релеится
+    (hybrid.relay пересылает только StreamControl и Ack). Квитанции ExecuteDirective*
+    (другой канал push) ожидающего GetDeviceState не будят."""
+    waiter = conversation.runtime.fetch_waiters.get(conversation.trace_context.get('sn') or '')
+    if waiter is not None and not waiter.done() \
+            and incoming.Event.SyncPushResponse.SyncResponse.WhichOneof('Response') == 'GetDeviceStateResponse':
+        waiter.set_result(incoming)
+    return True
+
 
 class Runtime:
     def __init__(self, directory=None, catalog_root=None):
@@ -110,6 +167,9 @@ class Runtime:
                                         extension_dirs=lambda: self._extension_layers("params"))
         self.quasar_params.seed(self.identities.data)  # каталог+legacy-перенос, идемпотентно
         self.sessions = {}
+        # fetch_state: sn → Future(SyncPushResponse) — ответ маршрутизирует обработчик
+        # SyncPushResponse; словарь общий с корнем (scoped-копии runtime его делят)
+        self.fetch_waiters = {}
         self.closer = SocketCloser()  # TASK-057: закрытие WS колонок в фоне, без ожидания ответа клиента
         self.quasar_sync_headers = {}  # TASK-052: последние заголовки get_sync_info по SN, только память
         self.quasar = QuasarBackend(self)
@@ -829,6 +889,68 @@ class Runtime:
         except (ConnectionError, RuntimeError):
             return False
         return True
+
+    def _assistant_name(self, device):
+        """Имя ассистента из sync-конфига устройства (config.account_config.spotter):
+        alisa→Алиса, yandex→Яндекс, yasmina→Ясмина; иное значение — как есть. Битый
+        источник конфига не мешает опросу состояния — пустое имя."""
+        if device is None:
+            return ""
+        try:
+            from .quasar_config import device_platform
+            from .quasar_rules import compose_config
+            body = compose_config(self, device_platform(device), device)
+            spotter = str((((body or {}).get("config") or {}).get("account_config") or {}).get("spotter") or "")
+        except Exception:  # noqa: BLE001 — конфиг не собирается, но состояние опросить можно
+            return ""
+        return ASSISTANT_NAMES.get(spotter, spotter)
+
+    async def fetch_state(self, sn, timeout=FETCH_STATE_TIMEOUT_S):
+        """Опрос состояния колонки: SyncPush{GetDeviceState} в её живую WS-сессию,
+        ожидание SyncPushResponse (не дольше timeout, ответ маршрутизирует обработчик
+        _on_sync_push_response). Итог — {ts, alarms, timers, volume, player,
+        assistant_name} и он же сохраняется в devices.state.fetch_state_last.
+        Повторный опрос того же устройства отменяет предыдущее ожидание
+        (FetchStateSuperseded); чаще settings["fetch_state"]["min_interval_s"] —
+        FetchStateThrottled (0 — без лимита); нет сессии — ValueError, нет ответа
+        вовремя — FetchStateTimeout."""
+        interval = (self.settings.get("fetch_state") or {}).get("min_interval_s")
+        min_interval = float(10 if interval is None else interval)
+        device = next((d for d in self.identities.data["devices"] if d["sn"] == sn), None)
+        last = ((device or {}).get("state") or {}).get("fetch_state_last") or {}
+        elapsed = time.time() - float(last.get("ts") or 0)
+        if min_interval > 0 and last.get("ts") and elapsed < min_interval:
+            raise FetchStateThrottled(min_interval - elapsed)
+        session = next((x for x in self.sessions.values()
+                        if x.get("device_sn") == sn and x.get("send")), None)
+        if session is None:
+            raise ValueError("Колонка не в сети: нет активной WS-сессии " + sn)
+        message = sync_push_message(ROOT / "schemas")
+        previous = self.fetch_waiters.get(sn)
+        if previous is not None and not previous.done():  # повторный опрос — прежнее ожидание отменяется
+            previous.set_exception(FetchStateSuperseded("По устройству пришёл новый опрос состояния"))
+        future = asyncio.get_running_loop().create_future()
+        self.fetch_waiters[sn] = future
+        try:
+            try:
+                await session["send"](b"AAPI" + message.SerializeToString())
+            except (ConnectionError, RuntimeError):
+                raise ValueError("Сессия закрылась до отправки SyncPush")
+            try:
+                response = await asyncio.wait_for(future, timeout)
+            except asyncio.TimeoutError:
+                raise FetchStateTimeout(f"Колонка не ответила за {timeout:.0f} с") from None
+        finally:
+            if self.fetch_waiters.get(sn) is future:
+                self.fetch_waiters.pop(sn, None)
+        result = station_state.fetch_state_result(response, self._assistant_name(device))
+        async with self.lock:  # чтение-запись состояния устройства — под общим замком
+            fresh = next((d for d in self.identities.data["devices"] if d["sn"] == sn), None)
+            if fresh is not None:
+                state = copy.deepcopy(fresh.get("state") or {})
+                state["fetch_state_last"] = result
+                self.identities.mutate({"operation": "state", "sn": sn, "state": state})
+        return result
 
     def speech_sink(self, record):
         """Приёмник событий SpeechTrace. In-place: scoped-копии runtime в WS-сессиях

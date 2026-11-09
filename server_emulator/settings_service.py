@@ -83,6 +83,9 @@ DEFAULT = {
     # видов для споров между видами и плагинов внутри вида; плагины без вида —
     # группа «Прочее» (_other). id вне списков — после перечисленных по алфавиту.
     "phrase_order": {"kinds": [], "plugins": {}},
+    # Опрос состояния колонки (кнопка «Опросить»): минимальный интервал между опросами
+    # одного устройства в секундах, 0 — без лимита. Форма в UI — карточка «Состояние (опрос)».
+    "fetch_state": {"min_interval_s": 10},
 }
 
 
@@ -399,6 +402,20 @@ class SettingsService:
                     and all(isinstance(p, str) and p for p in v)
                     for k, v in plugins.items()):
                 raise ValueError("phrase_order.plugins: вид → список id расширений")
+        # Опрос состояния колонки: UI хранит только min_interval_s (карточка «Состояние
+        # (опрос)»); присланной формы нет — из current.
+        if "fetch_state" not in value:
+            value["fetch_state"] = copy.deepcopy(current.get("fetch_state") or DEFAULT["fetch_state"])
+        else:
+            fetch_state = value["fetch_state"]
+            if not isinstance(fetch_state, dict):
+                raise ValueError("fetch_state: нужен объект")
+            try:
+                interval = fetch_state.get("min_interval_s")
+                fetch_state["min_interval_s"] = max(
+                    0.0, float(DEFAULT["fetch_state"]["min_interval_s"] if interval is None else interval))
+            except (TypeError, ValueError):
+                raise ValueError("fetch_state.min_interval_s: число секунд (0 — без лимита)") from None
         # Расширения (TASK-029): устаревшая форма UI присылает настройки без ключа —
         # восстанавливаем из current (состояние расширений UI не редактирует);
         # присланное — проверяем по форме.

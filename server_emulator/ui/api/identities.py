@@ -86,6 +86,25 @@ async def record_mode(request, runtime, app):
     return web.json_response(await runtime.set_device_record_mode(value.get('sn'), value.get('mode')))
 
 
+@route("fetch_state", methods=("POST",))
+async def fetch_state(request, runtime, app):
+    """Опрос состояния колонки: POST {sn} → SyncPush{GetDeviceState}, ожидание
+    SyncPushResponse (≤ 5 с). Итог возвращается и сохраняется в devices.state.fetch_state_last.
+    Частота ограничена настройкой fetch_state.min_interval_s: чаще — 429; колонка не
+    ответила — 504; опрос вытеснен новым — 409; нет живой WS-сессии — 400."""
+    from ...runtime import FetchStateSuperseded, FetchStateThrottled, FetchStateTimeout  # локально: runtime тянет весь эмулятор
+    value = await request.json()
+    try:
+        return web.json_response(await runtime.fetch_state(str(value.get('sn') or '')))
+    except FetchStateThrottled as exc:
+        return web.json_response({'error': str(exc), 'code': 'fetch_state_throttled',
+                                  'retry_after_s': exc.retry_after_s}, status=429)
+    except FetchStateTimeout as exc:
+        return web.json_response({'error': str(exc), 'code': 'fetch_state_timeout'}, status=504)
+    except FetchStateSuperseded as exc:
+        return web.json_response({'error': str(exc), 'code': 'fetch_state_superseded'}, status=409)
+
+
 @route("user_login", methods=("GET", "PUT"))
 async def user_login(request, runtime, app):
     # Вход пользователя реестра в кабинет /me: GET ?user=<id> → логин (без хэша);

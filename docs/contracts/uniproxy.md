@@ -85,7 +85,39 @@ TextInput от станции в захватах — бардж-ин «стоп
   не должны попадать в первую (чужой StreamId ломает состояние канала колонки) — `hybrid._on_frame`
   фильтрует по событию.
 
-## 9. Зонд фраз-блокеров
+## 9. SyncPush: опрос состояния колонки (fetch_state)
+
+Сервер опрашивает колонку о её состоянии, не дожидаясь её же запросов (поля — quasar-protos
+`alice/protos/api/alicekit/events/sync_push/**`, сборка по коду quasar-server):
+
+- Сервер → колонка: `TServerMessage{Event{Header{MessageId: uuid, Ack: now_ms}, SyncPush{
+  PushId=1: uuid, DeduplicationPushId=2: uuid, SyncRequest=3{GetDeviceState=1{
+  GetDeviceStateOptions=1{}, GetEnvironmentStateOptions=2{}}}}}}` — пустые опции остаются
+  в кадре; сборка — `runtime.sync_push_message`.
+- Колонка → сервер: `Event.SyncPushResponse{SyncResponse{GetDeviceStateResponse{
+  DeviceState, EnvironmentState}}}`; `SyncResponse` — oneof `Response`, прочие ветки
+  (квитанции ExecuteDirective*) — другой канал push.
+- Обработчик `_on_sync_push_response` (`runtime.py`) отдаёт ответ ожидающему
+  `runtime.fetch_state(sn)` по сессии устройства. Событие всегда обработано — это ответ
+  на НАШ push: в «Без ответа» не попадает, в «Вместе» наверх не релеится (релей
+  пересылает только StreamControl и Ack).
+- `runtime.fetch_state(sn, timeout=5.0)`: отправка в живую WS-сессию, ожидание не дольше
+  5 с (повторный опрос устройства отменяет предыдущее ожидание), разбор —
+  `station_state.fetch_state_result`: будильники/таймеры/плеер — из `EnvironmentState`
+  (те же возможности, что в запросах колонки; у таймеров — remaining на момент опроса),
+  громкость — `DeviceState.SoundLevel/SoundMaxLevel/SoundMuted`, имя ассистента — spotter
+  sync-конфига (`config.account_config.spotter`: alisa→Алиса, yandex→Яндекс, yasmina→Ясмина).
+- Итог сохраняется в `devices.state.fetch_state_last` = `{ts, alarms, timers, volume,
+  player, assistant_name}`. Частота ограничена настройкой
+  `settings["fetch_state"]["min_interval_s"]` (секунды, по умолчанию 10, 0 — без лимита):
+  чаще — 429 из API (`FetchStateThrottled` для программных вызовов — тихий отказ); нет
+  ответа вовремя — 504 (`FetchStateTimeout`); ожидание вытеснено новым опросом —
+  409 (`FetchStateSuperseded`); нет живой сессии — 400.
+- API: `POST /emulator/api/fetch_state {sn}`. UI — вкладка «Устройства»: кнопка «Опросить»
+  открывает карточку «Состояние (опрос)» с последними данными и повторным опросом.
+- Тесты: `tests/test_fetch_state.py`; релей — `tests/test_ws_hybrid.py`.
+
+## 10. Зонд фраз-блокеров
 
 Один прогон — одна фраза: TTS/WAV → Opus → sync-кадр → VoiceInput (реальный кадр колонки,
 `EnableSpotterValidation=false`, свежий MessageId) → аудио в реальном темпе → ответ.
@@ -113,7 +145,7 @@ TextInput от станции в захватах — бардж-ин «стоп
 Блокеры (сон-таймер, будильник удалить/перенос/отложить/мелодия/будни, напоминания,
 календарь) — сняты: образцы ответов получены.
 
-## 10. Захват OAuth аккаунта
+## 11. Захват OAuth аккаунта
 
 OAuth-токен аккаунта приходит в каждом сеансе: `SynchronizeStateRequest.OAuthToken` (sync),
 заголовок `X-UPRX-OAUTH-TOKEN` (WS-handshake), `Authorization: OAuth …` (HTTP к quasar и др.).
@@ -122,8 +154,10 @@ runtime.websocket) и хранит в БД состояния (meta `yandex_oaut
 использует его для Web API. До первого обращения колонки поставщик честно отказывается.
 Подробно — `docs/contracts/player.md`, раздел «Поставщик Яндекс.Музыки».
 
-## 11. Чего НЕ проверено
+## 12. Чего НЕ проверено
 
 - Поведение колонки при `DeferredAliceResponse` со звуком до `IsLast` (см. aapi.md).
 - Мультирум, `AttachToMultiroom`, звонки.
 - Потоки `ConnectionData` в `SynchronizeStateResponse`.
+- SyncPush{GetDeviceState} на живой колонке: сборка по коду quasar-server, ответ — по
+  схеме; живой обмен не снят.

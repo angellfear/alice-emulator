@@ -510,6 +510,10 @@
       }
       row.append(bind);
       const actions = node('td');
+      const poll = node('button', 'Опросить'); poll.type = 'button'; poll.className = 'secondary';
+      poll.title = 'Состояние колонки: будильники, таймеры, громкость, плеер';
+      poll.onclick = () => stateDialog(device);
+      actions.append(poll);
       const del = node('button', 'Удалить'); del.type = 'button'; del.className = 'secondary danger';
       del.title = 'Убрать из списка (с отвязкой); при следующем представлении устройства (WS или /get_sync_info) оно вернётся — непривязанным';
       del.onclick = () => work(async () => {
@@ -626,6 +630,76 @@
       dialog.close(); dialog.remove(); await afterChange(); message('Устройство сохранено.');
     });
     openDialog(dialog);
+  }
+
+  // ── Состояние (опрос): карточка последнего опроса устройства + кнопка «Опросить» ──
+  // Данные — devices.state.fetch_state_last (хранит сервер); «Опросить» — SyncPush{GetDeviceState},
+  // ответ не дольше 5 с. Интервал опросов одного устройства — настройка fetch_state.min_interval_s.
+  const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+  const clockText = t => t ? String(t.hours).padStart(2, '0') + ':' + String(t.minutes).padStart(2, '0')
+    + (t.seconds ? ':' + String(t.seconds).padStart(2, '0') : '') : '';
+  const daysText = a => (a.dates || []).map(d => `${d[2]}.${d[1]}.${d[0]}`)
+    .concat((a.weekdays || []).map(w => WEEKDAYS[w - 1]).filter(Boolean)).join(', ');
+  const alarmText = a => [clockText(a.time), daysText(a), a.currently_playing ? 'звонит' : a.disabled ? 'выключен' : '']
+    .filter(Boolean).join(' · ');
+  const durText = s => { s = Math.max(0, Math.round(s)); const m = Math.floor(s / 60); return m ? `${m} мин ${s % 60} с` : `${s} с`; };
+  const timerText = t => [(t.title || ''), t.remaining != null ? 'осталось ' + durText(t.remaining) : 'на ' + durText(t.duration),
+    t.currently_playing ? 'звенит' : t.paused ? 'пауза' : t.disabled ? 'выключен' : ''].filter(Boolean).join(' · ');
+  const playerStates = { playing: 'играет', paused: 'пауза', buffering: 'буферизация', stopped: 'остановлен', finished: 'закончился' };
+  const playerText = p => !p || !playerStates[p.state] ? '—'
+    : playerStates[p.state] + (p.title ? ': ' + p.title + (p.subtitle ? ' — ' + p.subtitle : '') : '');
+  const volumeText = v => !v || (!v.level && !v.max_level && !v.muted) ? '—'
+    : (v.muted ? 'звук выключен · ' : '') + v.level + (v.max_level ? ' из ' + v.max_level : '')
+      + (v.percent != null ? ' (' + v.percent + '%)' : '');
+
+  function stateDialog(device) {
+    const { dialog, form } = dialogFrame('Состояние (опрос) · ' + device.name);
+    const when = node('p'); when.className = 'hint';
+    const grid = node('div'); grid.className = 'state-grid';
+    const sections = node('div');
+    const render = value => {
+      const last = value || (device.state || {}).fetch_state_last;
+      when.textContent = last && last.ts ? 'Опрошено: ' + new Date(last.ts * 1000).toLocaleString('ru-RU') : 'Ещё не опрашивалось.';
+      grid.replaceChildren();
+      const row = (label, text) => {
+        if (!text) return;
+        const line = node('div');
+        line.append(node('span', label), node('span', text));
+        grid.append(line);
+      };
+      row('Ассистент', (last || {}).assistant_name);
+      row('Громкость', volumeText((last || {}).volume));
+      row('Плеер', playerText((last || {}).player));
+      sections.replaceChildren();
+      for (const [title, items, textOf] of [['Будильники', (last || {}).alarms, alarmText], ['Таймеры', (last || {}).timers, timerText]]) {
+        const box = node('div');
+        const head = node('b', title + (Array.isArray(items) ? ' · ' + items.length : ''));
+        box.append(head);
+        const line = (text, cls) => { const n = node('div', text); n.className = cls; return n; };
+        for (const item of items || []) box.append(line(textOf(item), 'state-item'));
+        if (!Array.isArray(items) || !items.length) box.append(line('—', 'state-item faint'));
+        sections.append(box);
+      }
+    };
+    form.append(when, grid, sections);
+    const intervalLabel = node('label', 'Интервал опроса, с (0 — без лимита)');
+    const interval = node('input'); interval.type = 'number'; interval.min = '0'; interval.step = '1';
+    interval.value = (settings.fetch_state || {}).min_interval_s ?? 10;
+    interval.onchange = () => work(async () => {
+      settings = await putPatch({ fetch_state: { ...(settings.fetch_state || {}), min_interval_s: Number(interval.value) || 0 } });
+      message('Интервал опроса сохранён: ' + settings.fetch_state.min_interval_s + ' с.');
+    });
+    intervalLabel.append(interval);
+    form.append(intervalLabel);
+    const poll = node('button', 'Опросить'); poll.type = 'button';
+    poll.onclick = () => work(async () => { render(await api('fetch_state', 'POST', { sn: device.sn })); message('Состояние опрошено.'); });
+    const close = node('button', 'Закрыть'); close.type = 'button'; close.className = 'secondary';
+    close.onclick = () => { dialog.close(); dialog.remove(); };
+    const row = node('div'); row.className = 'row'; row.append(poll, close);
+    form.append(row);
+    render();
+    openDialog(dialog);
+    poll.click();  // открытие карточки — сразу свежий опрос (429 при частом открытии виден тостом)
   }
 
   // ── Загрузка по разделам и тихий поллинг статусов ──────────────────

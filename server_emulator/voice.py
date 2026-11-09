@@ -855,12 +855,18 @@ class Conversation:
 
     async def _on_matched_user(self, incoming, trigger):
         """Биометрия говорящего: колонка распознала голос (взрослый/ребёнок, пол) к текущему
-        запросу. Оценки — в контексте разговора и сессии устройства; ответа нет."""
+        запросу. Оценки — в контексте разговора и сессии устройства; из Simple (Tag
+        'children' → adult/child, Tag 'gender' → male/female) поверх — удобные поля
+        adult/child/gender. Ответа нет."""
         classification = incoming.Event.MatchedUser.Request.Event.BiometryClassification
+        simple = {item.Tag: item.ClassName for item in classification.Simple
+                  if item.Tag and item.ClassName}
         speaker = {'scores': {score.ClassName: round(score.Confidence, 3) for score in classification.Scores
                               if score.ClassName},
-                   'simple': {item.Tag: item.ClassName for item in classification.Simple
-                              if item.Tag and item.ClassName},
+                   'simple': simple,
+                   'child': simple.get('children') == 'child',
+                   'adult': simple.get('children') == 'adult',
+                   'gender': simple.get('gender') if simple.get('gender') in ('male', 'female') else None,
                    'ts': time.time()}
         self.speaker = speaker
         session = self._session_record()

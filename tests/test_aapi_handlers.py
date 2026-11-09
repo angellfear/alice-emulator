@@ -31,7 +31,7 @@ def test_new_handler_is_dispatched_and_visible_without_lists():
 
 def test_builtin_handlers_registered():
     for trigger in ("CancelRequest", "StreamControl", "Ack", "LogSpotter", "SynchronizeStateRequest", "RequestStat",
-                    "MatchedUser", "CapabilityUpdateState", "ContinueRequest"):
+                    "MatchedUser", "CapabilityUpdateState", "ContinueRequest", "SyncPushResponse"):
         assert has_handler(trigger, {}), trigger
     assert not has_handler("НетТакогоСобытия", {})
 
@@ -78,13 +78,19 @@ async def test_matched_user_saved_without_reply(tmp_path):
     male.ClassName, male.Confidence, male.Tag = "male", 0.99724, "gender"
     simple = matched.Request.Event.BiometryClassification.Simple.add()
     simple.ClassName, simple.Tag = "male", "gender"
+    kid = matched.Request.Event.BiometryClassification.Simple.add()
+    kid.ClassName, kid.Tag = "child", "children"
     try:
         assert await conversation.receive(message, "MatchedUser") is True
         assert sent == []  # облако на MatchedUser не отвечает — и мы тоже
         assert conversation.speaker["scores"]["adult"] == pytest.approx(0.989, abs=0.001)
-        assert conversation.speaker["simple"] == {"gender": "male"}
+        assert conversation.speaker["simple"] == {"gender": "male", "children": "child"}
+        # из Simple — удобные поля сессии: ребёнок/взрослый и пол
+        assert conversation.speaker["child"] is True and conversation.speaker["adult"] is False
+        assert conversation.speaker["gender"] == "male"
         session = runtime.sessions["s1"]
         assert session["speaker"]["scores"]["male"] == pytest.approx(0.997, abs=0.001)
+        assert session["speaker"]["child"] is True
         assert runtime.aapi_misses.public() == []  # в «Без ответа» не попадает
     finally:
         await runtime.close()

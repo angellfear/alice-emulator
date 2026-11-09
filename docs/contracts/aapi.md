@@ -49,7 +49,8 @@ module: "server_emulator/voice.py"
 | CapabilityUpdateState | состояние возможностей колонки: `CapabilityType` (enum, напр. AccessibilityVoiceControlType) + `AnyCapability.RawCapability` → последнее состояние каждого типа в `sessions[…]['capabilities']` (память, без БД) и `conversation.capabilities`; в контексте сценариев — `device.capabilities` (preview читаемых строк дампа). Облако не отвечает | voice-clock (CapabilityUpdateState) | test_aapi_handlers |
 | ContinueRequest | колонка просит продолжить ответ (`RequestMessageId`). Поведение облака не разобрано (образца нет): ответа нет, событие — в журнал сервера (source ws, предупреждение склеивается); полное поведение — БЛОКЕР | — | test_aapi_handlers |
 | SpotterEnd / Ping | наблюдаются, обработчиков нет — игнорируются без ошибки | voice-clock | replay-тест держит соединение |
-| MusicInput, SyncPushResponse, AsrRecognize, TtsGenerate, DeferredTtsGenerate, DataProxyInput, FileUploadRequest, TtsUpdateState, RecordInput, ClientSubscriptionState, TranslateInput, AudioTranscriptionInputRequest, FinishRequest | не наблюдались в captures; обработчиков нет | — | — |
+| MusicInput, AsrRecognize, TtsGenerate, DeferredTtsGenerate, DataProxyInput, FileUploadRequest, TtsUpdateState, RecordInput, ClientSubscriptionState, TranslateInput, AudioTranscriptionInputRequest, FinishRequest | не наблюдались в captures; обработчиков нет | — | — |
+| SyncPushResponse | ответ на НАШ SyncPush{GetDeviceState} — ожидающему `runtime.fetch_state` по сессии (ветка oneof `Response` == GetDeviceStateResponse; квитанции ExecuteDirective* ожидающего не будят); событие обработано всегда — не промах; в «Вместе» наверх не релеится | — | test_fetch_state, test_ws_hybrid |
 
 ## 4. События сервера (TServerMessage.Event, 25 по descriptor)
 
@@ -64,9 +65,10 @@ module: "server_emulator/voice.py"
 | Push | директивы вне диалога | text-basic, cancel-request (notify) | да (actions.py push_message) |
 | GoAway | сервер требует переподключение | reconnect-goaway | нет |
 | SynchronizeStateResponse / RequestStatAck | ответы на запросы | sync-basic, cancel-request | да (legacy_replay.control_response) |
+| SyncPush | опрос состояния колонки (fetch_state): `SyncRequest{GetDeviceState}` — см. uniproxy.md §9 | — | да (runtime.sync_push_message → runtime.fetch_state) |
 | LogAck | подтверждение LogSpotter | logspotter-ack | да (runtime.py) |
 | SpotterValidation | валидация фразы активации | screen-divui (наблюдение) | нет |
-| EventException, InvalidAuth, ServerRequestReady, SyncPush, Ping, AsrMusicResult, DataProxyRequest, FileUploadResponse, SpeechControl, ServerSubscriptionState, AudioTranscriptionInputResponse, ChunkAck | не наблюдались/не генерируются | — | — |
+| EventException, InvalidAuth, ServerRequestReady, Ping, AsrMusicResult, DataProxyRequest, FileUploadResponse, SpeechControl, ServerSubscriptionState, AudioTranscriptionInputResponse, ChunkAck | не наблюдались/не генерируются | — | — |
 
 ## 5. Ключевые структуры (поля из descriptor)
 
@@ -200,8 +202,11 @@ WS heartbeat 30 с; max_msg_size 16 MiB; провайдеры model/stt/tts — 
 
 - **MatchedUser** — колонка сообщает классификацию голоса к текущему запросу
   (`Request.Event.BiometryClassification`: оценки `Scores` {ClassName → Confidence} по тегам
-  children/gender, упрощённо `Simple` {Tag → ClassName}). Сохраняется: `conversation.speaker`,
-  `runtime.sessions[<соединение>]['speaker']`. Сценариям — `speaker` в контексте
+  children/gender, упрощённо `Simple` {Tag → ClassName} — Tag 'children' → adult/child,
+  Tag 'gender' → male/female). Сохраняется: `conversation.speaker`,
+  `runtime.sessions[<соединение>]['speaker']` — и оценки, и Simple, и удобные поля поверх:
+  `child`/`adult` (bool из Simple.children), `gender` ('male'|'female'|None из Simple.gender).
+  Сценариям — `speaker` в контексте
   (`speaker.scores.adult`, `speaker.simple.gender`), агенту — kwargs `speaker`. Ответа нет:
   в образце журнала («Прозрачно», C00T10001B6SAK, обмены 108–112) облако на событие не отвечает,
   первый ответ (`InputStartAck`) ссылается на VoiceInput.
