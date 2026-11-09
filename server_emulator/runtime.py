@@ -66,6 +66,7 @@ WEATHER_URL_LEGACY_DEFAULT = "https://api.open-meteo.com/v1/forecast"
 
 PHRASE_LIST_MAX_AGE = 60.0  # свежесть (с) записи датасета для закрытых списков справочника фраз
 PHRASE_LIST_TIMEOUT = 5.0   # ожидание плагина датасета в фоновом опросе (голос не ждём)
+PHRASE_LIST_POLL = 5.0      # не чаще (с): проверка свежести списков при обращении к справочнику
 
 # Опрос состояния колонки: сервер шлёт SyncPush{GetDeviceState}, колонка отвечает
 # SyncPushResponse (протокол — quasar-protos sync_push/**). Ожидание ответа — не дольше
@@ -167,6 +168,7 @@ class Runtime:
                                         extension_dirs=lambda: self._extension_layers("params"))
         self.quasar_params.seed(self.identities.data)  # каталог+legacy-перенос, идемпотентно
         self.sessions = {}
+        self._phrase_lists_checked = 0.0  # последняя проверка свежести списков справочника фраз
         # fetch_state: sn → Future(SyncPushResponse) — ответ маршрутизирует обработчик
         # SyncPushResponse; словарь общий с корнем (scoped-копии runtime его делят)
         self.fetch_waiters = {}
@@ -781,7 +783,14 @@ class Runtime:
         directory = PhraseDirectory(self.extensions.phrase_files(), self.dialog.lexicon_sources)
         for message in directory.warnings:
             log.warning("Справочник фраз: %s", message)
-        self.dialog.phrase_directory = lambda: directory
+        def phrase_directory():
+            # обращение реплики к справочнику — повод проверить свежесть закрытых списков:
+            # на старте цикла ещё нет, сбой плагина (неверный токен) не должен оставлять
+            # фразы плагина выключенными до следующей пересборки реестров
+            if time.time() - self._phrase_lists_checked >= PHRASE_LIST_POLL:
+                self._refresh_phrase_lists()
+            return directory
+        self.dialog.phrase_directory = phrase_directory
         self._refresh_phrase_lists()
 
     def _refresh_phrase_lists(self):
@@ -790,11 +799,13 @@ class Runtime:
         проходит scenario_data → извещение → пересборка справочника. Голосовой путь
         сети не ждёт: реплика ранжируется по уже собранному списку, свежий придёт
         со следующей сборкой. Нет запущенного цикла (старт, скрипты tools) — ничего:
-        записи обновятся при первом запросе/пересборке в рантайме."""
+        записи обновятся при первом обращении реплики к справочнику (не чаще
+        PHRASE_LIST_POLL) или пересборке в рантайме."""
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
             return
+        self._phrase_lists_checked = time.time()
         loop.create_task(self._update_phrase_lists())
 
     async def _update_phrase_lists(self):
@@ -806,8 +817,9 @@ class Runtime:
                 continue
             try:
                 await executor.refresh_dataset(dataset, key, timeout=PHRASE_LIST_TIMEOUT)
-            except Exception:  # noqa: BLE001 — работает старый список, ждём следующий опрос
-                log.debug("Обновление датасета %s для справочника фраз не удалось", dataset)
+            except Exception as exc:  # noqa: BLE001 — работает старый список, ждём следующий опрос
+                log.warning("Обновление датасета %s для справочника фраз не удалось: %s",
+                            dataset, str(exc)[:200] or type(exc).__name__)
 
     def _scenario_data_changed(self, scenario_id, key):
         """Записана запись scenario_data (извещает state_store.on_scenario_data):

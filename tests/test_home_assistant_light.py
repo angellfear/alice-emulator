@@ -290,3 +290,31 @@ async def test_light_over_ws(tmp_path):
     finally:
         await runner.cleanup()
         await runtime.close()
+
+
+async def test_lists_refresh_on_request_without_rebuild(tmp_path):
+    """Записи датасета нет (старт без цикла событий, прежний сбой HA): реплика сама
+    запускает фоновое обновление списка — после него «включи свет» обрабатывается
+    без пересборки реестров."""
+    import asyncio
+    runner, stub, base = await start_ha()
+    stub.set_lights(("спальня",))
+    runtime = Runtime(tmp_path)
+    try:
+        runtime.identities.mutate({'operation': 'user', 'id': 'owner', 'name': 'O'})
+        runtime.identities.mutate({'operation': 'device', 'sn': 'SN-T', 'user_id': 'owner',
+                                   'device_ids': ['dev-t'], 'profile': {'aapi_model': True}})
+        runtime.settings.setdefault("extensions", {}).setdefault("settings", {})[EXT] = {
+            "url": base, "token": "test-token"}
+        runtime.extensions.load_enabled()
+        report, _ = await _say(runtime, "включи свет")
+        assert report.get("scenario") != "smart_home.light"  # список ещё не получен
+        for _ in range(50):
+            if runtime.scenario_executor.dataset_record("ha.lights", "rooms"):
+                break
+            await asyncio.sleep(0.05)
+        report, text = await _say(runtime, "включи свет")
+        assert report["scenario"] == "smart_home.light" and text == "Свет (спальня) включён."
+    finally:
+        await runner.cleanup()
+        await runtime.close()

@@ -23,10 +23,13 @@ Writers таблиц (RF-08 — инвариант: каждую таблицу 
 from __future__ import annotations
 
 import json
+import logging
 import shutil
 import sqlite3
 import time
 from pathlib import Path
+
+log = logging.getLogger(__name__)
 
 SCHEMA_VERSION = 1
 LEGACY_FILES = ("identities.json", "settings.json")
@@ -184,6 +187,12 @@ class StateStore:
                        "DO UPDATE SET value=excluded.value, updated_ts=excluded.updated_ts",
                        (scenario_id, scope, owner or "", key,
                         json.dumps(value, ensure_ascii=False), time.time()))
+        callback = self.on_scenario_data
+        if callback is not None:  # подписчик (runtime: справочник фраз) не должен ронять запись
+            try:
+                callback(scenario_id, key)
+            except Exception:  # noqa: BLE001
+                log.warning("Извещение о записи scenario_data %s не обработано", scenario_id, exc_info=True)
 
     def scenario_data_delete(self, scenario_id, scope=None, owner=None, key=None):
         clauses, args = ["scenario_id=?"], [scenario_id]
