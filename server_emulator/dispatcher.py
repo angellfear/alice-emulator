@@ -31,6 +31,9 @@ from .upstream.forward import decoded_json
 
 log = logging.getLogger(__name__)
 
+XIVA_HOST = "push.yandex.ru"  # пуш-канал quasar-realtime колонки
+XIVA_PATH = "/v2/subscribe/websocket"
+
 
 class Dispatcher:
     def __init__(self, runtime):
@@ -447,6 +450,15 @@ class Dispatcher:
             return await upstream.serve(request, target, host=host, path=path or request.path,
                                         journal=upstream.recording(sn, False), unhandled=True,
                                         device_sn=sn, device_id=device_id)
+        if is_ws and upstream is not None and (path or request.path) == XIVA_PATH:
+            # Пуш-канал xiva (quasar-realtime): колонка держит его на локальном домене
+            # (system_config.pushd.xivaSubscribeUrl) или на push.yandex.ru — в любом маршруте
+            # мост к настоящему push.yandex.ru; сессия — SN колонки из запроса подписки
+            xiva_sn = sn or request.query.get("session") or None
+            target = upstream.target_for_host(XIVA_HOST, XIVA_PATH, request.query_string, websocket=True)
+            return await upstream.serve(request, target, host=XIVA_HOST, path=XIVA_PATH,
+                                        journal=lambda: upstream.record_mode(xiva_sn),
+                                        device_sn=xiva_sn, device_id=device_id or xiva_sn)
         if upstream is not None and route_mode == "proxy":
             # TASK-044: прямой проход — WS мостом, HTTP пересылкой. Запись в журнал — по опции
             # «Запись» устройства (TASK-054): HTTP решается здесь, WS — на каждом кадре.

@@ -489,3 +489,38 @@ async def test_proxy_route_intercepts_ota(tmp_path):
         await upstream_runner.cleanup()
         await runner.cleanup()
         await runtime.close()
+
+
+async def test_xiva_push_channel_bridged_on_local_domain(tmp_path):
+    """Пуш-канал xiva на локальном домене (pushd.xivaSubscribeUrl = ws://alica.lan/...) —
+    мост к push.yandex.ru в «Эмуляции», а не uniproxy эмулятора; запрос подписки — как есть."""
+    runtime = Runtime(tmp_path)
+    registry(runtime, "SN-X", "x-id")
+    calls = []
+
+    async def xiva(request):
+        calls.append(("xiva-open", request.rel_url.path_qs))
+        socket = web.WebSocketResponse(autoping=False)
+        await socket.prepare(request)
+        async for msg in socket:
+            if msg.type == WSMsgType.TEXT:
+                await socket.send_str("xiva:" + msg.data)
+        return socket
+
+    app = web.Application()
+    app.router.add_route("GET", "/v2/subscribe/websocket", xiva)
+    upstream_runner, upstream_url = await listen(app)
+    runtime.settings["aliases"] = {"push.yandex.ru": upstream_url}
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        set_route(runtime, "SN-X", "emulate")
+        query = "?service=quasar-realtime&client=q&session=SN-X&sign=s&ts=1&user=u"
+        async with ClientSession() as client:
+            async with client.ws_connect(url + "/v2/subscribe/websocket" + query,
+                                         headers={"Host": "alica.lan"}) as ws:
+                await ws.send_str("ping")
+                assert (await asyncio.wait_for(ws.receive(), 3)).data == "xiva:ping"
+        assert calls == [("xiva-open", "/v2/subscribe/websocket" + query)]
+    finally:
+        await upstream_runner.cleanup()
+        await runner.cleanup()

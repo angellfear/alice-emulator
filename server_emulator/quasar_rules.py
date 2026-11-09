@@ -589,7 +589,11 @@ def account_rules(runtime, device):
 
 
 LOCAL_MODES = ("emulate", "hybrid")
-LOCAL_URLS = (("uniProxyUrl", "/config/system_config/uniProxyUrl", "ws://{domain}/uni.ws"),)
+LOCAL_URLS = (("uniProxyUrl", "/config/system_config/uniProxyUrl", "ws://{domain}/uni.ws"),
+              # пуш-канал xiva: pushd переподключается на новый адрес живьём, эмулятор мостит
+              # его к push.yandex.ru (dispatcher, XIVA_PATH)
+              ("xivaSubscribeUrl", "/config/system_config/pushd/xivaSubscribeUrl",
+               "ws://{domain}/v2/subscribe/websocket"))
 
 
 def local_domain(runtime):

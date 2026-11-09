@@ -18,8 +18,10 @@ module: "server_emulator/quasar_rules.py"
 Локальный адрес — встроенный слой для устройств в «Эмуляции» и «Вместе» (`route_mode`
 emulate/hybrid; в «Прозрачно» конфиг отдаёт Яндекс): `system_config.uniProxyUrl` =
 `ws://<local_domain>/uni.ws` (`server.json local_domain`, по умолчанию `alica.lan`, читается на
-каждую сборку; пустой — слоя нет; `quasar_rules.LOCAL_URLS`). Колонка применяет адрес из
-get_sync_info без перезагрузки и переподключает голосовой канал; WebSocket без TLS идёт на
+каждую сборку; пустой — слоя нет; `quasar_rules.LOCAL_URLS`) и `system_config.pushd.xivaSubscribeUrl`
+= `ws://<local_domain>/v2/subscribe/websocket` (пуш-канал quasar-realtime). Колонка применяет оба
+адреса из get_sync_info без перезагрузки и переподключает голосовой и пуш-каналы; пуш-канал
+эмулятор мостит к `push.yandex.ru` в любом маршруте (`dispatcher.XIVA_PATH`); WebSocket без TLS идёт на
 HTTP-порт эмулятора. Так голос не требует подмены `uniproxy.alice.yandex.net` в DNS остальной
 сети и сертификата. Условие — в DNS сети локальный домен указывает на IP сервера (пояснение в
 легенде маршрутов, вкладка «Устройства»). Замена устройства этот адрес перебивает.

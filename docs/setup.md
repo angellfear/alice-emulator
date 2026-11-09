@@ -203,7 +203,8 @@ Hosts на компьютере для этого недостаточно — �
 
 **Локальный домен.** В DNS сети настройте `local_domain` (по умолчанию `alica.lan`) на IP
 компьютера с эмулятором. Тогда в «Эмуляции» и «Вместе» голос колонки идёт на
-`ws://alica.lan/uni.ws` (без TLS, HTTP-порт) и `uniproxy.alice.yandex.net` подменять в DNS не нужно.
+`ws://alica.lan/uni.ws`, а пуш-канал — на `ws://alica.lan/v2/subscribe/websocket` (без TLS,
+HTTP-порт); `uniproxy.alice.yandex.net` и `push.yandex.ru` подменять в DNS не нужно.
 
 Часто DNS отдаёт компьютеру с эмулятором не только эти имена, а всё `*.yandex.net` — в том числе
 стриминговые хосты музыки (`strm-*.strm.yandex.net`). Это нормально: хосты, не покрытые

@@ -238,6 +238,8 @@ def test_local_address_by_route_mode(tmp_path):
     assert trace["config.system_config.uniProxyUrl"].startswith("локальный адрес alica.lan")
     assert url({"sn": "SN-1", "route_mode": "hybrid", "profile": {}}) == "ws://alica.lan/uni.ws"
     assert url({"sn": "SN-1", "route_mode": "proxy", "profile": {}}) == base
+    xiva = compose_config(runtime, "yandexstation", {"sn": "SN-1", "profile": {}})
+    assert xiva["config"]["system_config"]["pushd"]["xivaSubscribeUrl"] == "ws://alica.lan/v2/subscribe/websocket"
     own = [{"name": "u", "path": path, "kind": "select", "value": ONE, "options": {ONE: "wss://x/uni.ws"}}]
     assert url({"sn": "SN-1", "profile": {}}, own) == "wss://x/uni.ws"
 
