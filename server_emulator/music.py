@@ -104,7 +104,9 @@ def note_token(runtime, token):
 
 
 def _is_oauth(token):
-    return bool(re.fullmatch(r"[A-Za-z0-9_-]{20,}", token))
+    """Токен из заголовка OAuth: печатные символы без пробелов, не короче 20 — формат
+    токенов аккаунта Яндекс не фиксирован (y0_…, AQAAAA…, с точками)."""
+    return bool(re.fullmatch(r"[\x21-\x7e]{20,}", token))
 
 
 def captured_oauth():

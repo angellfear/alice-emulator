@@ -608,6 +608,11 @@ async def test_captured_oauth_from_http_header(tmp_path):
                                            "Authorization": "OAuth junk"}) as r:
                 await r.read()
             assert music.captured_oauth().startswith("y0_")  # мусор не затирает захват
+            async with client.get(url + "/unknown/path?device_id=device-id-a",
+                                  headers={"Host": "quasar.yandex.net",
+                                           "Authorization": "OAuth 1.test." + "c" * 30}) as r:
+                await r.read()
+            assert music.captured_oauth().startswith("1.test.")  # токен с точками, устройство по query
     finally:
         await runner.cleanup()
         await runtime.close()
