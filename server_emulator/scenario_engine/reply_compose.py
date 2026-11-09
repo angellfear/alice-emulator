@@ -26,6 +26,11 @@ from .proto_build import build, encode
 def compose_reply(spec, ctx, schemas_root):
     """compose.reply → TServerMessage AliceResponse по декларативному spec."""
     spec = spec or {}
+    # Режимы вывода (карточка «Синтез (TTS)», runtime._scenario_context): озвучка выключена —
+    # карточка принудительно включена, VoiceResponse пустой (как настоящий сервер при
+    # disable_output_speech); карточка выключена — simple_text не добавляется.
+    speak = bool((ctx.get("settings") or {}).get("tts_speak", True))
+    card = bool((ctx.get("settings") or {}).get("tts_card", True)) and bool(spec.get("card", True))
     server_type = load_type(schemas_root, "alice-api.pb", "NAlice.NAliceApi.TServerMessage")
     message = server_type()
     response = message.Event.AliceResponse
@@ -39,9 +44,9 @@ def compose_reply(spec, ctx, schemas_root):
         speech = str(expand(spec.get("speech_prefix"), ctx) or "") + speech if speech else ""
     if not speech and text:
         speech = str(expand(spec.get("speech_prefix"), ctx) or "") + text
-    if text and spec.get("card", True):
+    if text and card:
         response.Response.Cards.add(Type="simple_text", Text=text)
-    if speech:
+    if speech and speak:
         response.VoiceResponse.OutputSpeech.Text = speech
     response.VoiceResponse.HasVoiceResponse = False
     for item in spec.get("directives") or []:

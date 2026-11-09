@@ -327,6 +327,15 @@ class SettingsService:
         if not isinstance(value.get("device_context"), dict):
             raise ValueError("device_context: нужен объект")
         value = copy.deepcopy(value)
+        # Режимы вывода ответа (карточка «Синтез (TTS)»): speak/card — булевы; озвучка
+        # выключена делает карточку принудительно включённой — ответа совсем без текста нет.
+        if "voice_stack" not in value:
+            value["voice_stack"] = copy.deepcopy(current.get("voice_stack") or {})
+        stack = value["voice_stack"]
+        if not isinstance(stack, dict):
+            raise ValueError("voice_stack: нужен объект")
+        stack["speak"] = bool(stack.get("speak", True))
+        stack["card"] = True if not stack["speak"] else bool(stack.get("card", True))
         from .behavior import validate_standard
         value.pop("behaviors", None)  # раздел «Поведение» удалён: правила из старых settings вычищаются
         validate_standard(value.get('standard_replies', []))

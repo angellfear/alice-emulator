@@ -1003,8 +1003,13 @@ class VoiceStack:
         return result
 
     async def autostart(self):
-        """Поднять серверы применённых пакетов (старт панели)."""
+        """Поднять серверы применённых пакетов (старт панели). Озвучка выключена —
+        сервер TTS не нужен (ASR/LLM поднимаются как обычно)."""
+        from ..spoken import voice_output
+        speak = voice_output(self.runtime)[0]
         for service in SERVICES:
+            if service == "tts" and not speak:
+                continue
             kind, _, identifier = self.active(service).partition(":")
             if kind != "k":
                 continue

@@ -558,6 +558,9 @@ small.warn{color:#e8d06a}
 .vs-bar .vs-select{flex:1;min-width:0}
 .vs-add.on{border-color:var(--accent-border);color:var(--accent-strong)}
 .vs-req{margin:0;font-size:12px;color:var(--faint)}
+.vs-flags{display:flex;gap:16px;flex-wrap:wrap}
+.vs-flag{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}
+.vs-flag input:disabled{cursor:default}
 
 /* ── Звуковой кеш ── */
 .sc-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:8px 0 10px}

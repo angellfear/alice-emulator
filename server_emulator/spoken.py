@@ -18,3 +18,12 @@ def speakable(text):
 
 def tts_wait(runtime):
     return float(runtime.settings.get("tts_wait_s") or TTS_WAIT_S)
+
+
+def voice_output(runtime):
+    """Режимы вывода ответа (карточка «Синтез (TTS)»): (озвучивать, карточка с текстом)
+    из settings["voice_stack"] (ключи speak/card). Ответа совсем без текста нет —
+    озвучка выключена делает карточку принудительно включённой."""
+    stack = runtime.settings.get("voice_stack") or {}
+    speak = bool(stack.get("speak", True))
+    return speak, True if not speak else bool(stack.get("card", True))

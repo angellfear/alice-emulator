@@ -406,6 +406,7 @@ class Runtime:
                              "model": other.get("model") or "", "online": other["sn"] in online,
                              "current": other["sn"] == (device or {}).get("sn")})
             from .animations import display_of
+            from .spoken import voice_output
             own_params = params.get("device") or {}  # параметры колонки перекрывают поля реестра
             return {"user": {"id": (user or {}).get("id"),
                              "name": (params.get("user") or {}).get("name") or (user or {}).get("name"),
@@ -425,7 +426,8 @@ class Runtime:
                                                 for name, entry in ((session or {}).get("capabilities") or {}).items()}},
                     "params": params, "home": {"devices": home},
                     "speaker": copy.deepcopy((session or {}).get("speaker")),
-                    "settings": {"weather": copy.deepcopy(self.settings.get("weather") or {})}}
+                    "settings": dict(zip(("tts_speak", "tts_card"), voice_output(self)),
+                                     weather=copy.deepcopy(self.settings.get("weather") or {}))}
         self._scenario_context = _scenario_context
         self.dialog = DialogManager(self.scenario_executor, self._scenarios,
                                     lambda: load_type(ROOT / "schemas", "alice-api.pb",
@@ -835,9 +837,12 @@ class Runtime:
     def warm_sound_cache(self, delay=0):
         """Фразы раздела «AI агент» звукового кеша — синтез заранее, в фоне (PCM-движок)."""
         from .tts_cache import agent_phrases
+        from .spoken import voice_output
 
         async def run():
             await asyncio.sleep(delay)
+            if not voice_output(self)[0]:  # озвучка выключена — TTS-сервер и кеш не нужны
+                return
             tts = self.get_tts()
             if tts is not None:
                 await self.tts_cache.warm(tts, agent_phrases(self))

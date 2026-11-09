@@ -19,7 +19,7 @@ from .model_actions import execute as execute_model_actions, parse_calls
 
 from .response_compose import add_volume_directive, finalize
 
-from .spoken import speakable
+from .spoken import speakable, voice_output
 
 
 FAILURE_STAGE = {'asr': 'Не получилось распознать речь', 'model': 'Не получилось получить ответ модели',
@@ -85,13 +85,15 @@ async def spoken_reply(conv, incoming, text, trace=None, request_id='', force_tt
         """Готовая реплика без модели: карточка AliceResponse + озвучка тем же конвейером
         (speech_text — что сказать, если голос отличается от текста карточки)."""
 
+        speak, card = voice_output(conv.runtime)
+
         pages = None
 
         speech = None
 
         tts_error = None
 
-        if force_tts or conv.runtime.settings.get('aapi_tts'):
+        if (force_tts or conv.runtime.settings.get('aapi_tts')) and speak:
 
             try:
 
@@ -120,13 +122,17 @@ async def spoken_reply(conv, incoming, text, trace=None, request_id='', force_tt
 
         response.Header.RequestId = request_id
 
-        response.Response.Cards.add(Type='simple_text', Text=text)
+        if card:
 
-        if tts_error is not None:
+            response.Response.Cards.add(Type='simple_text', Text=text)
+
+        if card and tts_error is not None:
 
             response.Response.Cards.add(Type='simple_text', Text=failure_text('tts', tts_error))
 
-        response.VoiceResponse.OutputSpeech.Text = text
+        if speak:  # без озвучки VoiceResponse пустой — как настоящий сервер при disable_output_speech
+
+            response.VoiceResponse.OutputSpeech.Text = text
 
         response.VoiceResponse.HasVoiceResponse = bool(pages)
 
@@ -171,13 +177,15 @@ async def model_reply(conv, incoming, request, text, answer, trace=None, screen=
 
     tts_error = None
 
+    speak, card = voice_output(conv.runtime)
+
     spoken = speakable(answer.get('speech') or answer['text'])  # без эмодзи и разметки — их синтез читает буквально
 
     if answer.get('audio'):  # отложенный ответ: звук синтезирован до Push
 
         pages = answer['audio']
 
-    elif conv.runtime.settings.get('aapi_tts') and spoken:
+    elif conv.runtime.settings.get('aapi_tts') and speak and spoken:
 
         try:
 
@@ -212,13 +220,17 @@ async def model_reply(conv, incoming, request, text, answer, trace=None, screen=
 
     response.Header.ResponseId = uuid.uuid4().hex
 
-    response.Response.Cards.add(Type='simple_text', Text=answer['text'])
+    if card:  # озвучка выключена — карточка принудительно включена, ответа без текста нет
 
-    if tts_error is not None:  # голоса не будет — карточка объясняет почему
+        response.Response.Cards.add(Type='simple_text', Text=answer['text'])
+
+    if card and tts_error is not None:  # голоса не будет — карточка объясняет почему
 
         response.Response.Cards.add(Type='simple_text', Text=failure_text('tts', tts_error))
 
-    response.VoiceResponse.OutputSpeech.Text = answer['text']
+    if speak:  # без озвучки VoiceResponse пустой — как настоящий сервер при disable_output_speech
+
+        response.VoiceResponse.OutputSpeech.Text = answer['text']
 
     response.VoiceResponse.HasVoiceResponse = bool(pages)
 

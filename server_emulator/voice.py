@@ -21,7 +21,7 @@ from .audio_buffer import (AudioBuffer, InputLimit, MAX_INPUT_BYTES, MAX_INPUT_S
                             MAX_INPUT_STREAMS, collect_pages, input_audio, ogg_pages,
                             pcm_opus_pages, streaming_source, synthesize, synthesize_cached,
                             write_frames)
-from .spoken import OPEN_TTS_WAIT_S, speakable
+from .spoken import OPEN_TTS_WAIT_S, speakable, voice_output
 
 from . import voice_response
 
@@ -1039,7 +1039,7 @@ class Conversation:
         ожидания синтеза (колонка не ждёт; синтезу даётся OPEN_TTS_WAIT_S). Не вышло — синтез
         повторится по запросу колонки, как обычно."""
         spoken = speakable(answer.get('speech') or (answer.get('text') or '').strip())
-        if not (self.runtime.settings.get('aapi_tts') and spoken):
+        if not (self.runtime.settings.get('aapi_tts') and voice_output(self.runtime)[0] and spoken):
             return
         try:
             if trace:  # TASK-088: pre-render звука отложенного ответа — тоже «отвечает» (api/live)
@@ -1340,7 +1340,7 @@ class Conversation:
 
                     plain = re.sub(r'<[^>]+>', '', report.get('speech') or '').strip()
 
-                    if self.runtime.settings.get('aapi_tts') and plain:
+                    if self.runtime.settings.get('aapi_tts') and voice_output(self.runtime)[0] and plain:
 
                         try:
 

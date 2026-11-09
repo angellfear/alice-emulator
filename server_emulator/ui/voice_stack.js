@@ -66,6 +66,7 @@
   async function load(background = false) {
     clearTimeout(poll); poll = null;
     const before = data && statusKey(data);
+    if (!cfg || !background) { try { cfg = await api('settings') } catch (e) { cfg = { voice_stack: {} } } }  // режимы вывода; без настроек — флаги скрыты
     data = await api('voice-stack');
     for (const [s] of SERVICES) if (!refs(s).includes(chosen[s])) chosen[s] = data[s].active || refs(s)[0] || '';
     if (!background || before !== statusKey(data)) render(true);
@@ -444,6 +445,45 @@
     top(el, actions);
   }
 
+  // --- режимы вывода ответа (карточка TTS): «Озвучивать» и «Карточка с текстом» -------------
+  // settings["voice_stack"].speak/card; озвучка выключена — карточка включена принудительно
+  // (ответа совсем без текста нет). Сохранение — полная форма с _rev, 409 → перечитать и повторить.
+  let cfg = null;  // общие настройки эмулятора: читаются при первой отрисовке, пишутся переключателями
+  const outputBlock = () => {
+    const box = make('div', 'vs-output');
+    const stack = cfg.voice_stack || {};  // свежий state может не знать ключей
+    const row = make('div', 'vs-flags');
+    const speakLabel = make('label', 'vs-flag'), speakBox = make('input');
+    speakBox.type = 'checkbox'; speakBox.checked = stack.speak !== false;
+    speakLabel.append(speakBox, make('span', null, 'Озвучивать'));
+    const cardLabel = make('label', 'vs-flag'), cardBox = make('input');
+    cardBox.type = 'checkbox';
+    const syncCard = () => {
+      cardBox.checked = !speakBox.checked || (cfg.voice_stack || {}).card !== false;
+      cardBox.disabled = !speakBox.checked;
+    };
+    syncCard();
+    cardLabel.append(cardBox, make('span', null, 'Карточка с текстом'));
+    row.append(speakLabel, cardLabel);
+    const save = () => work(async () => {
+      for (let tries = 0;; tries++) {
+        const next = structuredClone(cfg);
+        next.voice_stack = { ...(next.voice_stack || {}), speak: speakBox.checked, card: cardBox.checked };
+        next._rev = cfg._rev;
+        const r = await fetch('api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Emulator': '1' }, body: JSON.stringify(next) });
+        const v = await r.json().catch(() => ({}));
+        if (r.status === 409 && tries < 1) { cfg = await api('settings'); continue; }  // форма устарела — база перечитана, повтор
+        if (!r.ok) throw Error(v.error || r.statusText);
+        cfg = v; break;
+      }
+      syncCard(); window.refreshSettings?.().catch(() => {}); say('Сохранено');
+    });
+    speakBox.onchange = () => { syncCard(); save(); };
+    cardBox.onchange = () => save();
+    box.append(row, make('small', 'vs-help', 'Без озвучки синтез не вызывается — ответ приходит карточкой, как беззвучные ответы настоящего сервера.'));
+    return box;
+  };
+
   function card(s, title) {
     const block = data[s], el = make('section', 'vs-card');
     el.append(make('h3', null, title));
@@ -458,6 +498,7 @@
     add.onclick = () => { adding[s] = adding[s] ? null : (block.adapters[0]?.id || null); render(true) };
     bar.append(select, add);
     el.append(bar);
+    if (s === 'tts' && cfg) el.append(outputBlock());
 
     if (adding[s]) addView(s, el);
     else {
