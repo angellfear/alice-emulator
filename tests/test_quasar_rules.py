@@ -220,3 +220,23 @@ def test_state_value_substitutions_and_params(tmp_path):
     with pytest.raises(QuasarConfigError, match="не найден"):
         compose_config(runtime, "", device)
     assert compose_config(runtime, "", None, render=False)["x"] == "{{no.such.param}}"
+
+
+def test_local_address_by_route_mode(tmp_path):
+    """«Эмуляция» и «Вместе» — голос на ws://alica.lan; «Прозрачно» — шаблон как есть;
+    замена устройства сильнее локального адреса."""
+    runtime = FakeRuntime(tmp_path)
+    path = "/config/system_config/uniProxyUrl"
+    base = generated_base("yandexstation")["config"]["system_config"]["uniProxyUrl"]
+
+    def url(device, rules=None, trace=None):
+        return compose_config(runtime, "yandexstation", device, device_rules=rules,
+                              trace=trace)["config"]["system_config"]["uniProxyUrl"]
+
+    trace = {}
+    assert url({"sn": "SN-1", "profile": {}}, trace=trace) == "ws://alica.lan/uni.ws"
+    assert trace["config.system_config.uniProxyUrl"].startswith("локальный адрес alica.lan")
+    assert url({"sn": "SN-1", "route_mode": "hybrid", "profile": {}}) == "ws://alica.lan/uni.ws"
+    assert url({"sn": "SN-1", "route_mode": "proxy", "profile": {}}) == base
+    own = [{"name": "u", "path": path, "kind": "select", "value": ONE, "options": {ONE: "wss://x/uni.ws"}}]
+    assert url({"sn": "SN-1", "profile": {}}, own) == "wss://x/uni.ws"

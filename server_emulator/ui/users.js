@@ -455,6 +455,7 @@
     routeNote.append(node('br'));
     routeLine('Прозрачно', 'всё в Яндекс.');
     routeNote.append(node('br'), node('b', 'Новое устройство'), document.createTextNode(' — Эмуляция.'));
+    routeNote.append(node('br'), node('b', 'В «Эмуляции» и «Вместе» голос идёт на ws://alica.lan — в DNS сети настройте домен alica.lan на IP этого сервера.'));
     routeNote.append(node('br'));
     routeLine('Запись', 'журнал трафика устройства, в любом маршруте: «Включено» — каждый обмен (ответ эмулятора или Яндекса) и AAPI-сообщения; «Нет обработчиков» — только то, чего эмулятор не умеет обработать. Звук не пишется. Смена действует сразу. Журнал — «Эмулятор → Журнал».');
     devicesRoot.append(routeNote);

@@ -120,7 +120,7 @@ def test_compose_rules_and_selector_switch(tmp_path):
     assert body["tags"] == ["chiron-tag"]                         # платформа сильнее общих
     assert "alice_pro_subscription" not in body                   # удаление
     assert body["extra"]["lamp"] == 42
-    assert body["config"]["system_config"]["uniProxyUrl"].startswith("wss://")  # шаблон под заменами
+    assert body["config"]["system_config"]["uniProxyUrl"] == "ws://alica.lan/uni.ws"  # локальный адрес «Эмуляции»
 
 
 def test_compose_disabled_rule_and_dotted_key(tmp_path):
@@ -470,7 +470,7 @@ async def test_get_sync_info_generated_without_rules(tmp_path):
                 body = await response.json()
                 assert body["status"] == "ok"
                 config = body["config"]
-                assert config["system_config"]["uniProxyUrl"].startswith("wss://")
+                assert config["system_config"]["uniProxyUrl"] == "ws://alica.lan/uni.ws"
                 assert "useVinsRequestProto" in config["system_config"]
                 assert "commandSpottersMode" in config["system_config"]
                 fast = config["system_config"]["hybrid_request_factory"]["hybrid"]["scenarios"]["fast_command_scenario"]

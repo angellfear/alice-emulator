@@ -3,8 +3,12 @@
 Сборка ответа /get_sync_info (режим «Генерируемый»):
 
     встроенный шаблон (quasar_defaults: общий + квирк платформы)
-      → общие замены → замены платформы → замены аккаунта → замены устройства
-      → динамика ({{токены}} в строках, маркеры db/run) → итог
+      → общие замены → замены платформы → замены аккаунта → локальный адрес
+      → замены устройства → динамика ({{токены}} в строках, маркеры db/run) → итог
+
+Локальный адрес: колонке в «Эмуляции» и «Вместе» голосовой канал уходит на
+ws://alica.lan/uni.ws (LOCAL_HOST — имя в DNS сети на IP сервера), без TLS и без
+подмены *.yandex.ru. Замена устройства этот адрес перебивает.
 
 Замена — правило:
 
@@ -582,10 +586,23 @@ def account_rules(runtime, device):
     return list(user.get("quasar_overrides") or []), user.get("name") or user["id"]
 
 
+LOCAL_HOST = "alica.lan"
+LOCAL_MODES = ("emulate", "hybrid")
+LOCAL_URLS = (("uniProxyUrl", "/config/system_config/uniProxyUrl", f"ws://{LOCAL_HOST}/uni.ws"),)
+
+
+def local_rules(device):
+    """Замены «локальный адрес» для устройства в «Эмуляции»/«Вместе»; иначе — []."""
+    if device is None or (device.get("route_mode") or "emulate") not in LOCAL_MODES:
+        return []
+    return [{"name": name, "path": path, "kind": "select", "enabled": True,
+             "options": {SINGLE: url}, "value": SINGLE} for name, path, url in LOCAL_URLS]
+
+
 def compose_config(runtime, platform, device=None, device_rules=None, trace=None, render=True,
                    with_account=True):
     """Итог: встроенный шаблон платформы → общие замены → замены платформы → аккаунт →
-    устройство → динамика. render=False — без устройства: параметры остаются {{ключ}},
+    локальный адрес → устройство → динамика. render=False — без устройства: параметры остаются {{ключ}},
     db/run — маркерами, {{токены}} в строках — как есть."""
     store = runtime.quasar_rules
     body = generated_base(platform)
@@ -606,6 +623,10 @@ def compose_config(runtime, platform, device=None, device_rules=None, trace=None
                     raise QuasarConfigError(f"замена аккаунта: путь {rule['path']!r} вне /config/account_config")
             apply_rules(body, rules, f"аккаунт {owner}", runtime, device, context, trace, render)
             options.update(select_options_of(rules))
+    local = local_rules(device)
+    if local:
+        apply_rules(body, rules_as_list(local), f"локальный адрес {LOCAL_HOST}",
+                    runtime, device, context, trace, render)
     if device_rules:
         apply_rules(body, rules_as_list(device_rules, options), "устройство",
                     runtime, device, context, trace, render)
