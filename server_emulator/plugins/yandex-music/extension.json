@@ -2,7 +2,7 @@
  "id": "builtin.yandex-music",
  "name": "Яндекс Музыка",
  "version": "0.1.0",
- "description": "Поставщик музыки Яндекс.Музыки (встроенный): «включи музыку <что-то>» ищет по Web API с OAuth-токеном аккаунта, захваченным эмулятором из обращений колонки к Яндексу; играет прямые ссылки storage.yandex.net — полные треки mp3 без DRM из download-info.",
+ "description": "Поставщик музыки Яндекс.Музыки (встроенный): «включи музыку <что-то>» ищет через библиотеку yandex-music с OAuth-токеном аккаунта, захваченным эмулятором из обращений колонки к Яндексу; играет полные треки mp3 без DRM по прямым ссылкам download-info.",
  "author": "Angell Fear",
  "license": "MIT",
  "requires": {
@@ -13,7 +13,7 @@
  "permissions": {
   "network": [
    "api.music.yandex.net",
-   "storage.yandex.net"
+   "storage.mds.yandex.net"
   ],
   "actions": [],
   "device_push": false,
@@ -23,7 +23,7 @@
   "fields": [
    {
     "key": "market",
-    "label": "Язык/регион (hq, ru, en…)",
+    "label": "Язык (ru, en…)",
     "type": "text"
    }
   ],

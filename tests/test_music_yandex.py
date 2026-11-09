@@ -1,5 +1,5 @@
 """Встроенный поставщик Яндекс.Музыки (plugins/yandex-music/music/yandex_music.py):
-поиск по Web API с захваченным OAuth-токеном аккаунта (captured_oauth от ядра),
+поиск через библиотеку yandex-music с захваченным OAuth-токеном аккаунта (captured_oauth от ядра),
 прямые ссылки mp3 из download-info (downloadInfoUrl → XML host/path/ts/s → get-mp3 с
 подписью), очередь в памяти модуля.
 Настоящий Яндекс из тестов не дёргается: URL-константы модуля подменяются на
@@ -19,7 +19,7 @@ MODULE = Path(server_emulator.__file__).parent / "plugins" / "yandex-music" / "m
 
 ITEMS = [{"id": f"{100 + i}", "title": f"Трек {i}", "artists": [{"name": "Артист"}],
           "albums": [{"title": "Альбом"}], "durationMs": 180000 + i,
-          "ogImage": f"https://cover.yandex.net/{i}/%@"} for i in range(1, 4)]
+          "ogImage": f"avatars.yandex.net/get-music-content/{i}/%%"} for i in range(1, 4)]
 
 INFO_XML = ("<?xml version=\"1.0\" encoding=\"utf-8\"?><download-info><host>s1.storage.example</host>"
             "<path>/rmusic/U2FsdGVk/x</path><ts>0005f1</ts><region>-1</region><s>abc</s></download-info>")
@@ -86,18 +86,17 @@ async def fake(provider, monkeypatch):
     app.router.add_get("/search", fm.search)
     app.router.add_get("/tracks/{tid}/download-info", fm.info)
     app.router.add_get("/file-download-info/x", fm.xml)
+    app.router.add_get("/preview", fm.xml)  # библиотека добирает ссылки всех вариантов
     runner = web.AppRunner(app)
     await runner.setup()
     port = unused_port()
     await web.TCPSite(runner, "127.0.0.1", port).start()
-    monkeypatch.setattr(provider, "SEARCH_URL", f"http://127.0.0.1:{port}/search")
+    monkeypatch.setattr(provider, "BASE_URL", f"http://127.0.0.1:{port}")  # клиент библиотеки — на подменный API
     fm.info_payload = {"result": [
         {"codec": "mp3", "preview": True, "bitrateInKbps": 320,
          "downloadInfoUrl": f"http://127.0.0.1:{port}/preview"},  # превью не берётся
         {"codec": "mp3", "preview": False, "bitrateInKbps": 192,
          "downloadInfoUrl": f"http://127.0.0.1:{port}/file-download-info/x"}]}
-    monkeypatch.setattr(provider, "DOWNLOAD_INFO",
-                        f"http://127.0.0.1:{port}/tracks/{{}}/download-info")
     yield fm
     await runner.cleanup()
 
@@ -118,7 +117,7 @@ async def test_search_returns_full_track_with_stream_link(provider, fake):
     first = result["tracks"][0]
     assert first["id"] == "101" and first["title"] == "Трек 1"
     assert first["artist"] == "Артист" and first["album"] == "Альбом"
-    assert first["cover_url"].endswith("200x200")  # ogImage с %@ подставляет размер
+    assert first["cover_url"].endswith("200x200")  # ogImage с %% — размер подставляет библиотека
     assert first["stream"] == {"url": EXPECTED_URL, "format": "mp3"}
     assert fake.infos == ["101"]  # ссылка добирается только для первого
     assert fake.searches[0]["text"] == "ветер" and fake.searches[0]["type"] == "track"
@@ -137,7 +136,7 @@ async def test_search_failure_becomes_note(provider, fake, monkeypatch):
     def broken(*_args, **_kwargs):
         raise provider.MusicError("Яндекс не отвечает")
 
-    monkeypatch.setattr(provider, "_search", broken)
+    monkeypatch.setattr(provider, "_download_link", broken)
     result = await provider.search(Ctx(), "ветер", "music")
     assert result == {"tracks": [], "note": "Яндекс не отвечает"}
 

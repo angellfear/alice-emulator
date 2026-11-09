@@ -208,11 +208,10 @@ art_image_url}, "screen_type": "Music", "background_mode": "Ducking", "set_pause
 ## Поставщик Яндекс.Музыки и захват OAuth аккаунта
 
 Встроенный поставщик `builtin.yandex-music` (`server_emulator/plugins/yandex-music/`,
-`PROVIDER["service"] = "yandex-music"`) ищет по Web API (`api.music.yandex.net/search`) и
-отдаёт **полные треки** — прямые ссылки mp3 без decode_key: `tracks/<id>/download-info` →
-лучший mp3 без превью → XML по `downloadInfoUrl` (`host/path/ts/s`) →
-`https://{host}/get-mp3/{md5(соль + path[1:] + s)}/{ts}{path}` (схема открытой библиотеки
-yandex-music-api; поиск — `search?type=track&text=…&page=0`, без `page` API отвечает 400). Внешний поставщик Яндекс.Музыки
+`PROVIDER["service"] = "yandex-music"`) работает через библиотеку `yandex-music`
+(зависимость эмулятора): `Client.search(type_="track")` и **полные треки** — прямые ссылки
+mp3 без decode_key из `tracks_download_info(get_direct_links=True)` (лучший битрейт без
+превью; ссылка уводит на `strm.yandex.net`). Внешний поставщик Яндекс.Музыки
 (если установлен) живёт рядом — другой id, тот же service: токен и ключ меты
 (`MUSIC_PROVIDER_YANDEX_MUSIC`) получают оба.
 

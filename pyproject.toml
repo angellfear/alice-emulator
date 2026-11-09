@@ -28,6 +28,7 @@ dependencies = [
   "dulwich>=0.22,<1",
   "packaging>=23,<26",
   "jsonpointer>=3,<4",
+  "yandex-music>=3.2,<4",
 ]
 
 [project.optional-dependencies]
