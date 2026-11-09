@@ -362,6 +362,55 @@ async def test_play_without_query_question_listens_and_answer_searches(tmp_path)
         await runtime.close()
 
 
+async def test_question_answer_over_ws_with_empty_dialog_id(tmp_path):
+    """Голосовой тракт: колонка шлёт основной диалог с пустым DialogId — ответ на
+    «Что включить?» всё равно доходит до продолжения сценария музыки."""
+    import asyncio
+    runtime = Runtime(tmp_path)
+    marker = tmp_path / "marker.json"
+    module = _provider_module(marker).replace(
+        '    _note(["search", query, kind])\n',
+        '    _note(["search", query, kind])\n'
+        '    if not query:\n'
+        '        return {"tracks": [], "note": "Что включить?"}\n')
+    make_music_extension(runtime, files={"music/fake.py": module}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
+    runtime.identities.mutate({"operation": "user", "id": "owner", "name": "O"})
+    runtime.identities.mutate({"operation": "device", "sn": "SN-W", "user_id": "owner",
+                               "device_ids": ["dev-w"], "profile": {"aapi_model": True}})
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        async with ClientSession() as client:
+            async with client.ws_connect(url + "/uni.ws") as ws:
+                sync = CLIENT()
+                sync.Event.Header.MessageId = "sync"
+                sync.Event.SynchronizeStateRequest.Application.DeviceId = "dev-w"
+                await ws.send_bytes(b"AAPI" + sync.SerializeToString())
+                await asyncio.wait_for(ws.receive(), 3)
+
+                async def phrase(text, message_id):
+                    message = CLIENT()
+                    message.Event.Header.MessageId = message_id
+                    message.Event.TextInput.Header.RequestId = "rq-" + message_id
+                    message.Event.TextInput.Request.Event.Text = text  # DialogId пустой
+                    await ws.send_bytes(b"AAPI" + message.SerializeToString())
+                    for _ in range(5):
+                        packet = await asyncio.wait_for(ws.receive(), 5)
+                        if packet.data.startswith(b"AAPI"):
+                            reply = SERVER.FromString(packet.data[4:])
+                            if reply.Event.WhichOneof("Event") == "AliceResponse":
+                                return reply
+
+                question = await phrase("включи музыку", "m1")
+                assert question.Event.AliceResponse.VoiceResponse.ShouldListen is True
+                answer = await phrase("тестовый исполнитель", "m2")
+                assert "audio_play" in _reply_names(answer)
+        assert json.loads(marker.read_text(encoding="utf-8"))[-1] == ["search", "тестовый исполнитель", "music"]
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
 async def test_search_kind_by_phrase(tmp_path):
     """«включи сказку/аудиокнигу/подкаст» — kind из реплики, хвост — запрос."""
     runtime = Runtime(tmp_path)

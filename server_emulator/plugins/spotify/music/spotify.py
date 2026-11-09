@@ -69,7 +69,7 @@ UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) alice-emulator"
 NOTE_NO_KEYS = ("Поиск в Spotify требует ключей Web API: задайте client_id и "
                 "client_secret в настройках плагина «Spotify» "
                 "(developer.spotify.com, раздел Dashboard).")
-NOTE_WHAT = "Что включить? Назовите исполнителя или песню."
+NOTE_WHAT = "Что включить?"
 NOTE_NO_PREVIEW = "У этого трека нет 30-секундного превью — играть нечего."
 NOTE_EMBED_FAIL = "Не удалось получить данные трека из Spotify."
 

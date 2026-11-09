@@ -1312,7 +1312,15 @@ class Conversation:
 
                     ctx['animations'] = {a['id']: a['url'] for a in self.runtime.animations.list() if a.get('url')}
 
-                dialog_id = getattr(request.Header, 'DialogId', '') or incoming.Event.Header.MessageId
+                # основной диалог колонки приходит с пустым DialogId: ключ ожидания
+                # уточнения — колонка, иначе ответ на вопрос не найдёт свой сценарий
+                sn = ctx['input'].get('sn') or ''
+                dialog_id = (getattr(request.Header, 'DialogId', '')
+                             or (f'device:{sn}' if sn else incoming.Event.Header.MessageId))
+                if (incoming.Event.WhichOneof('Event') == 'VoiceInput'
+                        and incoming.Event.VoiceInput.EnableSpotterValidation):
+                    # новая фраза со слова активации — не ответ на прежний вопрос
+                    dialog.executor.cancel(dialog_id)
 
                 stage = 'scenario'
 
