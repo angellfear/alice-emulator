@@ -14,7 +14,9 @@ sequence_state + audio_play). Своей очереди у ядра нет — �
   («запусти {query}») без поставщика уступает — следующий кандидат (приложение,
   модель).
 - Поставщик вернул отказ с объяснением ({"note": текст} без треков) —
-  текст note произносится пользователю вместо общего «не нашла».
+  текст note произносится пользователю вместо общего «не нашла». При пустом
+  запросе («включи музыку») note — вопрос уточнения: колонка слушает ответ, он
+  становится запросом поиска того же поставщика (on_query).
 - Колбэк @@mm_stack_engine_get_next (provide music.stack_next) — neighbor(+1)
   поставщика: следующая очередь + audio_play, как в образце «дальше»; поставщика
   нет или дальше нечего — отказ (умолчание маршрута — тихое подтверждение).
@@ -25,8 +27,9 @@ sequence_state + audio_play). Своей очереди у ядра нет — �
 import re
 
 from server_emulator import music
-from server_emulator.sdk import say
+from server_emulator.sdk import ask, say
 
+NOT_FOUND = "Не нашла подходящего. Попробуйте назвать исполнителя или песню."
 # ссылка/URI трека Spotify: шаблонный слот режет URL — сырую реплику разбираем сами
 LINK = re.compile(r"(?:open\.spotify\.com/(?:intl-[a-z]{2,5}/)?(?:embed/)?track/|spotify:track:)"
                   r"([0-9A-Za-z]{22})")
@@ -107,10 +110,34 @@ async def handle(ctx):
         found = music.normalize_result(entry["search_result"], provider)
     else:
         found = await music.search(ctx, provider, query, kind)
+    if not query and found is not None and not found["tracks"] and "?" in str(found.get("note") or ""):
+        # «включи музыку» без запроса, поставщик спрашивает «что включить?» — вопрос
+        # уточнения: колонка слушает ответ, ответ — запрос поиска того же поставщика
+        ctx.state["kind"] = kind
+        ctx.state["ext_id"] = entry.get("ext_id") or ""
+        return ask(str(found["note"]), then="on_query")
+    return _reply(found, query)
+
+
+async def on_query(ctx, answer):
+    """Ответ на «что включить?»: реплика целиком — запрос поиска."""
+    query = str(answer or "").strip()
+    provider = None
+    if ctx.state.get("ext_id"):
+        from server_emulator import providers
+        provider = providers.for_ext("music", ctx.state["ext_id"])
+    provider = provider or ctx.music
+    if provider is None:
+        return ctx.no_data_source()
+    found = await music.search(ctx, provider, query, ctx.state.get("kind") or "music") if query else None
+    return _reply(found, query)
+
+
+def _reply(found, query):
+    """Ответ по результату поиска: треки — запуск, отказ с note — его текст."""
     if found is None:  # пусто или поставщик не дал треков — честный ответ
-        return say("Не нашла подходящего. Попробуйте назвать исполнителя или песню.")
+        return say(NOT_FOUND)
     if not found["tracks"]:  # поставщик объяснил отказ (note) — произносим его
-        return say(str(found.get("note")
-                       or "Не нашла подходящего. Попробуйте назвать исполнителя или песню."))
+        return say(str(found.get("note") or NOT_FOUND))
     track = found["tracks"][found["start"]]
     return music.start_reply(found, text=f"Включаю {track['title']}." if query else "Включаю.")

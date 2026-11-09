@@ -336,6 +336,32 @@ async def test_play_phrase_without_query_asks_provider(tmp_path):
         await runtime.close()
 
 
+async def test_play_without_query_question_listens_and_answer_searches(tmp_path):
+    """Поставщик на пустой запрос спрашивает «Что включить?» — вопрос уточнения
+    (ShouldListen: колонка слушает), ответ пользователя — запрос поиска."""
+    runtime = Runtime(tmp_path)
+    marker = tmp_path / "marker.json"
+    module = _provider_module(marker).replace(
+        '    _note(["search", query, kind])\n',
+        '    _note(["search", query, kind])\n'
+        '    if not query:\n'
+        '        return {"tracks": [], "note": "Что включить? Назовите исполнителя или песню."}\n')
+    make_music_extension(runtime, files={"music/fake.py": module}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
+    try:
+        report = await say(runtime, "включи музыку")
+        assert report["handled"] and report["messages"]
+        question = report["messages"][-1].Event.AliceResponse
+        assert question.VoiceResponse.ShouldListen is True
+        assert question.VoiceResponse.OutputSpeech.Text.startswith("Что включить?")
+        report = await say(runtime, "тестовый исполнитель")
+        assert report["handled"], report
+        assert json.loads(marker.read_text(encoding="utf-8"))[-1] == ["search", "тестовый исполнитель", "music"]
+        assert "audio_play" in _reply_names(report["messages"][0])
+    finally:
+        await runtime.close()
+
+
 async def test_search_kind_by_phrase(tmp_path):
     """«включи сказку/аудиокнигу/подкаст» — kind из реплики, хвост — запрос."""
     runtime = Runtime(tmp_path)
