@@ -1,7 +1,8 @@
 """Яндекс Музыка — встроенный поставщик музыки (вид music, интерфейс ядра).
 
 Клиент API — библиотека `yandex-music` (yandex-music-api): поиск, download-info и прямые
-ссылки mp3 без DRM (`DownloadInfo.direct_link`, `get_direct_links=True`). Директивы
+ссылки mp3 без DRM (`DownloadInfo.direct_link`, `get_direct_links=True`); колонке уходит
+адрес после перенаправлений get-mp3 (её плеер не проходит 308). Директивы
 (стек виджета) собирает ядро server_emulator/music.py — здесь только поиск, очередь и
 навигация.
 
@@ -32,6 +33,7 @@ import asyncio
 import random
 import time
 
+import requests
 from yandex_music import Client
 
 PROVIDER = {"id": "builtin.yandex-music", "title": "Яндекс Музыка",
@@ -40,6 +42,7 @@ PROVIDER = {"id": "builtin.yandex-music", "title": "Яндекс Музыка",
 QUEUE_LIMIT = 5
 BASE_URL = None  # None — адрес API по умолчанию библиотеки (api.music.yandex.net)
 COVER_SIZE = "200x200"
+REDIRECT_TIMEOUT_S = 5
 
 STATE = {}  # владелец → {"queue": [Track], "current": int}
 
@@ -94,7 +97,18 @@ def _download_link(client, track_id):
                 if str(info.codec or "").lower() == "mp3" and not info.preview and info.direct_link]
     if not variants:
         raise MusicError(NOTE_NO_PLAYABLE)
-    return max(variants, key=lambda info: int(info.bitrate_in_kbps or 0)).direct_link
+    return _final_link(max(variants, key=lambda info: int(info.bitrate_in_kbps or 0)).direct_link)
+
+
+def _final_link(url):
+    """Конечный адрес потока: get-mp3 отвечает 308 на сервер потоков, а плеер колонки
+    (gstreamer souphttpsrc) перенаправление 308 не проходит — колонке уходит адрес
+    после перенаправлений. Сбой запроса — исходная ссылка."""
+    try:
+        with requests.get(url, allow_redirects=True, stream=True, timeout=REDIRECT_TIMEOUT_S) as response:
+            return response.url or url
+    except requests.RequestException:
+        return url
 
 
 def _with_stream(client, track):

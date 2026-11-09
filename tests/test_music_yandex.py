@@ -92,6 +92,7 @@ async def fake(provider, monkeypatch):
     port = unused_port()
     await web.TCPSite(runner, "127.0.0.1", port).start()
     monkeypatch.setattr(provider, "BASE_URL", f"http://127.0.0.1:{port}")  # клиент библиотеки — на подменный API
+    monkeypatch.setattr(provider, "_final_link", lambda url: url)  # хост ссылки вымышленный — без сети
     fm.info_payload = {"result": [
         {"codec": "mp3", "preview": True, "bitrateInKbps": 320,
          "downloadInfoUrl": f"http://127.0.0.1:{port}/preview"},  # превью не берётся
@@ -174,3 +175,29 @@ async def test_neighbor_steps_through_queue_and_fetches_links(provider, fake):
 async def test_rate_is_not_supported(provider):
     """Лайки не поддержаны — честно None."""
     assert await provider.rate(Ctx(), "101", True) is None
+
+
+async def test_final_link_follows_permanent_redirect(provider):
+    """get-mp3 отвечает 308 — колонке уходит конечный адрес потока (её плеер 308 не проходит)."""
+    import asyncio
+
+    async def redirect(request):
+        raise web.HTTPPermanentRedirect("/stream.mp3")
+
+    async def stream(request):
+        return web.Response(body=b"ID3", content_type="audio/mpeg")
+
+    app = web.Application()
+    app.router.add_get("/get-mp3/s/1/x", redirect)
+    app.router.add_get("/stream.mp3", stream)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = unused_port()
+    await web.TCPSite(runner, "127.0.0.1", port).start()
+    try:
+        base = f"http://127.0.0.1:{port}"
+        assert await asyncio.to_thread(provider._final_link, base + "/get-mp3/s/1/x") == base + "/stream.mp3"
+        dead = "http://127.0.0.1:1/get-mp3/s/1/x"
+        assert await asyncio.to_thread(provider._final_link, dead) == dead  # сбой — исходная ссылка
+    finally:
+        await runner.cleanup()

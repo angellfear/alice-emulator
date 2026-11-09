@@ -233,7 +233,9 @@ art_image_url}, "screen_type": "Music", "background_mode": "Ducking", "set_pause
 `PROVIDER["service"] = "yandex-music"`) работает через библиотеку `yandex-music`
 (зависимость эмулятора): `Client.search(type_="track")` и **полные треки** — прямые ссылки
 mp3 без decode_key из `tracks_download_info(get_direct_links=True)` (лучший битрейт без
-превью; ссылка уводит на `strm.yandex.net`). Внешний поставщик Яндекс.Музыки
+превью). Ссылка get-mp3 отвечает 308 на `strm.yandex.net`, а плеер колонки (gstreamer
+souphttpsrc) 308 не проходит, поэтому колонке уходит адрес после перенаправлений (`requests`,
+сбой — исходная ссылка). Внешний поставщик Яндекс.Музыки
 (если установлен) живёт рядом — другой id, тот же service: токен и ключ меты
 (`MUSIC_PROVIDER_YANDEX_MUSIC`) получают оба.
 
