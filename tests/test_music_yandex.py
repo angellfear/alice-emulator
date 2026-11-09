@@ -1,9 +1,11 @@
 """Встроенный поставщик Яндекс.Музыки (plugins/yandex-music/music/yandex_music.py):
 поиск по Web API с захваченным OAuth-токеном аккаунта (captured_oauth от ядра),
-прямые ссылки mp3 из download-info (url + "3/" + sign), очередь в памяти модуля.
+прямые ссылки mp3 из download-info (downloadInfoUrl → XML host/path/ts/s → get-mp3 с
+подписью), очередь в памяти модуля.
 Настоящий Яндекс из тестов не дёргается: URL-константы модуля подменяются на
 локальный подменный HTTP.
 """
+import hashlib
 import importlib.util
 from pathlib import Path
 
@@ -19,7 +21,11 @@ ITEMS = [{"id": f"{100 + i}", "title": f"Трек {i}", "artists": [{"name": "А
           "albums": [{"title": "Альбом"}], "durationMs": 180000 + i,
           "ogImage": f"https://cover.yandex.net/{i}/%@"} for i in range(1, 4)]
 
-INFO_ITEMS = [{"codec": "mp3", "url": "https://storage.yandex.net/get-music/1/x.2", "sign": "SIG123"}]
+INFO_XML = ("<?xml version=\"1.0\" encoding=\"utf-8\"?><download-info><host>s1.storage.example</host>"
+            "<path>/rmusic/U2FsdGVk/x</path><ts>0005f1</ts><region>-1</region><s>abc</s></download-info>")
+EXPECTED_URL = ("https://s1.storage.example/get-mp3/"
+                + hashlib.md5(("XGRlBW9FXlekgbPrRHuSiA" + "rmusic/U2FsdGVk/x" + "abc").encode()).hexdigest()
+                + "/0005f1/rmusic/U2FsdGVk/x")
 
 
 def load_provider():
@@ -50,8 +56,8 @@ class FakeMusic:
     def __init__(self):
         self.searches = []  # [dict(query)]
         self.infos = []  # [track_id]
-        self.search_payload = {"result": {"tracks": {"items": ITEMS}}}
-        self.info_payload = {"result": {"items": INFO_ITEMS}}
+        self.search_payload = {"result": {"tracks": {"results": ITEMS}}}
+        self.info_payload = None  # собирается фикстурой: ссылка на XML подменного сервера
 
     async def search(self, request):
         self.searches.append(dict(request.query))
@@ -60,6 +66,9 @@ class FakeMusic:
     async def info(self, request):
         self.infos.append(request.match_info["tid"])
         return web.json_response(self.info_payload)
+
+    async def xml(self, request):
+        return web.Response(text=INFO_XML, content_type="text/xml")
 
 
 @pytest.fixture()
@@ -76,11 +85,17 @@ async def fake(provider, monkeypatch):
     app = web.Application()
     app.router.add_get("/search", fm.search)
     app.router.add_get("/tracks/{tid}/download-info", fm.info)
+    app.router.add_get("/file-download-info/x", fm.xml)
     runner = web.AppRunner(app)
     await runner.setup()
     port = unused_port()
     await web.TCPSite(runner, "127.0.0.1", port).start()
     monkeypatch.setattr(provider, "SEARCH_URL", f"http://127.0.0.1:{port}/search")
+    fm.info_payload = {"result": [
+        {"codec": "mp3", "preview": True, "bitrateInKbps": 320,
+         "downloadInfoUrl": f"http://127.0.0.1:{port}/preview"},  # превью не берётся
+        {"codec": "mp3", "preview": False, "bitrateInKbps": 192,
+         "downloadInfoUrl": f"http://127.0.0.1:{port}/file-download-info/x"}]}
     monkeypatch.setattr(provider, "DOWNLOAD_INFO",
                         f"http://127.0.0.1:{port}/tracks/{{}}/download-info")
     yield fm
@@ -96,7 +111,7 @@ async def test_search_without_token_honest_note(provider, fake):
 
 async def test_search_returns_full_track_with_stream_link(provider, fake):
     """Поиск: Track контракта ядра (stream{url, format}); ссылка первого трека —
-    download-info (url + "3/" + sign); журнал запроса — text/type/market."""
+    download-info (лучший mp3 без превью → XML → get-mp3); запрос — text/type/page."""
     result = await provider.search(Ctx(), "ветер", "music")
     assert len(result["tracks"]) == len(ITEMS)  # выдача фейка, ядро режет до QUEUE_LIMIT
     assert len(result["tracks"]) <= provider.QUEUE_LIMIT
@@ -104,16 +119,15 @@ async def test_search_returns_full_track_with_stream_link(provider, fake):
     assert first["id"] == "101" and first["title"] == "Трек 1"
     assert first["artist"] == "Артист" and first["album"] == "Альбом"
     assert first["cover_url"].endswith("200x200")  # ogImage с %@ подставляет размер
-    assert first["stream"] == {"url": "https://storage.yandex.net/get-music/1/x.23/SIG123",
-                               "format": "mp3"}
+    assert first["stream"] == {"url": EXPECTED_URL, "format": "mp3"}
     assert fake.infos == ["101"]  # ссылка добирается только для первого
     assert fake.searches[0]["text"] == "ветер" and fake.searches[0]["type"] == "track"
-    assert fake.searches[0]["market"] == "ru"
+    assert fake.searches[0]["page"] == "0"  # без page API отвечает 400
 
 
 async def test_empty_search_without_note(provider, fake):
     """Пустая выдача — ровно {"tracks": []} без note: ядро отвечает «не нашла»."""
-    fake.search_payload = {"result": {"tracks": {"items": []}}}
+    fake.search_payload = {"result": {"tracks": {"results": []}}}
     result = await provider.search(Ctx(), "ветер", "music")
     assert result == {"tracks": []}
 
@@ -147,7 +161,7 @@ async def test_neighbor_steps_through_queue_and_fetches_links(provider, fake):
     await provider.search(Ctx(), "ветер", "music")
     second = await provider.neighbor(Ctx(), "101", None, 1)
     assert second["id"] == "102"
-    assert second["stream"]["url"] == "https://storage.yandex.net/get-music/1/x.23/SIG123"
+    assert second["stream"]["url"] == EXPECTED_URL
     assert fake.infos == ["101", "102"]  # ссылка соседнего — при переходе
     third = await provider.neighbor(Ctx(), "102", None, 1)
     assert third["id"] == "103"

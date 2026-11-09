@@ -1,8 +1,9 @@
 """Яндекс Музыка — встроенный поставщик музыки (вид music, интерфейс ядра).
 
-Что играет: **полные треки** — прямые ссылки storage.yandex.net из
-`api.music.yandex.net/tracks/<id>/download-info` (mp3 без DRM; построение ссылки
-`url + "3/" + sign` по схеме download-info). Директивы (стек виджета) собирает ядро
+Что играет: **полные треки** — прямые ссылки mp3 без DRM: `download-info` трека даёт
+варианты с `downloadInfoUrl`, тот — XML `host/path/ts/s`, ссылка
+`https://{host}/get-mp3/{md5(соль + path[1:] + s)}/{ts}{path}` (схема открытой
+библиотеки yandex-music-api; сама библиотека — не зависимость встроенного плагина). Директивы (стек виджета) собирает ядро
 server_emulator/music.py — здесь только поиск, очередь и навигация.
 
 Авторизация: **OAuth-токен аккаунта не вводится** — его захватывает эмулятор из реальных
@@ -30,8 +31,10 @@ neighbor(ctx, track_id, context, step): очередь — память моду
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import random
+import re
 import time
 import urllib.parse
 import urllib.request
@@ -42,6 +45,7 @@ PROVIDER = {"id": "builtin.yandex-music", "title": "Яндекс Музыка",
 QUEUE_LIMIT = 5
 SEARCH_URL = "https://api.music.yandex.net/search"
 DOWNLOAD_INFO = "https://api.music.yandex.net/tracks/{}/download-info"
+SIGN_SALT = "XGRlBW9FXlekgbPrRHuSiA"  # соль подписи ссылки get-mp3 (схема yandex-music-api)
 
 STATE = {}  # владелец → {"queue": [Track], "current": int}
 
@@ -98,21 +102,35 @@ def _track_meta(item):
 
 
 def _search(query, token, market):
-    params = urllib.parse.urlencode({"type": "track", "text": query, "market": market or "ru"})
+    params = urllib.parse.urlencode({"type": "track", "text": query, "page": 0})  # page обязателен
     return _api(f"{SEARCH_URL}?{params}", token)
 
 
 def _download_link(track_id, token):
-    """download-info трека → прямая ссылка mp3 (url + "3/" + sign, схема API)."""
+    """download-info трека → прямая ссылка mp3: лучший mp3 без превью → XML по
+    downloadInfoUrl (host/path/ts/s) → get-mp3 с подписью md5(соль + path[1:] + s)."""
     data = _api(DOWNLOAD_INFO.format(track_id), token)
-    items = ((data.get("result") or {}).get("items") if isinstance(data, dict) else None) or []
-    for item in items:
-        if str(item.get("codec") or item.get("encoder") or "").lower() != "mp3":
-            continue
-        url, sign = str(item.get("url") or ""), str(item.get("sign") or "")
-        if url and sign:
-            return url + "3/" + sign
-    raise MusicError(NOTE_NO_PLAYABLE)
+    items = (data.get("result") if isinstance(data, dict) else None) or []
+    variants = [item for item in items if isinstance(item, dict)
+                and str(item.get("codec") or "").lower() == "mp3" and not item.get("preview")
+                and item.get("downloadInfoUrl")]
+    if not variants:
+        raise MusicError(NOTE_NO_PLAYABLE)
+    best = max(variants, key=lambda item: int(item.get("bitrateInKbps") or 0))
+    xml = _fetch(best["downloadInfoUrl"], token)
+    fields = {key: (re.search(f"<{key}>([^<]*)</{key}>", xml) or [None, ""])[1]
+              for key in ("host", "path", "ts", "s")}
+    if not all(fields.values()):
+        raise MusicError(NOTE_NO_PLAYABLE)
+    sign = hashlib.md5((SIGN_SALT + fields["path"][1:] + fields["s"]).encode("utf-8")).hexdigest()
+    return f"https://{fields['host']}/get-mp3/{sign}/{fields['ts']}{fields['path']}"
+
+
+def _fetch(url, token, timeout=15.0):
+    """GET с Authorization: OAuth → текст ответа (XML download-info)."""
+    req = urllib.request.Request(url, headers={"Authorization": "OAuth " + token})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.read().decode("utf-8", "replace")
 
 
 def _with_stream(track, token):
@@ -161,7 +179,8 @@ def _search_sync(ctx, query, kind):
         return {"tracks": [], "note": str(exc)}
     except Exception as exc:
         return {"tracks": [], "note": f"{NOTE_SEARCH_FAIL} ({type(exc).__name__})"}
-    items = ((result.get("result") or {}).get("tracks") or {}).get("items") if isinstance(result, dict) else None
+    found = ((result.get("result") or {}).get("tracks") or {}) if isinstance(result, dict) else {}
+    items = found.get("results") or found.get("items")
     tracks = [_track_meta(item) for item in (items or []) if item.get("id")]
     tracks = [t for t in tracks if t["title"]]
     if not tracks:
