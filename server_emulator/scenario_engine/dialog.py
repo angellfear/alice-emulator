@@ -39,7 +39,7 @@ def _merge_templates(found, matched):
 def _finalize(message, ctx):
     """CardId/SequenceNumber/tts_play_placeholder — каркас реальных ответов."""
     sequence = (ctx.get("sequence") or 1) if isinstance(ctx.get("sequence"), int) else None
-    finalize(message, sequence)
+    finalize(message, sequence, ctx.get("settings"))
     _ref_header(message, ctx)
 
 def finalize_reply(message, ctx):

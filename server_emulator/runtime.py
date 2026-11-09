@@ -436,7 +436,8 @@ class Runtime:
                     "params": params, "home": {"devices": home},
                     "speaker": copy.deepcopy((session or {}).get("speaker")),
                     "settings": dict(zip(("tts_speak", "tts_card"), voice_output(self)),
-                                     weather=copy.deepcopy(self.settings.get("weather") or {}))}
+                                     weather=copy.deepcopy(self.settings.get("weather") or {}),
+                                     alice2_settings=bool(self.settings.get("alice2_settings")))}
         self._scenario_context = _scenario_context
         self.dialog = DialogManager(self.scenario_executor, self._scenarios,
                                     lambda: load_type(ROOT / "schemas", "alice-api.pb",

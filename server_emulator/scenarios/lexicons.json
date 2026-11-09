@@ -778,6 +778,26 @@
     }
    ]
   },
+  "rewind_direction": {
+   "values": [
+    {
+     "in": "вперед",
+     "out": "Forward"
+    },
+    {
+     "in": "наперед",
+     "out": "Forward"
+    },
+    {
+     "in": "назад",
+     "out": "Backward"
+    },
+    {
+     "in": "обратно",
+     "out": "Backward"
+    }
+   ]
+  },
   "led_emotion": {
    "values": [
     {

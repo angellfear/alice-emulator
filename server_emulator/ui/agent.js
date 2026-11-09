@@ -32,8 +32,15 @@
     for (const u of data.users) { const i = input(s.budgets[u.id] ?? '', 'number'); i.min = 0; i.placeholder = 'общий'; budgetInputs[u.id] = i; budgets.append(field('Лимит · ' + u.name, i)); }
     const deferAfter = input(s.async_reply_s, 'number'); deferAfter.min = 0; deferAfter.max = 15; deferAfter.step = 0.5;
     const deferText = input(s.async_wait_text);
+    const deferMode = el('select');
+    for (const [value, label] of [['push', 'Push + TextInput'], ['continue_session', 'Продолжение сессии']])
+      deferMode.append(new Option(label, value));
+    deferMode.value = s.defer_mode === 'continue_session' ? 'continue_session' : 'push';
+    const deferHint = el('p', 'Продолжение сессии: после «секунду, подумайте» колонка сама запрашивает готовый ответ (placeholder с OnFinish); Push: готовый ответ доставляется пушем, колонка запрашивает его сама. Различие — в кадрах протокола.', 'hint');
     const deferGrid = el('div', null, 'mem-grid');
-    deferGrid.append(field('Отложенный ответ · через, с (0 — нет)', deferAfter), field('Фраза, пока модель думает', deferText));
+    deferGrid.append(field('Отложенный ответ · через, с (0 — нет)', deferAfter), field('Фраза, пока модель думает', deferText),
+      field('Доставка отложенного ответа', deferMode));
+    deferGrid.append(deferHint);
     const pii = el('div', null, 'mem-grid'), piiInputs = {};
     for (const [key, label] of Object.entries(PII)) { const [b, i] = check(label, s.pii.includes(key)); piiInputs[key] = i; pii.append(b); }
     const save = el('button', 'Сохранить'); save.type = 'button';
@@ -41,7 +48,8 @@
       const settings = { max_model_calls: +steps.value, daily_model_calls: +daily.value || 0, suggest_cron: cron.value.trim(),
         suggest_min_count: +min.value, budgets: Object.fromEntries(Object.entries(budgetInputs).filter(([, i]) => i.value !== '').map(([k, i]) => [k, +i.value])),
         pii: Object.keys(piiInputs).filter(k => piiInputs[k].checked), async_reply_s: +deferAfter.value || 0,
-        async_wait_text: deferText.value.trim(), webhook_token: token.value || (s.webhook_token ? '__KEEP__' : '') };
+        async_wait_text: deferText.value.trim(), defer_mode: deferMode.value,
+        webhook_token: token.value || (s.webhook_token ? '__KEEP__' : '') };
       await api({ op: 'settings', settings }); notice('Настройки агента сохранены'); await load();
     });
     const actions = el('div', null, 'actions'); actions.append(save);

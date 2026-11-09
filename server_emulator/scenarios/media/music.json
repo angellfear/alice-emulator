@@ -1,6 +1,6 @@
 {
  "format_version": 2,
- "version": "1.0.0",
+ "version": "1.1.0",
  "category": "media",
  "id": "media.music",
  "title": {
@@ -15,6 +15,10 @@
   {
    "kind": "provide",
    "event": "music.stack_next"
+  },
+  {
+   "kind": "provide",
+   "event": "music.recover_commit"
   }
  ],
  "executor": {

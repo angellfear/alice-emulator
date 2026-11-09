@@ -31,6 +31,7 @@ def _settings(runtime):
             "suggest_min_count": cfg["suggest_min_count"],
             "async_reply_s": float(cfg["async_reply_s"]) if cfg.get("async_reply_s") is not None else ASYNC_AFTER_S,
             "async_wait_text": cfg.get("async_wait_text") or WAIT_TEXT,
+            "defer_mode": cfg.get("defer_mode") or "push",
             "webhook_token": runtime.masked_secret(cfg["webhook_token"]) if cfg["webhook_token"] else ""}
 
 
@@ -56,6 +57,11 @@ async def _save(runtime, value):
         current["async_reply_s"] = max(0.0, min(15.0, float(value["async_reply_s"] or 0)))
     if "async_wait_text" in value:
         current["async_wait_text"] = " ".join(str(value["async_wait_text"] or "").split())[:200]
+    if "defer_mode" in value:  # push | continue_session, читается живьём
+        from ...async_reply import DEFER_MODES
+        if value["defer_mode"] not in DEFER_MODES:
+            raise ValueError("defer_mode: " + " | ".join(DEFER_MODES))
+        current["defer_mode"] = value["defer_mode"]
     if "pii" in value:
         unknown = [k for k in value["pii"] or [] if k not in PII]
         if unknown:

@@ -87,12 +87,15 @@ JSON-подобных payload'ов (его шлют наши сценарии и
 | `set_timezone` | PayloadRaw | `TGeoSyncCapability.TSetTimezoneDirective`: Timezone=1 (TTimezone{TimezoneName=1, OffsetSeconds=2}), Name=2, NextTimezone=4 — `alice/protos/endpoint/capabilities/geo_sync/capability.proto` | protos |
 | `set_location` | PayloadRaw | `TGeoSyncCapability.TSetLocationDirective`: Location=1 (TLatLon{Latitude=1, Longitude=2, Accuracy=3}), Name=2, LaasRealLocation=3 (там же) | protos |
 | `alarm_add_directive` | PayloadRaw | `TAlarmAddDirective`: Name=1, Alarm=2 — `TAlarm`: AlarmId=1, LocalTime=2 (TTime{Hours=1, Minutes=2, Seconds=3}), CurrentlyPlaying=3, ActivationDays=5 [{Weekday=1 | Date=2{Year=1, Month=2, Day=3}}], Timezone=7, SnoozeTime=12, Disabled=9, Title=10, EditTimestamp=11 — `alice/protos/endpoint/capabilities/alarm/capability.proto`, `alice/protos/data/scenario/alarm/alarm.proto` | protos; timer-set/alarm-set фикстуры |
-| `alarm_cancel_directive` | не отправляется (нет образца) | `TAlarmCancelDirective`: Name=1, AlarmId=2 (capability alarm) | protos |
+| `alarm_cancel_directive` | PayloadRaw `{Name: "cancel_alarm_capability_directive", AlarmId}` | `TAlarmCancelDirective`: Name=1, AlarmId=2 (capability alarm) | protos; сценарий `timers.alarm.cancel` (payload по protos, решение владельца; экран списка — по образцам установки/отмены таймера) |
 | `alarm_stop_directive` | PayloadRaw `{StopMedia}` | `TAlarmStopDirective`: Name=1, StopMedia=2 (capability alarm) | protos; alarm-stop.json |
 | `timer_set_directive` | PayloadRaw | `TTimerSetDirective`: Name=1, Timer=2 — `TTimerDescription`: TimerId=1, StartTimestamp=2, Duration=3, Remaining=4, CurrentlyPlaying=5, Paused=6, TimerType=7, Title=10, Disabled=11 — capability alarm + `alice/protos/data/scenario/timer/timer.proto` | protos; timer-set.json |
 | `timer_cancel_directive` | PayloadRaw | `TTimerCancelDirective`: Name=1, TimerId=2 (capability alarm) | protos; timer-cancel.json |
 | `timer_stop_directive` | PayloadRaw | `TTimerStopDirective`: Name=1, TimerId=2 (capability alarm) | protos; alarm-stop.json (журнал) |
-| `timer_pause_directive` / `timer_resume_directive` | не отправляются (нет образца) | `TTimerPauseDirective` / `TTimerResumeDirective`: Name=1, TimerId=2 (capability alarm) | protos |
+| `timer_pause_directive` | PayloadRaw `{Name: "pause_timer_capability_directive", TimerId}` | `TTimerPauseDirective`: Name=1, TimerId=2 (capability alarm) | protos; сценарий `timers.timer.pause` (payload по protos, решение владельца) |
+| `timer_resume_directive` | PayloadRaw `{Name: "resume_timer_capability_directive", TimerId}` | `TTimerResumeDirective`: Name=1, TimerId=2 (capability alarm) | protos; сценарий `timers.timer.resume` (payload по protos, решение владельца) |
+| `local_audio_file_play` | PayloadRaw `{PlayTimes: 1, SoundToPlay}` (enum EStoredSound: AliceIoTSoundsTurnOn=61, AliceIoTSoundsTurnOff=60) | `TLocalAudioFilePlayDirective`: Channel=2 (EDirectiveChannel), Looped=3, Name=4, PlayTimes=5, FileName=6, SoundToPlay=7 (там же) | protos (схема станции); Push-действия панели `sound_turn_on`/`sound_turn_off` (`actions.py`) |
+| `audio_player_rewind` | Struct `{"amount_ms": <мс>, "type": "Forward"\|"Backward"}` | protos-сообщения в SpeechKitName нет — Struct по решению владельца 2026-11-07; близкое `rewind_amount_ms=3` в remoting.proto — другой канал | сценарий `device.player.rewind`; **payload не подтверждён журналом** |
 | `show_audio_player_screen_directive` | PayloadRaw | `TShowAudioPlayerScreenDirective`: TrackId=1 — `alice/protos/endpoint/capabilities/audio_player_screen/capability.proto` | protos; захват 2026-11-02-music |
 | `apply_player_playback_queue_directive` | PayloadRaw | `TApplyMusicPlatformQueueDirective`: MusicPlatformQueue=1 — `TMusicPlatformQueue`: Entities=1 (TPlaybackEntityWithProvider), CurrentEntityIndex=2, MusicPlatformMetaStorage=3 — `alice/protos/endpoint/capabilities/music_platform_queue/capability.proto`, `alice/protos/data/scenario/music/music_platform_queue.proto` | protos; захват 2026-11-02-music |
 | `set_audio_player_sequence_state_directive` | PayloadRaw | `TSetSequenceStateDirective`: SequenceState=1 — `TAudioPlayerSequenceState`: Queue=1, History=2, CurrentItem=3, MetaStorage=4, CallbacksStorage=5 — `alice/protos/endpoint/capabilities/audio_player/capability.proto`, `.../audio_player/sequence_state.proto` | protos; захват 2026-11-02-music |
@@ -122,7 +125,10 @@ JSON-подобных payload'ов (его шлют наши сценарии и
 
 ## Не реализовано
 
-- Отправка `PayloadRaw` описанных здесь сообщений в сценариях — шаги добавляются
-  по мере появления образцов журнала (директивы без образца не отправляются).
-- Соответствие `audio_player_rewind` (`amount_ms`, `type Forward|Backward`)
-  сообщению protos — не найдено; уточнить при появлении образца.
+- Отправка `PayloadRaw` остальных описанных здесь сообщений в сценариях — шаги
+  добавляются по мере появления образцов журнала (директивы без образца и без
+  явного решения владельца не отправляются).
+- Payload'ы, внедрённые без образца журнала по решению владельца 2026-11-07
+  (`alarm_cancel_directive`, `timer_pause_directive`,
+  `timer_resume_directive`, `local_audio_file_play`, `audio_player_rewind`), —
+  сверены с protos; фактическое поведение колонки подтверждает владелец на станции.

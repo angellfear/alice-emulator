@@ -14,6 +14,7 @@
       "device.bluetooth.on",
       "device.led.emotion",
       "device.player.pause",
+      "device.player.rewind",
       "device.volume",
       "games.games",
       "informers.clock",
@@ -31,10 +32,13 @@
       "system.service_ack",
       "system.timesync",
       "system.unavailable",
+      "timers.alarm.cancel",
       "timers.alarm.set",
       "timers.ringing.stop",
       "timers.timer.cancel",
       "timers.timer.list",
+      "timers.timer.pause",
+      "timers.timer.resume",
       "timers.timer.set"
     ],
     "sn": "SN-GOLDEN",
@@ -950,6 +954,183 @@
         }
       ],
       "id": "device.player.pause"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "перемотай назад"
+          },
+          "name": "device.player.rewind-trigger0-0",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "На сколько перемотать?",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "На сколько перемотать?"
+                }
+              ],
+              "reason": "template",
+              "scenario": "device.player.rewind",
+              "speech": "На сколько перемотать?",
+              "speech_parts": [],
+              "status": "awaiting",
+              "text": "перемотай назад"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "перемотай вперёд"
+          },
+          "name": "device.player.rewind-trigger0-1",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "На сколько перемотать?",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "На сколько перемотать?"
+                }
+              ],
+              "reason": "template",
+              "scenario": "device.player.rewind",
+              "speech": "На сколько перемотать?",
+              "speech_parts": [],
+              "status": "awaiting",
+              "text": "перемотай вперёд"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "промотай назад"
+          },
+          "name": "device.player.rewind-trigger0-2",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "На сколько перемотать?",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "На сколько перемотать?"
+                }
+              ],
+              "reason": "template",
+              "scenario": "device.player.rewind",
+              "speech": "На сколько перемотать?",
+              "speech_parts": [],
+              "status": "awaiting",
+              "text": "промотай назад"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "промотай вперёд"
+          },
+          "name": "device.player.rewind-trigger0-3",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "На сколько перемотать?",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "На сколько перемотать?"
+                }
+              ],
+              "reason": "template",
+              "scenario": "device.player.rewind",
+              "speech": "На сколько перемотать?",
+              "speech_parts": [],
+              "status": "awaiting",
+              "text": "промотай вперёд"
+            }
+          ]
+        }
+      ],
+      "id": "device.player.rewind"
     },
     {
       "cases": [
@@ -3265,6 +3446,97 @@
           "effects": [],
           "input": {
             "kind": "text",
+            "phrase": "отмени будильник"
+          },
+          "name": "timers.alarm.cancel-trigger0-0",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Будильников нет.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Будильников нет."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "timers.alarm.cancel",
+              "speech": "Будильников нет.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "отмени будильник"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "удали будильник"
+          },
+          "name": "timers.alarm.cancel-trigger0-1",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Будильников нет.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Будильников нет."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "timers.alarm.cancel",
+              "speech": "Будильников нет.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "удали будильник"
+            }
+          ]
+        }
+      ],
+      "id": "timers.alarm.cancel"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
             "phrase": "будильник на 7:30"
           },
           "name": "alarm.set-time",
@@ -3850,6 +4122,231 @@
         }
       ],
       "id": "timers.timer.list"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "поставь таймер на паузу"
+          },
+          "name": "timers.timer.pause-trigger0-0",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Активных таймеров нет.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Активных таймеров нет."
+                }
+              ],
+              "reason": "template",
+              "scenario": "timers.timer.pause",
+              "speech": "Активных таймеров нет.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "поставь таймер на паузу"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "таймер на паузу"
+          },
+          "name": "timers.timer.pause-trigger0-1",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Активных таймеров нет.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Активных таймеров нет."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "timers.timer.pause",
+              "speech": "Активных таймеров нет.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "таймер на паузу"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "пауза таймера"
+          },
+          "name": "timers.timer.pause-trigger0-2",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Активных таймеров нет.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Активных таймеров нет."
+                }
+              ],
+              "reason": "template",
+              "scenario": "timers.timer.pause",
+              "speech": "Активных таймеров нет.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "пауза таймера"
+            }
+          ]
+        }
+      ],
+      "id": "timers.timer.pause"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "продолжи таймер"
+          },
+          "name": "timers.timer.resume-trigger0-0",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Таймеров на паузе нет.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Таймеров на паузе нет."
+                }
+              ],
+              "reason": "template",
+              "scenario": "timers.timer.resume",
+              "speech": "Таймеров на паузе нет.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "продолжи таймер"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "возобнови таймер"
+          },
+          "name": "timers.timer.resume-trigger0-1",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Таймеров на паузе нет.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Таймеров на паузе нет."
+                }
+              ],
+              "reason": "template",
+              "scenario": "timers.timer.resume",
+              "speech": "Таймеров на паузе нет.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "возобнови таймер"
+            }
+          ]
+        }
+      ],
+      "id": "timers.timer.resume"
     },
     {
       "cases": [

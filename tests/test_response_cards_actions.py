@@ -63,6 +63,30 @@ def test_finalize_unique_cardids_and_keeps_existing():
     assert custom.Event.AliceResponse.Response.Cards[0].CardId == "fixed-id"  # не перезаписываем
 
 
+def test_finalize_alice2_settings_off_and_on():
+    """Выключено — ответ байтово прежний; включено — EffectiveSettings/TrialState (Alice Pro,
+    как у quasar-server) в каждом ответе; служебные ответы (поле уже стоит пустым) не трогаем."""
+    off = server_type()
+    off.Event.AliceResponse.Response.Cards.add(Type="simple_text", Text="привет")
+    finalize(off, 1)
+    assert not off.Event.AliceResponse.Response.HasField("Alice2EffectiveSettings")
+
+    on = server_type()
+    on.Event.AliceResponse.Response.Cards.add(Type="simple_text", Text="привет")
+    finalize(on, 1, {"alice2_settings": True})
+    effective = on.Event.AliceResponse.Response.Alice2EffectiveSettings
+    assert effective.EffectiveSettings.Mode == 2  # NAlice2Mode.EMode.Pro
+    assert effective.EffectiveSettings.Preset == "test-preset"
+    assert effective.TrialState.LeftCount == 9999
+    assert effective.TrialState.Limit == 9999
+    assert effective.TrialState.TimeLimitSec == 9999
+
+    service = server_type()
+    service.Event.AliceResponse.Response.Alice2EffectiveSettings.EffectiveSettings.SetInParent()
+    finalize(service, 1, {"alice2_settings": True})  # пустые поля служебного ответа не перетираются
+    assert service.Event.AliceResponse.Response.Alice2EffectiveSettings.EffectiveSettings.Mode == 0  # Undefined
+
+
 def test_volume_directive_matches_capture():
     message = server_type()
     add_volume_directive(message.Event.AliceResponse, 5)

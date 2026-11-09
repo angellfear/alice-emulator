@@ -1115,11 +1115,11 @@
    "phrases": [
     {
      "text": "перемотай на 10 минут вперед",
-     "expect": "system.unavailable"
+     "expect": "device.player.rewind"
     },
     {
      "text": "перемотай на 20 минут назад",
-     "expect": "system.unavailable"
+     "expect": "device.player.rewind"
     },
     {
      "text": "пропусти заставку",

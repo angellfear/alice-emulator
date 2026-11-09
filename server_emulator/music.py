@@ -50,10 +50,12 @@ yandex-music — MUSIC_PROVIDER_YANDEX_MUSIC, у остальных постав
 """
 from __future__ import annotations
 
+import asyncio
 import inspect
 import json
 import re
 import time
+import uuid
 from pathlib import Path
 
 from . import providers as _providers
@@ -398,11 +400,13 @@ def sequence_state_directive(current, tracks, provider):
                 "MetaStorage": meta}}}
 
 
-def audio_play_directive(track, offset_ms=0):
+def audio_play_directive(track, offset_ms=0, commit_token=None):
     """audio_play со Struct-payload по образцу (захват 2026-11-02; минимум полей пробы 098
     играл ссылку): stream{url, type: Track, format, duration_ms?, decode_key?} +
     metadata{title, subtitle, art_image_url?} + screen_type Music. decode_key нужен только
-    шифрованным потокам (PLAN-spotify-music, факты)."""
+    шифрованным потокам (PLAN-spotify-music, факты). commit_token — recoverCommit-колбэк
+    (callbacks.on_started.payload.music): колонка сама подтверждает переход трека
+    (TextInput @@mm_semantic_frame с тем же токеном)."""
     stream = dict(track.get("stream") or {})
     payload_stream = {"url": str(stream.get("url") or ""), "type": "Track",
                       "format": str(stream.get("format") or "mp3").upper()}
@@ -418,13 +422,17 @@ def audio_play_directive(track, offset_ms=0):
                 "hide_progress_bar": False}
     if track.get("cover_url"):
         metadata["art_image_url"] = str(track["cover_url"])
+    payload = {"stream": payload_stream, "metadata": metadata,
+               "screen_type": "Music", "background_mode": "Ducking",
+               "set_pause": False, "playback_speed": 1.0}
+    if commit_token:
+        payload["callbacks"] = {"on_started": {"payload": {"music": {
+            "type": "recoverCommit", "recoverCommitToken": str(commit_token)}}}}
     return {"name": "audio_play", "type": "client_action", "is_led_silent": True,
-            "payload": {"stream": payload_stream, "metadata": metadata,
-                        "screen_type": "Music", "background_mode": "Ducking",
-                        "set_pause": False, "playback_speed": 1.0}}
+            "payload": payload}
 
 
-def start_reply(result, text=""):
+def start_reply(result, text="", commit_token=None):
     """Ответ на «включи музыку <что-то>»: полный стек виджета из результата search
     (образец «включи музыку»: анимация + экран + очередь + состояние + audio_play)."""
     tracks = result["tracks"]
@@ -434,17 +442,65 @@ def start_reply(result, text=""):
         tts_placeholder(), draw_player_play(), show_player_screen(tracks[start]),
         queue_directive(tracks, start, provider),
         sequence_state_directive(tracks[start], tracks, provider),
-        audio_play_directive(tracks[start])]}
+        audio_play_directive(tracks[start], commit_token=commit_token)]}
 
 
-def step_reply(track, provider, text="", offset_ms=0):
-    """Ответ на «дальше/назад», колбэк @@mm_stack_engine_get_next и продолжение с паузы:
-    тройка очередь+состояние+audio_play без экрана и анимации (образцы «дальше» и
-    «продолжи»; очередь из одного трека — neighbor отдаёт один Track). offset_ms —
-    позиция продолжения."""
+def step_reply(track, provider, text="", offset_ms=0, commit_token=None):
+    """Ответ на «дальше/назад», колбэк @@mm_stack_engine_get_next, recoverCommit и
+    продолжение с паузы: тройка очередь+состояние+audio_play без экрана и анимации
+    (образцы «дальше» и «продолжи»; очередь из одного трека — neighbor отдаёт один
+    Track). offset_ms — позиция продолжения; commit_token — recoverCommit-колбэк."""
     tracks = [track]
     return {"text": text, "card": False, "directives": [
         tts_placeholder(),
         queue_directive(tracks, 0, provider),
         sequence_state_directive(track, tracks, provider),
-        audio_play_directive(track, offset_ms)]}
+        audio_play_directive(track, offset_ms, commit_token)]}
+
+
+# --- recoverCommit: подтверждённый переход трека -----------------------------------
+# audio_play несёт callbacks.on_started.payload.music {type: recoverCommit,
+# recoverCommitToken}; колонка при старте трека возвращает токен TextInput'ом —
+# сервер отдаёт следующий трек. Записи живут в памяти процесса (колонка могла
+# переподключиться — сессия по SN, токены общие), чужой/устаревший токен — тихий ack.
+COMMITS = {}  # token → {current_id, ext_id, next: Track|None, ts}
+COMMIT_KEEP_S = 600  # неполученный токен живёт 10 минут
+
+
+def keep_commit(current, ext_id=""):
+    """Токен для audio_play: запись с текущим треком (сосед префетчится задачей —
+    music.prefetch_commit; не успел/нет соседа → токен без префетча)."""
+    token = uuid.uuid4().hex
+    now = time.time()
+    for key in [k for k, v in COMMITS.items() if now - v["ts"] > COMMIT_KEEP_S]:
+        COMMITS.pop(key, None)
+    COMMITS[token] = {"current_id": str(current["id"]), "ext_id": str(ext_id or ""),
+                      "next": None, "ts": now}
+    return token
+
+
+def prefetch_commit(ctx, token, provider):
+    """Сосед текущего трека — задача в фоне (ответ не ждём); результат попадает в
+    запись токена и используется при commit, иначе сосед берётся на commit."""
+    entry = COMMITS.get(token)
+    if entry is None:
+        return
+    from . import providers as _prov
+
+    async def run():
+        try:
+            track = await neighbor(ctx, provider, entry["current_id"], None, 1)
+        except Exception:  # noqa: BLE001 — префетч не обязателен: commit доберёт сам
+            track = None
+        fresh = COMMITS.get(token)
+        if fresh is not None:
+            fresh["next"] = track
+    try:
+        asyncio.get_running_loop().create_task(run())
+    except RuntimeError:  # вне цикла (проверка эталона) — токен без префетча
+        pass
+
+
+def take_commit(token):
+    """Запись токена или None (чужой/устаревший); запись снимается при получении."""
+    return COMMITS.pop(str(token or ""), None)

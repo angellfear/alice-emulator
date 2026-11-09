@@ -10,6 +10,7 @@ apply_player_playback_queue (TApplyMusicPlatformQueueDirective) +
 set_audio_player_sequence_state + audio_play; «дальше» (колбэк @@mm_stack_engine_get_next →
 provide music.stack_next) — тройка очередь+состояние+audio_play без экрана.
 """
+import asyncio
 import datetime
 import json
 import pytest
@@ -356,7 +357,8 @@ async def test_play_without_query_question_listens_and_answer_searches(tmp_path)
         assert question.VoiceResponse.OutputSpeech.Text.startswith("Что включить?")
         report = await say(runtime, "тестовый исполнитель")
         assert report["handled"], report
-        assert json.loads(marker.read_text(encoding="utf-8"))[-1] == ["search", "тестовый исполнитель", "music"]
+        # последним поиском мог закончиться и префетч соседа (recoverCommit, фон)
+        assert ["search", "тестовый исполнитель", "music"] in json.loads(marker.read_text(encoding="utf-8"))
         assert "audio_play" in _reply_names(report["messages"][0])
     finally:
         await runtime.close()
@@ -405,7 +407,8 @@ async def test_question_answer_over_ws_with_empty_dialog_id(tmp_path):
                 assert question.Event.AliceResponse.VoiceResponse.ShouldListen is True
                 answer = await phrase("тестовый исполнитель", "m2")
                 assert "audio_play" in _reply_names(answer)
-        assert json.loads(marker.read_text(encoding="utf-8"))[-1] == ["search", "тестовый исполнитель", "music"]
+        # последним поиском мог закончиться и префетч соседа (recoverCommit, фон)
+        assert ["search", "тестовый исполнитель", "music"] in json.loads(marker.read_text(encoding="utf-8"))
     finally:
         await runner.cleanup()
         await runtime.close()
@@ -843,5 +846,107 @@ async def test_no_provider_bare_template_yields_to_next_candidate(tmp_path):
         speech = _reply_speech(message)
         assert speech != "Для этого нет источника данных."
         assert "не найдено" in speech.lower(), speech
+    finally:
+        await runtime.close()
+
+
+# --- recoverCommit: подтверждённый переход трека ----------------------------------------
+
+
+def _commit_ctx(runtime, token, route_mode="emulate"):
+    """Контекст колбэка recoverCommit (как собирает voice.py с EVENT_FILTERS)."""
+    ctx = service_ctx(runtime, "@@mm_semantic_frame", route_mode=route_mode)
+    ctx["input"]["music_type"] = "recoverCommit"
+    ctx["input"]["music_token"] = token
+    return ctx
+
+
+def _play_payload(report):
+    """audio_play из первого сообщения отчёта (start_reply/step_reply)."""
+    [message] = report["messages"]
+    return _payload_of(message, "audio_play")
+
+
+async def test_start_reply_carries_recover_commit_token(tmp_path):
+    """audio_play «включи музыку» несёт callbacks.on_started.payload.music с токеном."""
+    runtime = Runtime(tmp_path)
+    marker = tmp_path / "marker.json"
+    make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
+    try:
+        report = await say(runtime, "включи музыку", deliver=False)
+        play = _play_payload(report)
+        commit = play["callbacks"]["on_started"]["payload"]["music"]
+        assert commit["type"] == "recoverCommit" and commit["recoverCommitToken"]
+        token = commit["recoverCommitToken"]
+        entry = music.take_commit(token)  # токен сохранён вместе с текущим треком
+        assert entry is not None and entry["current_id"] == "t1"
+        assert entry["ext_id"] == "fake-music"
+    finally:
+        await runtime.close()
+
+
+async def test_commit_serves_next_track_and_chains_token(tmp_path):
+    """Токен совпал — следующий трек стеком «дальше» (тройка без экрана) и с новым токеном."""
+    runtime = Runtime(tmp_path)
+    marker = tmp_path / "marker.json"
+    make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
+    try:
+        report = await say(runtime, "включи музыку", deliver=False)
+        token = _play_payload(report)["callbacks"]["on_started"]["payload"]["music"]["recoverCommitToken"]
+        for _ in range(5):  # префетч соседа — фоновая задача
+            await asyncio.sleep(0)
+        sent = []
+        commit_report = await runtime.dialog.handle_event(
+            "music.recover_commit", _commit_ctx(runtime, token), "dlg-1", await _collect(sent))
+        assert commit_report["handled"], commit_report
+        [message] = _sent_messages(sent)
+        assert _reply_names(message) == ["tts_play_placeholder", "apply_player_playback_queue_directive",
+                                         "set_audio_player_sequence_state_directive", "audio_play"]
+        assert "show_audio_player_screen_directive" not in _reply_names(message)
+        play = _payload_of(message, "audio_play")
+        assert play["stream"]["url"] == "https://example.com/t9.mp3"  # NEXT поставщика
+        chained = play["callbacks"]["on_started"]["payload"]["music"]  # переход с t9 тоже квантуется
+        assert chained["type"] == "recoverCommit" and chained["recoverCommitToken"] != token
+    finally:
+        await runtime.close()
+
+
+async def test_commit_with_foreign_token_stays_silent(tmp_path):
+    """Чужой/устаревший токен — сценарий отказывается: умолчание маршрута — тихое
+    подтверждение (как у quasar-server: несовпадение игнорируется)."""
+    runtime = Runtime(tmp_path)
+    marker = tmp_path / "marker.json"
+    make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
+    try:
+        report = await runtime.dialog.handle_event(
+            "music.recover_commit", _commit_ctx(runtime, "foreign-token"), "dlg-1", await _collect([]))
+        assert not report["handled"]
+        message = await runtime.dialog.quiet_ack(_commit_ctx(runtime, "foreign-token"))
+        assert _reply_names(message) == ["tts_play_placeholder"]
+    finally:
+        await runtime.close()
+
+
+async def test_commit_prefetch_avoids_second_neighbor(tmp_path):
+    """Живой префетч: commit не дёргает neighbor второй раз — сосед уже подготовлен."""
+    runtime = Runtime(tmp_path)
+    marker = tmp_path / "marker.json"
+    make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
+    try:
+        report = await say(runtime, "включи музыку", deliver=False)
+        token = _play_payload(report)["callbacks"]["on_started"]["payload"]["music"]["recoverCommitToken"]
+        for _ in range(10):  # префетч соседа успевает
+            await asyncio.sleep(0)
+        sent = []
+        await runtime.dialog.handle_event(
+            "music.recover_commit", _commit_ctx(runtime, token), "dlg-1", await _collect(sent))
+        calls = json.loads(marker.read_text(encoding="utf-8"))
+        neighbor_calls = [call for call in calls if call[0] == "neighbor"]
+        assert len(neighbor_calls) == 1  # только префетч: commit взял готовый сосед
+        assert neighbor_calls[0][:2] == ["neighbor", "t1"]
     finally:
         await runtime.close()

@@ -1,0 +1,34 @@
+{
+ "format_version": 2,
+ "version": "1.0.0",
+ "category": "timers",
+ "id": "timers.alarm.cancel",
+ "title": {
+  "ru": "Отменить будильник",
+  "en": "Cancel alarm"
+ },
+ "description": {
+  "ru": "«отмени будильник на 7 утра»: alarm_cancel_directive (TAlarmCancelDirective по protos) для будильника из состояния колонки, время — из фразы; несколько совпадающих — уточняющий вопрос"
+ },
+ "priority": 90,
+ "triggers": [
+  {
+   "kind": "phrase",
+   "phrases": ["отмени будильник", "удали будильник"]
+  },
+  {
+   "kind": "template",
+   "sentences": [
+    "(отмени|удали) [{ordinal} ](будильник|будильники) [на|в] ({hour} [{minute}] [{day_period}]|{time_word}) [({date_word}|[в] {weekday}|{day} {month})]",
+    "(отмени|удали) {ordinal} (будильник|будильники)"
+   ]
+  }
+ ],
+ "executor": {
+  "kind": "script"
+ },
+ "provenance": {
+  "source": "payload по quasar-protos (TAlarmCancelDirective: Name=1, AlarmId=2) — решение владельца 2026-11-07; экран списка будильников — как в образцах установки (2026-10-22 05:47) и отмены таймера (2026-10-25 17:00)",
+  "data": "AlarmId — из состояния колонки в запросе (station_state); звонящий будильник не отменяется — его останавливает timers.ringing.stop («выключи будильник»)"
+ }
+}

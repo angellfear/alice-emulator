@@ -143,6 +143,12 @@ def _is_tts_frame(fields):
     return fields.get("frame") == "tts_semantic_frame"
 
 
+def _is_recover_commit(fields):
+    """music.type=recoverCommit (колонка подтвердила переход трека: token в
+    music_token) — отдача следующего трека стеком «дальше» (music.py COMMITS)"""
+    return fields.get("music_type") == "recoverCommit"
+
+
 def _is_timesync(fields):
     """callback=NAlice.TDeviceControlTimesyncTypedCallback или purpose=sync_timezone"""
     return fields.get("callback") == "NAlice.TDeviceControlTimesyncTypedCallback" or fields.get("purpose") == "sync_timezone"
@@ -162,6 +168,9 @@ callback_route('@@mm_semantic_frame', 'weather.opened', _is_weather_tap, 'тап
                'event:@@mm_semantic_frame[purpose=weather_informer_tap_action]')
 callback_route('@@mm_semantic_frame', 'tts.speak', _is_tts_frame, 'Произнести текст (push_tts)',
                'event:@@mm_semantic_frame[frame=tts_semantic_frame]')
+callback_route('@@mm_semantic_frame', 'music.recover_commit', _is_recover_commit,
+               'recoverCommit — подтверждённый переход трека плеера',
+               'event:@@mm_semantic_frame[music=recoverCommit]')
 callback_route('@@mm_semantic_frame', 'callbacks.ack', None, 'семантический фрейм — тихое подтверждение',
                'event:@@mm_semantic_frame')
 # Колбэки штатного плеера колонки (TASK-087): своей очереди у эмулятора нет — на

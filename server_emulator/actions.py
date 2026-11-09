@@ -1,8 +1,11 @@
 """Typed local-device action adapter. No external MCP transport is required."""
 import time
 import uuid
+from pathlib import Path
+
 from google.protobuf import json_format
 
+SCHEMAS_DIR = Path(__file__).parent / "schemas"
 
 CATALOG = [
     {'id':'sound_louder','name':'Громче','parameters':{}},
@@ -15,6 +18,8 @@ CATALOG = [
     {'id':'player_pause','name':'Пауза плеера','parameters':{}},
     {'id':'clear_queue','name':'Очистить очередь','parameters':{}},
     {'id':'push_tts','name':'Произнести текст','parameters':{'text':'строка'}},
+    {'id':'sound_turn_on','name':'Звук включения','parameters':{}},
+    {'id':'sound_turn_off','name':'Звук выключения','parameters':{}},
 ]
 
 # Каналы доставки push-действий. Важные действия — квитируемый
@@ -45,6 +50,19 @@ def push_message(server_type, action, arguments):
                               directive.Payload, descriptor_pool=server_type.DESCRIPTOR.file.pool)
         output.Timings.SendingTime.seconds=int(time.time())
         return output
+    if action in ('sound_turn_on', 'sound_turn_off'):
+        # local_audio_file_play (TLocalAudioFilePlayDirective по protos: PlayTimes=5,
+        # SoundToPlay=7 — enum EStoredSound AliceIoTSoundsTurnOn=61/TurnOff=60):
+        # штатный звук включения/выключения колонки, PayloadRaw — типизированное
+        # сообщение (прототип Struct не потеряет enum)
+        if isinstance(arguments, dict) and arguments:
+            raise ValueError('Недопустимые параметры действия')
+        from .scenario_engine.proto_build import encode
+        sound = 'AliceIoTSoundsTurnOn' if action == 'sound_turn_on' else 'AliceIoTSoundsTurnOff'
+        payload_raw = encode(SCHEMAS_DIR, 'NAlice.TAudioFilePlayerCapability.TLocalAudioFilePlayDirective',
+                             {'PlayTimes': 1, 'SoundToPlay': sound}, 'centaur')
+        return push_directive(server_type, '', items=[
+            {'name': 'local_audio_file_play', 'payload_raw': payload_raw, 'is_led_silent': True}])
     if action=='draw_led_screen':
         frames = arguments.get('frames') if isinstance(arguments, dict) else None
         if not (isinstance(frames, list) and frames and all(isinstance(u, str) and u.startswith('http') for u in frames)):

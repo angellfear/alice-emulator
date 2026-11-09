@@ -364,6 +364,8 @@ class Event:
     callback: str = ""
     purpose: str = ""
     frame: str = ""
+    music_type: str = ""
+    music_token: str = ""
 
 
 class _ActionExecution:
@@ -450,7 +452,9 @@ class ScenarioContext:
         return Event(name=str(source.get("event_name") or ""),
                      callback=str(source.get("callback") or ""),
                      purpose=str(source.get("purpose") or ""),
-                     frame=str(source.get("frame") or ""))
+                     frame=str(source.get("frame") or ""),
+                     music_type=str(source.get("music_type") or ""),
+                     music_token=str(source.get("music_token") or ""))
 
     @property
     def ask(self):
@@ -731,7 +735,18 @@ class ScenarioContext:
             if isinstance(merged, dict) and value in merged:
                 return merged[value]
             executor = getattr(self._runtime, "scenario_executor", None)
-            return (getattr(executor, "lexicons", None) or {}).get(value, {})
+            lexicons = getattr(executor, "lexicons", None) or {}
+            if value in lexicons:
+                return lexicons[value]
+            lists = lexicons.get("lists") if isinstance(lexicons, dict) else None
+            if isinstance(lists, dict) and value in lists:
+                entry = lists[value]
+                if isinstance(entry, dict) and "values" in entry:
+                    # формат грамматики {values: [{in, out}]} → словарь парсера {фраза: значение}
+                    return {str(item.get("in")): item.get("out")
+                            for item in entry.get("values") or []}
+                return entry  # общие списки лексикона (ordinal, day_period, …)
+            return {}
         return {}
 
     def _source_text(self, text, strip=None):

@@ -1,0 +1,38 @@
+{
+ "format_version": 2,
+ "version": "1.0.0",
+ "category": "device",
+ "id": "device.player.rewind",
+ "title": {
+  "ru": "Перемотка плеера",
+  "en": "Player rewind"
+ },
+ "description": {
+  "ru": "«перемотай на минуту вперёд», «перемотай назад»: audio_player_rewind {amount_ms, type} — Struct-payload (protos-сообщения нет); нет длительности — уточняющий вопрос"
+ },
+ "priority": 100,
+ "triggers": [
+  {
+   "kind": "phrase",
+   "phrases": ["перемотай назад", "перемотай вперёд", "промотай назад", "промотай вперёд"]
+  },
+  {
+   "kind": "template",
+   "sentences": [
+    "(перемотай|промотай|переведи) [на] {duration_fixed} {rewind_direction}",
+    "(перемотай|промотай|переведи) [на] {duration_number} {duration_unit} {rewind_direction}",
+    "(перемотай|промотай|переведи) [на] {duration_number} {duration_unit} {duration_number2} {duration_unit2} {rewind_direction}",
+    "(перемотай|промотай|переведи) {rewind_direction} [на] {duration_fixed}",
+    "(перемотай|промотай|переведи) {rewind_direction} [на] {duration_number} {duration_unit}",
+    "(перемотай|промотай|переведи) {rewind_direction}"
+   ]
+  }
+ ],
+ "executor": {
+  "kind": "script"
+ },
+ "provenance": {
+  "source": "решение владельца 2026-11-07: audio_player_rewind {amount_ms, type: Forward|Backward} — protos-сообщения нет (справочник directives.md), Struct-payload; формы фраз — по шаблону system.unavailable («перемотай на 2 минуты вперед»)",
+  "data": "amount_ms — длительность фразы × 1000; направление — сущность rewind_direction"
+ }
+}

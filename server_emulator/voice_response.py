@@ -136,7 +136,7 @@ async def spoken_reply(conv, incoming, text, trace=None, request_id='', force_tt
 
         response.VoiceResponse.HasVoiceResponse = bool(pages)
 
-        finalize(outgoing, next(conv.runtime.sequence))
+        finalize(outgoing, next(conv.runtime.sequence), conv.runtime.settings)
 
         await conv.message(outgoing)
 
@@ -286,7 +286,7 @@ async def model_reply(conv, incoming, request, text, answer, trace=None, screen=
 
                                                 if d.Name not in present)
 
-    finalize(outgoing, next(conv.runtime.sequence))
+    finalize(outgoing, next(conv.runtime.sequence), conv.runtime.settings)
 
     await conv.message(outgoing)
 

@@ -16,6 +16,8 @@ import uuid
 
 from .agent import engine as agent_engine
 
+from google.protobuf import json_format
+
 from . import async_reply
 from .audio_buffer import (AudioBuffer, InputLimit, MAX_INPUT_BYTES, MAX_INPUT_SECONDS,
                             MAX_INPUT_STREAMS, collect_pages, input_audio, ogg_pages,
@@ -30,6 +32,7 @@ from .voice_response import failure_phrases, failure_speech, failure_text
 from .speech_trace import SpeechTrace, reason_name
 
 from . import aapi_handlers
+from .scenario_engine.router import EVENT_FILTERS
 
 from .aapi_handlers import aapi_handler
 
@@ -159,10 +162,16 @@ def service_event_fields(request, event_obj):
 
     frame_value = next(iter(frame_struct.fields.values()), None) if frame_struct is not None else None
 
+    frame_body = frame_value.struct_value if frame_value is not None and frame_value.WhichOneof('kind') == 'struct_value' else None
+
+    music_struct = _struct_member(frame_body, 'music') or frame_body
+
     return {'event_name': getattr(event_obj, 'Name', '') or '',
             'callback': _typed_callback_type(event_obj.Payload),
             'frame': _semantic_frame_name(event_obj.Payload),
             'frame_text': _string_member(frame_value.struct_value, 'text') if frame_value is not None and frame_value.WhichOneof('kind') == 'struct_value' else '',
+            'music_type': _string_member(music_struct, 'type'),
+            'music_token': _string_member(music_struct, 'recoverCommitToken'),
 
             'purpose': _string_member(analytics, 'purpose'),
 
@@ -1034,7 +1043,9 @@ class Conversation:
 
     async def _chat_or_defer(self, chat, incoming, request, text, after, trace=None):
         """Ответ модели, если он пришёл за after секунд; иначе — короткий ответ сразу
-        (колонка закрывает диалог), модель дорабатывает в фоне, ответ доставит Push. None — отложен."""
+        (колонка закрывает диалог), модель дорабатывает в фоне, ответ доставит Push.
+        defer_mode continue_session — вместо Push placeholder с OnFinish: колонка сама
+        запросит продолжение (continue_session_stage2). None — отложен."""
         task = asyncio.ensure_future(chat)
         try:
             done, _ = await asyncio.wait({task}, timeout=after)
@@ -1045,19 +1056,90 @@ class Conversation:
             return task.result()
         if trace:
             trace.event('async_wait', 'server', after_s=after)
+        continue_key = None
+        if async_reply.defer_mode(self.runtime) == "continue_session":
+            continue_key = self._continue_key(request, incoming)
+            async_reply.keep_continue(continue_key, text)
+            self.runtime.lifecycle.spawn(self._deliver_later(task, text, trace, continue_key=continue_key))
+            await self._continue_placeholder(incoming, request, trace)
+            return None
         self.runtime.lifecycle.spawn(self._deliver_later(task, text, trace))
         await self.spoken_reply(incoming, async_reply.wait_text(self.runtime), trace=trace,
                                 request_id=getattr(request.Header, 'RequestId', '') or '', event_name='async_wait_reply')
         return None
 
-    async def _deliver_later(self, task, text, trace=None):
-        """Модель ответила (или упала) — ответ на хранение и Push колонке: она сама его запросит."""
+    def _continue_key(self, request, incoming):
+        """Ключ отложенного ответа continue_session: DialogId запроса (Request.Header
+        или заголовок сообщения), иначе MessageId входящего события."""
+        text_input = (getattr(incoming.Event, 'TextInput', None)
+                      if incoming.WhichOneof('Message') == 'Event' else None)
+        return (getattr(request.Header, 'DialogId', '') or ''
+                or getattr(getattr(text_input, 'Header', None), 'DialogId', '') or ''
+                or incoming.Event.Header.MessageId or uuid.uuid4().hex)
+
+    async def _continue_placeholder(self, incoming, request, trace=None):
+        """continue_session, шаг 1: вместо речи — tts_play_placeholder с OnFinish
+        (TypedCallbackRequest = Struct continue_session_stage1): колонка после
+        проигрывания сама пришлёт stage2-фрейм, и ответ уйдёт на него (образец
+        quasar-server input-handler.ts)."""
+        output = self.server_type()
+        response = output.Event.AliceResponse
+        response.Header.RequestId = getattr(request.Header, 'RequestId', '') or ''
+        response.Header.ResponseId = uuid.uuid4().hex
+        directive = response.Response.Directives.add()
+        directive.Type = "client_action"
+        directive.Name = "tts_play_placeholder"
+        directive.IsLedSilent = True
+        directive.Payload["channel"] = "Dialog"
+        json_format.ParseDict(
+            {"typed_semantic_frame": {"continue_session_stage1_semantic_frame": {}}},
+            directive.OnFinish.TypedCallbackRequest,
+            descriptor_pool=self.server_type.DESCRIPTOR.file.pool)
+        output.Timings.SendingTime.GetCurrentTime()
+        if trace:
+            trace.event('continue_stage1', 'server')
+        await self.message(output)
+
+    async def _continue_answer(self, incoming, request, event_obj, trace=None):
+        """continue_session, шаг 2: TextInput с фреймом continue_session_stage2 —
+        ответ модели, если готова (не дольше agent.async_reply_s); не готова или
+        ключ устарел — «Не получилось» как у отложенного Push."""
+        frame_struct = _struct_member(event_obj.Payload, 'typed_semantic_frame')
+        frame_body = next(iter(frame_struct.fields.values()), None) if frame_struct is not None else None
+        frame_body = frame_body.struct_value if frame_body is not None and frame_body.WhichOneof('kind') == 'struct_value' else None
+        # ключ ожидания: фрейм колонки → заголовки запроса; ждём тот, что вообще ждёт ответа
+        candidates = [value for value in (_string_member(frame_body, 'dialog_id'),
+                                          getattr(request.Header, 'DialogId', ''),
+                                          getattr(getattr(incoming.Event.TextInput, 'Header', None), 'DialogId', ''),
+                                          incoming.Event.Header.MessageId)
+                      if value and async_reply.pending(value)]
+        key = candidates[0] if candidates else self._continue_key(request, incoming)
+        if trace:
+            trace.event('continue_stage2', 'server', key_len=len(key))
+        answer = await async_reply.wait_continue(key, async_reply.after(self.runtime) or async_reply.ASYNC_AFTER_S)
+        async_reply.drop_continue(key)
+        if not answer or not (answer.get('text') or answer.get('speech')):
+            await self.spoken_reply(incoming, async_reply.MISSING_TEXT, trace=trace,
+                                    request_id=getattr(request.Header, 'RequestId', '') or '', event_name='async_missing')
+            return
+        if trace:
+            trace.event('continue_answer', 'server')
+        await self._model_reply(incoming, request, answer.get('text') or '', answer, trace, screen=True)
+
+    async def _deliver_later(self, task, text, trace=None, continue_key=None):
+        """Модель ответила (или упала) — ответ на хранение: continue_session — ждать
+        stage2 колонки, push — Push колонке (она сама его запросит)."""
         try:
             answer = await task
         except Exception as exc:
             self.runtime.recent = (self.runtime.recent + [{'kind': 'voice-pipeline', 'error': type(exc).__name__+': '+str(exc)[:160]}])[-30:]
             answer = {'text': failure_text('model', exc), 'speech': failure_speech('model', exc)}
         await self._prerender(answer, trace)
+        if continue_key is not None:  # continue_session: колонка заберёт ответ сама
+            async_reply.resolve_continue(continue_key, answer)
+            if trace:
+                trace.event('continue_ready', 'server', answer_len=len(answer.get('text') or ''))
+            return
         answer_id = async_reply.keep(answer, text)
         sn = self.trace_context.get('sn') or ''
         session = next((s for s in (getattr(self.runtime, 'sessions', None) or {}).values()
@@ -1207,6 +1289,11 @@ class Conversation:
 
                 ctx['input'].update(service_event_fields(request, event_obj))
 
+                if (event_name == '@@mm_semantic_frame'
+                        and ctx['input'].get('frame') == 'continue_session_stage2_semantic_frame'):
+                    # continue_session: колонка запросила продолжение — ответ модели
+                    await self._continue_answer(incoming, request, event_obj, trace)
+                    return
                 if event_name == '@@mm_semantic_frame' and ctx['input']['purpose'] == async_reply.PURPOSE:
 
                     # колонка забирает отложенный ответ модели по Push (async_reply.py)
@@ -1230,7 +1317,7 @@ class Conversation:
                 # (триггер kind: provide); поставщика нет — умолчание колбэка (тихое подтверждение).
                 # Без маршрута — прежний путь event-сценариев (совместимость расширений),
                 # дальше «Без ответа».
-                fields = {key: ctx['input'].get(key) for key in ('callback', 'purpose', 'frame')}
+                fields = {key: ctx['input'].get(key) for key in EVENT_FILTERS}
 
                 provide = aapi_handlers.route(event_name, fields)
 

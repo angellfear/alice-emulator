@@ -19,6 +19,9 @@ ALARM_LIST_PROTO = "NAlice.TClockAppCapability.TOpenScreenAlarmListDirective"
 SET_PROTO = "NAlice.TAlarmCapability.TTimerSetDirective"
 CANCEL_PROTO = "NAlice.TAlarmCapability.TTimerCancelDirective"
 ADD_PROTO = "NAlice.TAlarmCapability.TAlarmAddDirective"
+CANCEL_ALARM_PROTO = "NAlice.TAlarmCapability.TAlarmCancelDirective"
+PAUSE_PROTO = "NAlice.TAlarmCapability.TTimerPauseDirective"
+RESUME_PROTO = "NAlice.TAlarmCapability.TTimerResumeDirective"
 SNOOZE_MINUTES = 10  # SnoozeTime в обоих образцах alarm_add_directive
 
 
@@ -54,6 +57,33 @@ def timer_cancel_items(timer_id):
              "fields": {"ForceAutoClose": True}},
             {"name": "timer_cancel_directive", "proto": CANCEL_PROTO,
              "fields": {"Name": "cancel_timer_capability_directive", "TimerId": timer_id}}]
+
+
+def alarm_cancel_items(alarm_id):
+    """Элементы отмены будильника: экран списка (как у установки и отмены таймера) +
+    alarm_cancel_directive (TAlarmCancelDirective: Name=1, AlarmId=2 — protos).
+    Имя capability-директивы — по образцу семейства (cancel_timer/stop_alarm_…)."""
+    return [{"name": "open_screen_alarm_list_directive", "proto": ALARM_LIST_PROTO,
+             "fields": {"ForceAutoClose": True}},
+            {"name": "alarm_cancel_directive", "proto": CANCEL_ALARM_PROTO,
+             "fields": {"Name": "cancel_alarm_capability_directive", "AlarmId": alarm_id}}]
+
+
+def timer_pause_items(timer_id):
+    """Элементы паузы таймера (TTimerPauseDirective: Name=1, TimerId=2 — protos):
+    экран списка, как в образцах отмены; имя — по семейству cancel_timer_…"""
+    return [{"name": "open_screen_timer_list_directive", "proto": LIST_PROTO,
+             "fields": {"ForceAutoClose": True}},
+            {"name": "timer_pause_directive", "proto": PAUSE_PROTO,
+             "fields": {"Name": "pause_timer_capability_directive", "TimerId": timer_id}}]
+
+
+def timer_resume_items(timer_id):
+    """Элементы продолжения таймера (TTimerResumeDirective: Name=1, TimerId=2 — protos)."""
+    return [{"name": "open_screen_timer_list_directive", "proto": LIST_PROTO,
+             "fields": {"ForceAutoClose": True}},
+            {"name": "timer_resume_directive", "proto": RESUME_PROTO,
+             "fields": {"Name": "resume_timer_capability_directive", "TimerId": timer_id}}]
 
 
 def alarm_add_items(alarm_id, when, hours, minutes, timezone_name="", offset_seconds=0):

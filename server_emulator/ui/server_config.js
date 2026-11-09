@@ -128,7 +128,7 @@
     section.replaceChildren(make('h2', {}, 'Сервер'),
       make('p', { className: 'hint' }, 'Колонки подключаются к основному порту 443 по TLS и к HTTP-порту 80 (quasar.yandex.net); сертификат должен быть тем, которому доверяют колонки. Путь к файлу указывается на компьютере с эмулятором либо файл загружается кнопкой — он сохранится в папке данных (certs/). Изменения применяются перезапуском сервера; если с новыми настройками он не поднимется, вернутся прежние.'),
       make('p', { className: 'hint' }, [version, 'Сейчас: ' + (listeners || '—') + (notes.length ? ' ' + notes.join(' ') : '')].filter(Boolean).join(' · ')),
-      form, selfUpdatePanel(), oauthPanel());
+      form, selfUpdatePanel(), oauthPanel(), protocolPanel());
   }
 
   // Домены, которые должен покрывать сертификат для HTTPS (cert_domains из GET api/server):
@@ -274,6 +274,35 @@
     return form;
   }
 
+  // Alice Pro: служебные поля EffectiveSettings/TrialState в каждом AliceResponse — как у
+  // quasar-server (settings.alice2_settings, читается живьём, выключено по умолчанию).
+  function protocolPanel() {
+    const check = make('input', { type: 'checkbox', checked: !!state.alice2_settings });
+    const error = make('p', { className: 'sc-err', hidden: true, role: 'alert' });
+    const save = make('button', { type: 'submit' }, 'Сохранить');
+    const form = make('form', { className: 'panel' },
+      make('h3', {}, 'Протокол'),
+      make('label', { className: 'srv-check' }, check,
+        make('span', {}, 'Alice Pro: поля EffectiveSettings/TrialState в каждом ответе')),
+      make('p', { className: 'hint' }, 'Выключено по умолчанию — станции без Alice Pro получают ответы прежнего формата. Применяется сразу, без перезапуска.'),
+      error, make('div', { className: 'actions' }, save));
+    form.onsubmit = async event => {
+      event.preventDefault();
+      if (busy) return;
+      error.hidden = true;
+      busy = true; save.disabled = true;
+      try {
+        const settings = await apiSettings();
+        settings.alice2_settings = check.checked;
+        await apiSettings('PUT', settings);
+        state.alice2_settings = check.checked;
+        notify('Настройка протокола сохранена');
+      } catch (e) { error.textContent = e.message; error.hidden = false; }
+      finally { busy = false; save.disabled = false; }
+    };
+    return form;
+  }
+
   // адрес панели после перезапуска: сервер слушает все адреса (0.0.0.0 / ::) — остаёмся на хосте, по которому
   // открыта панель (адрес в сети, имя компьютера), меняются только схема и порт; та же схема, если её слушатель остался
   function panelUrl(c) {
@@ -309,7 +338,7 @@
       state = await call('GET');
       try { state.front_policy = await callFront('GET'); } catch (e) { /* блок политики не покажется */ }
       try { state.self_update = (await apiSettings()).self_update; } catch (e) { /* блок просто не покажется */ }
-      try { state.oauth = (await apiSettings()).oauth; } catch (e) { /* блок просто не покажется */ }
+      try { const s = await apiSettings(); state.oauth = s.oauth; state.alice2_settings = s.alice2_settings; } catch (e) { /* блок просто не покажется */ }
       render();
     } catch (e) { section.replaceChildren(make('h2', {}, 'Сервер'), make('p', { className: 'sc-err' }, e.message)); }
   }

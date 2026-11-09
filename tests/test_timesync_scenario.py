@@ -99,16 +99,20 @@ def test_service_event_fields_from_wire():
     fields = service_event_fields(request.Event.TextInput, request.Event.TextInput.Request.Event)
     assert fields == {'event_name': '@@mm_typed_callback', 'purpose': 'sync_timezone',
                       'disable_output_speech': True, 'timezone': 'Asia/Tashkent',
-                      'callback': '', 'frame': '', 'frame_text': ''}
+                      'callback': '', 'frame': '', 'frame_text': '',
+                      'music_type': '', 'music_token': ''}
     request = service_request(purpose='', timezone='')
     fields = service_event_fields(request.Event.TextInput, request.Event.TextInput.Request.Event)
     assert fields == {'event_name': '@@mm_typed_callback', 'purpose': '', 'disable_output_speech': True,
-                      'timezone': '', 'callback': '', 'frame': '', 'frame_text': ''}
+                      'timezone': '', 'callback': '', 'frame': '', 'frame_text': '',
+                      'music_type': '', 'music_token': ''}
 
 
 def test_tz_offset_seconds():
     assert _tz_offset_seconds('Asia/Tashkent') == 18000
     assert _tz_offset_seconds('Europe/Moscow') == 10800
+    assert _tz_offset_seconds('Asia/Kolkata') == 19800  # дробный пояс +05:30
+    assert _tz_offset_seconds('Asia/Kathmandu') == 20700  # дробный пояс +05:45
     with pytest.raises(BindingError):
         _tz_offset_seconds('')
     with pytest.raises(BindingError):

@@ -33,7 +33,7 @@ DEFAULT = {
     "stt": {"url": "", "model": "", "api_key": "", "language": "ru"},
     "tts": {"url": "", "model": "", "api_key": "", "voice": "", "response_format": "opus"},
     "mcp_servers": [], "tools": [], "device_context": {}, "aapi_model": False,
-    "aapi_voice": False, "aapi_tts": False,
+    "aapi_voice": False, "aapi_tts": False, "alice2_settings": False,
     "builtin_scenarios": True,  # простые команды (время/таймер/будильник/свет/громкость) без AI
     "builtin_disabled": [],  # id встроенных сценариев, выключенных по одному (каталог builtin)
     # Стандартные голосовые ответы: реплики на особые состояния (вне модели). Первый случай —

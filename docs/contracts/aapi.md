@@ -180,6 +180,27 @@ WS heartbeat 30 с; max_msg_size 16 MiB; провайдеры model/stt/tts — 
   ответа на тёмном фоне), голос прозвучал (`onAliceStateChanged: SPEAKING`). Карточка не
   закрывается сразу после речи.
 
+## Отложенный ответ: продолжение сессии (continue_session)
+
+Второй вариант доставки (`settings["agent"]["defer_mode"]`, по умолчанию `push`, читается
+живьём; механика — quasar-server input-handler.ts, решение владельца 2026-11-07):
+
+- Модель не ответила за `agent.async_reply_s` — вместо короткого ответа и Push колонке уходит
+  `AliceResponse` с одной директивой `tts_play_placeholder {channel: Dialog}` и `OnFinish`
+  (поле 14 `TDirective`, `TOnFinishEvent.TypedCallbackRequest=1` — `google.protobuf.Struct`)
+  `{typed_semantic_frame: {continue_session_stage1_semantic_frame: {}}}`. Речи и карточки нет.
+- Колонка после проигрывания placeholder сама присылает `TextInput @@mm_semantic_frame` с
+  `typed_semantic_frame.continue_session_stage2_semantic_frame.dialog_id` — сервер отдаёт
+  продолжение: готовый ответ модели обычным `AliceResponse` с голосом и карточкой.
+- Ответ модели ждёт stage2 не дольше `agent.async_reply_s` (ключ — DialogId запроса, в
+  фрейме колонка возвращает его же); не готова или ключ устарел — «Ответ уже недоступен.»
+  как у Push-варианта. Готовый ответ хранится до 10 мин (`async_reply.CONTINUES`).
+- Пуш-режим не меняется: `defer_mode: push` — прежняя механика раздела выше. Неизвестное
+  значение настройки — push.
+- Трасса: `continue_stage1`, `continue_stage2`, `continue_ready`, `continue_answer`.
+- Проверено на станции: не подтверждено (кадры по quasar-server; живое поведение
+  подтверждает владелец).
+
 ## Отложенный ответ: дополнительные свойства
 
 - Озвучки по фразам (ранний `AliceResponse`, `DeferredAliceResponse` частями, белый шум,
