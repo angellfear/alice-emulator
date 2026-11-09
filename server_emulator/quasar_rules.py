@@ -7,8 +7,9 @@
       → замены устройства → динамика ({{токены}} в строках, маркеры db/run) → итог
 
 Локальный адрес: колонке в «Эмуляции» и «Вместе» голосовой канал уходит на
-ws://alica.lan/uni.ws (LOCAL_HOST — имя в DNS сети на IP сервера), без TLS и без
-подмены *.yandex.ru. Замена устройства этот адрес перебивает.
+ws://<local_domain>/uni.ws (server.json local_domain, по умолчанию alica.lan — имя в DNS
+сети на IP сервера), без TLS и без подмены *.yandex.ru. Пустой local_domain — слоя нет.
+Замена устройства этот адрес перебивает.
 
 Замена — правило:
 
@@ -48,6 +49,7 @@ from pathlib import Path
 
 from jsonpointer import JsonPointer, JsonPointerException, escape
 
+from . import server_config
 from .quasar_config import (INLINE_KEYS, QuasarConfigError, SCRIPTS_DIRNAME, context_for,
                             generated_base, generated_platforms, merge_patch,
                             resolve_tree)
@@ -586,17 +588,22 @@ def account_rules(runtime, device):
     return list(user.get("quasar_overrides") or []), user.get("name") or user["id"]
 
 
-LOCAL_HOST = "alica.lan"
 LOCAL_MODES = ("emulate", "hybrid")
-LOCAL_URLS = (("uniProxyUrl", "/config/system_config/uniProxyUrl", f"ws://{LOCAL_HOST}/uni.ws"),)
+LOCAL_URLS = (("uniProxyUrl", "/config/system_config/uniProxyUrl", "ws://{domain}/uni.ws"),)
 
 
-def local_rules(device):
-    """Замены «локальный адрес» для устройства в «Эмуляции»/«Вместе»; иначе — []."""
-    if device is None or (device.get("route_mode") or "emulate") not in LOCAL_MODES:
+def local_domain(runtime):
+    """Локальный домен из server.json (читается на каждую сборку — без перезапуска); пусто — ""."""
+    return server_config.load(runtime.directory).get("local_domain") or ""
+
+
+def local_rules(device, domain):
+    """Замены «локальный адрес» для устройства в «Эмуляции»/«Вместе»; пустой домен — []."""
+    if not domain or device is None or (device.get("route_mode") or "emulate") not in LOCAL_MODES:
         return []
     return [{"name": name, "path": path, "kind": "select", "enabled": True,
-             "options": {SINGLE: url}, "value": SINGLE} for name, path, url in LOCAL_URLS]
+             "options": {SINGLE: url.format(domain=domain)}, "value": SINGLE}
+            for name, path, url in LOCAL_URLS]
 
 
 def compose_config(runtime, platform, device=None, device_rules=None, trace=None, render=True,
@@ -623,9 +630,10 @@ def compose_config(runtime, platform, device=None, device_rules=None, trace=None
                     raise QuasarConfigError(f"замена аккаунта: путь {rule['path']!r} вне /config/account_config")
             apply_rules(body, rules, f"аккаунт {owner}", runtime, device, context, trace, render)
             options.update(select_options_of(rules))
-    local = local_rules(device)
+    domain = local_domain(runtime) if device is not None else ""
+    local = local_rules(device, domain)
     if local:
-        apply_rules(body, rules_as_list(local), f"локальный адрес {LOCAL_HOST}",
+        apply_rules(body, rules_as_list(local), f"локальный адрес {domain}",
                     runtime, device, context, trace, render)
     if device_rules:
         apply_rules(body, rules_as_list(device_rules, options), "устройство",

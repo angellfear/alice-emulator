@@ -1,7 +1,7 @@
 """Домен server (TASK-042): «Дополнительно → Сервер» — адрес, порты, SSL, сертификат.
 
-GET api/server → {config (файл), effective (с учётом командной строки), overridden, listeners, errors,
-launcher}. PUT api/server — проверка и сохранение в state/server.json (ошибка — 400, файл не меняется;
+GET api/server → {config (файл), effective (с учётом командной строки), cert_domains (домены для
+сертификата и покрыты ли они текущим), overridden, listeners, errors, launcher}. PUT api/server — проверка и сохранение в state/server.json (ошибка — 400, файл не меняется;
 занятый порт — предупреждение). POST api/server {"action": "restart"} — применить перезапуском.
 POST api/server-cert (multipart: kind=cert|key и file) — загрузка PEM в state/certs/ → {path, has_key};
 настройки не меняются, путь подставляет форма, применяется сохранением. Содержимое файла не логируется и не возвращается.
@@ -13,6 +13,7 @@ GET отдаёт ещё observed (домены, которые фронт вид
 from aiohttp import web
 
 from ... import control, server_config
+from ...front import cert_covers, dns_names_in_cert
 from ...version import current
 
 from . import route
@@ -20,6 +21,15 @@ from . import route
 
 def _info(app):
     return app.get(control.INFO_KEY) or {}
+
+
+def cert_domains(state, config):
+    """[{host, covered}] — домены, которые должен покрывать сертификат (локальный домен первым);
+    covered — по SAN текущего файла сертификата (нет файла — False)."""
+    path = server_config.resolve(state, config.get("cert"))
+    names = dns_names_in_cert(path) if path is not None and path.is_file() else ()
+    hosts = ([config["local_domain"]] if config.get("local_domain") else []) + list(server_config.CERT_DOMAINS)
+    return [{"host": host, "covered": cert_covers(host, names)} for host in hosts]
 
 
 def _bound(info):
@@ -31,7 +41,9 @@ async def server(request, runtime, app):
     info = _info(app)
     state = runtime.directory
     if request.method == "GET":
-        return web.json_response({"config": server_config.load(state), "effective": info.get("config"),
+        config = server_config.load(state)
+        return web.json_response({"config": config, "effective": info.get("config"),
+                                  "cert_domains": cert_domains(state, config),
                                   "overridden": info.get("overridden", []), "listeners": info.get("listeners", []),
                                   "errors": info.get("errors", []), "launcher": info.get("launcher", False), "version": current()})
     body = await request.json()

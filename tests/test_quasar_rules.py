@@ -240,3 +240,19 @@ def test_local_address_by_route_mode(tmp_path):
     assert url({"sn": "SN-1", "route_mode": "proxy", "profile": {}}) == base
     own = [{"name": "u", "path": path, "kind": "select", "value": ONE, "options": {ONE: "wss://x/uni.ws"}}]
     assert url({"sn": "SN-1", "profile": {}}, own) == "wss://x/uni.ws"
+
+
+def test_local_address_follows_server_domain(tmp_path):
+    """Домен — из server.json на каждую сборку; пустой — uniProxyUrl из шаблона."""
+    from server_emulator import server_config
+    runtime = FakeRuntime(tmp_path)
+    base = generated_base("yandexstation")["config"]["system_config"]["uniProxyUrl"]
+    device = {"sn": "SN-1", "profile": {}}
+
+    def url():
+        return compose_config(runtime, "yandexstation", device)["config"]["system_config"]["uniProxyUrl"]
+
+    server_config.save(tmp_path, server_config.validate(tmp_path, {"ssl": False, "local_domain": "emu.home"}))
+    assert url() == "ws://emu.home/uni.ws"
+    server_config.save(tmp_path, server_config.validate(tmp_path, {"ssl": False, "local_domain": ""}))
+    assert url() == base

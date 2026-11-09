@@ -128,6 +128,7 @@ class Front:
         self.peers = {}  # (исходящий ip, исходящий порт, внутренний порт) → оригинальный пир
         self.connections = set()
         self.tunnels = {}  # host → число туннелей (для статуса/журнала)
+        self.local_domain = ""  # server.json local_domain, обновляется в _policy
         self.seen = {}  # домены вне сертификата с запуска фронта: host → {"count", "first"} (TASK-093)
         self._server = None
 
@@ -223,6 +224,7 @@ class Front:
     def _policy(self):
         """Режим и лист — живьём из server.json: применяются без перезапуска (TASK-093)."""
         config = server_config.load(self.runtime.directory)
+        self.local_domain = config.get("local_domain") or ""  # имя эмулятора в сети — всегда сплайсом
         return (config.get("front_uncovered") or "tunnel",
                 tuple(config.get("front_allow") or ()))
 
@@ -236,7 +238,7 @@ class Front:
             return "splice"  # литеральный IP публично не резолвится
         except ValueError:
             pass
-        if name.endswith(LOCAL_SUFFIXES):
+        if name.endswith(LOCAL_SUFFIXES) or name == self.local_domain:
             return "splice"
         if not self.sans or cert_covers(name, self.sans):
             return "splice"  # сертификат не читается (всё сплайсом) или имя покрыто

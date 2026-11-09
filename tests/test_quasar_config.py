@@ -36,6 +36,7 @@ class FakeRuntime:
         self.identities = type("I", (), {"data": {"users": users or [], "devices": devices or []}})()
         self.sessions = sessions or {}
         self.quasar_rules = RuleStore(tmp_path / "quasar")
+        self.directory = tmp_path  # server.json нет — локальный домен по умолчанию
 
 
 def device_fixture():

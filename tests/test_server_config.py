@@ -302,3 +302,24 @@ async def test_api_uploads_cert_and_does_not_touch_settings(tmp_path):
         await runner.cleanup()
         await runtime.close()
     assert sorted(p.name for p in (tmp_path / "state" / "certs").iterdir()) == ["server.crt", "server.key"]
+
+
+def test_local_domain_validation_and_cert_domains(tmp_path):
+    """Локальный домен: нормализуется, пусто — выключен, не домен — ошибка; список доменов
+    сертификата — локальный первым, покрытие по SAN файла сертификата."""
+    from server_emulator.ui.api.server_config import cert_domains
+    from tests.test_front_passthrough import make_cert
+    assert server_config.DEFAULTS["local_domain"] == "alica.lan"
+    assert server_config.validate(tmp_path, {"ssl": False, "local_domain": " Emu.LAN. "})["local_domain"] == "emu.lan"
+    assert server_config.validate(tmp_path, {"ssl": False, "local_domain": ""})["local_domain"] == ""
+    for bad in ("*.lan", "a b", "-x.lan"):
+        with pytest.raises(ValueError, match="Локальный домен"):
+            server_config.validate(tmp_path, {"ssl": False, "local_domain": bad})
+    cert, _key = make_cert(tmp_path, "srv", "x", ["alica.lan", "*.yandex.net"])
+    listed = cert_domains(tmp_path, {"cert": str(cert), "local_domain": "alica.lan"})
+    assert listed[0] == {"host": "alica.lan", "covered": True}
+    covered = {d["host"]: d["covered"] for d in listed}
+    assert covered["quasar.yandex.net"] is True and covered["push.yandex.ru"] is False
+    assert covered["uniproxy.alice.yandex.net"] is False  # wildcard — ровно на один уровень
+    assert all(not d["covered"] for d in cert_domains(tmp_path, {"cert": "", "local_domain": ""}))
+    assert cert_domains(tmp_path, {"cert": "", "local_domain": ""})[0]["host"] == "quasar.yandex.net"

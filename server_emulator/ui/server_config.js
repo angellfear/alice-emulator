@@ -5,7 +5,7 @@
   const section = document.getElementById('server');
   if (!section) return;
   let state = null, busy = false;
-  const FIELDS = ['host', 'port', 'ssl', 'cert', 'key', 'http_port', 'front', 'front_dns'];
+  const FIELDS = ['host', 'port', 'ssl', 'cert', 'key', 'http_port', 'front', 'front_dns', 'local_domain'];
 
   const make = (tag, props = {}, ...children) => { const n = Object.assign(document.createElement(tag), props); n.append(...children); return n; };
   const call = async (method, body) => {
@@ -75,6 +75,7 @@
       http_port: make('input', { type: 'number', min: 0, max: 65535, value: c.http_port }),
       front: make('input', { type: 'checkbox', checked: c.front !== false }),
       front_dns: make('input', { value: (c.front_dns || []).join(', '), spellcheck: false }),
+      local_domain: make('input', { value: c.local_domain || '', spellcheck: false, placeholder: 'пусто — конфиг колонок не меняется' }),
     };
     const sslRow = make('label', { className: 'srv-check' }, inputs.ssl, make('span', {}, 'SSL на основном порту'));
     const uploaded = s => notify('Загружено: ' + s.path + '. Нажмите «Сохранить и перезапустить», чтобы применить.');
@@ -83,7 +84,7 @@
         if (s.has_key) inputs.key.value = '';  // ключ лежит в том же файле
         uploaded(s);
       } }),
-      field('Ключ', inputs.key, { kind: 'key', done: uploaded }));
+      field('Ключ', inputs.key, { kind: 'key', done: uploaded }), certDomainsBox());
     const frontRow = make('label', { className: 'srv-check' }, inputs.front,
       make('span', {}, 'Фронт TLS (SNI)', make('small', { className: 'hint' },
         ' — режимы для доменов вне сертификата выбираются ниже')));
@@ -101,7 +102,7 @@
     const listeners = (state.listeners || []).map(l => (l.ok ? '' : '✕ ') + l.scheme + '://' + l.host + ':' + l.port + (l.ok ? '' : ' — ' + l.error)).join(' · ');
     const version = state.version ? 'Версия: ' + state.version.version + (state.version.commit ? ' · ' + state.version.commit : '') + (state.version.dirty ? ' (есть правки)' : '') : '';
     const form = make('form', { className: 'panel srv-form' },
-      field('Адрес', inputs.host), field('Порт', inputs.port), sslRow, certBox,
+      field('Адрес', inputs.host), field('Порт', inputs.port), field('Локальный домен', inputs.local_domain), sslRow, certBox,
       field('HTTP-порт (0 — выключен)', inputs.http_port), frontRow, dnsRow, policyBox,
       error, make('div', { className: 'actions' }, save));
     form.onsubmit = async event => {
@@ -128,6 +129,17 @@
       make('p', { className: 'hint' }, 'Колонки подключаются к основному порту 443 по TLS и к HTTP-порту 80 (quasar.yandex.net); сертификат должен быть тем, которому доверяют колонки. Путь к файлу указывается на компьютере с эмулятором либо файл загружается кнопкой — он сохранится в папке данных (certs/). Изменения применяются перезапуском сервера; если с новыми настройками он не поднимется, вернутся прежние.'),
       make('p', { className: 'hint' }, [version, 'Сейчас: ' + (listeners || '—') + (notes.length ? ' ' + notes.join(' ') : '')].filter(Boolean).join(' · ')),
       form, selfUpdatePanel(), oauthPanel());
+  }
+
+  // Домены, которые должен покрывать сертификат для HTTPS (cert_domains из GET api/server):
+  // отмечены покрытые текущим файлом сертификата. Старый сервер без поля — блок не показывается.
+  function certDomainsBox() {
+    const list = state.cert_domains;
+    if (!Array.isArray(list)) return make('div', { hidden: true });
+    const missing = list.filter(d => !d.covered).length;
+    return make('div', { className: 'srv-cert-domains' },
+      make('p', { className: 'hint' }, 'Домены в сертификате для HTTPS' + (missing ? ' · не покрыто: ' + missing : ' · все покрыты') + ':'),
+      make('ul', {}, ...list.map(d => make('li', { className: d.covered ? '' : 'sc-err' }, (d.covered ? '✓ ' : '✕ ') + d.host))));
   }
 
   // Политика доменов вне сертификата (TASK-093): три режима; для «по листу» — поле (1 домен на строку)

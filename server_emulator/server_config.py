@@ -5,7 +5,8 @@
 (`server.json.prev`) и метку `server.json.pending`; если сервер с новыми настройками не поднялся,
 `rollback` возвращает прежние. Колонкам нужны 443 (TLS) и 80 (HTTP, `quasar.yandex.net`).
 Кроме политики фронта для доменов вне сертификата (`front_uncovered`, `front_allow`): её фронт
-читает из файла на каждое соединение — она применяется без перезапуска (TASK-093).
+читает из файла на каждое соединение — она применяется без перезапуска (TASK-093). И кроме
+локального домена (`local_domain`): его читает сборка get_sync_info на каждый запрос колонки.
 """
 from __future__ import annotations
 
@@ -21,7 +22,14 @@ from pathlib import Path
 FILE = "server.json"
 DEFAULTS = {"host": "0.0.0.0", "port": 443, "ssl": True, "cert": "", "key": "", "http_port": 80,
             "front": True, "front_dns": ["8.8.8.8", "1.1.1.1"],  # фронт TLS и DNS туннелей (TASK-067)
-            "front_uncovered": "tunnel", "front_allow": []}  # домены вне сертификата: режимы фронта (TASK-093)
+            "front_uncovered": "tunnel", "front_allow": [],  # домены вне сертификата: режимы фронта (TASK-093)
+            "local_domain": "alica.lan"}  # имя сервера в DNS сети для колонок; пусто — конфиг колонок не меняется
+# Домены, которые колонка открывает по HTTPS и на которые отвечает эмулятор: их должен покрывать
+# сертификат (к ним добавляется local_domain). Голос на local_domain идёт по ws:// без TLS.
+CERT_DOMAINS = ("quasar.yandex.net", "uniproxy.alice.yandex.net", "rpc.alice.yandex.net", "push.yandex.ru",
+                "oauth.yandex.ru", "mobileproxy.passport.yandex.net", "iot.quasar.yandex.ru",
+                "scbh.yandex.net", "clck.yandex.net", "report.appmetrica.yandex.net",
+                "startup.mobile.yandex.net")
 # Применяются без перезапуска: фронт читает их из файла на каждое соединение (front.py::_policy).
 FRONT_MODES = ("tunnel", "allowlist", "block")
 _DOMAIN_LABEL = r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"
@@ -144,13 +152,17 @@ def validate(state, value):
             or not all(isinstance(item, str) and item.strip() for item in dns):
         raise ValueError("DNS туннелей: адреса через запятую (до 4)")
     mode, allow = front_policy(value)
+    local_domain = str(value.get("local_domain", DEFAULTS["local_domain"]) or "").strip().lower().strip(".")
+    if local_domain and (len(local_domain) > 253 or local_domain.startswith("*")
+                         or not DOMAIN_RE.match(local_domain)):
+        raise ValueError(f"Локальный домен: «{local_domain[:60]}» — не домен")
     config = {"host": host, "port": _port(value.get("port", DEFAULTS["port"]), "Порт"),
               "ssl": bool(value.get("ssl", DEFAULTS["ssl"])),
               "cert": clean_path(value.get("cert")), "key": clean_path(value.get("key")),
               "http_port": _port(value.get("http_port", DEFAULTS["http_port"]), "HTTP-порт", allow_zero=True),
               "front": bool(value.get("front", DEFAULTS["front"])),
               "front_dns": [item.strip() for item in dns],
-              "front_uncovered": mode, "front_allow": allow}
+              "front_uncovered": mode, "front_allow": allow, "local_domain": local_domain}
     if config["port"] == config["http_port"]:
         raise ValueError("Порт и HTTP-порт должны различаться")
     ssl_context(state, config)
