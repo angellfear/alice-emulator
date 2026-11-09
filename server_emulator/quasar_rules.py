@@ -593,7 +593,10 @@ LOCAL_URLS = (("uniProxyUrl", "/config/system_config/uniProxyUrl", "ws://{domain
               # пуш-канал xiva: pushd переподключается на новый адрес живьём, эмулятор мостит
               # его к push.yandex.ru (dispatcher, XIVA_PATH)
               ("xivaSubscribeUrl", "/config/system_config/pushd/xivaSubscribeUrl",
-               "ws://{domain}/v2/subscribe/websocket"))
+               "ws://{domain}/v2/subscribe/websocket"),
+              # gproxy: arpc_client применяет адрес живьём; пути /gproxy/* на локальном домене
+              # эмулятор обслуживает как rpc.alice.yandex.net (dispatcher.LOCAL_DOMAIN_PATHS)
+              ("arpc_server_url", "/config/system_config/arpc_client/server_url", "http://{domain}"))
 
 
 def local_domain(runtime):

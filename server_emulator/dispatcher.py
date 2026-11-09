@@ -33,6 +33,9 @@ log = logging.getLogger(__name__)
 
 XIVA_HOST = "push.yandex.ru"  # пуш-канал quasar-realtime колонки
 XIVA_PATH = "/v2/subscribe/websocket"
+# пути на локальном домене → хост Яндекса: gproxy (system_config.arpc_client.server_url) и
+# отчёты AppMetrica (report/diagnostic в ответе startup)
+LOCAL_DOMAIN_PATHS = (("/gproxy/", "rpc.alice.yandex.net"), ("/report", "report.appmetrica.yandex.net"))
 
 
 class Dispatcher:
@@ -83,6 +86,19 @@ class Dispatcher:
         if device:
             return device.get('sn'), device_id or None, (device.get('route_mode') or 'emulate')
         return None, device_id or None, 'emulate'
+
+    def local_domain_host(self, request, host=None, path=None):
+        """Запрос на локальный домен (server.json local_domain) по пути хоста Яндекса, чей адрес
+        колонка берёт из get_sync_info или ответа startup (LOCAL_DOMAIN_PATHS), обслуживается
+        как запрос к этому хосту; иначе host без изменений."""
+        from .quasar_rules import local_domain
+        current = (host or request.host or "").split(':', 1)[0].rstrip('.').lower()
+        domain = local_domain(self.runtime).lower()
+        if not domain or current != domain:
+            return host
+        target = path or request.path
+        return next((name for prefix, name in LOCAL_DOMAIN_PATHS
+                     if target == prefix or target.startswith(prefix.rstrip('/') + '/')), host)
 
     def canonical_host(self, request, host=None):
         """Канонический хост запроса: алиасы settings.aliases приводят Host к настоящему."""
@@ -425,6 +441,7 @@ class Dispatcher:
             request.match_info['hash'] = request.path.rsplit('/', 1)[-1]
             return await (runtime.catalog.icon(request) if '/icon/' in request.path else runtime.catalog.download(request))
         upstream = getattr(runtime, "upstream", None)
+        host = self.local_domain_host(request, host, path)
         sn, device_id, route_mode = self.route_mode_for(request)
         auth = request.headers.get("Authorization", "")
         if sn and auth.startswith("OAuth "):
@@ -587,7 +604,9 @@ class Dispatcher:
             # Стартовая телеметрия: содержательный ответ (хосты — как у Яндекса, до них
             # колонка добирается DNS-алиасами владельца); hash/uuid — одноразовые
             status = 200
-            output = json.dumps(startup_payload(), ensure_ascii=False).encode()
+            from .quasar_rules import local_domain
+            output = json.dumps(startup_payload(local_domain(runtime) if route_mode in ("emulate", "hybrid") else ""),
+                                ensure_ascii=False).encode()
             headers = {'Content-Type': 'application/json'}
         elif (endpoint := runtime.endpoints.find(canonical_host, request.method, path or request.path)) is not None \
                 and endpoint.get("enabled"):

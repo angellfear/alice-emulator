@@ -535,3 +535,29 @@ def test_recover_skips_non_2xx_answers(tmp_path):
     db = rec.open_db(db_path)
     assert rec.latest_real(db, "rpc.alice.yandex.net", "POST", "/gproxy/push_events_batch",
                            want_json=True) is None
+
+
+@pytest.mark.asyncio
+async def test_local_domain_serves_gproxy_reports_and_startup(tmp_path):
+    """Локальный домен: /gproxy/* — как rpc.alice.yandex.net (arpc_client.server_url из
+    get_sync_info), /report — как report.appmetrica; startup отдаёт отчёты на http://<домен>."""
+    from server_emulator import server_config
+    from server_emulator.server import create_app
+    from tests.conftest import listen
+    server_config.save(tmp_path, server_config.validate(tmp_path, {"ssl": False, "local_domain": "emu.home"}))
+    runtime = Runtime(tmp_path)
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        async with ClientSession() as client:
+            async with client.post(url + "/gproxy/push_events_batch", headers={"Host": "emu.home"}) as response:
+                assert response.status == 200
+            async with client.post(url + "/report", headers={"Host": "emu.home:80"}) as response:
+                assert response.status == 200 and await response.json() == {"status": "accepted"}
+            async with client.get(url + "/analytics/startup",
+                                  headers={"Host": "startup.mobile.yandex.net"}) as response:
+                hosts = (await response.json())["query_hosts"]["list"]
+            assert hosts["report"]["urls"] == hosts["diagnostic"]["urls"] == ["http://emu.home"]
+            assert hosts["startup"]["urls"] == ["https://startup.mobile.yandex.net"]
+    finally:
+        await runner.cleanup()
+        await runtime.close()

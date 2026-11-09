@@ -125,21 +125,23 @@ def clck_json_batch(body):
     return json.dumps([{"ResponseStatus": "OK"} for _ in items], ensure_ascii=False).encode()
 
 
-def startup_payload():
+def startup_payload(local_domain=""):
     """GET /analytics/startup (startup.mobile.yandex.net; образец — startup.mobile.yandex.net.ts
     quasar-server): домены telemetry-инфраструктуры — как у Яндекса (до них колонка добирается
-    DNS-алиасами владельца); hash/uuid — одноразовые значения, никуда не записываются."""
+    DNS-алиасами владельца); local_domain — отчёты (report, diagnostic) на http://<домен>,
+    эмулятор принимает их по пути (dispatcher.LOCAL_DOMAIN_PATHS); hash/uuid — одноразовые."""
     hosts = lambda name: {"urls": ["https://" + name]}
+    reports = {"urls": ["http://" + local_domain]} if local_domain else hosts("report.appmetrica.yandex.net")
     return {
         "device_id": {"hash": str(secrets.randbelow(10 ** 10)).zfill(10)},
         "query_hosts": {"list": {
             "apple_tracking": hosts("tracking.appmetrica.yandex.net"),
             "check_updates": hosts("analytics.mobile.yandex.net"),
-            "diagnostic": hosts("report.appmetrica.yandex.net"),
+            "diagnostic": reports,
             "location": hosts("rosenberg.appmetrica.yandex.net"),
             "mediascope": hosts("zen.report.appmetrica.yandex.net"),
             "redirect": hosts("redirect.appmetrica.yandex.com"),
-            "report": hosts("report.appmetrica.yandex.net"),
+            "report": reports,
             "ssl_pinning": hosts("certificate.mobile.yandex.net"),
             "startup": hosts("startup.mobile.yandex.net"),
         }},

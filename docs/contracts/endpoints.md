@@ -183,7 +183,7 @@ capability уступают каталогу). Подписка в состоя�
 | clck.yandex.net | `POST /quasar_metrics/write/json/batch`, `/smart_display_errors/write/json/batch`, `/quasar/write/json/batch` | массив `[{"ResponseStatus": "OK"}] × N` (N = длина присланного массива; не массив → 500) — диспетчер |
 | report.appmetrica.yandex.net | `POST /report` | `{"status": "accepted"}` (прочие пути appmetrica — прежнее пустое «принято») |
 | scbh.yandex.net | `GET /generate_204` | 204 + `X-Start-Time: <микросекунды строкой>` |
-| startup.mobile.yandex.net | `GET /analytics/startup` | `{device_id: {hash: <10 цифр>}, query_hosts: {list: {9 доменов, как у образца}}, uuid: {value: <hex16>}}` — домены оставлены яндексовыми (до них колонка добирается DNS-алиасами владельца), hash/uuid одноразовые |
+| startup.mobile.yandex.net | `GET /analytics/startup` | `{device_id: {hash: <10 цифр>}, query_hosts: {list: {9 доменов, как у образца}}, uuid: {value: <hex16>}}` — домены яндексовые (до них колонка добирается DNS-алиасами владельца), кроме `report`/`diagnostic`: для «Эмуляции» и «Вместе» — `http://<local_domain>` (приём `/report` на локальном домене); hash/uuid одноразовые |
 
 Порядок прежний: пользовательский эндпоинт перекрывает builtin, builtin отвечает раньше
 честного 404. Автозаполнение из промахов (`tools/endpoints_recover.py`) сохраняет только
