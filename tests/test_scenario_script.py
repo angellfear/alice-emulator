@@ -134,7 +134,7 @@ async def test_script_exception_errors_and_logs_recent(tmp_path):
         assert report["handled"] and report["status"] == "errored"
         assert {"step": "script", "op": "script", "status": "error"} in report["trace"]
         text = report["messages"][0].Event.AliceResponse.Response.Cards[0].Text
-        assert text.startswith("Команда не выполнена") and "script_failed" in text
+        assert text == "Не получилось выполнить команду."  # без причины и трассировки
         entries = recent_scenarios(runtime)
         assert len(entries) == 1
         assert entries[0]["id"] == "user.script.hello" and "RuntimeError: упало" in entries[0]["error"]

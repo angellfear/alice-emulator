@@ -202,7 +202,7 @@ async def test_builtin_py_scenario_copy_via_api_with_code(tmp_path):
             assert code and 'handle' in code  # код встроенного py-сценария доступен редактору
             scenario = copy.deepcopy({k: v for k, v in SCENARIOS['device.volume'].items() if not k.startswith('_')})
             scenario['id'] = 'user.device.volume'
-            scenario['triggers'] = [{'kind': 'phrase', 'phrases': ['копия сценария громкости']}]
+            scenario['triggers'] = [{'kind': 'phrase', 'phrases': ['копия сценария громкость три']}]
             async with client.put(url + '/emulator/api/scenarios', headers=headers, json={'scenario': scenario}) as response:
                 assert response.status == 400  # без кода копия py-сценария не создаётся
                 assert 'нет кода' in (await response.json())['error']
@@ -212,7 +212,7 @@ async def test_builtin_py_scenario_copy_via_api_with_code(tmp_path):
             assert (runtime.scenario_dir / 'user.device.volume.py').read_text(encoding='utf-8') == code
             runtime.settings['aapi_model'] = False
             async with client.post(url + '/emulator/api/scenarios', headers=headers,
-                                   json={'text': 'копия сценария громкости'}) as response:
+                                   json={'text': 'копия сценария громкость три'}) as response:
                 report = await response.json()
             assert report['handled'] and report['scenario'] == 'user.device.volume'
     finally:

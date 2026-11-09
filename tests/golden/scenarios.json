@@ -4215,9 +4215,52 @@
           "effects": [],
           "input": {
             "kind": "text",
-            "phrase": "пауза таймера"
+            "phrase": "таймер на паузе"
           },
           "name": "timers.timer.pause-trigger0-2",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Активных таймеров нет.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Активных таймеров нет."
+                }
+              ],
+              "reason": "phrase:exact",
+              "scenario": "timers.timer.pause",
+              "speech": "Активных таймеров нет.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "таймер на паузе"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "пауза таймера"
+          },
+          "name": "timers.timer.pause-trigger0-3",
           "runs": [
             {
               "handled": true,

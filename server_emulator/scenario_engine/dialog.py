@@ -74,6 +74,9 @@ def question_message(server_type, text, ctx, listen=False):
     return message
 
 
+SCENARIO_FAILED = "Не получилось выполнить команду."
+
+
 def _speech_text(outcome):
     """Озвучиваемый текст прогона: последняя скомпонованная реплика; вопрос
     уточнения и текст ошибки озвучиваются тем же трактом (голосовой путь)."""
@@ -445,6 +448,6 @@ class DialogManager:
         if outcome.status == "awaiting" and outcome.question:
             messages.append(question_message(self.server_type, outcome.question, ctx, listen=True))
         elif outcome.status == "errored" and not outcome.composed:
-            text = "Команда не выполнена: " + (outcome.error or "неизвестная ошибка")
-            messages.append(question_message(self.server_type, text, ctx))
+            # колонке — короткая фраза; причина сбоя — в журнале сервера и отчёте проверки
+            messages.append(question_message(self.server_type, SCENARIO_FAILED, ctx))
         return messages

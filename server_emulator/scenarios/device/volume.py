@@ -61,7 +61,7 @@ async def handle(ctx):
     else:
         level = ctx.parse_number(minimum=0, maximum=100)
         if level is None:
-            raise ValueError("Не удалось понять громкость")  # числа в фразе нет — прежний путь
+            return None  # «громкость» без числа и режима — уступаем следующему кандидату
         if level > 10:
             return None  # число вне шкалы — уступаем: реплика уходит следующему кандидату
     return set_level_reply(level, max_level)
