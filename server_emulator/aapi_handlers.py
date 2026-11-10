@@ -149,6 +149,12 @@ def _is_recover_commit(fields):
     return fields.get("music_type") == "recoverCommit"
 
 
+def _is_music_touch(fields):
+    """music_command=continue/next/prev (кнопки виджета музыки: TMusicTouchTypedCallback
+    Continue/NextTrack/PrevTrack)"""
+    return bool(fields.get("music_command"))
+
+
 def _is_timesync(fields):
     """callback=NAlice.TDeviceControlTimesyncTypedCallback или purpose=sync_timezone"""
     return fields.get("callback") == "NAlice.TDeviceControlTimesyncTypedCallback" or fields.get("purpose") == "sync_timezone"
@@ -162,6 +168,8 @@ callback_route('@@mm_typed_callback', 'informers.requested', _is_informers, 'и�
 callback_route('@@mm_typed_callback', 'timesync.requested', _is_timesync, 'синхронизация времени',
                lambda fields: "event:@@mm_typed_callback[" +
                               ("callback=%s" % fields["callback"] if fields.get("callback") else "purpose=sync_timezone") + "]")
+callback_route('@@mm_typed_callback', 'music.touch', _is_music_touch, 'кнопки виджета музыки',
+               lambda fields: "event:@@mm_typed_callback[music_command=%s]" % fields["music_command"])
 callback_route('@@mm_typed_callback', 'callbacks.ack', None, 'прочие колбэки приложения — тихое подтверждение',
                'event:@@mm_typed_callback')
 callback_route('@@mm_semantic_frame', 'weather.opened', _is_weather_tap, 'тап по виджету погоды',

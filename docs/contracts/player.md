@@ -82,6 +82,7 @@
 | `music_thin_client_on_stopped` | x134: только `tts_play_placeholder` | `callbacks.ack` |
 | `@@mm_stack_engine_get_next` | x92: очередь Яндекса (см. ниже), x4: только placeholder | `music.stack_next` → сценарий `media.music`: поставщик есть — следующий трек; нет — сценарий отказывается, умолчание маршрута (тихий ack) |
 | кнопки экрана плеера (`@@mm_typed_callback`, `purpose=player_*`) | — | `callbacks.ack` |
+| кнопки виджета музыки (`@@mm_typed_callback`, `NAlice.TMusicTouchTypedCallback`: `Continue`, `NextTrack`, `PrevTrack`) | образца нет | `music.touch` → сценарий `media.music`: ответы фраз «продолжи», «дальше», «предыдущий» без речи; нечего играть — тихий ack |
 
 - `music_thin_client_on_paused` / `on_resumed` / `on_progress` в журнале **не встречались**
   (проход по всем блокам: только on_started/on_stopped/on_finished/on_failed/recovery).
@@ -108,6 +109,11 @@
   `continue` справочника фраз поставщика (`phrases/music.json`): `neighbor(±1)` стеком
   «дальше»; «продолжи» — с места паузы (как «включи музыку» на паузе), иначе текущий
   трек поставщика сначала; дальше нечего — «Дальше ничего нет.» / «Это первый трек.».
+- Кнопки виджета музыки в шторке и на главном экране: колонка шлёт `@@mm_typed_callback`
+  с `typed_callback_serialized` = `Any(NAlice.TMusicTouchTypedCallback)` и
+  `request_params.disable_output_speech`. Поле запроса `music_command` (`continue`/`next`/`prev`)
+  разбирается по схеме станции из `Command` (oneof `Value`); прочие команды (`Like`, `Repeat`,
+  `Shuffle`…) идут в общий тихий ack. Лайк и пауза колонка выполняет сама.
   Только при треке в плеере колонки (`ctx.player.title`); плеер пуст — сценарий
   отказывается, фраза уходит дальше (в играх «дальше» — ход модели).
 - В «Вместе» колбэки контента Яндекса уходят наверх до маршрута

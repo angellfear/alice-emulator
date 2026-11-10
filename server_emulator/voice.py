@@ -113,6 +113,30 @@ def _typed_callback_type(payload):
     return message.type_url.rsplit('/', 1)[-1]
 
 
+# Кнопки виджета музыки: TMusicTouchTypedCallback.Command → намерение сценария музыки
+MUSIC_TOUCH = 'NAlice.TMusicTouchTypedCallback'
+MUSIC_TOUCH_COMMANDS = {'Continue': 'continue', 'NextTrack': 'next', 'PrevTrack': 'prev'}
+
+
+def _music_command(payload):
+    """Команда кнопки виджета музыки (Continue/NextTrack/PrevTrack → continue/next/prev)
+    из typed_callback_serialized; другая команда или другой колбэк — ''."""
+    raw = _string_member(payload, 'typed_callback_serialized')
+    if not raw:
+        return ''
+    try:
+        import base64
+        from google.protobuf import any_pb2
+        from server_emulator.schema import load_type, schemas_dir, station_file
+        message = any_pb2.Any.FromString(base64.b64decode(raw))
+        if message.type_url.rsplit('/', 1)[-1] != MUSIC_TOUCH:
+            return ''
+        touch = load_type(schemas_dir(), station_file(), MUSIC_TOUCH).FromString(message.value)
+    except Exception:
+        return ''
+    return MUSIC_TOUCH_COMMANDS.get(touch.Command.WhichOneof('Value') or '', '')
+
+
 
 
 
@@ -174,6 +198,7 @@ def service_event_fields(request, event_obj):
             'frame_text': _string_member(frame_value.struct_value, 'text') if frame_value is not None and frame_value.WhichOneof('kind') == 'struct_value' else '',
             'music_type': _string_member(music_struct, 'type'),
             'music_token': _string_member(music_struct, 'recoverCommitToken'),
+            'music_command': _music_command(event_obj.Payload),
 
             'purpose': _string_member(analytics, 'purpose'),
 

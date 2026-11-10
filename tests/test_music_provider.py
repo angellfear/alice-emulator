@@ -956,3 +956,62 @@ async def test_next_prev_continue_phrases_use_provider_queue(tmp_path):
         assert [call[3] for call in calls if call[0] == "neighbor"] == [1, -1, 0]
     finally:
         await runtime.close()
+
+
+# --- кнопки виджета музыки (TMusicTouchTypedCallback) -----------------------------------
+
+# «плей» в виджете .202: Any(NAlice.TMusicTouchTypedCallback{Command{Continue{}}})
+WIDGET_PLAY = "CjN0eXBlLmdvb2dsZWFwaXMuY29tL05BbGljZS5UTXVzaWNUb3VjaFR5cGVkQ2FsbGJhY2sSBBICcgA="
+
+
+def test_widget_play_parsed_as_continue():
+    """Кнопка «плей» виджета — music_command=continue; другой колбэк — пусто."""
+    from google.protobuf import struct_pb2
+    from server_emulator.schema import schemas_ready
+    from server_emulator.voice import _music_command
+    if not schemas_ready():
+        pytest.skip("нет схем протокола")
+    payload = struct_pb2.Struct()
+    payload.update({"typed_callback_serialized": WIDGET_PLAY})
+    assert _music_command(payload) == "continue"
+    payload.update({"typed_callback_serialized": ""})
+    assert _music_command(payload) == ""
+
+
+def _touch_ctx(runtime, command, station=None):
+    """Контекст колбэка кнопки виджета (как собирает voice.py с EVENT_FILTERS)."""
+    ctx = service_ctx(runtime, "@@mm_typed_callback")
+    ctx["input"]["music_command"] = command
+    if station:
+        ctx["station"] = station
+    return ctx
+
+
+async def test_widget_buttons_follow_voice_commands(tmp_path):
+    """«далее» — neighbor(+1) стеком «дальше», без речи; «назад» без соседа и «плей»
+    без текущего трека (neighbor 0) — тихое подтверждение."""
+    runtime = Runtime(tmp_path)
+    marker = tmp_path / "marker.json"
+    make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
+    station = {"player": {"state": "playing", "playing": True, "title": "Трек 1"}}
+    try:
+        sent = []
+        report = await runtime.dialog.handle_event(
+            "music.touch", _touch_ctx(runtime, "next", station), "dlg-1", await _collect(sent))
+        assert report["handled"], report
+        [message] = _sent_messages(sent)
+        assert _reply_names(message) == ["tts_play_placeholder", "apply_player_playback_queue_directive",
+                                         "set_audio_player_sequence_state_directive", "audio_play"]
+        assert not _reply_speech(message)
+        report = await runtime.dialog.handle_event(
+            "music.touch", _touch_ctx(runtime, "prev", station), "dlg-1", await _collect([]))
+        assert not report["handled"]
+        report = await runtime.dialog.handle_event(  # текущего трека у тестового поставщика нет
+            "music.touch", _touch_ctx(runtime, "continue", station), "dlg-1", await _collect([]))
+        assert not report["handled"]
+        calls = json.loads(marker.read_text(encoding="utf-8"))
+        assert [call[3] for call in calls if call[0] == "neighbor"] == [1, -1, 0]
+    finally:
+        await runtime.close()
+

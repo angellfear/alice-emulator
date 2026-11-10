@@ -366,6 +366,7 @@ class Event:
     frame: str = ""
     music_type: str = ""
     music_token: str = ""
+    music_command: str = ""
 
 
 class _ActionExecution:
@@ -454,7 +455,8 @@ class ScenarioContext:
                      purpose=str(source.get("purpose") or ""),
                      frame=str(source.get("frame") or ""),
                      music_type=str(source.get("music_type") or ""),
-                     music_token=str(source.get("music_token") or ""))
+                     music_token=str(source.get("music_token") or ""),
+                     music_command=str(source.get("music_command") or ""))
 
     @property
     def ask(self):

@@ -28,6 +28,9 @@ sequence_state + audio_play). Своей очереди у ядра нет — �
 - Фразы «дальше»/«предыдущий»/«продолжи» — записи next/prev/continue справочника фраз
   поставщика: neighbor(±1) стеком «дальше»; «продолжи» — с места паузы (_resume),
   иначе текущий трек поставщика сначала.
+- Кнопки виджета музыки (provide music.touch, TMusicTouchTypedCallback): Continue,
+  NextTrack, PrevTrack — те же ответы, что фразы «продолжи», «дальше», «предыдущий»,
+  без речи (колбэк просит disable_output_speech); соседа нет — тихий отказ.
 
 Не-музыкальные домены голого шаблона отклоняет guard сценария (music.json,
 привязка media_other_domain в scenario_engine.bindings).
@@ -48,6 +51,7 @@ LINK = re.compile(r"(?:open\.spotify\.com/(?:intl-[a-z]{2,5}/)?(?:embed/)?track/
 
 GET_NEXT = ("music.stack_next", "@@mm_stack_engine_get_next")
 RECOVER = "music.recover_commit"  # recoverCommit: подтверждение перехода трека
+TOUCH = "music.touch"  # кнопка виджета музыки: ctx.event.music_command — continue/next/prev
 
 # kind поиска по реплике: сказки/аудиокниги/подкасты или music
 KINDS = (("сказк", "tales"), ("аудиокниг", "audiobook"), ("подкаст", "podcast"))
@@ -108,6 +112,8 @@ async def handle(ctx):
         return await _recover_commit(ctx)
     if ctx.route_mode == "hybrid":
         return None  # «Вместе»: музыку отдаёт Яндекс (релей голоса)
+    if event == TOUCH or ctx.event.music_command:  # кнопка виджета (wire-имя @@mm_typed_callback)
+        return await _touch(ctx)
     # совпавшая запись справочника фраз ведёт к поставщику её владельца (не глобально
     # выбранного); прямой запуск (агент, колбэки) — выбранный поставщик
     entry = ctx.phrase_entry or {}
@@ -150,6 +156,24 @@ async def handle(ctx):
         ctx.state["ext_id"] = entry.get("ext_id") or ""
         return ask(str(found["note"]), then="on_query")
     return _reply(ctx, found, query, entry.get("ext_id") or "")
+
+
+async def _touch(ctx):
+    """Кнопка виджета: «плей» — продолжение с места паузы, иначе текущий трек сначала;
+    «далее»/«назад» — сосед в очереди поставщика. Без речи: нечего играть — отказ,
+    умолчание маршрута — тихое подтверждение."""
+    provider = ctx.music
+    intent = ctx.event.music_command
+    if provider is None:
+        return None
+    if intent in STEPS:
+        track = await music.neighbor(ctx, provider, None, None, STEPS[intent])
+    else:
+        resumed = await _resume(ctx, provider)
+        if resumed is not None:
+            return resumed
+        track = await music.neighbor(ctx, provider, None, None, 0)
+    return _with_commit(ctx, provider, track) if track is not None else None
 
 
 async def _resume(ctx, provider):

@@ -100,12 +100,12 @@ def test_service_event_fields_from_wire():
     assert fields == {'event_name': '@@mm_typed_callback', 'purpose': 'sync_timezone',
                       'disable_output_speech': True, 'timezone': 'Asia/Tashkent',
                       'callback': '', 'frame': '', 'frame_text': '',
-                      'music_type': '', 'music_token': ''}
+                      'music_type': '', 'music_token': '', 'music_command': ''}
     request = service_request(purpose='', timezone='')
     fields = service_event_fields(request.Event.TextInput, request.Event.TextInput.Request.Event)
     assert fields == {'event_name': '@@mm_typed_callback', 'purpose': '', 'disable_output_speech': True,
                       'timezone': '', 'callback': '', 'frame': '', 'frame_text': '',
-                      'music_type': '', 'music_token': ''}
+                      'music_type': '', 'music_token': '', 'music_command': ''}
 
 
 def test_tz_offset_seconds():

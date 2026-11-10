@@ -35,8 +35,8 @@ def trigger_phrases(trigger):
     return phrases
 
 
-# music_type/music_token — recoverCommit-колбэк плеера (music.py)
-EVENT_FILTERS = ("callback", "purpose", "frame", "music_type", "music_token")
+# music_type/music_token — recoverCommit-колбэк плеера, music_command — кнопка виджета (music.py)
+EVENT_FILTERS = ("callback", "purpose", "frame", "music_type", "music_token", "music_command")
 
 
 def match_trigger(trigger, event_name, text, event=None):
