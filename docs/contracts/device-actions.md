@@ -35,6 +35,7 @@ module: "server_emulator/runtime.py"
 | iot_sync_endpoints_directive | IoT | captures (не реализован) |
 | open_screen_timer_info_directive, open_screen_timer_list_directive, open_screen_alarm_list_directive, close_screen_timer_active_directive, close_screen_alarm_active_directive | экраны «Часов» (ClockAppCapability, payload_raw по схеме станции) | timer-set / timer-list / timer-cancel / alarm-set / alarm-stop, tests/fixtures/directives |
 | timer_set_directive, timer_cancel_directive, timer_stop_directive, alarm_add_directive, alarm_stop_directive | таймеры/будильники (AlarmCapability, payload_raw; id 8-8-8-8 hex) | там же; сверка — tests/test_time_scenarios.py |
+| divui_show_view (Div2Card YouTubeWebviewData) | **запуск ютуба** на станции с экраном: тихий ответ — tts_play_placeholder + webview-карта m.youtube.com (youtube_inject, voice_controls), InactivityTimeout Infinity, TerminateActions → divui_hide_view по статическому CardId `youtube_key_static_key`; свежий uuid — log_id карты и request_id webview (одно значение) | запись .85 «Прозрачно» 2026-11-10 (обмен 126042), форма — server_emulator/app_cards/youtube.json; сценарий device.app.open + app_directives.py |
 
 Полный `TDirective`: Type, Name, AnalyticsType, IgnoreAnswer, Payload(Struct), PayloadRaw(bytes), MultiroomSessionId, RoomDeviceIds, IsLedSilent, EndpointId, IsParallel, TimeBeforeDropMs, PersId, OnFinish, Id, SourceInfo, DirectiveType, Channel (descriptor). Multiroom/Endpoint поля не подтверждаются нашими устройствами — не заполнять без evidence.
 

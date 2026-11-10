@@ -144,6 +144,10 @@ class AgentService:
         parts = [runtime.settings["system_prompt"], mcp_hub.base_context(runtime, context)]
         if extra:
             parts.append("Контекст устройства: " + json.dumps(extra, ensure_ascii=False))
+        from ..intelligence import apps_context
+        apps = apps_context(runtime, context.get("sn"))
+        if apps:
+            parts.append(apps)
         catalog = scenarios.index(runtime)
         if catalog:
             parts.append("Сценарии — быстрые команды, которые колонка выполняет без тебя. Если просьба — одна из них "

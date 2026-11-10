@@ -1,0 +1,256 @@
+{
+ "proves": "Ответ настоящего сервера «открой ютуб» (.85 «Прозрачно», запись 2026-11-10, обмен 126042): тихий ответ — tts_play_placeholder + divui_show_view с webview-картой приложения; запуск ютуба на станции с экраном — webview m.youtube.com, не Android-intent.",
+ "directive": {
+  "Name": "divui_show_view",
+  "InactivityTimeout": "Infinity",
+  "GestureInteraction": [
+   "BackSwipe",
+   "CloseSwipe"
+  ],
+  "TerminateActions": [
+   "dialog://?directives=%5B%7B%22type%22%3A%22client_action%22%2C%22name%22%3A%22divui_hide_view%22%2C%22payload%22%3A%7B%22Identifier%22%3A%7B%22CardId%22%3A%22youtube_key_static_key%22%2C%22CardName%22%3A%22youtube%22%7D%7D%7D%5D"
+  ],
+  "StackInteraction": "DeflatesAllAbove",
+  "Div2Card": {
+   "CardName": "YouTubeWebviewData",
+   "Id": {
+    "CardName": "youtube",
+    "CardId": "youtube_key_static_key"
+   },
+   "StringBody": {
+    "templates": {},
+    "card": {
+     "variable_triggers": [
+      {
+       "condition": "@{isPortrait}",
+       "actions": [
+        {
+         "log_id": "chvr1",
+         "url": "div-action://set_variable?name=isVertical&value=true"
+        }
+       ]
+      },
+      {
+       "condition": "@{!isPortrait}",
+       "actions": [
+        {
+         "log_id": "chvr2",
+         "url": "div-action://set_variable?name=isVertical&value=false"
+        }
+       ]
+      },
+      {
+       "condition": "@{isWebviewFirstPageLoaded}",
+       "actions": [
+        {
+         "log_id": "hide_youtube_video_skeleton_dual_screen",
+         "url": "div-action://set_state?state_id=0/youtube_skeleton/empty&temporary=false",
+         "payload": {}
+        }
+       ]
+      }
+     ],
+     "variables": [
+      {
+       "type": "string",
+       "name": "bindToTag",
+       "value": "webview_youtube"
+      },
+      {
+       "type": "integer",
+       "name": "bindToVideo",
+       "value": 1
+      },
+      {
+       "type": "integer",
+       "name": "bindToCall",
+       "value": 1
+      },
+      {
+       "type": "integer",
+       "name": "bindToTap",
+       "value": 1
+      },
+      {
+       "type": "integer",
+       "name": "bindToAlice",
+       "value": 1
+      },
+      {
+       "type": "boolean",
+       "name": "isWebviewFirstPageLoaded",
+       "value": 0
+      },
+      {
+       "type": "boolean",
+       "name": "isVertical",
+       "value": false
+      }
+     ],
+     "log_id": "<uuid>",
+     "states": [
+      {
+       "state_id": 0,
+       "div": {
+        "type": "container",
+        "extensions": [
+         {
+          "id": "alice_voice_control",
+          "params": {
+           "voice_controls_raw": [
+            "CgISABKTAQoD4hAAIosBCmEKOnR5cGUuZ29vZ2xlYXBpcy5jb20vTkFsaWNlLlRDZW50YXVyR29CYWNrd2FyZFR5cGVkQ2FsbGJhY2sSIwohCgd5b3V0dWJlEhZ5b3V0dWJlX2tleV9zdGF0aWNfa2V5EhwKCGNvbW1hbmRzEAIaDGdvX2JhY2t3YXJkcyIAIggIABABGAAgAQ=="
+           ]
+          }
+         }
+        ],
+        "height": {
+         "type": "match_parent"
+        },
+        "items": [
+         {
+          "type": "container",
+          "height": {
+           "type": "match_parent"
+          },
+          "items": [
+           {
+            "type": "custom",
+            "background": [
+             {
+              "type": "solid",
+              "color": "#000"
+             }
+            ],
+            "custom_props": {
+             "url": "https://m.youtube.com/",
+             "home_url": "https://m.youtube.com",
+             "media_session_id": "webview_youtube",
+             "force_dark": true,
+             "div_id": {
+              "card_name": "youtube",
+              "card_id": "youtube_key_static_key"
+             },
+             "request_id": "<uuid>",
+             "initial_scale": 210,
+             "youtube_embed_player": false,
+             "allow_leave_youtube": false,
+             "youtube_inject": {
+              "enable_media_session_client": true,
+              "enable_player_auto_fullscreen": false,
+              "enable_player_auto_unmute": true,
+              "enable_player_looks_pretty": false,
+              "enable_player_icon_hiding": true,
+              "enable_swipe_to_back": false,
+              "player_controls_scale": 125,
+              "disable_click_highlight": true,
+              "enable_player_pseudo_fullscreen": true,
+              "enable_player_fixer": true,
+              "enable_player_stop_on_load": false
+             },
+             "content_provider": "YOUTUBE",
+             "on_ready_to_show": "div-action://set_variable?name=isWebviewFirstPageLoaded&value=1"
+            },
+            "custom_type": "centaur_webview",
+            "height": {
+             "type": "match_parent"
+            },
+            "width": {
+             "type": "match_parent"
+            }
+           },
+           {
+            "type": "state",
+            "default_state_id": "skeleton",
+            "height": {
+             "type": "match_parent"
+            },
+            "id": "youtube_skeleton",
+            "states": [
+             {
+              "state_id": "skeleton",
+              "div": {
+               "type": "container",
+               "background": [
+                {
+                 "type": "solid",
+                 "color": "#0F0F0F"
+                }
+               ],
+               "content_alignment_horizontal": "center",
+               "content_alignment_vertical": "center",
+               "height": {
+                "type": "match_parent"
+               },
+               "items": [
+                {
+                 "type": "youtube_main_screen_skeleton_content_global_template"
+                }
+               ],
+               "orientation": "overlap",
+               "transition_out": {
+                "type": "fade",
+                "duration": 400
+               },
+               "width": {
+                "type": "match_parent"
+               }
+              }
+             },
+             {
+              "state_id": "empty"
+             }
+            ],
+            "width": {
+             "type": "match_parent"
+            }
+           }
+          ],
+          "orientation": "overlap",
+          "visibility_actions": [],
+          "width": {
+           "type": "match_parent"
+          }
+         },
+         {
+          "type": "separator",
+          "alignment_horizontal": "left",
+          "alignment_vertical": "top",
+          "delimiter_style": {
+           "color": "#0fff"
+          },
+          "height": {
+           "type": "fixed",
+           "value": 1
+          },
+          "id": "block_for_on_load_actions",
+          "width": {
+           "type": "fixed",
+           "value": 1
+          }
+         }
+        ],
+        "orientation": "overlap",
+        "visibility_actions": [
+         {
+          "log_id": "youtube_key_static_key_page_show",
+          "payload": {
+           "meta": {
+            "cardName": "youtube",
+            "cardId": "youtube_key_static_key"
+           }
+          },
+          "visibility_duration": 0,
+          "visibility_percentage": 80
+         }
+        ],
+        "width": {
+         "type": "match_parent"
+        }
+       }
+      }
+     ]
+    }
+   }
+  }
+ }
+}

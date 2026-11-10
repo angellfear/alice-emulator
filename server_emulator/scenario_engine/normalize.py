@@ -125,7 +125,12 @@ def deglue(text, lexicon):
 
 
 def lexicon_for(scenarios):
-    """Слова всех phrase-триггеров каталога + служебные слова команд."""
+    """Слова всех phrase-триггеров каталога + служебные слова команд.
+
+    Слова короче трёх букв из триггеров в лексикон не попадают: предлоги-однобуквенки
+    («у», «с», «к») делали «минуту» → «мин у т у» в разглее и ломали матчинг всех
+    сценариев; для матчинга они и не нужны — короткий токен не заменяется нечётко
+    (FUZZY_MIN_LEN) и сверяется в фразе как есть."""
     words = set(COMMON_WORDS)
     for scenario in scenarios or []:
         for trigger in scenario.get("triggers", []) or []:
@@ -133,7 +138,7 @@ def lexicon_for(scenarios):
                 continue
             for phrase in [trigger.get("name") or ""] + list(trigger.get("phrases") or []):
                 for word in clean(phrase if isinstance(phrase, str) else "").split(" "):
-                    if word:
+                    if word and len(word) >= 3:
                         words.add(word)
     return words
 

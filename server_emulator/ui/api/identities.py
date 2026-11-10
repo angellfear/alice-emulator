@@ -122,3 +122,24 @@ async def user_login(request, runtime, app):
         raise ValueError('Вход отключён: сначала создайте администратора командой python -m server_emulator.auth')
     principal = auth.set_user_login(user_id, value.get('name'), value.get('password') or None)
     return web.json_response({'enabled': True, 'name': principal['name']})
+
+
+@route("device_apps", methods=("PUT",))
+async def device_apps(request, runtime, app):
+    """Ручной список установленных приложений колонки: PUT {sn, apps: [имена]}.
+    Данные пользователя (device.state.apps), не протокол: сценарий app.open и промпт
+    модели/агента читают их. Остальные ключи state сохраняются (read-modify-write
+    под runtime.lock, как у fetch_state_last)."""
+    value = await request.json()
+    sn = str(value.get('sn') or '')
+    apps = value.get('apps')
+    if not isinstance(apps, list) or any(not isinstance(a, str) or not a.strip() for a in apps):
+        raise ValueError('apps: список непустых строк')
+    async with runtime.lock:
+        device = next((d for d in runtime.identities.data['devices'] if d['sn'] == sn), None)
+        if device is None:
+            raise ValueError('SN не найден')
+        state = copy.deepcopy(device.get('state') or {})
+        state['apps'] = [str(a).strip() for a in apps]
+        runtime.identities.mutate({'operation': 'state', 'sn': sn, 'state': state})
+    return web.json_response({'sn': sn, 'apps': state['apps']})

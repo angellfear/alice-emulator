@@ -116,8 +116,11 @@ class ProviderManager:
         # Базовые сведения (время, пользователь, колонки) — всегда; свой device_context профиля —
         # без служебных sn/user_id/state (state несёт конфиг колонки целиком, модели он не нужен)
         extra = {k: v for k, v in device_context.items() if k not in ("sn", "user_id", "state")}
+        from .intelligence import apps_context
+        apps = apps_context(runtime, context.get("sn"))
         system = runtime.settings["system_prompt"] + "\n\n" + mcp_hub.base_context(runtime, context) \
-            + ("\nКонтекст устройства: " + json.dumps(extra, ensure_ascii=False) if extra else "")
+            + ("\nКонтекст устройства: " + json.dumps(extra, ensure_ascii=False) if extra else "") \
+            + ("\n" + apps if apps else "")
         messages = [{"role": "system", "content": system}] + (history or [])[-12:] + [{"role": "user", "content": text}]
         runs, usage = [], {}
         # Цикл инструментов: вызовы auto-инструментов (mcp_hub) исполняются, результат

@@ -153,10 +153,16 @@ async def test_app_open_found_and_not_found(tmp_path):
     runtime.identities.mutate({'operation': 'device', 'sn': 'SN-A', 'user_id': 'owner', 'device_ids': []})
     device = next(d for d in runtime.identities.data['devices'] if d['sn'] == 'SN-A')
     runtime.identities.mutate({'operation': 'state', 'sn': 'SN-A', 'state': dict(
-        device['state'], apps=[{"name": "YouTube", "package": "com.google.android.youtube"}])})
+        device['state'], apps=[{"name": "YouTube", "package": "com.google.android.youtube"},
+                               {"name": "Кинопоиск", "package": "ru.kinopoisk"}])})
     try:
+        # приложение с образцом запуска (ютуб) — тихий webview-ответ, карточек нет
         report, sent, _ = await _say(runtime, "открой youtube", sn="SN-A")
-        assert report["scenario"] == "device.app.open" and "«YouTube» найдено" in _card(sent)
+        assert report["scenario"] == "device.app.open"
+        assert [d.Name for d in _alice(sent).Response.Directives] ==             ["tts_play_placeholder", "divui_show_view"]
+        # прочие приложения — честная карточка «найдено, запуск не поддержан»
+        report, sent, _ = await _say(runtime, "открой кинопоиск", sn="SN-A")
+        assert "«Кинопоиск» найдено" in _card(sent)
         report, sent, _ = await _say(runtime, "запусти спотифай", sn="SN-A")
         assert _card(sent) == "Приложение «спотифай» не найдено."
     finally:

@@ -125,6 +125,28 @@ def ext_fallback(runtime, mode_id, reason):
     return not_understood(runtime)
 
 
+def apps_context(runtime, sn):
+    """Компактный список установленных приложений колонки для промпта модели/агента:
+    имена из device.state.apps (ручной список вкладки «Устройства», сценарий app.open
+    читает тот же список). Нет устройства/списка — None (в промпт ничего не добавляется)."""
+    build = getattr(runtime, "_scenario_context", None)
+    if build is None or not sn:
+        return None
+    try:
+        apps = build(sn=sn)["device"]["apps"]
+    except Exception:  # noqa: BLE001 — список не найден, промпт без него
+        return None
+    names = []
+    for app in apps or []:
+        name = str(app.get("name") if isinstance(app, dict) else app or "").strip()
+        if name and name not in names:
+            names.append(name)
+    if not names:
+        return None
+    return ("Установленные приложения на этой колонке: " + ", ".join(names)
+            + ". Просьбу открыть приложение выполни через scenario_run (сценарий device.app.open).")
+
+
 def mode_context(runtime, text, context):
     """Контекст запроса для answer: тот же формат, что у сценариев (input/clock +
     профиль владельца и устройства), — ScenarioContext читает его без дублей."""

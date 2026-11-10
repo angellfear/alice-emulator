@@ -10,6 +10,7 @@
     "scenarios": [
       "chat.chat",
       "device.app.open",
+      "device.apps.list",
       "device.bluetooth.off",
       "device.bluetooth.on",
       "device.led.emotion",
@@ -236,12 +237,7 @@
               "handled": true,
               "messages": [
                 {
-                  "cards": [
-                    {
-                      "text": "Приложение «ютуб» найдено. Запуск пока не поддерживается: директива запуска не восстановлена в схеме.",
-                      "type": "simple_text"
-                    }
-                  ],
+                  "cards": [],
                   "directives": [
                     {
                       "analytics": "tts_play_placeholder",
@@ -251,16 +247,23 @@
                         "channel": "Dialog"
                       },
                       "type": "client_action"
+                    },
+                    {
+                      "analytics": "divui_show_view",
+                      "is_led_silent": true,
+                      "name": "divui_show_view",
+                      "payload_raw": "Cg9kaXZ1aV9zaG93X3ZpZXcS1hsqEllvdVR1YmVXZWJ2aWV3RGF0YTKcG3sidGVtcGxhdGVzIjp7fSwiY2FyZCI6eyJ2YXJpYWJsZV90cmlnZ2VycyI6W3siY29uZGl0aW9uIjoiQHtpc1BvcnRyYWl0fSIsImFjdGlvbnMiOlt7ImxvZ19pZCI6ImNodnIxIiwidXJsIjoiZGl2LWFjdGlvbjovL3NldF92YXJpYWJsZT9uYW1lPWlzVmVydGljYWwmdmFsdWU9dHJ1ZSJ9XX0seyJjb25kaXRpb24iOiJAeyFpc1BvcnRyYWl0fSIsImFjdGlvbnMiOlt7ImxvZ19pZCI6ImNodnIyIiwidXJsIjoiZGl2LWFjdGlvbjovL3NldF92YXJpYWJsZT9uYW1lPWlzVmVydGljYWwmdmFsdWU9ZmFsc2UifV19LHsiY29uZGl0aW9uIjoiQHtpc1dlYnZpZXdGaXJzdFBhZ2VMb2FkZWR9IiwiYWN0aW9ucyI6W3sibG9nX2lkIjoiaGlkZV95b3V0dWJlX3ZpZGVvX3NrZWxldG9uX2R1YWxfc2NyZWVuIiwidXJsIjoiZGl2LWFjdGlvbjovL3NldF9zdGF0ZT9zdGF0ZV9pZD0wL3lvdXR1YmVfc2tlbGV0b24vZW1wdHkmdGVtcG9yYXJ5PWZhbHNlIiwicGF5bG9hZCI6e319XX1dLCJ2YXJpYWJsZXMiOlt7InR5cGUiOiJzdHJpbmciLCJuYW1lIjoiYmluZFRvVGFnIiwidmFsdWUiOiJ3ZWJ2aWV3X3lvdXR1YmUifSx7InR5cGUiOiJpbnRlZ2VyIiwibmFtZSI6ImJpbmRUb1ZpZGVvIiwidmFsdWUiOjF9LHsidHlwZSI6ImludGVnZXIiLCJuYW1lIjoiYmluZFRvQ2FsbCIsInZhbHVlIjoxfSx7InR5cGUiOiJpbnRlZ2VyIiwibmFtZSI6ImJpbmRUb1RhcCIsInZhbHVlIjoxfSx7InR5cGUiOiJpbnRlZ2VyIiwibmFtZSI6ImJpbmRUb0FsaWNlIiwidmFsdWUiOjF9LHsidHlwZSI6ImJvb2xlYW4iLCJuYW1lIjoiaXNXZWJ2aWV3Rmlyc3RQYWdlTG9hZGVkIiwidmFsdWUiOjB9LHsidHlwZSI6ImJvb2xlYW4iLCJuYW1lIjoiaXNWZXJ0aWNhbCIsInZhbHVlIjpmYWxzZX1dLCJsb2dfaWQiOiI5OGZkODEzZS00NDUzLTRjYmMtODUwYy1hNjJhNjkwNGIxNzUiLCJzdGF0ZXMiOlt7InN0YXRlX2lkIjowLCJkaXYiOnsidHlwZSI6ImNvbnRhaW5lciIsImV4dGVuc2lvbnMiOlt7ImlkIjoiYWxpY2Vfdm9pY2VfY29udHJvbCIsInBhcmFtcyI6eyJ2b2ljZV9jb250cm9sc19yYXciOlsiQ2dJU0FCS1RBUW9ENGhBQUlvc0JDbUVLT25SNWNHVXVaMjl2WjJ4bFlYQnBjeTVqYjIwdlRrRnNhV05sTGxSRFpXNTBZWFZ5UjI5Q1lXTnJkMkZ5WkZSNWNHVmtRMkZzYkdKaFkyc1NJd29oQ2dkNWIzVjBkV0psRWhaNWIzVjBkV0psWDJ0bGVWOXpkR0YwYVdOZmEyVjVFaHdLQ0dOdmJXMWhibVJ6RUFJYURHZHZYMkpoWTJ0M1lYSmtjeUlBSWdnSUFCQUJHQUFnQVE9PSJdfX1dLCJoZWlnaHQiOnsidHlwZSI6Im1hdGNoX3BhcmVudCJ9LCJpdGVtcyI6W3sidHlwZSI6ImNvbnRhaW5lciIsImhlaWdodCI6eyJ0eXBlIjoibWF0Y2hfcGFyZW50In0sIml0ZW1zIjpbeyJ0eXBlIjoiY3VzdG9tIiwiYmFja2dyb3VuZCI6W3sidHlwZSI6InNvbGlkIiwiY29sb3IiOiIjMDAwIn1dLCJjdXN0b21fcHJvcHMiOnsidXJsIjoiaHR0cHM6Ly9tLnlvdXR1YmUuY29tLyIsImhvbWVfdXJsIjoiaHR0cHM6Ly9tLnlvdXR1YmUuY29tIiwibWVkaWFfc2Vzc2lvbl9pZCI6IndlYnZpZXdfeW91dHViZSIsImZvcmNlX2RhcmsiOnRydWUsImRpdl9pZCI6eyJjYXJkX25hbWUiOiJ5b3V0dWJlIiwiY2FyZF9pZCI6InlvdXR1YmVfa2V5X3N0YXRpY19rZXkifSwicmVxdWVzdF9pZCI6Ijk4ZmQ4MTNlLTQ0NTMtNGNiYy04NTBjLWE2MmE2OTA0YjE3NSIsImluaXRpYWxfc2NhbGUiOjIxMCwieW91dHViZV9lbWJlZF9wbGF5ZXIiOmZhbHNlLCJhbGxvd19sZWF2ZV95b3V0dWJlIjpmYWxzZSwieW91dHViZV9pbmplY3QiOnsiZW5hYmxlX21lZGlhX3Nlc3Npb25fY2xpZW50Ijp0cnVlLCJlbmFibGVfcGxheWVyX2F1dG9fZnVsbHNjcmVlbiI6ZmFsc2UsImVuYWJsZV9wbGF5ZXJfYXV0b191bm11dGUiOnRydWUsImVuYWJsZV9wbGF5ZXJfbG9va3NfcHJldHR5IjpmYWxzZSwiZW5hYmxlX3BsYXllcl9pY29uX2hpZGluZyI6dHJ1ZSwiZW5hYmxlX3N3aXBlX3RvX2JhY2siOmZhbHNlLCJwbGF5ZXJfY29udHJvbHNfc2NhbGUiOjEyNSwiZGlzYWJsZV9jbGlja19oaWdobGlnaHQiOnRydWUsImVuYWJsZV9wbGF5ZXJfcHNldWRvX2Z1bGxzY3JlZW4iOnRydWUsImVuYWJsZV9wbGF5ZXJfZml4ZXIiOnRydWUsImVuYWJsZV9wbGF5ZXJfc3RvcF9vbl9sb2FkIjpmYWxzZX0sImNvbnRlbnRfcHJvdmlkZXIiOiJZT1VUVUJFIiwib25fcmVhZHlfdG9fc2hvdyI6ImRpdi1hY3Rpb246Ly9zZXRfdmFyaWFibGU/bmFtZT1pc1dlYnZpZXdGaXJzdFBhZ2VMb2FkZWQmdmFsdWU9MSJ9LCJjdXN0b21fdHlwZSI6ImNlbnRhdXJfd2VidmlldyIsImhlaWdodCI6eyJ0eXBlIjoibWF0Y2hfcGFyZW50In0sIndpZHRoIjp7InR5cGUiOiJtYXRjaF9wYXJlbnQifX0seyJ0eXBlIjoic3RhdGUiLCJkZWZhdWx0X3N0YXRlX2lkIjoic2tlbGV0b24iLCJoZWlnaHQiOnsidHlwZSI6Im1hdGNoX3BhcmVudCJ9LCJpZCI6InlvdXR1YmVfc2tlbGV0b24iLCJzdGF0ZXMiOlt7InN0YXRlX2lkIjoic2tlbGV0b24iLCJkaXYiOnsidHlwZSI6ImNvbnRhaW5lciIsImJhY2tncm91bmQiOlt7InR5cGUiOiJzb2xpZCIsImNvbG9yIjoiIzBGMEYwRiJ9XSwiY29udGVudF9hbGlnbm1lbnRfaG9yaXpvbnRhbCI6ImNlbnRlciIsImNvbnRlbnRfYWxpZ25tZW50X3ZlcnRpY2FsIjoiY2VudGVyIiwiaGVpZ2h0Ijp7InR5cGUiOiJtYXRjaF9wYXJlbnQifSwiaXRlbXMiOlt7InR5cGUiOiJ5b3V0dWJlX21haW5fc2NyZWVuX3NrZWxldG9uX2NvbnRlbnRfZ2xvYmFsX3RlbXBsYXRlIn1dLCJvcmllbnRhdGlvbiI6Im92ZXJsYXAiLCJ0cmFuc2l0aW9uX291dCI6eyJ0eXBlIjoiZmFkZSIsImR1cmF0aW9uIjo0MDB9LCJ3aWR0aCI6eyJ0eXBlIjoibWF0Y2hfcGFyZW50In19fSx7InN0YXRlX2lkIjoiZW1wdHkifV0sIndpZHRoIjp7InR5cGUiOiJtYXRjaF9wYXJlbnQifX1dLCJvcmllbnRhdGlvbiI6Im92ZXJsYXAiLCJ2aXNpYmlsaXR5X2FjdGlvbnMiOltdLCJ3aWR0aCI6eyJ0eXBlIjoibWF0Y2hfcGFyZW50In19LHsidHlwZSI6InNlcGFyYXRvciIsImFsaWdubWVudF9ob3Jpem9udGFsIjoibGVmdCIsImFsaWdubWVudF92ZXJ0aWNhbCI6InRvcCIsImRlbGltaXRlcl9zdHlsZSI6eyJjb2xvciI6IiMwZmZmIn0sImhlaWdodCI6eyJ0eXBlIjoiZml4ZWQiLCJ2YWx1ZSI6MX0sImlkIjoiYmxvY2tfZm9yX29uX2xvYWRfYWN0aW9ucyIsIndpZHRoIjp7InR5cGUiOiJmaXhlZCIsInZhbHVlIjoxfX1dLCJvcmllbnRhdGlvbiI6Im92ZXJsYXAiLCJ2aXNpYmlsaXR5X2FjdGlvbnMiOlt7ImxvZ19pZCI6InlvdXR1YmVfa2V5X3N0YXRpY19rZXlfcGFnZV9zaG93IiwicGF5bG9hZCI6eyJtZXRhIjp7ImNhcmROYW1lIjoieW91dHViZSIsImNhcmRJZCI6InlvdXR1YmVfa2V5X3N0YXRpY19rZXkifX0sInZpc2liaWxpdHlfZHVyYXRpb24iOjAsInZpc2liaWxpdHlfcGVyY2VudGFnZSI6ODB9XSwid2lkdGgiOnsidHlwZSI6Im1hdGNoX3BhcmVudCJ9fX1dfX06IQoHeW91dHViZRIWeW91dHViZV9rZXlfc3RhdGljX2tleSADSgIBAFLkAWRpYWxvZzovLz9kaXJlY3RpdmVzPSU1QiU3QiUyMnR5cGUlMjIlM0ElMjJjbGllbnRfYWN0aW9uJTIyJTJDJTIybmFtZSUyMiUzQSUyMmRpdnVpX2hpZGVfdmlldyUyMiUyQyUyMnBheWxvYWQlMjIlM0ElN0IlMjJJZGVudGlmaWVyJTIyJTNBJTdCJTIyQ2FyZElkJTIyJTNBJTIyeW91dHViZV9rZXlfc3RhdGljX2tleSUyMiUyQyUyMkNhcmROYW1lJTIyJTNBJTIyeW91dHViZSUyMiU3RCU3RCU3RCU1RFgC",
+                      "type": "client_action"
                     }
                   ],
                   "event": "AliceResponse",
                   "has_voice": false,
-                  "speech": "Приложение «ютуб» найдено. Запуск пока не поддерживается: директива запуска не восстановлена в схеме."
+                  "speech": ""
                 }
               ],
               "reason": "template",
               "scenario": "device.app.open",
-              "speech": "Приложение «ютуб» найдено. Запуск пока не поддерживается: директива запуска не восстановлена в схеме.",
+              "speech": "",
               "speech_parts": [],
               "status": "finished",
               "text": "открой ютуб"
@@ -355,6 +358,54 @@
         }
       ],
       "id": "device.app.open"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "какие приложения установлены"
+          },
+          "name": "device.apps.list-trigger0-0",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "На колонке установлены ютуб, спотифай.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "На колонке установлены ютуб, спотифай."
+                }
+              ],
+              "reason": "template",
+              "scenario": "device.apps.list",
+              "speech": "На колонке установлены ютуб, спотифай.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "какие приложения установлены"
+            }
+          ]
+        }
+      ],
+      "id": "device.apps.list"
     },
     {
       "cases": [

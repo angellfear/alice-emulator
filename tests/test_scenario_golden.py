@@ -42,7 +42,7 @@ async def test_golden_covers_builtin_library(tmp_path):
     from server_emulator.scenario_engine.library import ERRORS, SCENARIOS
 
     assert ERRORS == []
-    assert len(SCENARIOS) == 27  # свет, покупки, игры, болталка и знания вынесены во встроенные плагины
+    assert len(SCENARIOS) == 28  # свет, покупки, игры, болталка и знания вынесены во встроенные плагины
     runtime = Runtime(tmp_path)
     try:
         expected = sorted(str(scenario.get("id")) for scenario in runtime.dialog.scenarios())
