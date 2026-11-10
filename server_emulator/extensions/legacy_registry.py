@@ -1,4 +1,4 @@
-"""Переход реестра пакетов сценариев в каталог расширений (TASK-036).
+"""Переход реестра пакетов сценариев в каталог расширений.
 
 Прежний реестр — манифест ``scenario-registry`` (``{format, packages:[{id, version, name,
 path?, url, sha256?}]}``) и пакеты ``scenario-package`` (JSON или zip с ``package.json``) —
@@ -143,7 +143,7 @@ def _definition(scenario):
 
 
 def migrate_registry(runtime):
-    """Миграция настроек прежнего реестра (TASK-036). Вызывается Runtime после создания
+    """Миграция настроек прежнего реестра. Вызывается Runtime после создания
     менеджера расширений, до load_enabled.
 
     * registry.url → extensions.sources (если источник допустим: https или loopback);

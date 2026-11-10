@@ -35,7 +35,7 @@ dependencies = [
 [project.optional-dependencies]
 test = ["pytest>=8", "pytest-asyncio>=0.24", "pytest-xdist>=3.6,<4"]
 windows = ["pystray>=0.19,<1; sys_platform == 'win32'", "Pillow>=10,<13; sys_platform == 'win32'"]
-# полная установка одной командой (TASK-039): базовые зависимости + трей Windows; состав как у windows
+# полная установка одной командой: базовые зависимости + трей Windows; состав как у windows
 emulator = ["pystray>=0.19,<1; sys_platform == 'win32'", "Pillow>=10,<13; sys_platform == 'win32'"]
 
 [build-system]

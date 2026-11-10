@@ -43,7 +43,7 @@ def test_input_handlers_follow_profile_flags():
     assert has_handler("VoiceInput", {"aapi_voice": True})
 
 
-# --- TASK-069: MatchedUser, CapabilityUpdateState, ContinueRequest --------------------
+# --- MatchedUser, CapabilityUpdateState, ContinueRequest --------------------
 
 import time
 

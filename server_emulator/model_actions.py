@@ -5,7 +5,7 @@
 
 Исполнители по видам (v9 §5: без фиктивных успехов):
 - light {room, on, brightness?} → adapter state.light (реальное изменение состояния);
-- timer {seconds} → штатные директивы колонке (timer_set_directive, TASK-079);
+- timer {seconds} → штатные директивы колонке (timer_set_directive);
 - volume {level 0..10} → директива sound_set_level (wire из перехвата volume-set);
 - app {package}/music {query}/activity {name} → исполнитель НЕ подключён:
   вызов попадает в pending_calls (ручная панель) и получает честную карточку-заметку.
@@ -55,7 +55,7 @@ def parse_calls(tool_calls):
 
 
 def _push_timer(runtime, sn, seconds):
-    """TASK-079: timer из действий модели — штатными директивами колонке (Push),
+    """timer из действий модели — штатными директивами колонке (Push),
     fire-and-forget: execute() синхронный; ошибка отправки — в runtime.recent."""
     import asyncio
     from pathlib import Path

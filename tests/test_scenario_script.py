@@ -1,4 +1,4 @@
-"""TASK-019: py-исполнитель сценариев — executor kind:script → handle(ctx) из <id>.py.
+"""py-исполнитель сценариев — executor kind:script → handle(ctx) из <id>.py.
 
 Ответ — построители SDK через существующий compose (новой сборки нет); None — отказ
 (статус declined): реплика следующему кандидату или режим «Интеллект»; сбои — errored

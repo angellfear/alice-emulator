@@ -1,4 +1,4 @@
-"""Маршрут «Вместе», фаза 2 (091): промах эмулятора отвечает настоящий Яндекс.
+"""Маршрут «Вместе», фаза 2 : промах эмулятора отвечает настоящий Яндекс.
 
 HybridSession — одна на WS колонки с маршрутом `hybrid`. Открывается лениво при первой
 пересылке: первое сообщение — сохранённый сырой кадр `SynchronizeStateRequest` колонки
@@ -40,7 +40,7 @@ class HybridSession:
         self.stream_ids = set()  # потоки, открытые веткой Яндекса
         self.branch_streams = set()  # StreamId, которые ветка упоминала (TTS-потоки) — для релея
         self.branch_messages = set()  # MessageId кадров ветки — для релея Ack колонки
-        self.exchange = []  # голосовой ход колонки (098): VoiceInput + аудио + StreamControl
+        self.exchange = []  # голосовой ход колонки : VoiceInput + аудио + StreamControl
         self.pending_streams = deque(maxlen=4)  # StreamControl перед VoiceInput (Start)
         self.exchange_open = False
         self.exchange_stream_id = None  # StreamId текущего голосового хода
@@ -54,7 +54,7 @@ class HybridSession:
         self._closed = False
 
     def observe(self, trigger, data):
-        """Кадры голосового хода колонки — в копилку релея ветке (098): StreamControl до
+        """Кадры голосового хода колонки — в копилку релея ветке : StreamControl до
         VoiceInput (Start), сам VoiceInput открывает ход, далее аудио и StreamControl
         (Close). Прочее (sync, служебные AAPI) не копится. Кадры как есть — без
         перекодировки."""
@@ -146,7 +146,7 @@ class HybridSession:
             self.registered.pop(mid, None)
 
     async def relay_voice(self, voice_mid, stream_id):
-        """Фаза 3 (098): переслать ветке накопленный голосовой ход колонки — VoiceInput,
+        """Фаза 3 : переслать ветке накопленный голосовой ход колонки — VoiceInput,
         аудиокадры и StreamControl как есть (StreamId колонки для ветки — первый поток).
         Перед релеем ждём Close колонки (аудио может дозреть; лимит 2 с — при VAD-финале
         колонка шлёт Close позже), затем синтезируем свой Close (reason 2), если колонка
@@ -267,7 +267,7 @@ class HybridSession:
                 self.branch_messages.add(message.Event.Header.MessageId)  # Ack колонки уйдёт ветке
                 if len(self.branch_messages) > 64:
                     self.branch_messages = set(sorted(self.branch_messages)[-32:])
-            # колонке — только цепочка ответа (098): её голосовой ход уже отработал
+            # колонке — только цепочка ответа : её голосовой ход уже отработал
             # эмулятор, протокольные кадры ветки (InputStartAck, AsrResult,
             # SpotterValidation, StreamControl ветки) продублировали бы чужие StreamId
             if event in ("AliceResponse", "DeferredAliceResponse", "TtsSpeak", "TtsTimings"):

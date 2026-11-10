@@ -1,4 +1,4 @@
-"""Маршрутизация вызовов ASR/TTS/LLM и цикл инструментов legacy-агента (TASK-007, DEBT-01).
+"""Маршрутизация вызовов ASR/TTS/LLM и цикл инструментов legacy-агента (DEBT-01).
 
 ProviderManager выбирает адаптер voice_stack по settings[stt|tts|model] и вызывает
 его (stt → JSON {text}, tts → (аудио, тип), model → JSON ответа чата), умеет
@@ -30,7 +30,7 @@ class ProviderManager:
         from .voice_stack.adapters import resolve
         return resolve(kind, runtime.settings[kind])
 
-    # Все вызовы функций адаптера — через call_adapter (TASK-053): адаптер расширения получает
+    # Все вызовы функций адаптера — через call_adapter: адаптер расширения получает
     # extension=ExtensionContext, если его функция принимает этот аргумент.
 
     async def call(self, runtime, kind, payload=None, audio=None, filename="input.wav"):
@@ -80,7 +80,7 @@ class ProviderManager:
     async def chat(self, runtime, text, history=None, thread=None, **context):
         """Ответ модели. graph: thread — тред агента (история в checkpoint, history не нужна),
         context — sn/device_id/dialog_id/request_id запроса; legacy: history вызывающего.
-        Режим расширения (intelligence = "ext:<id>", TASK-034) — ответ его answer; расширение
+        Режим расширения (intelligence = "ext:<id>") — ответ его answer; расширение
         выключено/удалено/сбой — откат на scenarios с записью в recent (intelligence.py)."""
         from . import agent, intelligence
         mode_id = intelligence.ext_id(runtime.settings.get("intelligence"))
@@ -153,7 +153,7 @@ class ProviderManager:
         from . import mcp_hub
         function = call.get("function") or {}
         name = function.get("name", "")
-        runtime.note_tool_call(name)  # TASK-088: микросостояние legacy-цикла, то же, что в graph (api/live)
+        runtime.note_tool_call(name)  # микросостояние legacy-цикла, то же, что в graph (api/live)
         try:
             arguments = json.loads(function.get("arguments") or "{}")
             text = mcp_hub.result_text(await mcp_hub.call(runtime, name, arguments, context))

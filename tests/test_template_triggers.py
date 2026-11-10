@@ -1,4 +1,4 @@
-"""TASK-022: триггеры-шаблоны на hassil — таблица фраз карточки, приоритет над
+"""Триггеры-шаблоны на hassil — таблица фраз, приоритет над
 contains, ошибка шаблона при сохранении, skip_words из lexicons.asr."""
 import pytest
 
@@ -51,7 +51,7 @@ def catalog():
     ]
 
 
-# Таблица фраз из карточки TASK-022
+# Таблица фраз
 TABLE = [
     ("поставь таймер на пять минут", "timers.timer.set", {"number": 5}),
     ("поставь таймер на 5 минут", "timers.timer.set", {"number": 5}),
@@ -65,7 +65,7 @@ TABLE = [
 
 
 def test_card_phrase_table():
-    """Таблица фраз карточки: полное совпадение, слоты, перестановки, wildcard."""
+    """Таблица фраз: полное совпадение, слоты, перестановки, wildcard."""
     index = TemplateIndex(catalog())
     for text, sid, slots in TABLE:
         assert index.match(text) == (sid, slots), text
@@ -212,7 +212,7 @@ async def test_cache_recompiles_when_catalog_changes(tmp_path):
 
 
 async def test_template_slots_reach_json_compose(tmp_path):
-    """Сущности template-триггера доступны JSON-шагам как {{slots.*}} (TASK-022)."""
+    """Сущности template-триггера доступны JSON-шагам как {{slots.*}}."""
     scripted = scenario("timers.timer.set", [{"kind": "template", "sentences": [
         "[поставь] [таймер] (на|в) {minutes} [минут]", "таймер на {minutes} минут"]}],
         text="Таймер на {{slots.minutes}} минут.")

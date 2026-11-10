@@ -4,17 +4,17 @@
 * scenarios — только сценарии; без совпадения — стандартный ответ not_understood, модель не вызывается;
 * model     — один вызов LLM (промпт + история), без MCP-инструментов, памяти и заданий;
 * agent     — агент: LangGraph (extra «agent»), без него — legacy-цикл с инструментами;
-* ext:<id>  — режим расширения (modes/*.py): MODE + async answer(ctx, text, history), TASK-034.
+* ext:<id> — режим расширения (modes/*.py): MODE + async answer(ctx, text, history),.
   Расширение выключено/удалено/без режимов — откат на scenarios с записью в recent.
 
 Решение принимается в одной точке — ProviderManager.chat и agent.engine.
 
-Режимы расширений (TASK-034, контракт — docs/contracts/extensions.md): один файл modes/*.py —
+Режимы расширений (контракт — docs/contracts/extensions.md): один файл modes/*.py —
 один режим; модуль объявляет MODE = {id, title, needs?, tabs?, preset?} и async answer(ctx, text, history),
 возвращающую ответ в форме ProviderManager.chat ({text, tool_calls, usage, source…}). Загрузка —
-общий ScriptRunner (mtime-кеш: правка файла подхватывается без рестарта), ctx — SDK ScenarioContext
-(TASK-018), собранный так же, как для сценария (agent/scenarios.py); настройки расширения режим
-читает из ctx.extension (TASK-053, extensions/context.py). Полный id режима —
+общий ScriptRunner (mtime-кеш: правка файла подхватывается без рестарта), ctx — SDK ScenarioContext,
+собранный так же, как для сценария (agent/scenarios.py); настройки расширения режим
+читает из ctx.extension (extensions/context.py). Полный id режима —
 "<ext-id>.<MODE.id>" (префикс имён элементов расширения), settings.intelligence = "ext:<полный id>".
 """
 import datetime
@@ -56,7 +56,7 @@ def not_understood(runtime):
     return {"text": reply["text"] if reply else NOT_UNDERSTOOD, "tool_calls": [], "usage": {}, "source": "scenarios"}
 
 
-# --- режимы расширений (modes/*.py, TASK-034) --------------------------------------
+# --- режимы расширений (modes/*.py) --------------------------------------
 
 _runner = None
 
@@ -120,7 +120,7 @@ def note(runtime, error):
 
 def ext_fallback(runtime, mode_id, reason):
     """Режим ext:<id> недоступен — отвечаем как «Простой», настройка не меняется
-    (расширение могут включить обратно), факт — в recent (TASK-034)."""
+    (расширение могут включить обратно), факт — в recent."""
     note(runtime, f"Режим ext:{mode_id} недоступен ({reason}) — отвечаю как «Простой».")
     return not_understood(runtime)
 
@@ -162,9 +162,9 @@ def mode_context(runtime, text, context):
 
 
 async def answer(runtime, mode, text, history, context):
-    """Ответ режима расширения: ScenarioContext (TASK-018) + answer(ctx, text, history)
+    """Ответ режима расширения: ScenarioContext + answer(ctx, text, history)
     через ScriptRunner. Сбой режима — ответ «Простого» и запись в recent, диалог не роняется.
-    Режим видит настройки своего расширения как ctx.extension (TASK-053): новый
+    Режим видит настройки своего расширения как ctx.extension: новый
     ExtensionContext на каждый вызов — правка настроек действует без рестарта."""
     from .sdk import ScenarioContext
     scenario = ScenarioContext(runtime, mode_context(runtime, text, context))

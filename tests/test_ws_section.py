@@ -1,4 +1,4 @@
-"""TASK-058: вкладка «WS» — реестр обработчиков, колбэки → поставщики данных, отправка.
+"""Вкладка «WS» — реестр обработчиков, колбэки → поставщики данных, отправка.
 
 Колбэки проверяются тем же маршрутом, что и voice.py (aapi_handlers.route); поставщики —
 сценарии с триггером kind: provide, пользовательский перекрывает встроенный; без поставщика —
@@ -77,7 +77,7 @@ def test_route_table_maps_callbacks():
     assert aapi_handlers.route('@@mm_typed_callback', fields) == 'timesync.requested'
     fields = {'callback': '', 'purpose': 'collect_upper_shutter', 'frame': ''}
     assert aapi_handlers.route('@@mm_typed_callback', fields) == 'callbacks.ack'
-    assert aapi_handlers.route('@@timer_fired', None) is None  # TASK-079: планировщика нет
+    assert aapi_handlers.route('@@timer_fired', None) is None  # планировщика нет
     assert aapi_handlers.route('@@unknown_event', None) is None
 
 

@@ -1,4 +1,4 @@
-"""Запуск эмулятора с иконкой в трее без консоли (pythonw tools/start_emulator.pyw). TASK-045."""
+"""Запуск эмулятора с иконкой в трее без консоли (pythonw tools/start_emulator.pyw)."""
 import logging
 from pathlib import Path
 import sys

@@ -1,4 +1,4 @@
-"""TASK-090: честный фолбэк — «В простом режиме это недоступно.» и «Для этого нет источника данных.».
+"""Честный фолбэк — «В простом режиме это недоступно.» и «Для этого нет источника данных.».
 
 Фраза-функция (system.unavailable) отвечает только в «Простом», бессвязное — прежнее
 «Я пока этого не умею.», в «Модели» фраза-функция уходит модели (подмена chat), правка
@@ -111,7 +111,7 @@ async def test_no_data_source_helper(tmp_path):
         runtime.scenario_executor.script_modules = getattr(runtime.scenario_executor,
                                                            "script_modules", None)
         report = await _report(runtime, "Алиса, какие сегодня новости")
-        # новости — сценария ещё нет (081), здесь проверяем сам помощник напрямую:
+        # новости — сценария ещё нет , здесь проверяем сам помощник напрямую:
         from server_emulator.sdk import ScenarioContext
         ctx = ScenarioContext(runtime, _ctx(runtime, "news"))
         result = answer(ctx) if False else ctx.no_data_source()

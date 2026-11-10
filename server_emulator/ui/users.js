@@ -91,7 +91,7 @@
     close.title = 'Закрыть'; close.setAttribute('aria-label', 'Закрыть');
     head.append(node('h3', 'Параметры · ' + (user.name || user.id)));
     const allParams = node('button', 'Все параметры'); allParams.type = 'button'; allParams.className = 'secondary';
-    allParams.title = 'Открыть «Значения» с этим владельцем (TASK-060)';
+    allParams.title = 'Открыть «Значения» с этим владельцем';
     allParams.onclick = () => { dialog.close(); window.paramsOpenOwner?.('user', user.id); };
     head.append(allParams, close);
     const tabs = node('nav'); tabs.className = 'pd-tabs';
@@ -372,12 +372,12 @@
     return { cls: 'off', text: 'Офлайн' + (act ? ' · был ' + new Date(act.ts * 1000).toLocaleString('ru-RU') + (act.ip ? ' · ' + act.ip : '') : '') };
   }
 
-  // Маршрут устройства (TASK-044): сегментированный переключатель «Эмуляция · Вместе ·
+  // Маршрут устройства: сегментированный переключатель «Эмуляция · Вместе ·
   // Прозрачно» (стиль .segmented), на узкой ширине — выпадающий список (CSS).
-  // Значение proxy в данных и API прежнее, «Прозрачно» — только подпись (TASK-064);
+  // Значение proxy в данных и API прежнее, «Прозрачно» — только подпись;
   // «Вместе» в заданиях и контрактах прежде назывался «Гибрид» (hybrid).
   const ROUTE_LABEL = { emulate: 'Эмуляция', hybrid: 'Вместе', proxy: 'Прозрачно' };
-  // Опция «Запись» устройства (TASK-054): пишет журнал трафика поверх любого маршрута.
+  // Опция «Запись» устройства: пишет журнал трафика поверх любого маршрута.
   // Смена — сразу, без диалога: соединение не закрывается, опция действует на следующем обмене.
   const RECORD_LABEL = { off: 'Выключено', on: 'Включено', misses: 'Нет обработчиков' };
   const recordOf = device => device.record || 'off';
@@ -390,7 +390,7 @@
     });
   }
   const effectiveRoute = device => device.route_mode || 'emulate';
-  // Смена — сразу, без подтверждения (TASK-064). Сервер закрывает соединение (1012) только
+  // Смена — сразу, без подтверждения. Сервер закрывает соединение (1012) только
   // при переходе в «Прозрачно» или из него; emulate ↔ hybrid открытый WS не трогает.
   function changeRoute(device, mode) {
     if (mode === effectiveRoute(device)) return;
@@ -446,7 +446,7 @@
 
   function renderDevices() {
     devicesRoot.replaceChildren();
-    // Пояснение маршрутов (TASK-044): построчно, названия режимов — жирным.
+    // Пояснение маршрутов: построчно, названия режимов — жирным.
     const routeNote = node('div'); routeNote.className = 'hint route-note';
     const routeLine = (name, text) => { routeNote.append(node('b', name), document.createTextNode(' — ' + text)); };
     routeLine('Эмуляция', 'всё отвечает эмулятор.');

@@ -21,8 +21,8 @@ from pathlib import Path
 
 
 def load_scenarios(state_dir: Path):
-    """Тела сценариев: файлы state/scenarios/*.json — источник правды (RF-08,
-    ревизии настроек в БД хранят только заглушки {id, enabled}). Для legacy
+    """Тела сценариев: файлы state/scenarios/*.json — источник правды
+    (ревизии настроек в БД хранят только заглушки {id, enabled}). Для legacy
     state без каталога файлов — последняя ревизия БД (там тела ещё полные)."""
     scenario_dir = state_dir / "scenarios"
     if scenario_dir.is_dir():

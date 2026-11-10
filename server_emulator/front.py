@@ -1,4 +1,4 @@
-"""Фронт TLS-порта (TASK-067): SNI решает — эмулятор или слепой туннель.
+"""Фронт TLS-порта: SNI решает — эмулятор или слепой туннель.
 
 Слушатель публичного TLS-порта — сырой TCP. На каждое соединение читается
 ClientHello (до 32 КиБ, без расшифровки), из него — SNI:
@@ -9,7 +9,7 @@ ClientHello (до 32 КиБ, без расшифровки), из него — S
   aiohttp-слушателю с тем же ssl_context (сплайс, накопленные байты идут
   первыми, ничего не теряется);
 - иначе (домен не покрыт — например strm-хосты музыки) — по настроенному
-  front_uncovered (TASK-093; режим и лист читаются живьём из server.json на каждое
+  front_uncovered (режим и лист читаются живьём из server.json на каждое
   соединение, применяются без перезапуска): "tunnel" (по умолчанию) — слепой TCP-туннель
   к настоящему адресу хоста: A-записи у внешних DNS (настройка server.json
   front_dns, aiodns), порт тот же; настоящий TLS с настоящим сертификатом,
@@ -23,7 +23,7 @@ ClientHello (до 32 КиБ, без расшифровки), из него — S
 
 Реальный адрес колонки сохраняется таблицей peers (исходящий сокет сплайса →
 оригинальный пир); dispatcher.client_ip получает его через runtime.client_peer.
-События — в журнал сервера (TASK-068): предупреждение о туннеле по домену
+События — в журнал сервера: предупреждение о туннеле по домену
 (повторы склеивает журнал, адрес — в detail), предупреждение об отклонении
 непокрытого домена (режим в detail), ошибка открытия туннеля, старт
 фронта. Перенесено из реализаций фронтов прежних установок (dns_names_in_cert,
@@ -129,7 +129,7 @@ class Front:
         self.connections = set()
         self.tunnels = {}  # host → число туннелей (для статуса/журнала)
         self.local_domain = ""  # server.json local_domain, обновляется в _policy
-        self.seen = {}  # домены вне сертификата с запуска фронта: host → {"count", "first"} (TASK-093)
+        self.seen = {}  # домены вне сертификата с запуска фронта: host → {"count", "first"}
         self._server = None
         self._tasks = set()  # задачи _connection: stop() отменяет их, ничего не дожидаясь
 
@@ -191,7 +191,7 @@ class Front:
             name, buffered = await peek_tls_sni(reader)
             if name is None and not buffered.startswith(b"\x16"):
                 return  # не TLS (не handshake-запись) — тихо закрыть: handshake колонки не состоялся
-            # TLS без SNI — тоже эмулятор: сертификат по умолчанию (TASK-067)
+            # TLS без SNI — тоже эмулятор: сертификат по умолчанию
             mode, allow = self._policy()
             decision = self._decision(name, mode, allow)
             if decision == "block":
@@ -232,14 +232,14 @@ class Front:
                 self._tasks.discard(task)
 
     def _policy(self):
-        """Режим и лист — живьём из server.json: применяются без перезапуска (TASK-093)."""
+        """Режим и лист — живьём из server.json: применяются без перезапуска."""
         config = server_config.load(self.runtime.directory)
         self.local_domain = config.get("local_domain") or ""  # имя эмулятора в сети — всегда сплайсом
         return (config.get("front_uncovered") or "tunnel",
                 tuple(config.get("front_allow") or ()))
 
     def _decision(self, name, mode, allow):
-        """Покрытое имя, отсутствие SNI, IP и `.local` — "splice" (как в TASK-067); прочее — по
+        """Покрытое имя, отсутствие SNI, IP и `.local` — "splice"; прочее — по
         front_uncovered: "tunnel" | "block" ("allowlist" туннелирует только лист)."""
         if not name:
             return "splice"  # SNI нет — решает aiohttp (сертификат по умолчанию)

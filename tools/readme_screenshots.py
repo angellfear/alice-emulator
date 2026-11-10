@@ -1,4 +1,4 @@
-"""Скриншоты панели для README (TASK-075): Playwright, демо-данные из tools/demo_state.py.
+"""Скриншоты панели для README: Playwright, демо-данные из tools/demo_state.py.
 
 Запуск:
     python tools/demo_state.py <папка>            # один раз
@@ -135,7 +135,7 @@ def optimize(path, limit_kb=300):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Скриншоты панели для README (TASK-075)")
+    parser = argparse.ArgumentParser(description="Скриншоты панели для README")
     parser.add_argument("--state", required=True, help="папка демо-данных из tools/demo_state.py")
     parser.add_argument("--out", default="docs/img", help="куда писать PNG")
     args = parser.parse_args()

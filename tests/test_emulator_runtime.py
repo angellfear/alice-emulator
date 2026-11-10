@@ -102,7 +102,7 @@ async def test_model_speech_and_mcp_with_local_providers(tmp_path):
 
 
 async def test_settings_form_keeps_secrets_and_ignores_default_route_mode(tmp_path):
-    """TASK-064: маршрута по умолчанию нет — форма настроек его не сохраняет, секреты __KEEP__ целы."""
+    """Маршрута по умолчанию нет — форма настроек его не сохраняет, секреты __KEEP__ целы."""
     runtime = Runtime(tmp_path)
     runtime.settings['model']['api_key'] = 'keep-secret'
     stale_form = runtime.public()
@@ -154,7 +154,7 @@ async def test_static_device_images_webp_png_and_sandboxed(tmp_path, monkeypatch
 
 
 async def test_settings_revision_stores_scenario_stubs_only(tmp_path):
-    """RF-08: ревизия настроек в БД хранит сценарии как {id, enabled} — тела
+    """Ревизия настроек в БД хранит сценарии как {id, enabled} — тела
     живут в файлах state/scenarios; в памяти Runtime тело сохраняется и
     восстанавливается из файла при следующем старте."""
     runtime = Runtime(tmp_path)
@@ -173,7 +173,7 @@ async def test_settings_revision_stores_scenario_stubs_only(tmp_path):
 
 
 async def test_settings_revision_stubs_without_files_are_dropped(tmp_path):
-    """RF-08: файлы удалены вручную, в ревизии БД только заглушки — сценариев
+    """Файлы удалены вручную, в ревизии БД только заглушки — сценариев
     нет (файлы источник правды), заглушки не выгружаются в файлы обратно."""
     runtime = Runtime(tmp_path)
     await runtime.save_settings({**runtime.public(),
@@ -189,7 +189,7 @@ async def test_settings_revision_stubs_without_files_are_dropped(tmp_path):
 
 
 async def test_builtin_py_scenario_copy_via_api_with_code(tmp_path):
-    """TASK-038: копия встроенного py-сценария — GET ?script=<id> даёт код, PUT {scenario, script}
+    """Копия встроенного py-сценария — GET ?script=<id> даёт код, PUT {scenario, script}
     сохраняет копию с кодом и она отвечает на фразу; без кода сервер копию не принимает."""
     from server_emulator.scenario_engine.library import SCENARIOS
     runtime = Runtime(tmp_path)

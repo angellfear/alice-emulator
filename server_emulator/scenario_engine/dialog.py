@@ -1,8 +1,8 @@
-"""R07: dialog/transport слой между событиями соединения и executor.
+"""dialog/transport слой между событиями соединения и executor.
 
 Порядок обработки (v9 §4): ожидающий диалог (continuation) продолжается
 РАНЬШЕ выбора нового сценария — новый триггер не перебивает уточнение.
-Выбор сценария: template-совпадения (TASK-022, вся фраза + слоты) приоритетнее
+Выбор сценария: template-совпадения (вся фраза + слоты) приоритетнее
 phrase-триггеров (router.with_templates); сущности шаблона попадают в ctx.slots.
 Доставка — AAPI TServerMessage: MessageId генерируется, RefMessageId/RequestId
 берутся из input-контекста запроса (correlation IDs). Вопрос ask доставляется
@@ -43,8 +43,8 @@ def _finalize(message, ctx):
     _ref_header(message, ctx)
 
 def finalize_reply(message, ctx):
-    """Публичная обёртка каркаса для внешних сборщиков ответа (sdk._AapiContext.reply,
-    TASK-059): CardId/SequenceNumber/RefMessageId — то же, что делает диалоговый слой."""
+    """Публичная обёртка каркаса для внешних сборщиков ответа (sdk._AapiContext.reply):
+    CardId/SequenceNumber/RefMessageId — то же, что делает диалоговый слой."""
     _finalize(message, ctx)
 
 
@@ -60,7 +60,7 @@ def _ref_header(message, ctx):
 
 def question_message(server_type, text, ctx, listen=False):
     """Карточка-вопрос/заметка: с CardId и каркасом реального ответа. listen=True —
-    вопрос уточнения (TASK-020): ShouldListen — колонка слушает ответ без «Алиса»;
+    вопрос уточнения: ShouldListen — колонка слушает ответ без «Алиса»;
     путь доставки один для JSON-ask и py-ask, флага хватает обоим."""
     message = server_type()
     response = message.Event.AliceResponse
@@ -98,8 +98,8 @@ class DialogManager:
         self.executor = executor
         self.scenarios = scenarios_provider  # callable → список валидных определений
         self.server_type = server_type
-        # Источники словарей шаблонов (TASK-022): встроенный lexicons.json; слои
-        # расширений/пользовательские добавляются ПОЗЖЕ в списке (TASK-030) —
+        # Источники словарей шаблонов: встроенный lexicons.json; слои
+        # расширений/пользовательские добавляются ПОЗЖЕ в списке —
         # поздний источник приоритетнее (merge_lexicons).
         self.lexicon_sources = [builtin_source()] if lexicon_sources is None else list(lexicon_sources)
         self._templates = None  # TemplateIndex каталога — кэш (компиляция один раз)
@@ -224,7 +224,7 @@ class DialogManager:
             if outcome is not None:
                 return await self._finish(outcome, ctx, send, deliver, "continuation",
                                           execution.scenario.get("id"))
-            # TASK-097: TTL ожидания истёк и снят — реплика не съедается, а идёт
+            # TTL ожидания истёк и снят — реплика не съедается, а идёт
             # обычным путём (сценарии → «Вместе» → модель)
         # Нормализация только для выбора сценария (S01): ASR-финалы бывают
         # склеенными и с wake-словом; ctx.input.text остаётся исходным.
@@ -290,7 +290,7 @@ class DialogManager:
                 if ctx.get("dry_run"):
                     report["candidates"] = list(ctx.get("_candidates") or [])
                 return report
-        # TASK-019: declined (py-сценарий отказался, как guard=false) — реплика следующему
+        # declined (py-сценарий отказался, как guard=false) — реплика следующему
         # кандидату по порядку; все отказались → реплика уходит в режим «Интеллект».
         declined = []
         for candidate, candidate_reason in passing:
@@ -386,7 +386,7 @@ class DialogManager:
         return {"handled": False, "verdict": "unsupported", "reason": "no_match", "status": None}
 
     async def quiet_ack(self, ctx):
-        """Умолчание колбэка без поставщика (TASK-058): тот же тихий пустой ответ,
+        """Умолчание колбэка без поставщика: тот же тихий пустой ответ,
         что собирает compose сценария system.service_ack."""
         from .reply_compose import compose_reply
         message = compose_reply({"text": "", "card": False}, ctx, self.executor.schemas_root)
@@ -394,7 +394,7 @@ class DialogManager:
         return message
 
     def provider(self, event):
-        """Поставщик данных внутреннего события (вкладка «WS», TASK-058): первый сценарий
+        """Поставщик данных внутреннего события (вкладка «WS»): первый сценарий
         с provide-триггером этого события в порядке каталога (его переопределяет пользовательский
         с той же ролью) или None — отвечает умолчание колбэка."""
         for scenario in self.scenarios():
@@ -421,7 +421,7 @@ class DialogManager:
         report = {"handled": True, "reason": reason, "status": outcome.status,
                   "scenario": scenario_id, "speech": _speech_text(outcome),
                   "speech_parts": list(getattr(outcome, "speech_parts", []) or []),
-                  "effects": list(getattr(outcome, "effects", []) or []),  # TASK-019: dry-run py-сценария
+                  "effects": list(getattr(outcome, "effects", []) or []),  # dry-run py-сценария
                   "trace": [{"step": t["step"], "op": t["op"], "status": t["status"]} for t in outcome.trace]}
         if ctx.get("dry_run"):  # вкладка «Проверка»: какие сущности шаблона попали в слоты
             report["slots"] = copy.deepcopy(ctx.get("slots") or {})

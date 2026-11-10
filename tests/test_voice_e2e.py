@@ -2,7 +2,7 @@
 
 Тесты не требуют внешних сервисов: ASR/LLM/TTS — заглушки в runtime.provider.
 Конвейер проверяется насквозь через настоящее WS-соединение /uni.ws, а не вызовами
-функций voice.py по отдельности — это страховка при разбиении voice.py (TASK-005/008).
+функций voice.py по отдельности — это страховка при разбиении voice.py.
 """
 import asyncio
 import struct
@@ -126,7 +126,7 @@ async def test_scenario_phrase_handled_without_agent(tmp_path):
 
 
 async def test_scenarios_mode_no_model_and_phrase_queued(tmp_path):
-    """Режим «Интеллект: сценарии» (TASK-011/013): фраза без сценария — стандартный ответ
+    """Режим «Интеллект: сценарии»: фраза без сценария — стандартный ответ
     not_understood с голосом, модель не вызывается, фраза — в очереди «Без ответа»."""
     runtime = Runtime(tmp_path)
     runtime.settings.update(aapi_voice=True, aapi_tts=True, intelligence='scenarios')

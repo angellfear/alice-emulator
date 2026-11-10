@@ -1,4 +1,4 @@
-"""TASK-018: SDK py-сценариев (server_emulator/sdk.py).
+"""SDK py-сценариев (server_emulator/sdk.py).
 
 Построители отдают РОВНО ту структуру reply, которую несёт JSON-шаг compose, и
 композятся в тот же ответ (сравнение байт сообщений reply_compose). ctx.action в
@@ -157,7 +157,7 @@ def test_state_and_slots_are_live_dicts_of_execution():
     inner = {"input": {"text": "привет"}, "state": {"hits": 1}, "slots": {"n": 2}}
     ctx = ScenarioContext(runtime_of(Executor()), inner)
     assert ctx.state is inner["state"] and ctx.slots is inner["slots"]
-    ctx.state["hits"] += 1  # правки сценария переживают шаги диалога (TASK-020)
+    ctx.state["hits"] += 1  # правки сценария переживают шаги диалога
     ctx.slots["n"] = 3
     assert inner["state"] == {"hits": 2} and inner["slots"] == {"n": 3}
 
@@ -311,7 +311,7 @@ def test_context_without_runtime_services_raises():
         ctx.lexicon("rooms")
 
 
-# --- SDK 1.1.0 (TASK-050): устройства, парсеры, форматтеры, датасеты, ресурсы ---------------
+# --- SDK 1.1.0: устройства, парсеры, форматтеры, датасеты, ресурсы ---------------
 
 from server_emulator.scenario_engine.bindings import expand  # noqa: E402
 from server_emulator.scenario_engine.library import LEXICONS  # noqa: E402

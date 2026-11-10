@@ -1,4 +1,4 @@
-"""TASK-054: «Запись» — опция устройства (off | on | misses), журнал трафика по устройствам.
+"""«Запись» — опция устройства (off | on | misses), журнал трафика по устройствам.
 
 Только локальные серверы: «настоящий Яндекс» — локальная aiohttp-заглушка (см. test_device_route_modes).
 """
@@ -102,13 +102,13 @@ async def test_migration_record_route_to_proxy_plus_record(tmp_path):
     settings = dict(store.load_settings())
     settings["default_route_mode"] = "record"
     store.save_settings(settings)
-    store.db.execute("DELETE FROM meta WHERE key='record_migration'")  # состояние до TASK-054
+    store.db.execute("DELETE FROM meta WHERE key='record_migration'")  # состояние
     store.db.commit()
     store.close()
 
     migrated = Runtime(tmp_path)
     try:
-        assert "default_route_mode" not in migrated.settings  # прежний default перенесён на устройства (TASK-064)
+        assert "default_route_mode" not in migrated.settings  # прежний default перенесён на устройства
         a, b, c = (migrated.identities.resolve(i) for i in ("a-id", "b-id", "c-id"))
         assert (a["route_mode"], a["record"]) == ("proxy", "on")
         assert (b["route_mode"], b["record"]) == ("proxy", "on")  # без своего маршрута: default record → proxy + запись
@@ -192,7 +192,7 @@ async def test_on_records_emulator_and_upstream_answers(tmp_path):
             async with client.get(url + "/no/handler?x=1", headers=DEVICE) as response:
                 assert response.status == 404
             set_route(runtime, "SN-RC", "proxy")
-            # TASK-066: OTA и в «Прозрачно» обслуживает эмулятор (запись — как в эмуляции)
+            # OTA и в «Прозрачно» обслуживает эмулятор (запись — как в эмуляции)
             async with client.get(url + "/check_updates", headers=DEVICE) as response:
                 assert await response.json() == {"hasUpdate": False}
             # не-OTA трафик «Прозрачно» — от Яндекса (заглушки)
@@ -258,7 +258,7 @@ async def test_local_handler_is_side_effect_free(tmp_path):
 
 
 async def test_direct_sync_info_follows_record_option(tmp_path):
-    """TASK-052 «Напрямую»: запись — по опции устройства; у get_sync_info обработчик есть,
+    """«Напрямую»: запись — по опции устройства; у get_sync_info обработчик есть,
     поэтому «Нет обработчиков» его не пишет."""
     runtime, calls, upstream_runner, runner, url = await start(tmp_path)
     state = dict(runtime.identities.resolve("rc-id")["state"], quasar_source="direct")
@@ -522,7 +522,7 @@ async def test_journal_migration_keys_groups_and_audio(tmp_path):
     path = Path(tmp_path) / "traffic.sqlite3"
     db = sqlite3.connect(path)
     db.executescript(OLD_SCHEMA)
-    db.execute("PRAGMA user_version=1")  # журнал TASK-043: маскирование уже было, групп нет
+    db.execute("PRAGMA user_version=1")  # журнал маскирование уже было, групп нет
     for index in range(14):  # 14 одинаковых событий одного устройства + 1 другое + без устройства
         db.execute("INSERT INTO exchanges(ts,kind,host,method,path,status,device_sn,source) "
                    "VALUES(?,?,?,?,?,?,?,?)", (100 + index, "http", "q.test", "GET", f"/same?i={index}", 200, "SN-1", "upstream"))

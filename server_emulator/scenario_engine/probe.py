@@ -17,7 +17,7 @@ from .router import candidates
 def dependencies_ok(scenario, executor):
     """(verdict, reason): supported | unsupported | rejected — без исполнения.
     Зависимости сценария — только примитивы движка: action, resolve.
-    TASK-019: py-сценарий (executor kind: script) — supported, только если резолвер
+    py-сценарий (executor kind: script) — supported, только если резолвер
     находит файл .py; иначе unsupported script_missing (роутер его не выбирает)."""
     if scenario.get("format_version") != 2:
         return "rejected", f"format_version:{scenario.get('format_version')}"

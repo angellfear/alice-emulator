@@ -1,4 +1,4 @@
-"""B03: единый resolver устройств — collect_device_id, pending с source/ip,
+"""Единый resolver устройств — collect_device_id, pending с source/ip,
 header/sync mismatch → закрытие соединения, миграция колонок unassigned."""
 import asyncio
 import json
@@ -108,7 +108,7 @@ def test_old_db_without_source_ip_columns_migrated(tmp_path):
     db_path = tmp_path / "emulator.sqlite3"
     store = StateStore(db_path)
     store.close()
-    # откатываем к старой схеме без source/ip, как в БД до B03
+    # откатываем к старой схеме без source/ip, как в БД 
     import sqlite3
     db = sqlite3.connect(db_path)
     db.execute("CREATE TABLE unassigned_old(device_id TEXT PRIMARY KEY, first_seen REAL, last_seen REAL)")

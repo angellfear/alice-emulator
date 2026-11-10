@@ -1,4 +1,4 @@
-﻿# Ярлыки эмулятора (TASK-045): автозапуск (Startup) и, с -Desktop, ярлык на рабочем столе.
+﻿# Ярлыки эмулятора: автозапуск (Startup) и, с -Desktop, ярлык на рабочем столе.
 # -Remove убирает ярлык автозапуска. Ярлык запускает pythonw tools/start_emulator.pyw (трей без консоли).
 param([switch]$Remove, [switch]$Desktop)
 $ErrorActionPreference = 'Stop'

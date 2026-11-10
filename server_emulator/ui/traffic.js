@@ -1,4 +1,4 @@
-// Раздел «Эмулятор → Журнал» (TASK-043, TASK-054): трафик устройств, который пишется по опции
+// Раздел «Эмулятор → Журнал»: трафик устройств, который пишется по опции
 // «Запись» устройства (Устройства → Устройства). Список по устройствам: блок на устройство →
 // группы событий (ключ, число всех случаев, время последнего) → до 10 записей группы.
 // Фильтры: устройство, источник (эмулятор / Яндекс), только «без обработчика». Карточка записи
@@ -36,7 +36,7 @@
     if (value.encoding !== 'text' && value.encoding !== 'json') body.title = 'Показано как ' + value.encoding;
     form.append(head, body);
   };
-  const frameLine = frame => {  // кадры WS старых записей (до TASK-054)
+  const frameLine = frame => {  // кадры WS старых записей
     const line = node('div', null, 'ep-row');
     const label = node('span', '#' + frame.sequence + ' ' + (frame.direction === 'client_to_server' ? '→' : '←'), 'count');
     const size = node('span', bytes(frame.size), 'count'); size.title = when(frame.ts);

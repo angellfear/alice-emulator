@@ -1,4 +1,4 @@
-"""Домен me: кабинет пользователя /me (TASK-062).
+"""Домен me: кабинет пользователя /me.
 
 /api/me/params (GET/PUT) и /api/me/devices (PUT) обслуживают страницу me.html; монтируются
 mount() на корне (/api/me/*, не под /emulator/api), потому что auth_middleware пускает на них

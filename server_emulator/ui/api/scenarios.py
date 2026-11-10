@@ -1,12 +1,12 @@
-"""Домен scenarios: admin-API (RF-03), перенесён дословно из legacy-цепочки legacy_api
+"""Домен scenarios: admin-API, перенесён дословно из legacy-цепочки legacy_api
 в runtime.py (mount_ui).
 
 scenarios (S01/S09): каталог пользовательских сценариев, полные определения
 встроенных, S-экспорт сценария как пакета реестра, индивидуальные
 переключатели, сохранение/удаление и dry-run прогон без устройства.
 
-Реестр пакетов сценариев (маршрут registry) перенесён в каталог расширений
-(TASK-036): extensions/legacy_registry.py и «Дополнительно → Расширения».
+Реестр пакетов сценариев (маршрут registry) перенесён в каталог расширений:
+extensions/legacy_registry.py и «Дополнительно → Расширения».
 """
 import datetime
 import os
@@ -19,7 +19,7 @@ from ...scenario_packages.validate import validate_scenario
 
 from . import route
 
-# TASK-019: заготовка кода py-сценария (GET ?script= без файла) — SDK из docs/contracts/scripts-sdk.md
+# заготовка кода py-сценария (GET ?script= без файла) — SDK из docs/contracts/scripts-sdk.md
 SCRIPT_STUB = '''"""py-сценарий: handle(ctx) вызывается на совпавший триггер
 (docs/contracts/scenario-json-v2.md, раздел «Исполнитель script»).
 
@@ -49,8 +49,8 @@ async def scenarios(request, runtime, app):
                    'scenarios': [clean]}
         return web.json_response(package)
     if request.method == 'GET' and 'script' in request.query:
-        # TASK-019: код .py py-сценария (встроенного и расширения — только чтение)
-        # или заготовка; TASK-030: сценарий расширения ищется в его каталоге
+        # код .py py-сценария (встроенного и расширения — только чтение)
+        # или заготовка; сценарий расширения ищется в его каталоге
         scenario_id = request.query['script']
         scenario = next((x for x in runtime.settings.get('scenarios', [])
                          if x.get('id') == scenario_id), None) or SCENARIOS.get(scenario_id)
@@ -70,7 +70,7 @@ async def scenarios(request, runtime, app):
                     'origin': 'builtin',
                     'enabled': master and key not in disabled}
                    for key, s in SCENARIOS.items()]
-        # слой расширений (TASK-030): сценарии включённых расширений — только чтение,
+        # слой расширений: сценарии включённых расширений — только чтение,
         # правка сохранит пользовательскую копию с тем же id
         extension, extension_errors = scenario_library.extension_scenarios(runtime.extensions)
         extensions_list = [{**{k: v for k, v in s.items() if not k.startswith('_')},
@@ -102,7 +102,7 @@ async def scenarios(request, runtime, app):
         return web.json_response({'id': value['id'], 'enabled': scenario['enabled']})
     if request.method == 'PUT':
         payload = dict(value or {})
-        script = payload.pop('script', None)  # TASK-019: код py-сценария — рядом с JSON, не внутри
+        script = payload.pop('script', None)  # код py-сценария — рядом с JSON, не внутри
         body = payload.pop('scenario', None) or payload
         scenario = validate_scenario(body)
         if (scenario.get('executor') or {}).get('kind') == 'script':
@@ -132,7 +132,7 @@ async def scenarios(request, runtime, app):
             (runtime.scenario_dir / (removed + '.json')).unlink()
         except OSError:
             pass
-        try:  # TASK-019: py-сценарий без JSON не нужен
+        try:  # py-сценарий без JSON не нужен
             (runtime.scenario_dir / (removed + '.py')).unlink()
         except OSError:
             pass
@@ -146,7 +146,7 @@ async def scenarios(request, runtime, app):
         ctx = {'input': {'message_id': 'dry-run',
             'request_id': 'dry-run', 'dialog_id': 'dry', 'sn': (value or {}).get('sn', ''), 'text': text},
             'clock': {'now': datetime.datetime.now()}}
-        ctx['dry_run'] = True  # TASK-019: py-сценарии не выполняют действия — пишут effects
+        ctx['dry_run'] = True  # py-сценарии не выполняют действия — пишут effects
         if runtime._scenario_context is not None:  # guard/bindings видят контекст
             ctx.update(runtime._scenario_context(sn=(value or {}).get('sn', ''),
                                                  device_id=(value or {}).get('device_id', '')))

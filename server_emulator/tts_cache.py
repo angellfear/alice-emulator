@@ -103,7 +103,7 @@ def static_phrases(runtime):
         text = " ".join(str(reply.get("text") or "").split())
         if text and reply.get("enabled", True):
             result.setdefault(text, {"text": text, "source": "reply", "name": reply.get("name", ""), "id": reply.get("id", "")})
-    from .behavior import extension_replies  # стандартные ответы расширений (TASK-032), только чтение
+    from .behavior import extension_replies  # стандартные ответы расширений, только чтение
     known_ids = {reply.get("id") for reply in runtime.settings.get("standard_replies") or []}
     for _origin, reply in extension_replies():
         text = " ".join(str(reply.get("text") or "").split())

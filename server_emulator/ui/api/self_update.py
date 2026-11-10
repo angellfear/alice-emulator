@@ -1,4 +1,4 @@
-"""Домен self_update: статус самообновления и действия по клику (TASK-040).
+"""Домен self_update: статус самообновления и действия по клику.
 
 GET — статус (текущая/новая версия, можно ли обновить, итог последнего обновления). POST {action}:
 check — проверка сейчас, update / stash_update (с откладыванием правок) / rollback — план и
@@ -59,7 +59,7 @@ def _start_update(service, app, action):
             raise ValueError("; ".join(status["reasons"]) or "обновление недоступно")
     plan = service.plan(target, action)
     service.spawn_updater(plan)
-    # TASK-068: запуск обновления/отката — в журнал сервера (итог пишет updater в plan.json,
+    # запуск обновления/отката — в журнал сервера (итог пишет updater в plan.json,
     # его сервер доложит журналом при следующем старте)
     log_event("info", "self_update",
               f"Откат на {target} запущен" if action == "rollback" else f"Обновление до {target} запущено")

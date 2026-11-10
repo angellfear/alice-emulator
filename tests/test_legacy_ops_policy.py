@@ -1,4 +1,4 @@
-"""TASK-027: шаги JSON fetch/extract/load/refresh/store/branch/set/wait_state удалены.
+"""Шаги JSON fetch/extract/load/refresh/store/branch/set/wait_state удалены.
 
 Сценарий с таким шагом не проходит валидацию («шаг <op> больше не поддерживается — перенесите
 в py») ни при сохранении, ни при загрузке; в JSON остаются compose / action / ask / finish / error."""

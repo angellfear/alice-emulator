@@ -62,7 +62,7 @@ def make_runtime(tmp_path, geo=True):
 
 
 async def dispatch_handle(runtime, name, ctx, dialog_id, send):
-    """handle_event с маршрутом колбэка, как в voice.py (TASK-058): событие колонки →
+    """handle_event с маршрутом колбэка, как в voice.py: событие колонки →
     внутреннее событие-запрос данных, сценарий-поставщик отвечает как раньше."""
     fields = {k: (ctx.get('input') or {}).get(k) for k in ('callback', 'purpose', 'frame')}
     return await runtime.dialog.handle_event(callback_route(name, fields) or name, ctx, dialog_id, send)

@@ -72,7 +72,7 @@ async def handle(ctx):
                                "longitude": location["longitude"],
                                "timezone": effective.get("timezone")}},
             timeout=settings.get("refresh_timeout"))
-    except SDKError:  # ни записи, ни плагина — честный ответ вместо сбоя (090)
+    except SDKError:  # ни записи, ни плагина — честный ответ вместо сбоя 
         return ctx.no_data_source()
     if record is None:
         return {"text": "Нет данных о погоде: поставщик погоды не ответил."}

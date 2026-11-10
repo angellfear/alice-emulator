@@ -1,4 +1,4 @@
-"""TASK-049: /glagol/device_list — glagol.security у устройств владельца и определение
+"""/glagol/device_list — glagol.security у устройств владельца и определение
 вызывающего без маркера устройства (IP клиента → единственный владелец → каталог/404)."""
 from aiohttp import ClientSession
 

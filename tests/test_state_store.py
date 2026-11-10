@@ -1,4 +1,4 @@
-"""B02/AUD-06: StateStore — CRUD, версионирование, миграция, откат, close."""
+"""StateStore — CRUD, версионирование, миграция, откат, close."""
 import json
 
 import pytest
@@ -51,7 +51,7 @@ def test_identity_roundtrip_and_owner_devices(tmp_path):
     assert by_sn["SN-A"]["device_ids"] == ["dev-1", "dev-2"]
     assert by_sn["SN-B"]["user_id"] == "u1"
     assert data["users"][0]["profile"]["timezone"] == "Europe/Moscow"
-    assert [d["device_id"] for d in data["unassigned"]] == ["dev-x"]  # B03: + source/ip/метки времени
+    assert [d["device_id"] for d in data["unassigned"]] == ["dev-x"]  # + source/ip/метки времени
     store.close()
 
 

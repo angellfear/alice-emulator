@@ -191,7 +191,7 @@ def set_ha_lights(runtime, lights):
 def make_runtime(workdir):
     """Владелец + две колонки + гео дома (params) + заглушка погоды."""
     runtime = Runtime(Path(workdir))
-    runtime.settings["intelligence"] = "scenarios"  # эталоны проверяют сценарии (090)
+    runtime.settings["intelligence"] = "scenarios"  # эталоны проверяют сценарии 
     # Фиксированный мир: погода и новости покрыты (open-meteo/news-stub включены,
     # сеть не нужна — диспетчер погоды подменён заглушкой), музыка — поставщики
     # музыки выключены («в Яндексе отвечает настоящий сервер»). Поведение с

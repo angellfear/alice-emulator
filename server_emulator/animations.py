@@ -12,7 +12,7 @@ catalog.json — источник правды (правки при остано
 капче 2026-10-24). Подтверждение экраном станции не верифицировано — delivery
 'sent/unconfirmed', как у остальных Push-действий панели.
 
-Расширения (TASK-032): папка animations/ включённого расширения добавляет
+Расширения: папка animations/ включённого расширения добавляет
 записи поверх каталога (только чтение, класс code им не нужен — data):
 *.json — запись анимации (url или frames, локальный GIF рядом — file), id без
 префикса получает <ext-id>., у записи origin «extension:<id>»; пользовательская
@@ -69,7 +69,7 @@ class AnimationStore:
         self.root = Path(root)
         self.media = self.root / "media"
         self.path = self.root / "catalog.json"
-        self.extension_dirs = extension_dirs  # callable → [(origin, Path)] — слои animations/, TASK-032
+        self.extension_dirs = extension_dirs  # callable → [(origin, Path)] — слои animations/,
         self.root.mkdir(parents=True, exist_ok=True)
         self.media.mkdir(parents=True, exist_ok=True)
         try:
@@ -92,7 +92,7 @@ class AnimationStore:
         temporary.write_text(json.dumps(self.data, ensure_ascii=False, indent=1), encoding="utf-8")
         temporary.replace(self.path)
 
-    # --- слой расширений (TASK-032) ---------------------------------------------------
+    # --- слой расширений ---------------------------------------------------
 
     def _extension_layers(self):
         """Слои animations/ включённых расширений: [(origin, Path)] (callable из runtime —
@@ -136,7 +136,7 @@ class AnimationStore:
     def list(self):
         """Каталог: пользовательские записи (catalog.json) + записи включённых
         расширений (только чтение; пользовательская запись с тем же id побеждает,
-        TASK-032). Каждая запись помечена origin: user | extension:<id>."""
+        Каждая запись помечена origin: user | extension:<id>."""
         extension = self._extension_entries()
         result = []
         for animation in self.data.get("animations", []):
@@ -230,7 +230,7 @@ class AnimationStore:
         path = (self.media / name).resolve()
         if path.is_relative_to(self.media.resolve()) and path.is_file():
             return path
-        for _origin, directory in self._extension_layers():  # GIF из папки расширения (TASK-032)
+        for _origin, directory in self._extension_layers():  # GIF из папки расширения
             root = Path(directory).resolve()
             candidate = (root / name).resolve()
             if candidate.is_relative_to(root) and candidate.is_file():

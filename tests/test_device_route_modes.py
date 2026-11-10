@@ -1,4 +1,4 @@
-"""TASK-044, TASK-054: режимы маршрута устройств (emulate | hybrid | proxy) — кто отвечает.
+"""Режимы маршрута устройств (emulate | hybrid | proxy) — кто отвечает.
 Журнал пишется по опции «Запись» устройства (подробно — tests/test_device_record.py).
 
 Только локальные серверы: «настоящий Яндекс» — локальная aiohttp-заглушка, цель
@@ -265,7 +265,7 @@ async def test_device_route_mode_applies_and_reroutes(tmp_path):
 
 
 async def test_route_change_does_not_wait_for_busy_ws(tmp_path, monkeypatch):
-    """TASK-057: обработчик занят, клиент не подтверждает close — PUT route_mode отвечает сразу
+    """Обработчик занят, клиент не подтверждает close — PUT route_mode отвечает сразу
     (aiohttp ждал бы ответный close до 10 с), а соединение всё равно закрывается."""
     release = asyncio.Event()
 
@@ -303,7 +303,7 @@ async def test_route_change_does_not_wait_for_busy_ws(tmp_path, monkeypatch):
 
 
 async def test_route_change_closes_proxy_bridge(tmp_path):
-    """TASK-057: мост прохода наверх (режим «Прозрачно») не в runtime.sessions — смена маршрута
+    """Мост прохода наверх (режим «Прозрачно») не в runtime.sessions — смена маршрута
     устройства закрывает и его (1012); соединения другого устройства не затрагиваются."""
     runtime = Runtime(tmp_path)
     registry(runtime, "SN-P", "p-id")
@@ -338,7 +338,7 @@ async def test_route_change_closes_proxy_bridge(tmp_path):
 
 
 async def test_default_route_is_emulate(tmp_path):
-    """TASK-064: маршрута по умолчанию нет — устройство без route_mode и неизвестное идут в эмуляцию;
+    """Маршрута по умолчанию нет — устройство без route_mode и неизвестное идут в эмуляцию;
     API `mode` удалён, `identities` не отдаёт default_route_mode, форма настроек его не сохраняет."""
     runtime = Runtime(tmp_path)
     registry(runtime, "SN-D", "d-id")
@@ -382,7 +382,7 @@ class _FakeWS:
 
 
 async def test_route_change_closes_ws_only_when_serving_changes(tmp_path):
-    """TASK-064: WS устройства обслуживает эмулятор (emulate, hybrid) или мост (proxy). Рвётся (1012)
+    """WS устройства обслуживает эмулятор (emulate, hybrid) или мост (proxy). Рвётся (1012)
     только переход в proxy или из него; emulate ↔ hybrid открытое соединение не трогает."""
     runtime = Runtime(tmp_path)
     registry(runtime, "SN-S", "s-id")
@@ -409,8 +409,8 @@ async def test_route_change_closes_ws_only_when_serving_changes(tmp_path):
 
 
 async def test_route_change_response_does_not_wait_and_hybrid_keeps_ws(tmp_path, monkeypatch):
-    """TASK-064: emulate → hybrid открытый WS не закрывает и отвечает сразу; emulate → proxy закрывает,
-    ответ при этом не ждёт колонку (фоновое закрытие, TASK-057)."""
+    """emulate → hybrid открытый WS не закрывает и отвечает сразу; emulate → proxy закрывает,
+    ответ при этом не ждёт колонку (фоновое закрытие)."""
     release = asyncio.Event()
 
     async def busy(self, data):
@@ -446,7 +446,7 @@ async def test_route_change_response_does_not_wait_and_hybrid_keeps_ws(tmp_path,
 
 
 async def test_proxy_route_intercepts_ota(tmp_path):
-    """TASK-066: OTA перехватывается и в «Прозрачно» — политика «Обновлений» действует,
+    """OTA перехватывается и в «Прозрачно» — политика «Обновлений» действует,
     апстрим не вызван; запрос оригинала (для каталога URL) идёт мимо маршрута, петля закрыта."""
     runtime = Runtime(tmp_path)
     value = runtime.updates.settings()

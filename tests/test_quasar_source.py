@@ -70,7 +70,7 @@ async def test_generated_default_matches_compose(tmp_path):
 
 async def test_direct_forwards_and_saves_last(tmp_path):
     """direct: ответ заглушки доходит до колонки без изменений, quasar_direct_last
-    сохранён, запись журнала с source=upstream — по опции «Запись» устройства (TASK-054)."""
+    сохранён, запись журнала с source=upstream — по опции «Запись» устройства."""
     runtime = Runtime(tmp_path)
     registry(runtime)
     runtime.identities.mutate({"operation": "record", "sn": "SN-Q", "mode": "on"})
@@ -235,7 +235,7 @@ async def test_push_action_delivery(tmp_path):
                 packet = await asyncio.wait_for(ws.receive(), 3)
                 assert packet.data.startswith(b"AAPI")
                 message = server_type.FromString(packet.data[4:])
-                # push_update_config — квитируемый ExecuteDirective (113): колонка
+                # push_update_config — квитируемый ExecuteDirective : колонка
                 # фиктивного теста не отвечает квитанцией — API ждёт 5 с и вернёт unconfirmed
                 assert message.Event.SyncPush.SyncRequest.ExecuteDirective.Directive.Name == "push_update_config"
     finally:

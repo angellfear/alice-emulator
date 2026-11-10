@@ -1,4 +1,4 @@
-"""Маршрутизация HTTP/WS запросов эмулятора (шаг декомпозиции DEBT-01, TASK-004).
+"""Маршрутизация HTTP/WS запросов эмулятора (шаг декомпозиции DEBT-01).
 
 Dispatcher получает runtime как аргумент и ведёт запрос через цепочку:
 каталог картинок → websocket (uniproxy) → OTA-обновления → builtin Quasar
@@ -6,12 +6,12 @@ Dispatcher получает runtime как аргумент и ведёт зап
 с note_miss. Алиасы хостов (settings.aliases) приводят Host к каноническому;
 WS-сессия остаётся у runtime (sessions — его состояние).
 
-resolve DeviceId (B03), IP клиента через client_peer и журнал recent — здесь;
-маршрут запроса — route_mode_for (TASK-044): (sn, device_id, mode) по заголовкам/
-query и реестру; устройство без своего маршрута и неизвестное — emulate (TASK-064).
+resolve DeviceId , IP клиента через client_peer и журнал recent — здесь;
+маршрут запроса — route_mode_for: (sn, device_id, mode) по заголовкам/
+query и реестру; устройство без своего маршрута и неизвестное — emulate.
 Режимы: emulate — локально; proxy — upstream; hybrid — локально, где есть обработчик,
 промах — наверх с отметкой в «Без ответа». Что писать в журнал, решает не маршрут, а опция
-устройства «Запись» (TASK-054): local_handler определяет «есть ли обработчик» одной функцией
+устройства «Запись»: local_handler определяет «есть ли обработчик» одной функцией
 для всех режимов.
 """
 import asyncio
@@ -70,7 +70,7 @@ class Dispatcher:
         return str(identifier).strip() if identifier else ''
 
     def route_mode_for(self, request):
-        """(sn, device_id, mode) маршрута запроса (TASK-044). Идентичность — тот же
+        """(sn, device_id, mode) маршрута запроса. Идентичность — тот же
         resolver и в том же порядке приоритета, что у основного пути (collect_device_id:
         uprx → quasar → ya → X-Ya-Application.device_id → query); расхождение источников
         здесь не журналируется — журнал ведёт handle() после повторного сбора. Разрешение
@@ -123,7 +123,7 @@ class Dispatcher:
             return True
         endpoint = runtime.endpoints.find(host, method, path)
         return bool(endpoint and endpoint.get('enabled') and endpoint.get('mode') != 'script') \
-            or builtin_covers(host, method, path)  # TASK-070: встроенные ответы без эндпоинтов
+            or builtin_covers(host, method, path)  # встроенные ответы без эндпоинтов
 
     def journal_emulated(self, request, host, path, started, sn, device_id, body, status, headers, output):
         """Запись ответа эмулятора в журнал — по опции «Запись» устройства (source=emulator)."""
@@ -135,7 +135,7 @@ class Dispatcher:
                                  list(request.headers.items()), list(headers.items()), body, output, started)
 
     def remember_sync_headers(self, request, device):
-        """TASK-052: заголовки последнего опроса конфига — только в памяти, по SN
+        """Заголовки последнего опроса конфига — только в памяти, по SN
         (кнопка «Получить с оригинального сервера»); в БД/state не пишутся."""
         self.runtime.quasar_sync_headers[device['sn']] = {
             'ts': time.time(), 'query': request.query_string,
@@ -144,7 +144,7 @@ class Dispatcher:
 
     @staticmethod
     def sync_info_transparent(device):
-        """TASK-065: замены get_sync_info в маршруте «Прозрачно» — источник «Напрямую» и
+        """Замены get_sync_info в маршруте «Прозрачно» — источник «Напрямую» и
         галочка «И в прозрачном маршруте» (state.quasar_direct_transparent) устройства."""
         state = device.get('state') or {}
         return state.get('quasar_source') == 'direct' and state.get('quasar_direct_transparent') is True
@@ -196,14 +196,14 @@ class Dispatcher:
                               body or b'', status, headers, output)
         return web.Response(status=status, body=output, headers=headers)
 
-    # TASK-070: встроенные ответы без эндпоинтов --------------------------------------
+    # встроенные ответы без эндпоинтов --------------------------------------
     AVATARS_CACHE_LIMIT = 200 * 1024 * 1024  # суммарный размер кеша обложек
     AVATARS_TTL = 7 * 86400
 
     async def builtin_answer(self, request, host, path):
         """Ответы, для которых не нужен ни эндпоинт, ни Яндекс: метрики и телеметрия
         (принять и выбросить), проверки связи, RPC-подсказки и тизеры, обложки музыки
-        (пересылка с кешем на диске), подписка на push (TASK-070/072). Вызывается, когда
+        (пересылка с кешем на диске), подписка на push. Вызывается, когда
         каталог эндпоинтов промахнулся, — пользовательский эндпоинт перекрывает встроенный.
         None — встроенного ответа нет."""
         if request.method in ('GET', 'HEAD') and (host or '').lower() == 'egress.yandex.net':
@@ -211,7 +211,7 @@ class Dispatcher:
             return 200, self.client_ip(request).encode(), {'Content-Type': 'text/plain'}
         if request.method == 'POST' and (host or '').lower() == 'quasar.yandex.net' \
                 and path == '/push_subscribe':
-            # TASK-072: подписка колонки на push-канал по образцу ответа Яндекса
+            # подписка колонки на push-канал по образцу ответа Яндекса
             # (журнал 2026-11-01: {"sign", "status": "ok", "ts"}); канал эмулятор не ведёт
             import secrets
             return 200, json.dumps({"sign": secrets.token_hex(16), "status": "ok",
@@ -332,10 +332,10 @@ class Dispatcher:
         return web.Response(status=status, body=output, headers=headers)
 
     async def direct_sync_info(self, request, device, device_id, sn, body, upstream):
-        """TASK-052, «Напрямую»: get_sync_info пересылается настоящему quasar.yandex.net,
-        ответ колонке без изменений (кроме замен regexp устройства, TASK-063 — quasar_replace.py);
+        """«Напрямую»: get_sync_info пересылается настоящему quasar.yandex.net,
+        ответ колонке без изменений (кроме замен regexp устройства — quasar_replace.py);
         успешный JSON сохраняется в state.quasar_direct_last (оригинал; body_sent — после замен).
-        Ошибка соединения/петли — 502 (как отвечает механизм TASK-043); сохранённый
+        Ошибка соединения/петли — 502 (как отвечает механизм); сохранённый
         последний ответ не затирается."""
         runtime = self.runtime
         target = upstream.target_for(request, host='quasar.yandex.net')
@@ -349,12 +349,12 @@ class Dispatcher:
             return web.json_response({'error': 'upstream_unavailable', 'detail': str(exc)[:200]}, status=502)
         replaced = None
         if status == 200 and sn:
-            # TASK-063: замены regexp в ответе (правила устройства); сломанный JSON колонке не уходит
+            # замены regexp в ответе (правила устройства); сломанный JSON колонке не уходит
             replaced = apply_replacements((device.get('state') or {}).get('quasar_direct_replace'), headers, payload)
             if replaced and 'error' in replaced:
                 runtime.recent = (runtime.recent + [{'kind': 'quasar_replace', 'device_sn': sn,
                                                      'error': replaced['error']}])[-30:]
-                # TASK-068: замены сломали JSON — администратор должен это увидеть
+                # замены сломали JSON — администратор должен это увидеть
                 runtime.server_log.log("error", "quasar", "Замены regexp сломали ответ get_sync_info",
                                        device_sn=sn, error=str(replaced['error'])[:200])
                 replaced = None
@@ -385,7 +385,7 @@ class Dispatcher:
             return web.json_response({'error': 'update_probe_loop'}, status=508)
         started = time.monotonic()
         body = await request.read()
-        # B03: единый resolver транспортных DeviceId (приоритет query > quasar > uprx);
+        # Единый resolver транспортных DeviceId (приоритет query > quasar > uprx);
         # расхождение независимых источников журналируется, не разрешается молча
         device_id, id_report = collect_device_id(
             ('query.device_id', request.query.get('device_id')),
@@ -477,8 +477,8 @@ class Dispatcher:
                                         journal=lambda: upstream.record_mode(xiva_sn),
                                         device_sn=xiva_sn, device_id=device_id or xiva_sn)
         if upstream is not None and route_mode == "proxy":
-            # TASK-044: прямой проход — WS мостом, HTTP пересылкой. Запись в журнал — по опции
-            # «Запись» устройства (TASK-054): HTTP решается здесь, WS — на каждом кадре.
+            # прямой проход — WS мостом, HTTP пересылкой. Запись в журнал — по опции
+            # «Запись» устройства: HTTP решается здесь, WS — на каждом кадре.
             # Устройство наблюдается: колонка остаётся в реестре, маршрут виден и сменяем в UI.
             observed = None
             if device_id:
@@ -493,18 +493,18 @@ class Dispatcher:
             canonical = self.canonical_host(request, host)
             if observed is not None and canonical == 'quasar.yandex.net' and (path or request.path) == '/get_sync_info' \
                     and self.sync_info_transparent(observed):
-                # TASK-065: «Напрямую» + «И в прозрачном маршруте» — замены применяются и здесь;
+                # «Напрямую» + «И в прозрачном маршруте» — замены применяются и здесь;
                 # остальной трафик маршрута идёт прямым проходом ниже
                 body = await request.read()
                 self.remember_sync_headers(request, observed)
                 return await self.direct_sync_info(request, observed, device_id, observed['sn'], body, upstream)
-            # TASK-066: обновления прошивки перехватываются при любом маршруте, и в «Прозрачно» —
+            # обновления прошивки перехватываются при любом маршруте, и в «Прозрачно» —
             # политика вкладки «Устройства → Обновления» действует и здесь; ответ по ней, запись
             # в журнал — как в эмуляции (journal_emulated по опции «Запись»); остальное — наверх
             update = await self.handle_update(request, canonical, path or request.path, record)
             if update is not None:
                 return update
-            # TASK-074: каталог приложений — режимы direct/merged/own при любом маршруте
+            # каталог приложений — режимы direct/merged/own при любом маршруте
             if canonical == 'rpc.alice.yandex.net' and (path or request.path) == '/gproxy/get_app_catalog':
                 return await self.app_catalog_response(request, canonical, path or request.path,
                                                        record=record,
@@ -516,7 +516,7 @@ class Dispatcher:
                                             journal=upstream.recording(sn, handled), unhandled=not handled,
                                             device_sn=sn, device_id=device_id)
             except UpstreamError as exc:
-                # TASK-095: как в остальных ветках пересылки — 502, а не 500 от aiohttp
+                # как в остальных ветках пересылки — 502, а не 500 от aiohttp
                 # (дубль записи в журнал сервера); сбой наверхом уже записан forward.py
                 return web.json_response({'error': 'upstream_unavailable', 'detail': str(exc)[:200]}, status=502)
         if is_ws:
@@ -525,7 +525,7 @@ class Dispatcher:
             # фаза 2, отдельное задание.
             return await runtime.websocket(request, record)
         body = await request.read()
-        silencer_used = False  # TASK-070: встроенный ответ без эндпоинта — журнал «Запись» не пишется
+        silencer_used = False  # встроенный ответ без эндпоинта — журнал «Запись» не пишется
         host = host or request.host.split(':', 1)[0]
         canonical_host = self.canonical_host(request, host)
         # v9 §8: в /glagol/token query device_id — ЦЕЛЬ (токен другого устройства),
@@ -542,7 +542,7 @@ class Dispatcher:
                                                 ip=self.client_ip(request), register=True) if caller_id else None
             device = runtime.identities.resolve(device_id) if device_id else None
         else:
-            # B03: единый resolver; IP/источник — метаданные наблюдения, не ownership.
+            # Единый resolver; IP/источник — метаданные наблюдения, не ownership.
             # Любой HTTP-запрос с маркером устройства (заголовки uprx/quasar/ya,
             # JSON X-Ya-Application, query) — представление: неизвестный DeviceId
             # сразу становится строкой реестра (без владельца).
@@ -559,7 +559,7 @@ class Dispatcher:
             device = runtime.identities.observe(device_id, source=id_report['resolved_from'], ip=self.client_ip(request),
                                                 register=True) if device_id else None
         if canonical_host == 'quasar.yandex.net' and (path or request.path) == '/get_sync_info':
-            # TASK-052: заголовки последнего опроса конфига — только в памяти, по SN
+            # заголовки последнего опроса конфига — только в памяти, по SN
             # (кнопка «Получить с оригинального сервера»); в БД/state не пишутся.
             if device is not None:
                 self.remember_sync_headers(request, device)
@@ -568,7 +568,7 @@ class Dispatcher:
         update = await self.handle_update(request, canonical_host, path or request.path, record)
         if update is not None:
             return update
-        # TASK-074: каталог приложений — режимы direct/merged/own (единый путь с «Прозрачно»)
+        # каталог приложений — режимы direct/merged/own (единый путь с «Прозрачно»)
         if canonical_host == 'rpc.alice.yandex.net' and (path or request.path) == '/gproxy/get_app_catalog':
             return await self.app_catalog_response(request, canonical_host, path or request.path,
                                                    record=record,
@@ -632,11 +632,11 @@ class Dispatcher:
         else:
             # Маршрут не поддержан локально (builtin/эндпоинт): честный 404.
             # Реестр «трёх состояний» удалён — реплей закрывает каталог эндпоинтов,
-            # «прозрачность» конкретного маршрута заменяется режимами маршрута (TASK-044).
+            # «прозрачность» конкретного маршрута заменяется режимами маршрута.
             catalog_covered = canonical_host == 'rpc.alice.yandex.net' and (path or request.path) == '/gproxy/get_app_catalog'
             miss_args = (canonical_host, request.method, path or request.path, request.query_string,
                          body, request.headers.get('Content-Type', ''), list(request.headers.items()))
-            # TASK-070: встроенные ответы без эндпоинтов (метрики, проверки связи, подсказки,
+            # встроенные ответы без эндпоинтов (метрики, проверки связи, подсказки,
             # обложки) — до пересылки гибрида и 404; пользовательский эндпоинт перекрывает
             # (каталог ищется выше). В промахи и журнал «Запись» не пишется (шум).
             silencer = None if catalog_covered else await self.builtin_answer(request, canonical_host, path or request.path)
@@ -675,7 +675,7 @@ class Dispatcher:
             journal_sn, journal_id = (caller['sn'] if caller else None), caller_id or None
         else:
             journal_sn, journal_id = (device['sn'] if device else sn), device_id
-        if not silencer_used:  # TASK-070: встроенные ответы — без записи в журнал трафика
+        if not silencer_used:  # встроенные ответы — без записи в журнал трафика
             self.journal_emulated(request, canonical_host, path or request.path, started, journal_sn, journal_id,
                                   body, status, headers, output)
         return web.Response(status=status, body=output, headers=headers)

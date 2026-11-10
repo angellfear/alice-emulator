@@ -1,4 +1,4 @@
-"""R07: dialog/transport — continuation раньше роутера, correlation IDs, доставка."""
+"""dialog/transport — continuation раньше роутера, correlation IDs, доставка."""
 import datetime
 
 import pytest

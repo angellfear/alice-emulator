@@ -6,7 +6,7 @@ state/endpoints/<category>/<id>.json (category: quasar, gproxy, egress…;
 сервере); битые файлы пропускаются. Наполнение — tools/endpoints_recover.py
 из capture-базы; сам эмулятор о базе не знает (прокси — отдельный компонент).
 
-Слой расширений (TASK-030): endpoints/*.json включённых расширений — только
+Слой расширений: endpoints/*.json включённых расширений — только
 чтение, файлы остаются в каталоге расширения (script-обработчик — .py рядом с
 JSON, тоже оттуда). Правка записи расширения (upsert/переключатель) создаёт
 пользовательскую копию в state/endpoints; пользовательская запись с тем же id
@@ -66,7 +66,7 @@ def system_entries(quasar_routes, update_endpoints):
 
 # Сигнал dispatch → прокси: маршрут «прозрачен», обмен уходит upstream без записи.
 # Несёт уже прочитанное dispatch тело запроса (read-once). После удаления
-# ── Встроенные ответы без эндпоинтов (TASK-070) ─────────────────────────────
+# ── Встроенные ответы без эндпоинтов ─────────────────────────────
 # Телеметрия и проверки связи, на которые у эмулятора нет данных: короткий ответ
 # «успех» (образцов ответов в журнале нет — см. docs/contracts/http.md), чтобы
 # колонка не видела ошибок и промахи не засорялись. Пользовательский эндпоинт
@@ -101,10 +101,10 @@ BUILTIN_SILENCERS = (
      "body": b"{}", "note": "реклама при старте — пустой ответ"},
     {"host": "rpc.alice.yandex.net", "methods": ("POST",), "path": "/gproxy/centaur_get_gallery",
      "status": 200, "body": b"", "content_type": "application/x-protobuf",
-     "note": "галерея экрана — пустой protobuf (TASK-072; персональная галерея недоступна без аккаунта)"},
+     "note": "галерея экрана — пустой protobuf (персональная галерея недоступна без аккаунта)"},
     {"host": "quasar.yandex.net", "methods": ("POST",), "path": "/set_device_capability",
      "status": 200, "body": b'{"status":"ok"}',
-     "note": "состояние возможностей колонки — принято (TASK-072; по WS оно хранится, TASK-069)"},
+     "note": "состояние возможностей колонки — принято (по WS оно хранится)"},
 )
 
 
@@ -167,7 +167,7 @@ def find_builtin(host, method, path):
 
 
 def builtin_covers(host, method, path):
-    """Обслуживается ли запрос встроенным ответом (включая обложки аватаров, TASK-070):
+    """Обслуживается ли запрос встроенным ответом (включая обложки аватаров):
     такие запросы не попадают в «HTTP без эндпоинта»."""
     if find_builtin(host, method, path) is not None:
         return True
@@ -185,12 +185,12 @@ def builtin_entries():
                         "methods_extra": item["methods"][1:],
                         "category": "builtin", "enabled": True, "readonly": True, "owner": "endpoints",
                         "title": item["note"],
-                        "notes": "Встроенный ответ (TASK-070): перекрывается своим эндпоинтом с тем же URL."})
+                        "notes": "Встроенный ответ: перекрывается своим эндпоинтом с тем же URL."})
     entries.append({"id": "builtin.avatars", "host": "avatars.yandex.net", "method": "GET",
                     "path": "/get-music-content/…", "category": "builtin", "enabled": True,
                     "readonly": True, "owner": "endpoints",
                     "title": "обложки музыки — пересылка с кешем на диске",
-                    "notes": "Пересылается настоящему серверу (TASK-070), ответ кешируется в state/cache/avatars; "
+                    "notes": "Пересылается настоящему серверу, ответ кешируется в state/cache/avatars; "
                              "без сети — кеш, затем 404."})
     return entries
 
@@ -221,7 +221,7 @@ def request_context(request_values):
 class EndpointCatalog:
     def __init__(self, directory, extension_dirs=None):
         self.directory = Path(directory)
-        self.extension_dirs = extension_dirs  # callable → [(ext_id, Path)], TASK-030
+        self.extension_dirs = extension_dirs  # callable → [(ext_id, Path)],
         self.endpoints = []
         self._load()
 
@@ -257,7 +257,7 @@ class EndpointCatalog:
                 self.endpoints.append(item)
         except OSError:
             pass  # каталог недоступен — каталог пуст, эмуляция работает
-        # Слой расширений (TASK-030): только чтение. Пользовательская запись с тем
+        # Слой расширений: только чтение. Пользовательская запись с тем
         # же id уже в списке — запись расширения перекрыта, не дублируется.
         for origin, path in self._extensions():
             try:
@@ -472,7 +472,7 @@ class EndpointCatalog:
 
     def note_miss(self, host, method, path, query="", body=b"", content_type="", headers=(), forwarded=None):
         """Запомнить запрос без обработчика: из него UI создаёт эндпоинт (+).
-        forwarded (TASK-044, гибрид): 'upstream' — промах ушёл в Яндекс, 'error: …' —
+        forwarded (гибрид): 'upstream' — промах ушёл в Яндекс, 'error: …' —
         попытка не удалась; отметка показывается в «Без ответа»."""
         import base64
         misses = self.misses()

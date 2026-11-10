@@ -1,7 +1,7 @@
-"""Пакет расширений эмулятора (TASK-028/029): схема манифеста schema.json,
+"""Пакет расширений эмулятора: схема манифеста schema.json,
 менеджер manager.py (установка, состояние, хуки), источники sources.py
 (скачивание/распаковка — общие с реестром сценариев). Контракт:
-docs/contracts/extensions.md. Точки подключения TASK-030+ берут включённые
+docs/contracts/extensions.md. Точки подключения берут включённые
 расширения из runtime.extensions (ExtensionManager.loaded, contribution_dirs()).
 """
 

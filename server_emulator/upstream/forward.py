@@ -1,7 +1,7 @@
-"""Пересылка HTTP и мост WS к настоящим серверам Яндекса (TASK-043).
+"""Пересылка HTTP и мост WS к настоящим серверам Яндекса.
 
 Механизм без правил: какие запросы пересылать, решает Upstream.route (режимы
-устройств, TASK-044). Пересылка идёт собственной клиентской сессией с коннектором
+устройств). Пересылка идёт собственной клиентской сессией с коннектором
 на UpstreamResolver — системный DNS может указывать хосты Яндекса на сам сервер.
 TLS к Яндексу — с проверкой сертификата (по умолчанию aiohttp). Тело запроса уже
 прочитано диспетчером и передаётся как есть; ответ буферизуется целиком (устройства
@@ -17,7 +17,7 @@ from aiohttp import ClientSession, ClientTimeout, TCPConnector, WSMsgType, web
 from multidict import CIMultiDict
 from yarl import URL
 
-from ..server_log import log_event  # TASK-068: ошибки пересылки — в журнал сервера
+from ..server_log import log_event  # ошибки пересылки — в журнал сервера
 from .journal import TrafficJournal
 from .record import WsTap
 
@@ -38,7 +38,7 @@ class UpstreamError(RuntimeError):
 
 
 def note_upstream_failure(context, error):
-    """TASK-068: неудачная пересылка наверх (502) — в журнал сервера, источник upstream."""
+    """Неудачная пересылка наверх (502) — в журнал сервера, источник upstream."""
     log_event("error", "upstream", f"Пересылка наверх не удалась: {context.get('host') or ''}",
               path=str(context.get("path") or "")[:200], device_sn=context.get("device_sn"),
               error=str(error)[:200])
@@ -65,7 +65,7 @@ def decoded_body(headers, payload, maximum=8 * 1024 ** 2):
 
 def decoded_json(headers, payload, maximum=8 * 1024 ** 2):
     """Тело ответа как JSON-объект: content-encoding снимается, лимит 8 МиБ.
-    Не JSON и не распаковалось — None (TASK-052: quasar_direct_last / fetch)."""
+    Не JSON и не распаковалось — None (quasar_direct_last / fetch)."""
     import json
     raw = decoded_body(headers, payload, maximum)
     if raw is None:
@@ -96,7 +96,7 @@ class Forwarder:
         self.resolver = resolver
         self.journal = journal
         self._session = None
-        # Открытые мосты WS: смена маршрута устройства закрывает и их (TASK-057)
+        # Открытые мосты WS: смена маршрута устройства закрывает и их
         self.connections = {}
 
     def session(self):

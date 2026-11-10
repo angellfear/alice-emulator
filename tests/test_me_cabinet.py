@@ -1,4 +1,4 @@
-"""TASK-062: кабинет /me — API /api/me/*, страница, ссылка-токен для админа (X-Me-Token)."""
+"""Кабинет /me — API /api/me/*, страница, ссылка-токен для админа (X-Me-Token)."""
 import pytest
 from aiohttp import ClientSession, CookieJar
 

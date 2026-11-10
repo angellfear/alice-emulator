@@ -1,4 +1,4 @@
-"""Режимы маршрута (TASK-044, TASK-054, TASK-064): три режима устройства (emulate | hybrid | proxy),
+"""Режимы маршрута: три режима устройства (emulate | hybrid | proxy),
 маршрута по умолчанию нет; миграция старой режимной модели (mode + emulation_excluded), маршрута record
 и прежнего default_route_mode на устройства реестра."""
 import pytest
@@ -34,7 +34,7 @@ async def test_route_modes_enum_rejects_unknown(tmp_path):
     _registry(runtime)
     for mode in ("emulate", "hybrid", "proxy", None):
         assert (await runtime.set_device_route_mode("SN-A", mode))["mode"] == mode
-    for bad in ("partial", "record", "turbo"):  # «Запись» — опция устройства, не маршрут (TASK-054)
+    for bad in ("partial", "record", "turbo"):  # «Запись» — опция устройства, не маршрут
         with pytest.raises(ValueError):
             await runtime.set_device_route_mode("SN-A", bad)
     assert not hasattr(runtime, "set_default_route_mode")
@@ -43,7 +43,7 @@ async def test_route_modes_enum_rejects_unknown(tmp_path):
 
 async def test_legacy_mode_migrates_to_route_modes(tmp_path):
     """Старая модель (mode + emulation_excluded): mode emulate → эмуляция, mode proxy → proxy + record «Включено»
-    устройствам без своего маршрута (TASK-054, TASK-064); известные SN из исключений сразу получают
+    устройствам без своего маршрута; известные SN из исключений сразу получают
     route_mode=proxy (без записи), подключившиеся позже — при регистрации; ключи удаляются."""
     runtime = Runtime(tmp_path)
     runtime.identities.mutate({"operation": "user", "id": "u", "name": "U"})
@@ -100,7 +100,7 @@ async def test_legacy_mode_emulate_leaves_devices_in_emulation(tmp_path):
 
 @pytest.mark.parametrize("old, expected", [("proxy", "proxy"), ("hybrid", "hybrid"), ("emulate", None)])
 async def test_default_route_mode_moves_to_devices_once(tmp_path, old, expected):
-    """TASK-064: прежний default_route_mode ≠ emulate записывается устройствам реестра без своего
+    """Прежний default_route_mode ≠ emulate записывается устройствам реестра без своего
     маршрута; устройства со своим маршрутом не меняются; ключа в настройках больше нет; однократно."""
     runtime = Runtime(tmp_path)
     _registry(runtime)

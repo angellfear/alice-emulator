@@ -83,7 +83,7 @@ def test_seed_idempotent_with_legacy(tmp_path):
 
 @pytest.mark.asyncio
 def test_resolve_view_sources_and_secret(store):
-    """TASK-060: итог цепочки с уровнем-источником по каждому ключу; секрет — маской."""
+    """Итог цепочки с уровнем-источником по каждому ключу; секрет — маской."""
     store.def_upsert({"key": "server.timezone", "scope": "server", "type": "string",
                       "default_value": "Asia/Tashkent"})
     store.def_upsert({"key": "user.wifi_hash", "scope": "user", "type": "secret"})
@@ -121,7 +121,7 @@ async def test_params_admin_api(tmp_path):
                 assert response.status == 200
             async with client.get(url + "/emulator/api/param_values?owner=server") as response:
                 assert (await response.json())["values"]["server.house_name"]["value"] == "Дом у реки"
-            # TASK-060: для устройства — resolve=1 (значение + уровень-источник), секрет маской;
+            # для устройства — resolve=1 (значение + уровень-источник), секрет маской;
             # админ правит значение другого пользователя
             runtime.identities.mutate({'operation': 'user', 'id': 'u1', 'name': 'Alex'})
             runtime.identities.mutate({'operation': 'device', 'sn': 'SN1', 'user_id': 'u1', 'device_ids': []})

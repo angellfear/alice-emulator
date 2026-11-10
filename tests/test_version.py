@@ -1,4 +1,4 @@
-"""TASK-039: версия из git-описания рабочей копии и manifest release-please.
+"""Версия из git-описания рабочей копии и manifest release-please.
 
 Тесты используют локальные git-репозитории (git CLI есть на машинах разработки;
 сам version.py работает без CLI — через dulwich). Битый/отсутствующий git —
@@ -66,7 +66,7 @@ def test_ignored_files_are_not_dirty(tmp_path):
 
 
 def test_without_git_falls_back_to_manifest(monkeypatch):
-    """Установка из zip без .git: версия из .release-please-manifest.json (TASK-039).
+    """Установка из zip без .git: версия из .release-please-manifest.json.
     Каталог заведомо вне git-репозитория — Repo.discover не найдёт ни одного родителя."""
     import tempfile
     manifest = Path(__file__).resolve().parent.parent / ".release-please-manifest.json"

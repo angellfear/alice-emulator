@@ -1,6 +1,6 @@
-"""RF-09: binding-источник template — реплика целиком в JSON.
+"""binding-источник template — реплика целиком в JSON.
 
-Золотые фразы зафиксированы пиннутыми литералами: после миграции RF-09
+Золотые фразы зафиксированы пиннутыми литералами: после миграции
 прежние computed-функции (local_time_phrase/duration_phrase/alarm_confirm_phrase)
 удалены, литералы защищают русские склонения фильтров time_ru/duration/hhmm.
 """
@@ -18,7 +18,7 @@ def template(value, ctx=None):
     return evaluate({"source": "template", "value": value}, ctx or CTX)
 
 
-# --- золотые фразы фильтров (пиннутые литералы, RF-09) ----------------------------
+# --- золотые фразы фильтров (пиннутые литералы) ----------------------------
 
 
 @pytest.mark.parametrize("now, expected", [

@@ -1,6 +1,6 @@
 """Стандартные голосовые ответы на особые состояния сервера (вне модели).
 
-Расширения (TASK-032): папка replies/ включённого расширения добавляет записи
+Расширения: папка replies/ включённого расширения добавляет записи
 (только чтение): *.json — ответ {id, name, case, text, enabled}; case — только
 известные STANDARD_CASES (новые случаи расширением не вводятся), id без префикса
 получает <ext-id>.; пользовательская запись settings с тем же id побеждает,
@@ -22,7 +22,7 @@ STANDARD_CASES = {'unclaimed': 'Устройство не привязано к 
                   'simple_unavailable': 'Известная функция Алисы в простом режиме',
                   'no_data_source': 'Сценарию данных не нашёлся плагин-источник'}
 
-_extension_layers = None  # callable → [(origin, Path)] — слои replies/ расширений (TASK-032)
+_extension_layers = None  # callable → [(origin, Path)] — слои replies/ расширений
 
 
 def set_extension_layers(provider):
@@ -95,7 +95,7 @@ def validate_standard(replies):
 
 def standard_for(replies,case,layers=None):
     """Реплика для случая: первая включённая из settings (пользовательская побеждает),
-    иначе — из включённых расширений (TASK-032; layers — слои replies/, иначе
+    иначе — из включённых расширений (layers — слои replies/, иначе
     провайдер set_extension_layers). Пользовательская запись с тем же id — даже
     выключенная — перекрывает запись расширения. Settings не мутируются."""
     for reply in replies or []:

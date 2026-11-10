@@ -1,4 +1,4 @@
-"""TASK-087: медиа на штатном плеере колонки.
+"""Медиа на штатном плеере колонки.
 
 Своей медиатеки/очереди у эмулятора нет: «стоп/пауза» отвечает теми же директивами,
 что настоящий сервер (обезличенный образец tests/fixtures/directives/media-pause.json,
@@ -71,7 +71,7 @@ def test_station_state_player_playing_and_idle():
 
 
 def test_pause_scenario_does_not_keep_its_own_queue():
-    """Очереди плеера в runtime больше нет — состояние только из запроса (087)."""
+    """Очереди плеера в runtime больше нет — состояние только из запроса ."""
     assert not hasattr(Runtime.__new__(Runtime), "media_state")
     from server_emulator import sdk
     props = {name for name in dir(sdk.ScenarioContext) if not name.startswith("_")}
@@ -196,7 +196,7 @@ def _service_ctx(runtime, name):
 async def test_player_callbacks_match_silent_sample(tmp_path, name, provide):
     """Ответ колбэку — как в образце (on_started x112, on_stopped x134, get_next без
     очереди x4): пустой диалоговый ответ, только tts_play_placeholder {channel: Dialog},
-    без речи и других директив. Get_next маршрутизируется поставщику музыки (099):
+    без речи и других директив. Get_next маршрутизируется поставщику музыки :
     поставщика нет — сценарий отказывается, умолчание маршрута (quiet_ack) даёт
     ту же форму образца."""
     assert callback_route(name, {}) == provide

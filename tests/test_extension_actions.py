@@ -1,4 +1,4 @@
-"""TASK-033: действия и датасеты расширений (actions/*.py, datasets/*.py).
+"""Действия и датасеты расширений (actions/*.py, datasets/*.py).
 
 Расширение-папка (режим разработки, как в tests/test_extensions_manager.py и
 tests/test_extension_modes.py) объявляет ACTIONS = {"имя": fn} и DATASETS =
@@ -6,9 +6,9 @@ tests/test_extension_modes.py) объявляет ACTIONS = {"имя": fn} и DA
 Executor (runtime.scenario_executor.actions/plugins) рядом со встроенными
 (timer.start…, weather) и доступны JSON-шагу action/load/refresh и SDK
 ctx.action/ctx.dataset (тот же реестр — полный e2e py-сценария остаётся
-заделом TASK-019, пока py-сценарии не подключены).
+заделом, пока py-сценарии не подключены).
 
-Правило сверки разрешения (TASK-033): имя действия обязано начинаться с
+Правило сверки разрешения: имя действия обязано начинаться с
 префикса расширения (contributes.actions.prefix или id) ИЛИ быть объявленным
 в permissions.actions; имя вне префикса без объявления — противоречие. Имя
 датасета — всегда с префикса. Конфликт со встроенным или другим расширением →
@@ -128,7 +128,7 @@ async def test_extension_action_runs_via_json_step(tmp_path):
 
 async def test_extension_action_via_sdk_context(tmp_path):
     """Py-путь — через SDK ctx.action (тот же реестр Executor). Полный e2e
-    py-сценария (handle(ctx) рядом с JSON) — задел TASK-019: py-сценарии
+    py-сценария (handle(ctx) рядом с JSON) — задел py-сценарии
     пока не подключены."""
     marker = tmp_path / "calls.json"
     runtime = await loaded_runtime(tmp_path, actions={"brew.py": action_module(marker)})

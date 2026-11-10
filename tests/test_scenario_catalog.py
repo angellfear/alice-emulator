@@ -1,4 +1,4 @@
-"""S01/S09: API каталога сценариев, dry-run, экспорт. Реестр пакетов (TASK-036) — tests/test_registry_migration.py."""
+"""S01/S09: API каталога сценариев, dry-run, экспорт. Реестр пакетов — tests/test_registry_migration.py."""
 from aiohttp import ClientSession
 
 from server_emulator.runtime import Runtime

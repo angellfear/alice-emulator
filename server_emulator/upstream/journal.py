@@ -1,4 +1,4 @@
-"""Журнал трафика устройств (TASK-043, TASK-054): state/traffic.sqlite3.
+"""Журнал трафика устройств: state/traffic.sqlite3.
 
 Пишет обмены: время, SN/DeviceId устройства, направление, хост, метод, путь, статус,
 размеры, длительность и источник ответа (emulator|upstream). Что писать, решает опция
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS journal_groups(
   device_sn TEXT NOT NULL, key TEXT NOT NULL, count INTEGER NOT NULL,
   first_ts REAL NOT NULL, last_ts REAL NOT NULL, PRIMARY KEY(device_sn, key));
 """
-# колонки TASK-054: старые журналы получают их ALTER'ом (до создания индекса по ним)
+# колонки старые журналы получают их ALTER'ом (до создания индекса по ним)
 GROUP_COLUMNS = (("key", "TEXT"), ("unhandled", "INTEGER NOT NULL DEFAULT 0"), ("message_id", "TEXT"),
                  ("ref_message_id", "TEXT"), ("audio_in_frames", "INTEGER NOT NULL DEFAULT 0"),
                  ("audio_in_bytes", "INTEGER NOT NULL DEFAULT 0"), ("audio_out_frames", "INTEGER NOT NULL DEFAULT 0"),
@@ -146,7 +146,7 @@ class TrafficJournal:
             self.db.execute(f"PRAGMA user_version={MASK_VERSION}")
 
     def _regroup(self):
-        """Однократно (TASK-054): старым записям — ключ события, из них — таблица групп с
+        """Однократно: старым записям — ключ события, из них — таблица групп с
         прежним числом случаев, на пару остаются последние GROUP_LIMIT. Звуковые кадры старых
         WS-сессий (бинарные без AAPI) удаляются, их число и размер — в счётчиках записи open."""
         if self.db.execute("PRAGMA user_version").fetchone()[0] >= GROUP_VERSION:

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Расширение эмулятора: extension.json",
-  "description": "Схема манифеста расширения — docs/contracts/extensions.md (TASK-028). Валидацию выполняет менеджер расширений (TASK-029); jsonschema в зависимостях проекта нет — при использовании без добавления зависимости понадобится ручная проверка по этой же структуре. Неизвестные поля запрещены: опечатка в permissions не должна молча превратить расширение в «без разрешений».",
+  "description": "Схема манифеста расширения — docs/contracts/extensions.md. Валидацию выполняет менеджер расширений; jsonschema в зависимостях проекта нет — при использовании без добавления зависимости понадобится ручная проверка по этой же структуре. Неизвестные поля запрещены: опечатка в permissions не должна молча превратить расширение в «без разрешений».",
   "type": "object",
   "additionalProperties": false,
   "required": ["id", "name", "version", "description", "author", "license", "requires", "permissions"],
@@ -49,7 +49,7 @@
       "properties": {
         "emulator": {
           "type": "string",
-          "description": "Диапазон semver версий эмулятора (сверяет менеджер при установке, TASK-029)."
+          "description": "Диапазон semver версий эмулятора (сверяет менеджер при установке)."
         },
         "sdk": {
           "type": "string",
@@ -58,7 +58,7 @@
         "python_packages": {
           "type": "array",
           "items": { "type": "string", "minLength": 1 },
-          "description": "Pip-требования; менеджер не ставит молча — установка отдельной кнопкой с подтверждением (TASK-029)."
+          "description": "Pip-требования; менеджер не ставит молча — установка отдельной кнопкой с подтверждением."
         }
       }
     },
@@ -93,7 +93,7 @@
     "settings": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Схема настроек расширения: поля — формат fields из voice_stack/packages/*.json; значения хранит менеджер, рендерит вкладка «Расширений» (TASK-035).",
+      "description": "Схема настроек расширения: поля — формат fields из voice_stack/packages/*.json; значения хранит менеджер, рендерит вкладка «Расширений».",
       "properties": {
         "fields": {
           "type": "array",

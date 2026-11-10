@@ -1,4 +1,4 @@
-"""Журнал трафика → недостающие обработчики и сценарии (TASK-072).
+"""Журнал трафика → недостающие обработчики и сценарии.
 
 На вход — путь к КОПИИ журнала (traffic.sqlite3 с -wal/-shm, рабочий журнал только
 читается из копии). На выход — отчёт Markdown: разделы HTTP (кто отвечал, unhandled,
@@ -200,7 +200,7 @@ def build_report(journal_path):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Журнал трафика → пробелы обработчиков (TASK-072)")
+    parser = argparse.ArgumentParser(description="Журнал трафика → пробелы обработчиков")
     parser.add_argument("journal", help="путь к КОПИИ traffic.sqlite3 (с -wal/-shm рядом)")
     parser.add_argument("--output", default=None, help="куда писать отчёт (по умолчанию reports/journal-gaps-<дата>.md)")
     args = parser.parse_args(argv)

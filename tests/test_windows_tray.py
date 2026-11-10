@@ -1,4 +1,4 @@
-"""TASK-045: трей-лаунчер — контроллер с подменёнными процессами и сервером, без pystray и окон."""
+"""Трей-лаунчер — контроллер с подменёнными процессами и сервером, без pystray и окон."""
 import json
 import subprocess
 import sys
@@ -94,7 +94,7 @@ def test_restart_code_relaunches_immediately(controller):
 
 
 def test_update_code_waits_for_plan(controller, tmp_path):
-    """TASK-040: код UPDATE_CODE — трей не перезапускает сервер, ждёт план updater'а."""
+    """Код UPDATE_CODE — трей не перезапускает сервер, ждёт план updater'а."""
     controller.iterate()
     controller.child.returncode = server_config.UPDATE_CODE
     controller.iterate()

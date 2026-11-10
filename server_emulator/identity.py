@@ -11,7 +11,7 @@ from .state_store import StateStore
 
 
 def collect_device_id(*candidates):
-    """B03: единый resolver транспортных DeviceId.
+    """Единый resolver транспортных DeviceId.
 
     candidates — последовательность (source, value) в порядке приоритета.
     Возвращает (device_id, report). Пустые/None пропускаются; report.mismatch
@@ -32,7 +32,7 @@ def collect_device_id(*candidates):
 
 class IdentityRegistry:
     def __init__(self, directory, store=None):
-        # B02: единственное хранилище — StateStore (WAL, FK, транзакции).
+        # Единственное хранилище — StateStore (WAL, FK, транзакции).
         self.store = store or StateStore(Path(directory) / "emulator.sqlite3")
         self.data = self._load()
         # Оперативная активность известных устройств: sn → {'ts','ip','source'}.
@@ -52,7 +52,7 @@ class IdentityRegistry:
         except ValueError:
             groups = []
         data["groups"] = groups if isinstance(groups, list) else []
-        # Переопределения Quasar-конфига пользователя (слой аккаунта, TASK-047): тоже в meta —
+        # Переопределения Quasar-конфига пользователя (слой аккаунта): тоже в meta —
         # таблица users не меняется; в представлении — поле quasar_overrides пользователя.
         raw = self.store.meta(self.USER_QUASAR_META_KEY)
         try:
@@ -152,7 +152,7 @@ class IdentityRegistry:
 
     @staticmethod
     def route_mode(value):
-        """Маршрут устройства (TASK-044): None — без своего маршрута (Эмуляция)."""
+        """Маршрут устройства: None — без своего маршрута (Эмуляция)."""
         if value in (None, ''):
             return None
         if value not in ROUTE_MODES:
@@ -161,7 +161,7 @@ class IdentityRegistry:
 
     @staticmethod
     def record_option(value):
-        """Опция «Запись» устройства (TASK-054): off | on | misses; пусто — off."""
+        """Опция «Запись» устройства: off | on | misses; пусто — off."""
         if value in (None, ''):
             return 'off'
         if value not in RECORD_MODES:
@@ -340,12 +340,12 @@ class IdentityRegistry:
                       'fields': self.fields(request.get('fields', old.get('fields', {}))),
                       'route_mode': self.route_mode(request.get('route_mode', old.get('route_mode'))),
                       'record': self.record_option(request.get('record', old.get('record')))}
-            if not old and self._take_pending_route(sn):  # TASK-044: SN из emulation_excluded
+            if not old and self._take_pending_route(sn):  # SN из emulation_excluded
                 device['route_mode'] = 'proxy'
             value['devices'] = [d for d in value['devices'] if d['sn'] != sn] + [device]
             value['unassigned'] = [d for d in value['unassigned'] if d['device_id'] not in aliases]
         elif operation == 'route_mode':
-            # TASK-044: смена маршрута одного устройства; mode=None — снять свой маршрут (Эмуляция)
+            # смена маршрута одного устройства; mode=None — снять свой маршрут (Эмуляция)
             sn = self.text(request.get('sn'), 'SN')
             device = next((d for d in value['devices'] if d['sn'] == sn), None)
             if device is None:
@@ -356,7 +356,7 @@ class IdentityRegistry:
             else:
                 device.pop('route_mode', None)
         elif operation == 'record':
-            # TASK-054: опция записи одного устройства (off | on | misses)
+            # опция записи одного устройства (off | on | misses)
             sn = self.text(request.get('sn'), 'SN')
             device = next((d for d in value['devices'] if d['sn'] == sn), None)
             if device is None:
@@ -378,7 +378,7 @@ class IdentityRegistry:
                 raise ValueError('Состояние должно быть объектом')
             device['state'] = copy.deepcopy(request['state'])
         elif operation == 'pair':
-            # B04: pairing pending→assigned — явная привязка наблюдаемого DeviceId
+            # pairing pending→assigned — явная привязка наблюдаемого DeviceId
             # из очереди unassigned к SN владельца; требует confirm и уникальность.
             device_id = self.text(request.get('device_id'), 'DeviceId')
             pending = next((d for d in value['unassigned'] if d['device_id'] == device_id), None)
@@ -397,12 +397,12 @@ class IdentityRegistry:
                       'user_id': user_id, 'device_ids': list(dict.fromkeys([device_id] + old.get('device_ids', []))),
                       'profile': old.get('profile', {}), 'state': old.get('state', {}),
                       'record': old.get('record') or 'off'}
-            if not old and self._take_pending_route(sn):  # TASK-044: SN из emulation_excluded
+            if not old and self._take_pending_route(sn):  # SN из emulation_excluded
                 device['route_mode'] = 'proxy'
             value['devices'] = [d for d in value['devices'] if d['sn'] != sn] + [device]
             value['unassigned'] = [d for d in value['unassigned'] if d['device_id'] != device_id]
         elif operation == 'group':
-            # Стереопары (TASK-048): создать (без id) или изменить (с id) группу.
+            # Стереопары: создать (без id) или изменить (с id) группу.
             old = None
             if request.get('id') is not None:
                 identifier = self.group_id(request['id'])
@@ -445,7 +445,7 @@ class IdentityRegistry:
             device_row = {'sn': device_id, 'name': device_id, 'user_id': None,
                           'device_ids': [device_id], 'profile': {},
                           'state': {'glagol_security': generate()}}
-            if self._take_pending_route(device_id):  # TASK-044: SN из emulation_excluded
+            if self._take_pending_route(device_id):  # SN из emulation_excluded
                 device_row['route_mode'] = 'proxy'
             value['devices'].append(device_row)
             self.commit(value)

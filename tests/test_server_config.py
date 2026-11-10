@@ -1,4 +1,4 @@
-"""TASK-042: state/server.json — порты, SSL, сертификат; проверка, сохранение, откат, перезапуск."""
+"""state/server.json — порты, SSL, сертификат; проверка, сохранение, откат, перезапуск."""
 import datetime
 import json
 import socket

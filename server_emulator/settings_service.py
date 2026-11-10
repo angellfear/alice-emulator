@@ -2,8 +2,8 @@
 
 SettingsService владеет жизненным циклом настроек: загрузка из StateStore с миграцией
 режимной модели и аддитивной миграцией дефолтов, валидация входящих значений,
-маскирование секретов для UI, сохранение ревизией в БД (RF-08: тела сценариев живут
-в файлах state/scenarios, ревизия хранит заглушки {id, enabled}).
+маскирование секретов для UI, сохранение ревизией в БД: тела сценариев живут
+в файлах state/scenarios, ревизия хранит заглушки {id, enabled}.
 
 Runtime держит текущий dict в runtime.settings и оркестрирует сохранение: замок,
 профили устройств (refresh_profiles), звуковой кеш — это состояние и заботы runtime.
@@ -16,14 +16,14 @@ from urllib.parse import urlsplit
 
 log = logging.getLogger(__name__)
 
-# Режимы маршрута (TASK-044, решение вместо двух режимов 2026-10-24): у каждого
-# устройства свой route_mode; без него (и для неизвестных устройств) — emulate (TASK-064,
-# маршрута по умолчанию нет). «Запись» — не маршрут, а опция устройства record (TASK-054):
+# Режимы маршрута (решение вместо двух режимов 2026-10-24): у каждого
+# устройства свой route_mode; без него (и для неизвестных устройств) — emulate,
+# маршрута по умолчанию нет. «Запись» — не маршрут, а опция устройства record:
 # off | on | misses, пишется поверх любого маршрута.
 ROUTE_MODES = ("emulate", "hybrid", "proxy")
 RECORD_MODES = ("off", "on", "misses")
 ROUTE_MIGRATION_KEY = "route_migration"  # meta StateStore: {"excluded": [sn]} — очередь миграции
-RECORD_MIGRATION_KEY = "record_migration"  # meta: маршрут record → proxy + опция record (TASK-054), однократно
+RECORD_MIGRATION_KEY = "record_migration"  # meta: маршрут record → proxy + опция record, однократно
 LEGACY_REPO = "angellfear/alica_emule"  # прежнее имя репозитория — переводится миграцией на новое
 
 DEFAULT = {
@@ -61,15 +61,15 @@ DEFAULT = {
     # устройства (emulate/hybrid — заглушки, proxy — туннель), emulate — всегда заглушки,
     # upstream («напрямую») — всегда туннель. Детали — oauth_stubs.py.
     "oauth": {"mode": "auto"},
-    # Расширения (TASK-029): источники (URL/локальные папки), состояние включённости,
+    # Расширения: источники (URL/локальные папки), состояние включённости,
     # установленное (версия/предыдущая/источник/самопроверка) и значения настроек.
     # Файлы живут в state/extensions/<id>/<version>/; детали — extensions/manager.py.
     "extensions": {"sources": []},
-    # Проход наверх (TASK-043): внешние DNS-серверы, закреплённые адреса хостов
-    # и лимиты журнала трафика. Какие запросы пересылать — режимы маршрута (TASK-044).
+    # Проход наверх: внешние DNS-серверы, закреплённые адреса хостов
+    # и лимиты журнала трафика. Какие запросы пересылать — режимы маршрута.
     "upstream": {"dns_servers": ["77.88.8.8", "1.1.1.1"], "upstream_ip": {},
                  "journal": {"max_body_kb": 256, "max_size_mb": 100, "max_age_days": 14}},
-    # Самообновление (TASK-040): проверка релизов GitHub и обновление по кнопке,
+    # Самообновление: проверка релизов GitHub и обновление по кнопке,
     # автоматически ничего не ставится. token — строка или env:ИМЯ, по умолчанию пуст
     # (API публичного репозитория работает без него); restart — кто запускает сервер после обновления.
     "self_update": {"enabled": True, "repo": "angellfear/alice-emulator", "channel": "stable",
@@ -91,7 +91,7 @@ DEFAULT = {
 
 def revision(value):
     """Ревизия настроек в БД хранит сценарии как заглушки {id, enabled}: тела
-    живут в файлах state/scenarios (RF-08), история настроек не растёт от
+    живут в файлах state/scenarios , история настроек не растёт от
     правок сценариев. Legacy-миграция пишет текст в БД напрямую и не
     прореживается; в памяти Runtime тела сохраняются как были."""
     if not isinstance(value, dict) or not isinstance(value.get("scenarios"), list):
@@ -107,7 +107,7 @@ def validate_url(value):
 
 
 def masked_secret(value):
-    # B04: в UI возвращается только configured/masked; ссылка env:VAR — не
+    # В UI возвращается только configured/masked; ссылка env:VAR — не
     # секрет и видна как есть (значение живёт в окружении процесса)
     if isinstance(value, str) and value.startswith("env:"):
         return value
@@ -126,7 +126,7 @@ class SettingsService:
         settings = stored or copy.deepcopy(DEFAULT)
         # Миграция режимной модели: partial больше не существует — стоявшие в нём
         # переводятся в эмуляцию; список emulation_ws_local (H05) упразднён. Блок
-        # касается только настроек, где legacy-ключ ещё есть (TASK-044: без этого
+        # касается только настроек, где legacy-ключ ещё есть (без этого
         # каждая загрузка добавляла mode обратно и перезатирала прежний маршрут по умолчанию).
         legacy_mode = ("mode" in settings and settings["mode"] not in ("proxy", "emulate"))             or "emulation_ws_local" in settings
         if "mode" in settings and settings["mode"] not in ("proxy", "emulate"):
@@ -174,7 +174,7 @@ class SettingsService:
             self.store.save_settings(settings)
 
     def _migrate_route_modes(self, settings):
-        """TASK-044: старая режимная модель (settings.mode + emulation_excluded) →
+        """Старая режимная модель (settings.mode + emulation_excluded) →
         маршруты по устройствам. mode: emulate → default emulate; mode: proxy →
         default record. Каждый SN из emulation_excluded попадает в очередь миграции
         (meta route_migration): известным устройствам реестра сразу ставится
@@ -200,14 +200,14 @@ class SettingsService:
         return True
 
     def _migrate_record_route(self, settings):
-        """TASK-054: «Запись» перестала быть маршрутом. Однократно (отметка в meta):
+        """«Запись» перестала быть маршрутом. Однократно (отметка в meta):
         устройство с route_mode=record → proxy + record=on; default_route_mode=record →
         proxy, и устройства без своего маршрута получают record=on (прежнее поведение).
-        SN из очереди миграции TASK-044 (emulation_excluded) — «прокси без журнала» —
+        SN из очереди миграции (emulation_excluded) — «прокси без журнала» —
         запись не получают."""
         default_record = settings.get("default_route_mode") == "record"
         if self.store.meta(RECORD_MIGRATION_KEY) and not default_record:
-            return False  # остаток прежнего default (режимная миграция TASK-044 после отметки) — переносим снова
+            return False  # остаток прежнего default (режимная миграция после отметки) — переносим снова
         data = self.store.load_identity_data()
         changed = 0
         pending = self.store.meta(ROUTE_MIGRATION_KEY)
@@ -233,7 +233,7 @@ class SettingsService:
         return True
 
     def _migrate_default_route(self, settings):
-        """TASK-064: маршрута по умолчанию больше нет. Прежний default_route_mode ≠ emulate
+        """Маршрута по умолчанию больше нет. Прежний default_route_mode ≠ emulate
         переносится устройствам реестра без своего route_mode (поведение колонок не меняется
         молча), ключ удаляется из настроек. Идёт после legacy-миграций (mode, record):
         они приводят default к emulate | hybrid | proxy."""
@@ -283,7 +283,7 @@ class SettingsService:
         return True
 
     def persist(self, settings):
-        """Сохранение: ревизия в БД (RF-08) + сверка каталога файлов сценариев."""
+        """Сохранение: ревизия в БД  + сверка каталога файлов сценариев."""
         self.store.save_settings(revision(settings))
         if isinstance(settings, dict):
             self.sync_scenario_files(settings.get("scenarios", []))
@@ -307,14 +307,14 @@ class SettingsService:
     def validate(self, value, current):
         """Проверка присланных UI настроек → копия, готовая к persist.
         current — прежние настройки для восстановления секретов __KEEP__."""
-        # TASK-044/064: устаревшая форма UI присылает старые ключи режимов — не сохраняем их
+        # устаревшая форма UI присылает старые ключи режимов — не сохраняем их
         value.pop("default_route_mode", None)
         value.pop("mode", None)
         value.pop("emulation_excluded", None)
-        # TASK-088: служебное поле ревизии (сверка устаревшей копии формы) — не настройка
+        # служебное поле ревизии (сверка устаревшей копии формы) — не настройка
         value.pop("_rev", None)
         from .intelligence import LEVELS, ext_id
-        # Встроенный уровень или "ext:<id>" (режим расширения, TASK-034). Валидатор
+        # Встроенный уровень или "ext:<id>" (режим расширения). Валидатор
         # проверяет только формат: включённость расширения с modes/ знает менеджер
         # расширений, её проверяет intelligence.extension_mode при ответе — недоступный
         # режим откатывается на scenarios с записью в recent.
@@ -350,7 +350,7 @@ class SettingsService:
         agent_cfg = value.get("agent")
         if isinstance(agent_cfg, dict) and agent_cfg.get("webhook_token") == "__KEEP__":
             agent_cfg["webhook_token"] = (current.get("agent") or {}).get("webhook_token", "")
-        # Самообновление (TASK-040): форма без ключа — восстановить из current; присланное — по форме.
+        # Самообновление: форма без ключа — восстановить из current; присланное — по форме.
         if "self_update" not in value:
             value["self_update"] = copy.deepcopy(current.get("self_update") or DEFAULT["self_update"])
         else:
@@ -373,7 +373,7 @@ class SettingsService:
                 raise ValueError("self_update.skipped: нужна строка")
             if su.setdefault("restart", "self") not in ("self", "manager"):
                 raise ValueError("self_update.restart: self | manager")
-        # Медиа (TASK-071): список радио «имя → URL»; присланной формы нет — из current.
+        # Медиа: список радио «имя → URL»; присланной формы нет — из current.
         # Поставщики данных: выбранный id по видам (проверку реестра делает
         # providers.selected — выключенное расширение просто не выбирается);
         # присланной формы UI нет — из current.
@@ -425,7 +425,7 @@ class SettingsService:
                     0.0, float(DEFAULT["fetch_state"]["min_interval_s"] if interval is None else interval))
             except (TypeError, ValueError):
                 raise ValueError("fetch_state.min_interval_s: число секунд (0 — без лимита)") from None
-        # Расширения (TASK-029): устаревшая форма UI присылает настройки без ключа —
+        # Расширения: устаревшая форма UI присылает настройки без ключа —
         # восстанавливаем из current (состояние расширений UI не редактирует);
         # присланное — проверяем по форме.
         if "extensions" not in value:
@@ -474,7 +474,7 @@ class SettingsService:
         """Файлы state/scenarios/*.json — определение сценариев по одному на файл.
         При пустом каталоге существующие сценарии из settings выгружаются в файлы
         (миграция); при непустом — файлы источник правды (можно править при остановке).
-        Ревизии БД хранят сценарии как заглушки {id, enabled} (RF-08) — запись без
+        Ревизии БД хранят сценарии как заглушки {id, enabled}  — запись без
         тела (triggers/flow) сценарием не считается и в файлы не выгружается."""
         try:
             self.scenario_dir.mkdir(parents=True, exist_ok=True)

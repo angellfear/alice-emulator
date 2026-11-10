@@ -1,4 +1,4 @@
-"""TASK-048: стереопары в реестре (groups) и ключ group в /get_sync_info, /glagol/device_list."""
+"""Стереопары в реестре (groups) и ключ group в /get_sync_info, /glagol/device_list."""
 import pytest
 from aiohttp import ClientSession
 

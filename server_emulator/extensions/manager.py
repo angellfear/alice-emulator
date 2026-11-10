@@ -1,9 +1,9 @@
-"""Менеджер расширений (TASK-029): источники, установка, включение, обновление,
+"""Менеджер расширений: источники, установка, включение, обновление,
 откат, хуки, python-зависимости. Контракт — docs/contracts/extensions.md, схема
 манифеста — extensions/schema.json.
 
 Валидация манифеста — ручная (validate_manifest): jsonschema в зависимостях
-проекта нет (карточка TASK-028 не добавляла зависимость), структура повторяет
+проекта нет (зависимость не добавляли), структура повторяет
 схему дословно, включая запрет неизвестных полей. Диапазоны совместимости —
 satisfies(): ^X.Y.Z, ~X.Y.Z, операторы >=, <=, >, <, =, голая версия X.Y как
 X.Y.x; условия через пробел/запятую — И.
@@ -124,7 +124,7 @@ def satisfies(version, constraint):
     return True
 
 
-# --- валидация манифеста (schema.json руками, TASK-028) ------------------------
+# --- валидация манифеста (schema.json руками) ------------------------
 
 def validate_manifest(data):
     """Ручная проверка extension.json по структуре extensions/schema.json:
@@ -167,7 +167,7 @@ def validate_manifest(data):
     if not all(isinstance(a, str) and a.strip() for a in permissions.get("actions", [])):
         raise ValueError("extension.json: permissions.actions — список строк")
     if not all(isinstance(a, str) and a.strip() for a in permissions.get("aapi", [])):
-        raise ValueError("extension.json: permissions.aapi — список событий (TASK-059)")
+        raise ValueError("extension.json: permissions.aapi — список событий")
     for key in ("device_push", "install"):
         if not isinstance(permissions.get(key, False), bool):
             raise ValueError(f"extension.json: permissions.{key} — boolean")
@@ -256,7 +256,7 @@ class ExtensionManager:
         self._phrases_runner = None  # ScriptRunner модулей lists_from файлов фраз (mtime-кеш)
         self._phrase_watched = []  # датасет-записи, прочитанные последней сборкой справочника
         self._lists_refreshing = {}  # (датасет, ключ) → задача фонового обновления
-        bind_manager(self)  # TASK-053: Executor/SDK находят владельца действия (context.action_context)
+        bind_manager(self)  # Executor/SDK находят владельца действия (context.action_context)
 
     # --- состояние ----------------------------------------------------------------
     def _state(self):
@@ -568,16 +568,16 @@ class ExtensionManager:
         return list(dict.fromkeys(self._phrase_watched))
 
     def context(self, ext_id):
-        """ExtensionContext расширения (TASK-053): значения values(ext_id), строки
+        """ExtensionContext расширения: значения values(ext_id), строки
         вида env:ИМЯ раскрыты через auth.secret (context.py). Новый объект на каждый
         вызов — правка настроек видна коду расширения без рестарта."""
         item = self.loaded.get(ext_id) or {}
         return ExtensionContext(ext_id, self.values(ext_id, item.get("manifest")))
 
     def action_context(self, name):
-        """ExtensionContext расширения-владельца действия name (TASK-053): имя под
+        """ExtensionContext расширения-владельца действия name: имя под
         префиксом (contributes.actions.prefix или id) или объявлено в
-        permissions.actions — правило регистрации TASK-033; префикс сильнее объявления
+        permissions.actions — правило регистрации префикс сильнее объявления
         (владеет тот, кто регистрировал). Встроенное/неизвестное — None."""
         for ext_id in sorted(self.loaded):  # префиксные имена
             if name.startswith(str(self.action_prefix(ext_id)).rstrip(".") + "."):
@@ -623,7 +623,7 @@ class ExtensionManager:
         """URL → (payload|None, локальный путь|None, sha256, версия из каталога, запись
         прежнего реестра|None). Каталог разворачивается в запись, GitHub — в zipball
         последнего релиза или archive/<ref>.zip. Запись прежнего реестра сценариев
-        (TASK-036) — пакет сценариев: ссылка того же origin, что и каталог, лимит 4 МБ;
+        — пакет сценариев: ссылка того же origin, что и каталог, лимит 4 МБ;
         install() разворачивает его в data-расширение."""
         source = parse_source(url)
         sha = declared = legacy = None
@@ -672,7 +672,7 @@ class ExtensionManager:
                     raise ValueError("sha256 архива не совпадает")
                 self.root.mkdir(parents=True, exist_ok=True)
                 staging = Path(tempfile.mkdtemp(prefix=".staging-", dir=self.root))
-                if legacy:  # пакет реестра сценариев → data-расширение (TASK-036)
+                if legacy:  # пакет реестра сценариев → data-расширение
                     legacy_registry.convert_package(payload, legacy, staging)
                 else:
                     extract_zip(payload, staging)
@@ -877,21 +877,21 @@ class ExtensionManager:
             raise ValueError(f"Хук {name} расширения {ext_id}: {failure(exc)}") from exc
 
     async def _selfcheck(self, ext_dir):
-        """Самопроверка tests/ (TASK-023): прогон сценариев расширения dry-run'ом
+        """Самопроверка tests/: прогон сценариев расширения dry-run'ом
         (record из tools/record_scenario_golden.py — свой runtime, фиксированный мир,
         без сети). Кейсы — tests/cases.json ({сценарий: [фразы]}), иначе вывод из
-        триггеров. Пока py-сценарии не подключены (TASK-019), расширения с *.py в
+        триггеров. Пока py-сценарии не подключены, расширения с *.py в
         scenarios/ дают предупреждение — честная деградация, не блокирует установку."""
         scenarios_dir, tests_dir = Path(ext_dir) / "scenarios", Path(ext_dir) / "tests"
         if not scenarios_dir.is_dir():
             return None  # проверять нечего
         if any(scenarios_dir.rglob("*.py")):
             return {"status": "warning",
-                    "detail": "Самопроверка недоступна до TASK-019 (в расширении есть py-сценарии)"}
+                    "detail": "Самопроверка недоступна: в расширении есть py-сценарии"}
         if not tests_dir.is_dir():
-            return None  # самопроверка — только для расширений с tests/ (карточка 029)
+            return None  # самопроверка — только для расширений с tests/
         try:
-            from tools.record_scenario_golden import record  # механизм TASK-023
+            from tools.record_scenario_golden import record
         except Exception as exc:  # noqa: BLE001 — tools может отсутствовать в установке
             return {"status": "skipped", "detail": f"Модуль самопроверки недоступен: {exc}"}
         cases = None
@@ -936,11 +936,11 @@ class ExtensionManager:
             return list(grouped.items())
         raise ValueError("tests/cases.json: нужен объект {сценарий: [фразы]} или список {scenario, phrase}")
 
-    # --- загрузка включённых и доступ другим точкам подключения (TASK-030+) ----------------
+    # --- загрузка включённых и доступ другим точкам подключения ----------------
     def load_enabled(self):
         """Скан включённых расширений (старт и после включения/выключения): manifest
         и активный каталог, без сети и хуков. Битое расширение — в self.warnings.
-        После скана — пересборка реестров действий/датасетов (TASK-033); до создания
+        После скана — пересборка реестров действий/датасетов; до создания
         Executor в runtime (начало __init__) пересборка сама ничего не делает."""
         self.loaded, self.warnings = {}, []
         self._sync_builtin()
@@ -959,9 +959,9 @@ class ExtensionManager:
             rebuild()
 
     def contribution_dirs(self, name):
-        """Каталоги включённых расширений для точки подключения TASK-030+:
+        """Каталоги включённых расширений для точки подключения:
         [(ext_id, Path)] — папка name или переопределение contributes[name].
-        «actions» — не путь, а объявление префикса ({prefix}, TASK-033): всегда
+        «actions» — не путь, а объявление префикса ({prefix}): всегда
         папка actions/ (схема манифеста другого вида contributes.actions не знает)."""
         result = []
         for ext_id, item in self.loaded.items():

@@ -40,18 +40,18 @@ nav .active{background:rgba(109,176,255,.22);color:#eaf4ff;border-color:#6db0ff;
   border-radius:0;min-height:30px;padding:4px 12px;font-size:13px;cursor:pointer;white-space:nowrap}
 .subnav button:hover{color:var(--text)}
 .subnav .active{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
-/* Источник конфига (TASK-052): заголовок + переключатель справа, на 400px — под заголовком */
+/* Источник конфига: заголовок + переключатель справа, на 400px — под заголовком */
 .src-head{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap}
 .src-head h3{margin:0}
 .src-head .segmented{margin-left:auto}
 @media (max-width:600px){.src-head .segmented{margin-left:0}}
-/* Кнопка самообновления (TASK-040) в полосе навигации, перед переключателем режима:
+/* Кнопка самообновления в полосе навигации, перед переключателем режима:
    акцентная, с одной пульсацией при появлении (prefers-reduced-motion её отключает) */
 .update-btn{flex:0 0 auto;margin-left:auto;border-radius:999px;font-size:13px;min-height:32px;padding:5px 14px}
 .update-btn.pulse{animation:update-pulse 1.4s ease-out 1}
 @keyframes update-pulse{from{box-shadow:0 0 0 0 var(--accent-bg)}to{box-shadow:0 0 0 14px transparent}}
 @media (prefers-reduced-motion:reduce){.update-btn.pulse{animation:none}}
-/* Строка состояния слева от переключателя режимов (TASK-088): значки ASR / TTS / Модель +
+/* Строка состояния слева от переключателя режимов: значки ASR / TTS / Модель +
    микросостояние агента (только в режиме «AI агент»). По одному title на элементе, подписей нет;
    на 400px чип с многоточием — полоса навигации прокручивается внутри себя, страница нет. */
 .live-status{display:flex;align-items:center;gap:7px;flex:0 0 auto;margin-left:auto;padding:0 4px}
@@ -70,7 +70,7 @@ nav .active{background:rgba(109,176,255,.22);color:#eaf4ff;border-color:#6db0ff;
 .live-agent.error{color:var(--danger);border-color:var(--danger)}
 @media (max-width:600px){.live-agent{max-width:96px}}
 .update-notes{white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;overflow-y:auto}
-/* Маршрут и запись устройства (TASK-044/054): сегменты на широкой ширине, select на узкой —
+/* Маршрут и запись устройства: сегменты на широкой ширине, select на узкой —
    два переключателя в строке таблицы помещаются в страницу только от ~1240px */
 .route-cell .route-switch{display:flex;align-items:center}
 .route-cell .route-switch .segmented{display:inline-flex;margin-left:0}
@@ -83,7 +83,7 @@ nav .active{background:rgba(109,176,255,.22);color:#eaf4ff;border-color:#6db0ff;
    занятым — обычный курсор. «Ожидание» остаётся у остальных кнопок, пока work() держит запрос (button:disabled) */
 .segmented button.active,.segmented button.active:disabled{background:var(--accent-bg);color:var(--text);font-weight:600;opacity:1}
 .segmented button.active:disabled,.segmented [aria-checked=true]:disabled{cursor:default}
-/* Журнал (TASK-054): группы событий внутри блока устройства — без вложенных карточек */
+/* Журнал: группы событий внутри блока устройства — без вложенных карточек */
 .traffic-group{border:0;border-top:1px solid var(--border);border-radius:0;background:none;padding:8px 0;margin:0}
 .traffic-group summary{overflow-wrap:anywhere}
 .traffic-items{padding:4px 0 0 12px}
@@ -257,12 +257,12 @@ body.embedded section{border-radius:10px;background:transparent;border:none;padd
 /* width:auto обязателен: .list button задаёт width:100% и растягивает кнопку на всю строку */
 .scenario-row .secondary{display:block;flex:0 0 auto;width:auto;min-height:32px;padding:4px 12px;font-size:12.5px}
 .scenario-row a.button{display:inline-flex;align-items:center;flex:0 0 auto;width:auto;min-height:32px;padding:4px 12px;font-size:12.5px;text-decoration:none;border:1px solid var(--border-strong)}
-/* Метка py у сценариев со скриптом — в строке с названием, как chip у эндпоинтов (TASK-021) */
+/* Метка py у сценариев со скриптом — в строке с названием, как chip у эндпоинтов */
 .scenario-row .name-line{display:flex;align-items:center;gap:6px;min-width:0;max-width:100%}
 .scenario-row .name-line .chip{flex:0 0 auto}
 /* Режим «Скрипт (py)»: CodeMirror вместо label с textarea — тот же отступ, что у label */
 #scenario-script-box{margin-bottom:14px}
-/* Редактор сценария — модальное окно (TASK-038): до 900px, на телефоне — на весь экран */
+/* Редактор сценария — модальное окно: до 900px, на телефоне — на весь экран */
 .catalog-dialog.sc-edit-dialog{width:min(900px,calc(100vw - 40px));max-width:calc(100vw - 40px);max-height:92vh}
 .sc-edit-dialog .sc-edit-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .sc-edit-dialog .sc-edit-head h3{margin:0;overflow-wrap:anywhere}
@@ -810,13 +810,13 @@ label.ui-switch{position:relative;display:inline-flex;flex-direction:row;margin:
 .setup-state .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .setup-state .row span{flex:1 1 200px}
 @media (max-width:600px){.setup-dialog{width:100vw;max-width:100vw;margin:0;border-radius:0;border-width:0}}
-/* Свёрнутые блоки промахов в разделах (TASK-061, misses.js): заголовок-счётчик, список внутри */
+/* Свёрнутые блоки промахов в разделах (misses.js): заголовок-счётчик, список внутри */
 .misses-block{border:1px solid var(--border);border-radius:var(--radius-s);padding:8px 12px;margin:0 0 14px}
 .misses-block>summary{cursor:pointer;list-style:none;align-items:center}
 .misses-block>summary::-webkit-details-marker{display:none}
 .misses-block[open]>summary{margin-bottom:8px}
 
-/* Окно «Замены» (TASK-063): строка правила — вкл, pattern, replace, удалить; на узкой ширине pattern и replace друг под другом */
+/* Окно «Замены»: строка правила — вкл, pattern, replace, удалить; на узкой ширине pattern и replace друг под другом */
 .replace-dialog{width:min(900px,calc(100vw - 40px))}
 .replace-dialog h3{margin:0;overflow-wrap:anywhere}
 .replace-dialog .hint,.replace-dialog .sc-err{margin:0}
@@ -876,7 +876,7 @@ label.ui-switch{position:relative;display:inline-flex;flex-direction:row;margin:
   .ws-table td:first-child:empty{display:none}
 }
 
-/* Журнал сервера (Дополнительно → Лог, TASK-068) */
+/* Журнал сервера (Дополнительно → Лог) */
 .log-entry{border:1px solid var(--border);border-radius:var(--radius-s);background:var(--surface);margin:0 0 6px}
 .log-entry>summary{list-style:none;display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;padding:7px 10px;cursor:pointer}
 .log-entry>summary::-webkit-details-marker{display:none}
@@ -899,7 +899,7 @@ label.ui-switch{position:relative;display:inline-flex;flex-direction:row;margin:
 .srv-path button{flex:none;white-space:nowrap}
 label.srv-check{flex-direction:row;align-items:center;gap:8px}
 label.srv-check input{flex:none;width:auto;height:auto;margin:0}
-/* TASK-093: зафиксированные домены вне сертификата — строка: хост ×N и кнопка «Добавить» */
+/* Зафиксированные домены вне сертификата — строка: хост ×N и кнопка «Добавить» */
 .srv-observed{display:grid;gap:4px;margin-top:6px}
 /* Домены для сертификата: компактный список, непокрытые — цветом ошибки */
 .srv-cert-domains ul{margin:4px 0 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:2px 12px;font-size:13px;overflow-wrap:anywhere}

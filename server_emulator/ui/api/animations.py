@@ -1,4 +1,4 @@
-"""Домены animations и animations-media: раздел «Анимации» (RF-03).
+"""Домены animations и animations-media: раздел «Анимации» .
 
 animations — каталог LED-анимаций: GET список + реестр моделей; PUT
 сохранение записи (с media_base64); DELETE ?id=; POST — проиграть на

@@ -54,7 +54,7 @@ def test_empty_engine_output(tmp_path):
 
 
 def test_find_any_engine_freshest(tmp_path):
-    """Пакет озвучки (TASK-015): фраза находится без движка, по тексту, любым голосом."""
+    """Пакет озвучки: фраза находится без движка, по тексту, любым голосом."""
     cache = TtsCache(tmp_path)
     asyncio.run(cache.synth(FakeTTS(), ["Включаю."]))
     pcm, rate = cache.find("Включаю.  ")

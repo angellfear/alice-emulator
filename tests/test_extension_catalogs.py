@@ -1,4 +1,4 @@
-"""TASK-030: точки подключения каталогов — сценарии, эндпоинты, Quasar, списки hassil.
+"""Точки подключения каталогов — сценарии, эндпоинты, Quasar, списки hassil.
 
 Расширение-папка (режим разработки, как в tests/test_extensions_manager.py и
 tests/test_extension_actions.py) даёт слои: scenarios/ (JSON и .py — script_path

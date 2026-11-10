@@ -1,4 +1,4 @@
-"""Домены MCP: раздел «MCP» панели, обнаружение и вызов инструментов (RF-03).
+"""Домены MCP: раздел «MCP» панели, обнаружение и вызов инструментов .
 
 mcp — GET: встроенные инструменты, серверы и текст state/mcp.json, выбор
 инструментов внешних серверов (settings.tools), журнал вызовов;
@@ -61,7 +61,7 @@ async def mcp(request, runtime, app):
         except ValueError as exc:
             raise ValueError("mcp.json: неверный JSON — " + str(exc))
         mcp_hub.save_config(runtime, config)
-        extension = mcp_hub.extension_servers(runtime)  # серверы расширений (TASK-032) — не из mcp.json
+        extension = mcp_hub.extension_servers(runtime)  # серверы расширений — не из mcp.json
         keys = set(config["mcpServers"]) | set(extension)
         # инструменты удалённых из mcp.json серверов больше не нужны
         await _save_tools(runtime, lambda s: s.update(tools=[t for t in s["tools"] if t.get("server_id") in keys]))

@@ -1,4 +1,4 @@
-"""Самообновление эмулятора (TASK-040): проверка релизов GitHub и обновление по кнопке.
+"""Самообновление эмулятора: проверка релизов GitHub и обновление по кнопке.
 
 Service живёт на Runtime (runtime.self_update): фоновая проверка Releases API с задержкой
 и затем раз в interval_hours, статус для API/UI и подготовка плана обновления. Само обновление
@@ -19,7 +19,7 @@ from pathlib import Path
 from aiohttp import ClientError
 
 from .. import auth, version
-from ..server_log import log_event  # TASK-068: события самообновления — в журнал сервера
+from ..server_log import log_event  # события самообновления — в журнал сервера
 from . import check, repo
 
 UPDATE_DIR = "update"
@@ -34,7 +34,7 @@ class Service:
         self.snoozed = False  # «Позже» — до следующей плановой проверки
         self.manual = asyncio.Event()  # «Проверить сейчас» не ждёт интервала
         self.task = None
-        self._reported_release = None  # версию о находке пишет один раз (TASK-068)
+        self._reported_release = None  # версию о находке пишет один раз
 
     # --- фоновая проверка -------------------------------------------------------------
 
@@ -53,7 +53,7 @@ class Service:
     async def _loop(self):
         """Проверка при старте (с задержкой — серверу надо подняться) и затем раз в interval_hours."""
         await asyncio.sleep(45)
-        self._report_last_update()  # TASK-068: итог обновления/отката от updater (отдельный процесс)
+        self._report_last_update()  # итог обновления/отката от updater (отдельный процесс)
         while True:
             try:
                 await self.check()
@@ -94,7 +94,7 @@ class Service:
             result["etag"] = answer["etag"]
         except (LookupError, ClientError, OSError, asyncio.TimeoutError) as exc:
             result["error"] = str(exc)
-        self._log_check(result)  # TASK-068: находка версии и сбой проверки — в журнал сервера
+        self._log_check(result)  # находка версии и сбой проверки — в журнал сервера
         self.last = result
         return result
 

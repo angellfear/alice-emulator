@@ -1,6 +1,6 @@
 """Update endpoint policies and durable discovery of original OTA URLs.
 
-Расширения (TASK-032): папка updates/ включённого расширения добавляет правила
+Расширения: папка updates/ включённого расширения добавляет правила
 OTA (только чтение, в настройки БД не копируются): *.json — правило
 {devices: {SN: политика}, platforms: {платформа: политика}, custom_devices/
 custom_platforms: {объект: {updates: [...]}}}; политика — allow/deny/custom,
@@ -34,7 +34,7 @@ DEFAULT_ENDPOINTS = [
 SN_PLATFORMS = {'C':'chiron','X':'yandexstation_2','U':'yandexmidi','L':'blackthorn','T':'magritte',
                 'M':'yandexmini_2','P':'yandexmicro'}
 POLICIES = ('allow','deny','custom')
-RULE_KEYS = ('devices','platforms','custom_devices','custom_platforms')  # правило updates/ расширения (TASK-032)
+RULE_KEYS = ('devices','platforms','custom_devices','custom_platforms')  # правило updates/ расширения
 
 
 def platform_of(device):
@@ -65,7 +65,7 @@ def url_platforms(url,sns,devices):
 class Updates:
     def __init__(self, directory, extension_dirs=None):
         self.path = directory/'updates.sqlite3'
-        self.extension_dirs = extension_dirs  # callable → [(origin, Path)] — слои updates/, TASK-032
+        self.extension_dirs = extension_dirs  # callable → [(origin, Path)] — слои updates/,
         self._poll_task = None
         with self.connect() as db:
             db.executescript('''
@@ -89,7 +89,7 @@ class Updates:
         db.row_factory=sqlite3.Row
         return db
 
-    # --- слой расширений (TASK-032) ------------------------------------------------------
+    # --- слой расширений ------------------------------------------------------
     def _extension_layers(self):
         """Слои updates/ включённых расширений: [(origin, Path)] (callable из runtime —
         extensions/layers.source_layers). Слой не задан или сбой — пусто, раздел работает."""
@@ -155,7 +155,7 @@ class Updates:
         return overlay
 
     def with_extension_rules(self, settings):
-        """Настройки + правила расширений (TASK-032, только чтение): устройства и
+        """Настройки + правила расширений (только чтение): устройства и
         платформы, не заданные пользователем, получают политику/свой ответ расширения;
         пользовательская запись побеждает; settings не мутируются."""
         overlay=self.extension_overlay()
@@ -250,7 +250,7 @@ class Updates:
     async def handle(self,endpoint,query,headers,body,device,device_id,fetch=None,client_ip=None):
         if not self._poll_task:  # суточный опрос сервера, когда устройство молчит
             self._poll_task=asyncio.create_task(self.poll_loop())
-        settings=self.with_extension_rules(self.settings())  # + правила updates/ расширений (TASK-032)
+        settings=self.with_extension_rules(self.settings())  # + правила updates/ расширений
         policy,custom=self.effective(settings,device)
         target=(endpoint.get('upstream') or 'https://'+endpoint['host']).rstrip('/')+endpoint['path']+('?' + query if query else '')
         # Forward the real request, including its authentication, but never persist credentials.
@@ -389,4 +389,4 @@ class Updates:
             return {'settings':self.settings(),'urls':[{**dict(r),'metadata':json.loads(r['metadata'])} for r in urls],'attempts':[dict(r) for r in attempts],
                     'catalog':[{**dict(r),'metadata':json.loads(r['metadata']),'sns':[x for x in (r['sns'] or '').split(',') if x]} for r in catalog],
                     'offered_versions':{k:sorted(set(v),reverse=True) for k,v in offered.items()},
-                    'extensions':self.extension_rules()}  # правила updates/ расширений (TASK-032)
+                    'extensions':self.extension_rules()}  # правила updates/ расширений

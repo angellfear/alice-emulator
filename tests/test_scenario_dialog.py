@@ -1,4 +1,4 @@
-"""TASK-020: многошаговый диалог py-сценария — return ask(...) из SDK.
+"""Многошаговый диалог py-сценария — return ask(...) из SDK.
 
 Ожидание хранится ТОТ ЖЕ способ, что у JSON-шага ask (Execution.awaiting +
 снимок в StateStore.executions: сценарий, версия файла, ctx.state, имя функции
@@ -7,7 +7,7 @@ cancel(). Следующая фраза диалога минует роутер
 answer) того же модуля; «отмена»/«стоп» и TTL завершают ожидание; вопрос
 доставляется тем же question_message с ShouldListen (слушает без «Алиса»).
 Выбор файла тестов: механика диалогового слоя — отдельный модуль
-tests/test_scenario_dialog.py; tests/test_scenario_script.py (TASK-019) тестов
+tests/test_scenario_dialog.py; tests/test_scenario_script.py тестов
 на ask не содержит, обновлять там было нечего.
 """
 import datetime
@@ -150,7 +150,7 @@ async def test_question_message_sets_should_listen(tmp_path):
 
 
 async def test_expect_reaches_continuation(tmp_path):
-    # expect пока только доставляется продолжению (подсказка парсеру — TASK-022)
+    # expect пока только доставляется продолжению (подсказка парсеру)
     runtime = make_runtime(tmp_path, [(script_scenario(), EXPECT_SCRIPT)])
     try:
         await say_to(runtime, "скрипт привет")
@@ -268,7 +268,7 @@ async def test_ttl_expires_awaiting(tmp_path):
 
 async def test_unknown_then_errors_at_first_ask(tmp_path):
     # валидатор файл не читает — неизвестная функция then даёт понятную errored
-    # при ПЕРВОМ выполнении ask (интерпретация карточки, см. отчёт TASK-020)
+    # при ПЕРВОМ выполнении ask (интерпретация карточки)
     runtime = make_runtime(tmp_path, [(script_scenario(), BAD_THEN_SCRIPT)])
     try:
         report = await say_to(runtime, "скрипт привет")
@@ -282,7 +282,7 @@ async def test_unknown_then_errors_at_first_ask(tmp_path):
 
 
 async def test_expired_json_ask_lets_phrase_route_normally(tmp_path):
-    """TASK-097: истёкшее ожидание JSON-сценария не перехватывает следующую фразу —
+    """Истёкшее ожидание JSON-сценария не перехватывает следующую фразу —
     она идёт обычным путём (роутер), а не съедается продолжением старого диалога."""
     alarm = {"format_version": 2, "id": "timers.alarm.set", "version": "1.0.0",
              "category": "custom", "priority": 100,

@@ -1,4 +1,4 @@
-"""Домен traffic: журнал трафика устройств (TASK-043, TASK-054).
+"""Домен traffic: журнал трафика устройств.
 
 GET /api/traffic                → список обменов (фильтры device/host/source/unhandled=1/key, limit/offset; без тел);
 GET /api/traffic?groups=1       → группы событий по устройствам (фильтры device_sn/source/unhandled=1):

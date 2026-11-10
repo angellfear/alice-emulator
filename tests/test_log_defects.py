@@ -1,4 +1,4 @@
-"""TASK-095: точечные исправления дефектов из разбора журнала рабочего экземпляра (TASK-094).
+"""Точечные исправления дефектов из разбора журнала рабочего экземпляра.
 
 1) aiohttp не отбивает заголовки колонки 16–19 КиБ (max_field_size/max_line_size на AppRunner);
 2) GET api/identities не падает от capabilities.raw (bytes протокольного кадра) в сессии;
@@ -62,7 +62,7 @@ async def test_big_station_header_is_parsed(tmp_path):
 
 
 async def test_identities_survives_capability_raw_bytes(tmp_path):
-    """TASK-069 кладёт raw (bytes) в сессию; до исправления GET api/identities отвечал 500."""
+    """кладёт raw (bytes) в сессию; до исправления GET api/identities отвечал 500."""
     runtime = Runtime(tmp_path)
     runtime.sessions["s1"] = {"connection_id": "s1", "host": "quasar.yandex.net", "ip": "192.0.2.10",
                               "device_sn": "SN-X", "user_id": None, "runtime": None, "send": None,

@@ -1,4 +1,4 @@
-"""R05: валидация сценария формата v2 (docs/contracts/scenario-json-v2.md).
+"""Валидация сценария формата v2 (docs/contracts/scenario-json-v2.md).
 
 Сценарий декларативен: никаких исполняемых Python/JS, произвольных import/eval.
 Операции flow сверяются с закрытым реестром контрактов; payload_raw и сырой
@@ -25,7 +25,7 @@ FORBIDDEN_KEYS = {"code", "script", "eval", "import", "exec", "python", "javascr
 TOP_KEYS = {"format_version", "id", "version", "category", "title", "description", "priority",
             "fallback", "enabled", "triggers", "guard", "lexicon", "tables", "slots", "flow",
             "executor", "provenance", "dependencies", "publication", "risk"}
-# TASK-019: исполнитель — {"kind": "flow"} (как без поля) или {"kind": "script"};
+# исполнитель — {"kind": "flow"} (как без поля) или {"kind": "script"};
 # код никогда не кладётся внутрь JSON ("script" в FORBIDDEN_KEYS) — он живёт в <id>.py.
 # Класс риска (agent/policy.py): scenario_run агента подтверждается для external/config/destructive.
 RISKS = {"read", "device", "external", "config", "destructive"}
@@ -40,7 +40,7 @@ FLOW_OPS = {
     "error": {"required": set(), "optional": {"message"}},
 }
 JUMP_KEYS = ("next", "on_failure")
-# TASK-027: шаги fetch/extract/load/refresh/store/branch/set/wait_state удалены вместе с кодом
+# шаги fetch/extract/load/refresh/store/branch/set/wait_state удалены вместе с кодом
 # исполнителя. Логику с данными, извлечением, ветвлением и состоянием пишут в py (SDK,
 # docs/contracts/scripts-sdk.md). Имена остаются здесь только ради понятной ошибки валидатора.
 LEGACY_OPS = ("fetch", "extract", "load", "refresh", "store", "branch", "set", "wait_state")
@@ -65,7 +65,7 @@ def trigger_phrases(trigger):
 
 
 def _validate_template_trigger(trigger):
-    """TASK-022: шаблон template-триггера проверяется при сохранении — синтаксис
+    """Шаблон template-триггера проверяется при сохранении — синтаксис
     hassil каждой фразы (ошибка → понятный текст с номером фразы) и разрешимость
     {ссылок} на списки (свои lists триггера или общие lexicons.json)."""
     from ..scenario_engine.templates import TemplateError, check_template
@@ -140,7 +140,7 @@ def validate_scenario(scenario):
         if kind == "template":
             _validate_template_trigger(trigger)
         elif kind == "provide":
-            # TASK-058: сценарий-поставщик данных внутреннего события (колбэк-обработчик
+            # сценарий-поставщик данных внутреннего события (колбэк-обработчик
             # публикует «нужны данные», поставщик отдаёт ответ)
             if not isinstance(trigger.get("event"), str) or not trigger["event"]:
                 raise PackageError("provide-триггер: event (внутреннее событие) обязателен")
@@ -178,7 +178,7 @@ def validate_scenario(scenario):
                                  or executor.get("kind") not in ("flow", "script")):
         raise PackageError('executor: {"kind": "flow"} или {"kind": "script"}')
     if executor is not None and executor.get("kind") == "script":
-        # TASK-019: py-сценарий без flow (логика в <id>.py); triggers/guard валидируются
+        # py-сценарий без flow (логика в <id>.py); triggers/guard валидируются
         # как обычно. Наличие .py-файла валидатор не проверяет — это делают API и probe.
         if "flow" in scenario:
             raise PackageError("flow не нужен для executor script")
@@ -324,7 +324,7 @@ def _validate_step(step, slots=frozenset()):
 
 
 def _validate_flow_graph(scenario):
-    """AUD-04: ссылки next/on_failure существуют, все шаги достижимы от начала,
+    """Ссылки next/on_failure существуют, все шаги достижимы от начала,
     из каждого достижимого шага есть путь к finish/error (циклы без выхода — ошибка).
     Нет явного next → шаг списка продолжается следующим элементом (fallthrough)."""
     flow = scenario["flow"]
@@ -421,7 +421,7 @@ def validate_package(package, root=None):
                 raise PackageError("schemas[].file — имя файла внутри пакета")
             base = (root / "schemas").resolve()
             path = (base / name).resolve()
-            if not path.is_relative_to(base):  # AUD-05: границы пакета ДО любого чтения
+            if not path.is_relative_to(base):  # Границы пакета ДО любого чтения
                 raise PackageError(f"схема {name!r} выходит за пределы пакета")
             if not path.is_file():
                 raise PackageError(f"схема {name} отсутствует в пакете")

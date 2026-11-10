@@ -3,14 +3,14 @@
 Обработчик объявляется рядом со своим кодом декоратором @aapi_handler(trigger, …, enabled=…).
 Conversation.receive перебирает обработчики события в порядке объявления, пока один не вернёт
 True. has_handler отвечает, есть ли у события обработчик при данных настройках, ничего не
-выполняя: опция «Запись» → «Нет обработчиков» (TASK-054). Новый обработчик виден сразу,
+выполняя: опция «Запись» → «Нет обработчиков». Новый обработчик виден сразу,
 отдельного списка событий нет.
 
 enabled(settings) — условие по настройкам устройства (флаги профиля, стандартные реплики).
 То, что зависит от состояния соединения (открыт ли канал и т. п.), обработчик решает сам,
 вернув False; для has_handler такое событие считается обработанным.
 
-TASK-058: у записи есть источник (builtin | callback — колбэк-обработчик; расширения
+у записи есть источник (builtin | callback — колбэк-обработчик; расширения
 добавят extension:<id> через SDK), имя/описание и счётчики в памяти: сколько раз событие
 пришло, сколько обработано, время последнего. Колбэки (@@mm_* и пр.) не исполняют сценарий
 сами: route() отображает колбэк с его фильтрами во внутреннее событие-запрос данных
@@ -82,7 +82,7 @@ def registry(settings):
     return sorted(entries, key=lambda item: (item["trigger"], item["source"], item["name"]))
 
 
-# --- колбэки → внутренние события (TASK-058) -------------------------------------
+# --- колбэки → внутренние события -------------------------------------
 
 # (event_name, match(fields) → bool, provide_event, описание) в порядке проверки;
 # fields — {callback, purpose, frame} запроса (service_event_fields).
@@ -161,7 +161,7 @@ def _is_timesync(fields):
     return fields.get("callback") == "NAlice.TDeviceControlTimesyncTypedCallback" or fields.get("purpose") == "sync_timezone"
 
 
-# Маршруты колбэков (TASK-058): порядок проверки значим — именованные раньше общего ack.
+# Маршруты колбэков: порядок проверки значим — именованные раньше общего ack.
 # as_reason — форма причины прежнего event-триггера: эталон scenarios.json и отчёты не меняются
 callback_route('@@mm_typed_callback', 'informers.requested', _is_informers, 'информеры/виджет погоды',
                lambda fields: "event:@@mm_typed_callback[" +
@@ -187,7 +187,7 @@ callback_route('@@mm_semantic_frame', 'music.touch', _is_music_touch, 'кноп�
                lambda fields: "event:@@mm_semantic_frame[music_command=%s]" % fields["music_command"])
 callback_route('@@mm_semantic_frame', 'callbacks.ack', None, 'семантический фрейм — тихое подтверждение',
                'event:@@mm_semantic_frame')
-# Колбэки штатного плеера колонки (TASK-087): своей очереди у эмулятора нет — на
+# Колбэки штатного плеера колонки: своей очереди у эмулятора нет — на
 # on_started/on_stopped настоящий сервер отвечал тихим подтверждением (журнал
 # 2026-10-21…26: пустой диалоговый ответ, только tts_play_placeholder; кнопки экрана
 # плеера — тоже общий ack).
@@ -195,7 +195,7 @@ callback_route('music_thin_client_on_started', 'callbacks.ack', None, 'плее�
                'event:music_thin_client_on_started')
 callback_route('music_thin_client_on_stopped', 'callbacks.ack', None, 'плеер колонки — трек остановлен',
                'event:music_thin_client_on_stopped')
-# «включи следующий» (TASK-099): при выбранном поставщике музыки сценарий media.music
+# «включи следующий»: при выбранном поставщике музыки сценарий media.music
 # отвечает следующей очередью + audio_play (образец «дальше» из захвата 2026-11-02);
 # поставщика нет — сценарий отказывается, колбэку идёт прежнее тихое подтверждение
 # (умолчание provide-маршрута). В «Вместе» при контенте Яндекса колбэки уходят наверх
@@ -204,11 +204,11 @@ callback_route('@@mm_stack_engine_get_next', 'music.stack_next', None, 'стек
                'event:@@mm_stack_engine_get_next')
 callback_route('@@agent_say', 'agent_say.requested', None, 'сообщение агента (задания по расписанию)',
                'event:@@agent_say')
-# TASK-079: @@timer_fired убран — серверный планировщик удалён, сигнал таймера/
+# @@timer_fired убран — серверный планировщик удалён, сигнал таймера/
 # будильника отдаёт колонка (directives из её состояния: timers/ringing.stop)
 
 
-# --- обработчики и наблюдатели расширений (TASK-059, sdk.aapi_handler / sdk.on_event) ---
+# --- обработчики и наблюдатели расширений (sdk.aapi_handler / sdk.on_event) ---
 
 _OBSERVERS: dict[str, list] = {}  # trigger → [(handler, meta)] — наблюдатели, выбор не участвуют
 

@@ -1,6 +1,6 @@
 """Домен actions: каталог серверных команд (CATALOG) и их отправка в живую
 WS-сессию устройства (push NAlice.TServerMessage, журнал последних 100
-вызовов с состоянием доставки) (RF-03). Отправка и ожидание квитанции
+вызовов с состоянием доставки) . Отправка и ожидание квитанции
 (SyncPushResponse у ExecuteDirective) — runtime.push_action.
 """
 from aiohttp import web

@@ -45,7 +45,7 @@ def build(runtime, context, extra=()):
 
     def runner(name):
         async def run(**arguments):
-            runtime.note_tool_call(name)  # TASK-088: «вызывает инструмент» в строке шапки (api/live)
+            runtime.note_tool_call(name)  # «вызывает инструмент» в строке шапки (api/live)
             try:
                 if name in executors:
                     text = str(await executors[name](**arguments))

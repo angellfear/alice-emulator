@@ -48,7 +48,7 @@ async def test_alarm_on_other_speaker(tmp_path):
     try:
         report, text = await _say(runtime, "поставь будильник на дуо 32 на 7:30", "SN-24")
         assert report["scenario"] == "timers.alarm.set"
-        # TASK-079: директивы ответа уходят колонке-автору запроса; адресация другой
+        # директивы ответа уходят колонке-автору запроса; адресация другой
         # колонке — БЛОКЕР (образца нет), ответ честный
         assert text == "Пока не ставлю будильник на другой колонке — только на этой."
     finally:
@@ -63,6 +63,6 @@ async def test_timer_on_self_by_own_alias_and_without_target(tmp_path):
         assert text == "Хорошо. 5 минут. Отсчёт пошёл."
         _, text = await _say(runtime, "поставь таймер на дуо 24 на 2 минуты", "SN-24")  # сама себя
         assert text == "Хорошо. 2 минуты. Отсчёт пошёл."
-        assert not hasattr(runtime, "timer_scheduler")  # TASK-079: серверного расписания нет
+        assert not hasattr(runtime, "timer_scheduler")  # серверного расписания нет
     finally:
         await runtime.close()

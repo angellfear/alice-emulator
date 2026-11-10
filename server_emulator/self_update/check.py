@@ -1,4 +1,4 @@
-"""Проверка релизов через GitHub Releases API (TASK-040): версия и заметки, без скачивания кода.
+"""Проверка релизов через GitHub Releases API: версия и заметки, без скачивания кода.
 
 stable — GET /releases/latest (пререлизы GitHub сам не отдаёт); beta — GET /releases (первый
 не-черновик). Заголовки — по документации REST API: Accept, X-GitHub-Api-Version, User-Agent;

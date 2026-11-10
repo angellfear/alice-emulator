@@ -1,4 +1,4 @@
-"""Домен server_log: журнал событий сервера «Дополнительно → Лог» (TASK-068).
+"""Домен server_log: журнал событий сервера «Дополнительно → Лог».
 
 GET server_log?level=&source=&q=&before=<ts>&limit=200 → {items, sources, more}
 (записи — новые сверху, более старые — по метке before); level — имя или имена

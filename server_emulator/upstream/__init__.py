@@ -1,11 +1,11 @@
-"""Проход наверх к настоящим серверам Яндекса и журнал трафика (TASK-043).
+"""Проход наверх к настоящим серверам Яндекса и журнал трафика.
 
 До этой задачи пересылку к настоящим серверам делал внешний прокси (модуль proxy.py
 исходного проекта), отдельный эмулятор умел только эмулировать. Здесь механизм:
 резолвер внешнего DNS (в обход локального, с защитой от петли), пересылка HTTP,
 мост WS и журнал traffic.sqlite3. Какие запросы пересылать — решают режимы
-маршрута устройств (TASK-044): dispatcher.route_mode_for + upstream.target_for.
-Что писать в журнал — опция устройства «Запись» (TASK-054): record_mode / recording / WsTap.
+маршрута устройств: dispatcher.route_mode_for + upstream.target_for.
+Что писать в журнал — опция устройства «Запись»: record_mode / recording / WsTap.
 """
 from __future__ import annotations
 
@@ -32,13 +32,13 @@ class Upstream:
         return value if isinstance(value, dict) else {}
 
     def target_for(self, request, host=None, path=None, websocket=False):
-        """URL настоящего сервера для запроса колонки (TASK-044) — см. target_for_host."""
+        """URL настоящего сервера для запроса колонки — см. target_for_host."""
         host = (host or request.host or "").split(":", 1)[0].lower()
         return self.target_for_host(host, path if path is not None else request.raw_path,
                                     websocket=websocket)
 
     def target_for_host(self, host, path, query="", websocket=False):
-        """URL настоящего сервера по хосту и пути (без запроса: TASK-052 action: fetch).
+        """URL настоящего сервера по хосту и пути (без запроса: action: fetch).
 
         Канонический хост берётся из алиасов эмулятора; значение алиаса может быть полным upstream
         со схемой и портом (http://127.0.0.1:9000 — тесты и кастомные upstream),
@@ -52,7 +52,7 @@ class Upstream:
             base = ("wss://" if websocket else "https://") + (mapped or host)
         return base + path + (("?" + query) if query else "")
 
-    # --- опция «Запись» устройства (TASK-054) -------------------------------------
+    # --- опция «Запись» устройства -------------------------------------
     def record_mode(self, sn):
         """off | on | misses по SN устройства; нет SN — off (неопознанное не пишется)."""
         return self.runtime.identities.record_mode(sn)

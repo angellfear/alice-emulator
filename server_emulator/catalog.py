@@ -1,6 +1,6 @@
 """Lossless wire editing for the observed Centaur catalog protocol.
 
-Расширения (TASK-032): папка catalog/ включённого расширения добавляет приложения
+Расширения: папка catalog/ включённого расширения добавляет приложения
 в каталог (только чтение): *.json — запись {name, package, version, version_code,
 description, icon, apk_url}; id без префикса получает <ext-id>.; источник APK —
 apk_url (http(s), станция качает напрямую; локальная выдача /__catalog/apk —
@@ -83,7 +83,7 @@ class Catalog:
     def __init__(self,root,extension_dirs=None):
         self.directory=Path(root)/'data'/'catalog';self.directory.mkdir(parents=True,exist_ok=True)
         self.path=self.directory/'catalog.json'
-        self.extension_dirs=extension_dirs  # callable → [(origin, Path)] — слои catalog/, TASK-032
+        self.extension_dirs=extension_dirs  # callable → [(origin, Path)] — слои catalog/,
         value=json.loads(self.path.read_text('utf8')) if self.path.exists() else {}
         self.value=self._migrate(value)
         if self._sync_apk_metadata():self.save()
@@ -118,7 +118,7 @@ class Catalog:
             value['public_base_url']=BASE_URL
         return value
 
-    # --- слой расширений (TASK-032) ----------------------------------------------------
+    # --- слой расширений ----------------------------------------------------
     def _extension_layers(self):
         """Слои catalog/ включённых расширений: [(origin, Path)] (callable из runtime —
         extensions/layers.source_layers). Слой не задан или сбой — пусто, раздел работает."""

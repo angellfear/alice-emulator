@@ -1,4 +1,4 @@
-"""TASK-072: инструмент journal_gaps (отчёт по копии журнала, маскирование) и обработчики
+"""Инструмент journal_gaps (отчёт по копии журнала, маскирование) и обработчики
 пробелов: push_subscribe, галерея, set_device_capability, кнопки экрана плеера."""
 import json
 import sqlite3
@@ -120,7 +120,7 @@ def directives_sent(sent):
 
 
 async def test_player_button_callbacks(tmp_path):
-    """Кнопки экрана плеера (087): своей очереди у эмулятора больше нет — player_next/
+    """Кнопки экрана плеера : своей очереди у эмулятора больше нет — player_next/
     player_liked/player_pause маршрутизируются в общий ack и отвечают тихо, как прочие
     служебные колбэки (в образцах медиа-кнопок директив не было)."""
     runtime = Runtime(tmp_path)

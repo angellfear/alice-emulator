@@ -1,4 +1,4 @@
-"""TASK-029: менеджер расширений — источники, установка, состояние, обновление,
+"""Менеджер расширений — источники, установка, состояние, обновление,
 откат, хуки, самопроверка. Вся сеть — локальный http-сервер aiohttp (как в
 тестах реестра сценариев); обращений в интернет нет.
 """
@@ -415,7 +415,7 @@ async def test_sources_add_remove(tmp_path):
         await runtime.close()
 
 
-# --- самопроверка tests/ (TASK-023) ------------------------------------------------------
+# --- самопроверка tests/ ------------------------------------------------------
 
 async def test_selfcheck_json_ok_and_py_degraded(tmp_path):
     files = ext_files()
@@ -431,8 +431,8 @@ async def test_selfcheck_json_ok_and_py_degraded(tmp_path):
             assert body["check"]["status"] == "ok"  # JSON-сценарии: dry-run прогон пройден
             body = await op(client, url, {"op": "install", "url": f"{base}/ha.zip",
                                           "confirm": True})
-            assert body["check"]["status"] == "warning"  # py-сценарии — до TASK-019
-            assert "TASK-019" in body["check"]["detail"]
+            assert body["check"]["status"] == "warning"  # расширение с py-сценариями
+            assert "py-сценарии" in body["check"]["detail"]
             assert runtime.settings["extensions"]["installed"]["ha"]["check"]["status"] == "warning"
     finally:
         await app_runner.cleanup()

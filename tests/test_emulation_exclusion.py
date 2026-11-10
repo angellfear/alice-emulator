@@ -1,4 +1,4 @@
-"""Маршрут запроса (TASK-044): route_mode_for по заголовкам/query/реестру; смена
+"""Маршрут запроса: route_mode_for по заголовкам/query/реестру; смена
 маршрута устройства закрывает только его WS-соединения (бывший emulation_excluded)."""
 from server_emulator.runtime import Runtime
 
@@ -33,7 +33,7 @@ async def test_route_mode_from_headers_and_query(tmp_path):
     assert runtime.route_mode_for(FakeRequest(headers={'x-uprx-device-id': 'real-id'}))[2] == 'hybrid'
     assert runtime.route_mode_for(FakeRequest(query={'device_id': 'emu-id'})) \
         == ('SN-EMU', 'emu-id', 'emulate')
-    # неизвестное устройство и запрос без маркеров — всегда эмуляция (маршрута по умолчанию нет, TASK-064)
+    # неизвестное устройство и запрос без маркеров — всегда эмуляция (маршрута по умолчанию нет)
     assert runtime.route_mode_for(FakeRequest(headers={'x-uprx-device-id': 'ghost'}))[2] == 'emulate'
     assert runtime.route_mode_for(FakeRequest()) == (None, None, 'emulate')
     await runtime.close()
@@ -54,7 +54,7 @@ async def test_set_device_route_mode_closes_only_its_sessions(tmp_path):
     assert result == {'sn': 'SN-REAL', 'mode': 'hybrid', 'disconnected': 0}  # emulate → hybrid: WS не рвётся
     result = await runtime.set_device_route_mode('SN-REAL', 'proxy')
     assert result == {'sn': 'SN-REAL', 'mode': 'proxy', 'disconnected': 2}  # в «Прозрачно» — рвётся
-    await runtime.closer.drain()  # закрытие идёт в фоне (TASK-057)
+    await runtime.closer.drain()  # закрытие идёт в фоне
     assert len(closed) == 2 and all(item['code'] == 1012 for item in closed)
     assert runtime.identities.resolve('real-id')['route_mode'] == 'proxy'
     # сброс в None — снова без своего маршрута (эмуляция)

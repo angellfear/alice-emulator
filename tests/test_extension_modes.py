@@ -1,4 +1,4 @@
-"""TASK-034: режимы «Интеллекта» из расширений (modes/*.py).
+"""Режимы «Интеллекта» из расширений (modes/*.py).
 
 Расширение-папка (режим разработки, как в tests/test_extensions_manager.py) с modes/*.py:
 MODE + async answer(ctx, text, history) отвечает на фразу без сценария вместо модели.

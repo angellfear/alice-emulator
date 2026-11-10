@@ -44,7 +44,7 @@ ROOT = Path(__file__).resolve().parent
 log = logging.getLogger(__name__)
 STANDALONE_KEY = web.AppKey("emulator_standalone", bool)
 
-# TASK-088: событие SpeechTrace → микросостояние текущего хода для строки состояния в шапке
+# событие SpeechTrace → микросостояние текущего хода для строки состояния в шапке
 # (GET api/live). Событий нет в списке — состояние не меняется; «вызывает инструмент»
 # пишет agent/tools.py (инструменты исполняются внутри графа, трассы там нет).
 ACTIVITY_STATES = {
@@ -136,40 +136,40 @@ class Runtime:
         self.directory.mkdir(parents=True, exist_ok=True)
         from . import proto_schemas
         proto_schemas.DIRECTORY = self.directory / "proto"  # схемы, импортированные из libquasar_daemons.so
-        # B02: единое SQLite-хранилище; legacy JSON мигрируется один раз с backup.
+        # Единое SQLite-хранилище; legacy JSON мигрируется один раз с backup.
         self.store = StateStore(self.directory / "emulator.sqlite3")
         self.store.on_scenario_data = self._scenario_data_changed  # справочник фраз: lists_from
         from . import music
         music.load_token(self.store)  # захваченный OAuth аккаунта — из БД в кеш поставщика
         self.migration_report = migrate_legacy(self.directory, self.store)
-        # TASK-003 (DEBT-01): дефолты, миграции, валидация и сохранение настроек —
+        # (DEBT-01): дефолты, миграции, валидация и сохранение настроек —
         # в settings_service.SettingsService; runtime держит текущий dict и оркестрацию.
         self.settings_service = SettingsService(self.store, self.directory)
         self.settings = self.settings_service.load()
-        from .server_log import ServerLog, install_logging  # TASK-068: журнал «Дополнительно → Лог»
+        from .server_log import ServerLog, install_logging  # журнал «Дополнительно → Лог»
         self.server_log = install_logging(ServerLog(self.directory / "server_log.sqlite3"))
         self.scenario_dir = self.settings_service.scenario_dir  # один JSON-файл на сценарий
-        self.provider_manager = ProviderManager(self)  # TASK-007 (DEBT-01): ASR/TTS/LLM-резолвинг и legacy-цикл
+        self.provider_manager = ProviderManager(self)  # (DEBT-01): ASR/TTS/LLM-резолвинг и legacy-цикл
         self.recent = []
         self.pending_calls = []
         self.speech_log = []
-        # TASK-088: состояние для строки панели — микросостояние текущего хода («ожидает/
+        # состояние для строки панели — микросостояние текущего хода («ожидает/
         # слушает/думает/вызывает инструмент/отвечает/ошибка») и последний сбой речевого
         # сервиса. Оба — общие изменяемые объекты: scoped-копии runtime (copy.copy) делят их
         # с корнем и пишут in-place, как в speech_log/tool_log.
         self.agent_activity = {"state": "idle", "tool": None, "error": None, "ts": 0.0}
         self.voice_errors = {}  # asr | tts | llm → {"error", "ts"} — красный значок в шапке
-        self.settings_rev = time.time()  # ревизия настроек: сервер отвергает устаревшую копию формы (409)
+        self.settings_rev = time.time()  # ревизия настроек: сервер отвергает устаревшую копию формы 
         import itertools
         self.sequence = itertools.count(1)  # SequenceNumber ответов (реальный счётчик сервера)
         self.lock = asyncio.Lock()
         self.identities = IdentityRegistry(self.directory, self.store)
-        # TASK-044: очередь миграции emulation_excluded — известным устройствам сразу
+        # очередь миграции emulation_excluded — известным устройствам сразу
         # route_mode=proxy, подключившиеся позже получают его при регистрации.
         for sn in list(self.identities.pending_route_migration()):
             if any(d['sn'] == sn for d in self.identities.data['devices']):
                 self.identities.apply_pending_route(sn)
-        self.quasar_params = ParamStore(self.store.db,  # TASK-032: params/ расширений поверх БД
+        self.quasar_params = ParamStore(self.store.db,  # params/ расширений поверх БД
                                         extension_dirs=lambda: self._extension_layers("params"))
         self.quasar_params.seed(self.identities.data)  # каталог+legacy-перенос, идемпотентно
         self.sessions = {}
@@ -181,8 +181,8 @@ class Runtime:
         # SyncPushResponse; на устройстве одно ждущее действие (кнопка панели),
         # корреляция — RefMessageId нашего кадра
         self.execute_waiters = {}
-        self.closer = SocketCloser()  # TASK-057: закрытие WS колонок в фоне, без ожидания ответа клиента
-        self.quasar_sync_headers = {}  # TASK-052: последние заголовки get_sync_info по SN, только память
+        self.closer = SocketCloser()  # закрытие WS колонок в фоне, без ожидания ответа клиента
+        self.quasar_sync_headers = {}  # последние заголовки get_sync_info по SN, только память
         self.quasar = QuasarBackend(self)
         self.action_log = []
         self.tool_log = []  # вызовы инструментов моделью (MCP-хаб), последние 100
@@ -191,13 +191,13 @@ class Runtime:
         self.routines = agent.create_routines(self)  # задания по расписанию (agent/routines.py) или None
         self.mcp_errors = {}  # последняя ошибка tools/list по серверу mcp.json (вкладка MCP)
         from .catalog import Catalog
-        self.catalog = Catalog(catalog_root or self.directory,  # TASK-032: catalog/ расширений
+        self.catalog = Catalog(catalog_root or self.directory,  # catalog/ расширений
                                extension_dirs=lambda: self._extension_layers("catalog"))
-        self.updates = Updates(self.directory,  # TASK-032: updates/ расширений
+        self.updates = Updates(self.directory,  # updates/ расширений
                                extension_dirs=lambda: self._extension_layers("updates"))
         self.endpoints = EndpointCatalog(self.directory / "endpoints",  # каталог захваченных ответов
                                          extension_dirs=lambda: self._extension_layers("endpoints"))
-        from .self_update import Service  # TASK-040: проверка релизов и статус для кнопки обновления
+        from .self_update import Service  # проверка релизов и статус для кнопки обновления
         self.self_update = Service(self)
         from .miss_journal import MissJournal, exact  # очередь «Эмулятор → Без ответа»
         self.phrase_misses = MissJournal(self.directory / "phrase_misses.json")  # фразы без сценария
@@ -210,26 +210,26 @@ class Runtime:
         self.quasar_rules = RuleStore(self.directory / "quasar",  # замены sync-конфига: общие и по платформам
                                       extension_dirs=lambda: self._extension_layers("quasar"))
         self.device_images = DeviceImages()  # картинки с веб-версии умного дома — только по согласию (api/setup/images)
-        self.auth = AuthStore(self.directory)  # B04: принципалы/сессии панели (нет файла — открытый режим)
-        # TASK-029: менеджер расширений; включённые загружаются сразу (без сети и хуков),
-        # точки подключения TASK-030+ берут каталоги из runtime.extensions.contribution_dirs().
+        self.auth = AuthStore(self.directory)  # Принципалы/сессии панели (нет файла — открытый режим)
+        # менеджер расширений; включённые загружаются сразу (без сети и хуков),
+        # точки подключения берут каталоги из runtime.extensions.contribution_dirs().
         from .extensions.manager import ExtensionManager
         self.extensions = ExtensionManager(self)
         from .extensions.legacy_registry import migrate_registry
-        migrate_registry(self)  # TASK-036: прежний реестр сценариев → источник и расширения (единожды)
+        migrate_registry(self)  # прежний реестр сценариев → источник и расширения (единожды)
         self.extensions.load_enabled()
         # требования потребителей видов (providers.require) — при старте ядра:
         # потребитель импортируется лениво, записи реестра дообогащаются его функциями
         from .scenarios.informers import news as _news_consumer  # noqa: F401
         self._migrate_weather_url()  # параметр server.weather.url → настройка плагина погоды
-        from .sdk import bind_runtime  # TASK-059: sdk.send_push/send_directive без ctx
+        from .sdk import bind_runtime  # sdk.send_push/send_directive без ctx
         bind_runtime(self)
-        # TASK-030: check_template (validate.py про runtime не знает) разрешает {ссылки}
+        # check_template (validate.py про runtime не знает) разрешает {ссылки}
         # сценариев на списки включённых расширений — как при матчинге шаблонов.
         from .scenario_engine import templates as scenario_templates
         scenario_templates.set_extension_sources(self._extension_lexicon_sources)
         self.client_peer = None  # внедряет встроенный прокси: резолвер реального пира фронта
-        self.front_observed = None  # внедряет фронт TLS: домены вне сертификата (имя → {count, first}), TASK-093
+        self.front_observed = None  # внедряет фронт TLS: домены вне сертификата (имя → {count, first}),
         self.front_sans = None  # внедряет фронт TLS: DNS-SAN сертификата, который он видит (api/server-front)
         self.update_fetch = None
         # Скрипты-расширения UI от хоста (прокси подключает свои кнопки);
@@ -237,16 +237,16 @@ class Runtime:
         self.ui_extensions = []
         self.lifecycle = Lifecycle()
         from .animations import AnimationStore
-        self.animations = AnimationStore(self.directory / 'animations',  # TASK-032: animations/ расширений
+        self.animations = AnimationStore(self.directory / 'animations',  # animations/ расширений
                                          extension_dirs=lambda: self._extension_layers("animations"))
-        from .behavior import set_extension_layers  # TASK-032: replies/ расширений
+        from .behavior import set_extension_layers  # replies/ расширений
         set_extension_layers(lambda: self._extension_layers("replies"))
-        # R07/M08: диалоговый слой сценариев; пуст по умолчанию — заглушки не меняются
+        # Диалоговый слой сценариев; пуст по умолчанию — заглушки не меняются
         from .scenario_engine.dialog import DialogManager
         from .scenario_engine.executor import Executor
         from .scenario_engine import library
         from .scenario_engine.library import LEXICONS
-        # TASK-079: серверных таймеров больше нет — состояние колонки в её запросе,
+        # серверных таймеров больше нет — состояние колонки в её запросе,
         # директивы timer/alarm уходят колонке штатно (station_state, clock_directives)
         self.fetch_cache = {}  # (url, query) → (ts, json): кеш GET JSON (ctx.fetch_json, плагины)
 
@@ -255,7 +255,7 @@ class Runtime:
             return (getattr(execution, "ctx", None) or {}).get("input") or {}
 
         async def timer_start(arguments, execution):
-            """TASK-079: timer.start — не серверное расписание, а штатные директивы
+            """timer.start — не серверное расписание, а штатные директивы
             колонке (open_screen + timer_set_directive): таймер живёт у колонки."""
             from . import clock_directives
             source = _input(execution)
@@ -270,7 +270,7 @@ class Runtime:
                     "delivery": "sent" if sent else "no_session"}
 
         async def alarm_start(arguments, execution):
-            """TASK-079: alarm.start — директива alarm_add_directive колонке (образец
+            """alarm.start — директива alarm_add_directive колонке (образец
             2026-10-22 05:47:24); ближайшая дата — сегодня/завтра по времени колонки."""
             import zoneinfo
             from . import clock_directives
@@ -297,7 +297,7 @@ class Runtime:
             return {"id": alarm_id, "time": hhmm, "delivery": "sent" if sent else "no_session"}
 
         async def timer_cancel(arguments, execution):
-            """TASK-079: отмена — по состоянию колонки из контекста запроса (своего
+            """Отмена — по состоянию колонки из контекста запроса (своего
             хранилища нет): активный таймер → timer_cancel_directive, else 0.
             Будильники — 0: образца TAlarmCancelDirective в журнале нет (БЛОКЕР)."""
             from . import clock_directives, station_state
@@ -347,7 +347,7 @@ class Runtime:
             return copy.deepcopy(data)
 
         from .scenario_plugins import weather_plugin  # плагины датасетов (weather — диспетчер поставщика)
-        # TASK-033: встроенные реестры — база пересборки (включённые расширения добавляются
+        # встроенные реестры — база пересборки (включённые расширения добавляются
         # поверх при каждом load_enabled); executor.plugins — тот же объект, что scenario_plugins
         # (заглушки тестов и tools подменяют weather на месте).
         self._builtin_actions = {"timer.start": timer_start, "alarm.start": alarm_start,
@@ -360,9 +360,9 @@ class Runtime:
         self.tts_cache.is_static = lambda text: text in self._static_phrases()
 
         def scenario_script_path(scenario):
-            """TASK-019: файл .py py-сценария. Встроенный — рядом с его JSON в
+            """Файл .py py-сценария. Встроенный — рядом с его JSON в
             библиотеке (_file — «<раздел>/<id>.json» относительно library.ROOT);
-            сценарий расширения (TASK-030, _origin «extension:<id>») — рядом с его
+            сценарий расширения (_origin «extension:<id>») — рядом с его
             JSON в каталоге расширения (только чтение: правка кода UI пишет в
             state/scenarios); пользовательский — state/scenarios/<id>.py.
             library.ROOT читается при вызове — подмена библиотеки в тестах."""
@@ -382,7 +382,7 @@ class Runtime:
             plugins=self.scenario_plugins,
             schemas_root=ROOT / "schemas", store=self.store,
             on_error=self.note_recent, script_path=scenario_script_path)
-        self.rebuild_extension_registries()  # TASK-033: действия/датасеты включённых расширений
+        self.rebuild_extension_registries()  # действия/датасеты включённых расширений
 
         def _scenario_context(sn="", device_id=""):
             """Контекст запроса для условий/шаблонов: профиль владельца (гео), запись
@@ -402,7 +402,7 @@ class Runtime:
             params = self.quasar_params.context(user_id=(user or {}).get("id"), sn=(device or {}).get("sn"),
                                                 platform=platform)
             online = {x.get("device_sn") for x in self.sessions.values() if x.get("send")}
-            # TASK-069: биометрия говорящего и состояние возможностей колонки — из WS-сессии
+            # биометрия говорящего и состояние возможностей колонки — из WS-сессии
             session = next((s for s in self.sessions.values() if sn and s.get("device_sn") == sn), None)
             home = []  # колонки владельца: адресация команд между колонками по имени/псевдониму
             for other in self.identities.data["devices"]:
@@ -431,7 +431,7 @@ class Runtime:
                                "apps": copy.deepcopy(state.get("apps") if isinstance(state.get("apps"), list) else []),
                                "platform": platform,
                                "fields": copy.deepcopy((device or {}).get("fields") or {}),
-                               "capabilities": {name: (entry or {}).get("preview") or ""  # TASK-069
+                               "capabilities": {name: (entry or {}).get("preview") or ""
                                                 for name, entry in ((session or {}).get("capabilities") or {}).items()}},
                     "params": params, "home": {"devices": home},
                     "speaker": copy.deepcopy((session or {}).get("speaker")),
@@ -458,12 +458,12 @@ class Runtime:
             except Exception:  # noqa: BLE001 — параметра нет/битый: умолчание
                 return 3.0
         self.dialog.search_timeout = _search_timeout
-        # TASK-004 (DEBT-01): HTTP-маршрутизация (dispatch) вынесена в Dispatcher;
+        # (DEBT-01): HTTP-маршрутизация (dispatch) вынесена в Dispatcher;
         # runtime остаётся владельцем WS-сессий и состояния, к которому dispatcher обращается.
         self.dispatcher = Dispatcher(self)
-        # TASK-043: проход наверх — резолвер внешнего DNS, пересылка HTTP и мост WS
+        # проход наверх — резолвер внешнего DNS, пересылка HTTP и мост WS
         # + журнал трафика state/traffic.sqlite3. Правило пересылки — режимы маршрута
-        # устройств (TASK-044): dispatcher.route_mode_for + upstream.target_for.
+        # устройств: dispatcher.route_mode_for + upstream.target_for.
         from .upstream import Upstream
         self.upstream = Upstream(self)
 
@@ -485,22 +485,22 @@ class Runtime:
         self.store.save_settings(self.settings)
 
     async def close(self):
-        """B01: идемпотентная остановка общих ресурсов (клиент, фоновые задачи)."""
+        """Идемпотентная остановка общих ресурсов (клиент, фоновые задачи)."""
         for variant in list(self.voice_stack.local.processes):  # локальные речевые серверы
             self.voice_stack.local.stop_key(variant, wait=False)  # убить сразу, выхода не ждать
         if self.routines is not None:
             self.routines.shutdown()
-        await self.self_update.close()  # TASK-040: цикл проверки релизов и его клиент
-        await self.server_log.close()  # TASK-068: доработать очередь журнала сервера
+        await self.self_update.close()  # цикл проверки релизов и его клиент
+        await self.server_log.close()  # доработать очередь журнала сервера
         await self.closer.drain()
-        await self.upstream.close()  # TASK-043: доработать очередь журнала, закрыть клиента прохода
+        await self.upstream.close()  # доработать очередь журнала, закрыть клиента прохода
         await self.lifecycle.close()
         self.store.close()
-        # TASK-095: доработать отменённые фоновые задачи (батчи stора памяти langgraph
+        # доработать отменённые фоновые задачи (батчи stора памяти langgraph
         # отменяются в __del__ без ожидания) — иначе «Task was destroyed but it is pending!»
         await asyncio.sleep(0)
 
-    # --- каталоги точек подключения расширений (TASK-030) ---------------------------
+    # --- каталоги точек подключения расширений ---------------------------
 
     def _extension_layers(self, name):
         """Слои sources точки подключения name из включённых расширений: [(origin, Path)]
@@ -534,7 +534,7 @@ class Runtime:
         return sources
 
     def _lexicon_sources(self):
-        """Источники словарей шаблонов для DialogManager (TASK-022/030): встроенный
+        """Источники словарей шаблонов для DialogManager: встроенный
         lexicons.json → списки включённых расширений. Пользовательские слои добавятся
         после расширений, когда появится механизм пользовательских списков."""
         from .scenario_engine.templates import builtin_source
@@ -564,7 +564,7 @@ class Runtime:
     def _static_phrases(self):
         """Фразы, озвучиваемые как есть: база — tts_cache.static_phrases (стандартные
         ответы + пользовательские и встроенные сценарии); поверх — фразы сценариев
-        включённых расширений (TASK-030), их каталог tts_cache не видит. Пользовательская
+        включённых расширений, их каталог tts_cache не видит. Пользовательская
         копия сценария расширения уже учтена базой — её фразы не дублируются."""
         from .scenario_engine import library
         from .tts_cache import scenario_phrases, static_phrases
@@ -578,30 +578,30 @@ class Runtime:
         return result
 
     def note_recent(self, entry):
-        """Запись в журнал recent (TASK-019: сбои сценариев — Executor вызывает
+        """Запись в журнал recent (сбои сценариев — Executor вызывает
         этот колбэк); тот же формат и лимит, что у остальных записей."""
         self.recent = (self.recent + [entry])[-30:]
-        if entry.get("kind") == "scenario":  # TASK-068: сбои сценариев — и в журнал сервера
+        if entry.get("kind") == "scenario":  # сбои сценариев — и в журнал сервера
             self.server_log.log("error", "scenarios",
                                 f"Ошибка сценария {entry.get('id', '')}: {entry.get('error', '')}")
 
-    # TASK-033: реестры действий и датасетов включённых расширений -------------------
+    # реестры действий и датасетов включённых расширений -------------------
     def rebuild_extension_registries(self):
         """Пересборка реестров Executor из включённых расширений (старт и каждое
         включение/выключение — хук в extensions.load_enabled): actions/*.py объявляют
         ACTIONS = {"имя": fn}, datasets/*.py — DATASETS = {"имя": async (key, args) →
         значение}. Модули грузит общий ScriptRunner (mtime-кеш — правка файла в режиме
-        разработки без рестарта, как у режимов TASK-034); записи обновляются на месте —
+        разработки без рестарта, как у режимов); записи обновляются на месте —
         объекты реестров (и алиас scenario_plugins) не подменяются.
 
-        Сверка разрешения (правило TASK-033): имя действия обязано начинаться с префикса
+        Сверка разрешения (правило): имя действия обязано начинаться с префикса
         расширения (contributes.actions.prefix или id, manager.action_prefix) ИЛИ быть
         объявленным в permissions.actions; имя вне префикса без объявления — противоречие.
         Имя датасета — всегда с префикса (контракт extensions.md, «Имена элементов»).
         Конфликт со встроенным реестром (timer.start…, weather) или другим расширением
         (владеет тот, чей id раньше по сортировке) → расширение НЕ включается целиком:
         запись уходит из extensions.loaded с понятной ошибкой в extensions.warnings
-        (как у битого манифеста в TASK-029); битый модуль — та же реакция. Остальные
+        (как у битого манифеста); битый модуль — та же реакция. Остальные
         расширения и встроенные примитивы работают как раньше."""
         executor = getattr(self, "scenario_executor", None)
         extensions = getattr(self, "extensions", None)
@@ -638,7 +638,7 @@ class Runtime:
             return result
 
         action_dirs, dataset_dirs = folders("actions"), folders("datasets")
-        aapi_dirs = folders("aapi")  # TASK-059: обработчики событий колонки из расширений
+        aapi_dirs = folders("aapi")  # обработчики событий колонки из расширений
         # поставщики данных: объявления contributes.providers (модуль называет точку
         # подключения сам)
         declarations = {}
@@ -648,7 +648,7 @@ class Runtime:
         action_owner = {name: "" for name in self._builtin_actions}  # "" — встроенное
         dataset_owner = {name: "" for name in self._builtin_plugins}
         bad = {}
-        aapi_handlers.drop_extensions()  # TASK-059: пересборка — расширения регистрируются заново
+        aapi_handlers.drop_extensions()  # пересборка — расширения регистрируются заново
         providers_registry.reset()  # реестр поставщиков данных собирается заново
         for ext_id in sorted(extensions.loaded):
             manifest = extensions.loaded[ext_id]["manifest"]
@@ -701,7 +701,7 @@ class Runtime:
                 except ValueError as exc:  # битый модуль datasets/*.py
                     error = str(exc)
             if error is None:
-                # TASK-059: aapi/*.py — обработчики событий колонки (sdk.aapi_handler/on_event);
+                # aapi/*.py — обработчики событий колонки (sdk.aapi_handler/on_event);
                 # событие обязано быть в permissions.aapi — иначе не регистрируется (warning)
                 from . import sdk as sdk_module
                 try:
@@ -753,7 +753,7 @@ class Runtime:
         executor.actions.update(actions)
         executor.plugins.clear()
         executor.plugins.update(plugins)
-        # TASK-030: набор включённых расширений сменился — пересобрать каталоги точек
+        # набор включённых расширений сменился — пересобрать каталоги точек
         # подключения (эндпоинты) и источники словарей шаблонов. На старте Executor ещё
         # без dialog (источники придут при его создании), endpoints.reload просто перечитает.
         endpoints = getattr(self, "endpoints", None)
@@ -931,8 +931,8 @@ class Runtime:
         return item
 
     async def send_message(self, sn, message):
-        """Отправить готовое сообщение живой WS-сессии устройства по SN (TASK-059,
-        sdk.send_directive). True — отправлено; False — сессии нет или сокет упал."""
+        """Отправить готовое сообщение живой WS-сессии устройства по SN — sdk.send_directive.
+        True — отправлено; False — сессии нет или сокет упал."""
         session = next((x for x in self.sessions.values()
                         if x.get("device_sn") == str(sn) and x.get("send")), None)
         if session is None:
@@ -1011,7 +1011,7 @@ class Runtime:
         from .speech_trace import SPEECH_LOG_LIMIT
         self.speech_log.append(record)
         del self.speech_log[:-SPEECH_LOG_LIMIT]
-        self._note_activity(record)  # TASK-088: из тех же событий — состояние строки шапки
+        self._note_activity(record)  # из тех же событий — состояние строки шапки
 
     def _note_activity(self, record):
         """Микросостояние хода и сбои речевых сервисов — в одной точке, на существующем
@@ -1042,24 +1042,24 @@ class Runtime:
 
     def start_background(self):
         """Фоновые задачи runtime (задания агента, голосовой стек); идемпотентно.
-        TASK-079: планировщика таймеров больше нет — сигнал отдаёт сама колонка."""
+        планировщика таймеров больше нет — сигнал отдаёт сама колонка."""
         if not getattr(self, "_background_started", None):
             self._background_started = True
             self.lifecycle.spawn(self.voice_stack.autostart())
             if not self.self_update.task:
-                self.self_update.start()  # TASK-040: проверка релизов с задержкой и по интервалу
+                self.self_update.start()  # проверка релизов с задержкой и по интервалу
             if self.routines is not None:
                 self.routines.start()
             self.warm_sound_cache(delay=20)  # локальный TTS поднимается autostart'ом
 
     def public(self):
         value = self.settings_service.public(self.settings)
-        value["_rev"] = self.settings_rev  # TASK-088: форма возвращает её же — сервер сверит при сохранении
+        value["_rev"] = self.settings_rev  # форма возвращает её же — сервер сверит при сохранении
         return value
 
     @staticmethod
     def masked_secret(value):
-        return masked_secret(value)  # B04: в UI — только configured/masked, env:VAR открыт
+        return masked_secret(value)  # В UI — только configured/masked, env:VAR открыт
 
     def refresh_profiles(self):
         for session in self.sessions.values():
@@ -1068,7 +1068,7 @@ class Runtime:
 
     async def save_settings(self, value, warm=True):
         """Сохранение настроек. warm=False — не прогревать звуковой кеш (смена режима
-        «Интеллект» не должна нагружать локальный TTS-сервер, TASK-088)."""
+        «Интеллект» не должна нагружать локальный TTS-сервер)."""
         value = self.settings_service.validate(value, self.settings)
         tts_changed = value.get("tts") != self.settings.get("tts")
         upstream_changed = value.get("upstream") != self.settings.get("upstream")
@@ -1118,12 +1118,12 @@ class Runtime:
         return entries
 
     def disconnect_devices(self, match, message):
-        """Закрыть соединения устройств (1012) в фоне — ответ не ждёт колонку (TASK-057).
+        """Закрыть соединения устройств (1012) в фоне — ответ не ждёт колонку.
         Возвращает число закрываемых соединений; колонка переподключается сама."""
         return self.closer.close(self.device_sockets(match), 1012, message)
 
     async def set_device_route_mode(self, sn, mode):
-        """Маршрут одного устройства (TASK-044); mode=None — снять свой маршрут (Эмуляция, TASK-064).
+        """Маршрут одного устройства; mode=None — снять свой маршрут (Эмуляция).
         Соединения закрываются (колонка переподключается сама) только если меняется то, как
         обслуживается открытый WS: эмулятором (emulate, hybrid) или мостом в Яндекс (proxy).
         emulate ↔ hybrid WS не рвёт, HTTP маршрутизируется заново на каждом запросе."""
@@ -1139,7 +1139,7 @@ class Runtime:
         return {"sn": sn, "mode": mode, "disconnected": closed}
 
     async def set_device_record_mode(self, sn, mode):
-        """Опция «Запись» устройства (TASK-054): off | on | misses. Соединения не закрываются:
+        """Опция «Запись» устройства: off | on | misses. Соединения не закрываются:
         опция читается на каждом обмене и кадре, действует сразу."""
         if mode not in RECORD_MODES:
             raise ValueError("mode: " + " | ".join(RECORD_MODES))
@@ -1151,7 +1151,7 @@ class Runtime:
     def validate_url(value):
         validate_url(value)  # http(s) без credentials — реализация в settings_service
 
-    # TASK-007 (DEBT-01): резолвинг ASR/TTS/LLM-адаптеров, потоковые режимы и legacy-цикл
+    # (DEBT-01): резолвинг ASR/TTS/LLM-адаптеров, потоковые режимы и legacy-цикл
     # инструментов — в provider_manager.ProviderManager. Вызовы идут с self-аргументом:
     # scoped-копии runtime в WS-сессиях несут настройки профиля устройства.
     # provider/chat — публичные имена (voice.py, ui/api, тесты подменяют их заглушками).
@@ -1181,13 +1181,13 @@ class Runtime:
         from . import mcp_hub
         return await mcp_hub.request(self, server, method, params)
 
-    # TASK-004 (DEBT-01): маршрутизация HTTP — в dispatcher.Dispatcher; публичные
+    # (DEBT-01): маршрутизация HTTP — в dispatcher.Dispatcher; публичные
     # имена сохранены как делегации (их зовут server.py и тесты).
     async def handle_update(self, request, host, path, record=None):
         return await self.dispatcher.handle_update(request, host, path, record)
 
     def route_mode_for(self, request):
-        """(sn, device_id, mode) маршрута запроса — TASK-044 (делегация в dispatcher)."""
+        """(sn, device_id, mode) маршрута запроса — (делегация в dispatcher)."""
         return self.dispatcher.route_mode_for(request)
 
     def client_ip(self, request):
@@ -1220,7 +1220,7 @@ class Runtime:
             return ws
         context = RequestContext(recorder=record)  # идентичность достраивается ниже
         context.record({}, kind="ws", direction="lifecycle", status=101, event="open", size=0, emulated=True)
-        # Журнал трафика (TASK-054): опция «Запись» устройства читается на каждом кадре; звук не пишется
+        # Журнал трафика: опция «Запись» устройства читается на каждом кадре; звук не пишется
         tap = self.upstream.ws_tap("emulator", request.host.split(':', 1)[0].lower(), request.path,
                                    list(request.headers.items()),
                                    handled=lambda trigger: aapi_has_handler(trigger, scoped_runtime.settings))
@@ -1244,7 +1244,7 @@ class Runtime:
             async with send_lock:
                 await ws.send_bytes(data)
             tap.frame("server_to_client", True, data)
-            try:  # «Вместе» (091): свои плеерные директивы снимают флаг контента Яндекса
+            try:  # «Вместе» : свои плеерные директивы снимают флаг контента Яндекса
                 if data[:4] == b"AAPI" and hybrid.yandex_player:
                     reply = server_type.FromString(data[4:])
                     if reply.Event.WhichOneof("Event") == "AliceResponse":
@@ -1267,7 +1267,7 @@ class Runtime:
                     item['delivery'] = 'acknowledged'
         conversation = Conversation(scoped_runtime, server_type, send, trace_context=trace_context,
                                     delivered=delivered)
-        # «Вместе», фаза 2 (091): параллельная сессия Яндекса на этот WS — открывается лениво
+        # «Вместе», фаза 2 : параллельная сессия Яндекса на этот WS — открывается лениво
         # при первой пересылке промаха; режим читается при каждом использовании (меняется на лету)
         from .upstream.hybrid import HybridSession
         hybrid = HybridSession(self, request, send)
@@ -1308,16 +1308,16 @@ class Runtime:
                         continue
                     incoming = client_type.FromString(data[4:])
                     trigger = incoming.Event.WhichOneof("Event") if incoming.WhichOneof("Message") == "Event" else "StreamControl"
-                    # «Вместе», фаза 3 (098): кадры голосового хода колонки — в копилку
+                    # «Вместе», фаза 3 : кадры голосового хода колонки — в копилку
                     # для релея ветке (VoiceInput открывает ход, аудио и StreamControl копятся)
                     hybrid.observe(trigger, data)
-                    # «Вместе» (097): протокольные ответы колонки (StreamControl по потоку
+                    # «Вместе» : протокольные ответы колонки (StreamControl по потоку
                     # ветки, Ack, RequestStat) — копией в ветку Яндекса, иначе её диалог
                     # «подвисает» после первого обмена
                     hybrid.relay(incoming, data)
                     if trigger == 'SynchronizeStateRequest':
                         hybrid.keep(data)  # авторизация ветки «Вместе» — её кадр                        # Re-identification requires a new connection: don't mix histories or channels.
-                        # B03: sync — авторитетный источник, header — транспортная подсказка;
+                        # sync — авторитетный источник, header — транспортная подсказка;
                         # расхождение независимых источников закрывает соединение (1008).
                         resolved, id_report = collect_device_id(
                             ('sync.Application.DeviceId', incoming.Event.SynchronizeStateRequest.Application.DeviceId),
@@ -1352,12 +1352,12 @@ class Runtime:
 
 
 def mount_ui(app, runtime, prefix="/emulator"):
-    # RF-02: домены админ-API переезжают в реестр ui/api; реестр спрашивается
+    # Домены админ-API переезжают в реестр ui/api; реестр спрашивается
     # ДО legacy-цепочки, поверхность контракта фиксирует tests/test_admin_api_surface.py.
     from .ui.api import dispatch as registry_dispatch, get as registry_get, guarded
 
     async def api(request):
-        # RF-03: все домены админ-API живут в реестре ui/api; неизвестный action → 404.
+        # Все домены админ-API живут в реестре ui/api; неизвестный action → 404.
         if registry_get(request.match_info["action"]) is None:
             raise web.HTTPNotFound()
         return await registry_dispatch(request, runtime, app)
@@ -1393,7 +1393,7 @@ def mount_ui(app, runtime, prefix="/emulator"):
 
     from .ui.api import setup as setup_api
     app.router.add_post(prefix + "/api/catalog/apk", guarded(runtime.catalog.upload))
-    # TASK-070: иконка панели — запросы браузера к серверу не попадают в «HTTP без эндпоинта»
+    # иконка панели — запросы браузера к серверу не попадают в «HTTP без эндпоинта»
     favicon = ROOT.parent / "tools" / "assets" / "alica.ico"
 
     async def icon(request):
@@ -1406,7 +1406,7 @@ def mount_ui(app, runtime, prefix="/emulator"):
     app.router.add_post(prefix + "/api/setup/images", guarded(lambda request: setup_api.refresh_images(request, runtime)))
     app.router.add_route("PUT", prefix + "/api/catalog/apps/{id}", guarded(runtime.catalog.edit))
     app.router.add_route("DELETE", prefix + "/api/catalog/apps/{id}", guarded(runtime.catalog.delete))
-    from .ui.api import me as me_api  # кабинет пользователя: /me и /api/me/* (TASK-062)
+    from .ui.api import me as me_api  # кабинет пользователя: /me и /api/me/*
     me_api.mount(app, runtime, prefix)
     app.router.add_route("*", prefix + "/api/{action}", api)
     app.router.add_get(prefix + "/{file:.*}", static)

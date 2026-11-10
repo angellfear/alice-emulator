@@ -56,8 +56,8 @@ async def _say(runtime, text, sn=""):
 
 
 @pytest.mark.parametrize("phrase,action,arguments,reply", [
-    # TASK-083: ответных образцов этих фраз в журнале нет — прежний проводной путь
-    # (wire-Push sound_louder/sound_quiter/sound_set_level из приложения, TASK-025), БЛОКЕР
+    # ответных образцов этих фраз в журнале нет — прежний проводной путь
+    # (wire-Push sound_louder/sound_quiter/sound_set_level из приложения), БЛОКЕР
     ("громкость громче", "sound_louder", {}, "Громче."),
     ("тише", "sound_quiter", {}, "Тише."),
     ("максимальная громкость", "sound_set_level", {"level": 10}, "Максимальная громкость."),
@@ -175,7 +175,7 @@ async def test_enable_word_is_not_app_open(tmp_path):
     try:
         report, _, _ = await _say(runtime, "открой сказки")
         assert report["scenario"] == "device.app.open"
-        async def send(data):  # «включи сказки» теперь сценарий медиа (TASK-071) — доставка идёт
+        async def send(data):  # «включи сказки» теперь сценарий медиа — доставка идёт
             pass
         report = await runtime.dialog.handle_text("включи сказки", _ctx(runtime, "включи сказки"), "dg", send)
         assert report.get("scenario") != "device.app.open"
@@ -184,7 +184,7 @@ async def test_enable_word_is_not_app_open(tmp_path):
 
 
 async def test_volume_phrase_over_ws_without_model(tmp_path):
-    """TASK-083: level-фраза по WS — тихий ответ директивой образца, без речи и карточек."""
+    """level-фраза по WS — тихий ответ директивой образца, без речи и карточек."""
     runtime = Runtime(tmp_path)
     runtime.settings.update(aapi_model=True, builtin_scenarios=True)
 

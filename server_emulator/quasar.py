@@ -44,7 +44,7 @@ class QuasarBackend:
 
     @classmethod
     def handles(cls, method, path):
-        """Есть ли builtin-маршрут (без выполнения): для опции «Запись» устройства (TASK-054)."""
+        """Есть ли builtin-маршрут (без выполнения): для опции «Запись» устройства."""
         return (method, path) in cls.ROUTES
 
     def list_caller(self, client_ip):
@@ -201,7 +201,7 @@ class QuasarBackend:
         # эндпоинтов (захваченный реальный ответ). Известное, но непривязанное
         # устройство — по-прежнему честный 403.
         if device is None and path == '/glagol/device_list':
-            # Без маркера устройства: сначала привязка по IP клиента (B03, activity реестра),
+            # Без маркера устройства: сначала привязка по IP клиента (activity реестра),
             # затем единственный владелец среди известных устройств; иначе — каталог/404.
             who = self.list_caller(client_ip)
             if who is None:
@@ -223,7 +223,7 @@ class QuasarBackend:
                 state['reported_platform'] = reported
                 self.runtime.identities.mutate({'operation':'state','sn':device['sn'],'state':copy.deepcopy(state)})
                 device = self.runtime.identities.resolve(device_id) or device  # свежая запись
-            # «Свой» источник (TASK-052): сохранённый ответ как есть — без слоёв,
+            # «Свой» источник: сохранённый ответ как есть — без слоёв,
             # инлайн-узлов и подстановки стереопары.
             if state.get('quasar_source')=='custom':
                 custom=state.get('quasar_custom')

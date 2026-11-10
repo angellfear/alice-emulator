@@ -1,4 +1,4 @@
-"""ExtensionContext (TASK-053): настройки расширения для его кода — только чтение.
+"""ExtensionContext: настройки расширения для его кода — только чтение.
 
 Код расширения получает свой ExtensionContext: режимы — `ctx.extension`
 (intelligence.answer), действия — `execution.extension` (Executor/SDK),
@@ -38,8 +38,8 @@ def bind_manager(manager):
 def action_context(name):
     """ExtensionContext расширения-владельца действия name (префикс
     contributes.actions/id или объявление в permissions.actions, правило
-    регистрации TASK-033) или None — встроенное/неизвестное действие, менеджера
-    нет. Новый объект на каждый вызов (TASK-053)."""
+    регистрации) или None — встроенное/неизвестное действие, менеджера
+    нет. Новый объект на каждый вызов."""
     manager = _manager
     if manager is None or not hasattr(manager, "action_context"):
         return None
@@ -73,7 +73,7 @@ def _masked(value):
 
 
 class ExtensionContext:
-    """Настройки одного расширения для его кода (TASK-053), только чтение.
+    """Настройки одного расширения для его кода, только чтение.
 
     id — id расширения; settings — MappingProxyType всех значений (defaults
     манифеста + сохранённые; строки `env:ИМЯ` раскрыты через auth.secret);

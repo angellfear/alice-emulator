@@ -1,6 +1,6 @@
-// Промахи эмулятора — свёрнутые блоки в своих разделах (TASK-061, вкладки «Без ответа» нет):
+// Промахи эмулятора — свёрнутые блоки в своих разделах (вкладки «Без ответа» нет):
 // «Сценарии» — фразы без сценария, «HTTP» — запросы без эндпоинта (с чипом «→ Яндекс» гибрида),
-// «WS» — AAPI без ответа и колбэки без обработчика (TASK-058). Из записи создаётся обработчик:
+// «WS» — AAPI без ответа и колбэки без обработчика. Из записи создаётся обработчик:
 // сценарий (window.newScenarioFromPhrase / newScenarioFromEvent, app.js) или эндпоинт
 // (window.openEndpointFromMiss). Компонента одна: раздел передаёт контейнер и виды промахов —
 // window.renderMisses(container, kinds). API — ui/api/misses.py (один маршрут на все виды).
@@ -28,7 +28,7 @@
     return [add, name];
   }
 
-  function aapiLine(m, refresh) {  // обработчика из UI не создать — нужен код (voice.py / расширение TASK-059); образец — в подсказке
+  function aapiLine(m, refresh) {  // обработчика из UI не создать — нужен код (voice.py / расширение); образец — в подсказке
     const name = node('span', m.key, 'ep-url'); name.title = m.examples[0] || '';
     return [node('span', null, 'ep-add'), name];
   }
@@ -36,7 +36,7 @@
   function httpLine(m, refresh) {
     const add = button('+', () => window.openEndpointFromMiss?.(m), 'ep-add'); add.title = 'Создать эндпоинт';
     const url = node('span', null, 'ep-url'); url.append(node('b', m.method), document.createTextNode(' ' + m.host + m.path));
-    if (m.forwarded) {  // гибрид (TASK-044): промах ушёл в Яндекс, локального обработчика можно не создавать
+    if (m.forwarded) {  // гибрид: промах ушёл в Яндекс, локального обработчика можно не создавать
       const chip = node('span', m.forwarded === 'upstream' ? '→ Яндекс' : '⚠ Яндекс недоступен', 'chip');
       chip.title = m.forwarded === 'upstream' ? 'Вместе: запрос переслан наверх. Открыть «Журнал» (запись — опция «Запись» устройства)' : ('Пересылка не удалась: ' + m.forwarded);
       if (m.forwarded === 'upstream') { chip.style.cursor = 'pointer'; chip.onclick = () => window.openTraffic?.({ unhandled: true }); }

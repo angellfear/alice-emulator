@@ -1,4 +1,4 @@
-"""B01: lifecycle runtime — общий клиент, трекинг задач, идемпотентный close, контекст."""
+"""lifecycle runtime — общий клиент, трекинг задач, идемпотентный close, контекст."""
 import asyncio
 import json
 from pathlib import Path

@@ -1,4 +1,4 @@
-"""Источники расширений и общая механика скачивания/распаковки (TASK-029).
+"""Источники расширений и общая механика скачивания/распаковки.
 
 parse_source() различает четыре вида источников (docs/contracts/extensions.md):
 GitHub-репозиторий (последний релиз или закреплённый тег/коммит через #ref),
@@ -7,8 +7,8 @@ GitHub-репозиторий (последний релиз или закреп
 (локальная разработка и тесты на встроенном http-сервере).
 
 download_bytes()/zip_entry_bytes()/extract_zip() — общие помощники сети и zip.
-Ими пользуется и перенесённый в расширения реестр сценариев (legacy_registry.py,
-TASK-036): правило traversal (safe_zip_name) перенесено дословно, чтобы не дублировать.
+Ими пользуется и перенесённый в расширения реестр сценариев (legacy_registry.py):
+правило traversal (safe_zip_name) перенесено дословно, чтобы не дублировать.
 """
 from __future__ import annotations
 
@@ -171,7 +171,7 @@ async def catalog_entries(session, url):
     except (ValueError, UnicodeDecodeError) as exc:
         raise ValueError(f"Каталог не JSON: {exc}") from exc
     from .legacy_registry import is_registry_manifest, registry_entries
-    if is_registry_manifest(data):  # прежний реестр сценариев (TASK-036): пакеты — записи каталога
+    if is_registry_manifest(data):  # прежний реестр сценариев: пакеты — записи каталога
         return registry_entries(data, url)
     entries = data.get("extensions") if isinstance(data, dict) else None
     if not isinstance(entries, list):

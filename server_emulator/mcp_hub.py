@@ -17,7 +17,7 @@ inputSchema, enabled, mode}: mode auto — модель вызывает и по
 сама, confirm — вызов ждёт ручного подтверждения во вкладке «Проверка».
 Контракт: docs/contracts/mcp.md.
 
-Расширения (TASK-032): папка mcp/ включённого расширения добавляет серверы в список
+Расширения: папка mcp/ включённого расширения добавляет серверы в список
 (только чтение, mcp.json не пишется; класс расширения с mcp/ — code): *.json —
 описание {"mcpServers": {имя: spec}} или один spec (stdio-команда или URL); имя без
 префикса получает <ext-id>.; spec проверяется как запись mcp.json; пользовательская
@@ -108,7 +108,7 @@ def save_config(runtime, value):
 
 
 def extension_servers(runtime):
-    """Серверы mcp/ включённых расширений (TASK-032): {id: spec} — *.json файла:
+    """Серверы mcp/ включённых расширений: {id: spec} — *.json файла:
     {"mcpServers": {имя: spec}} или одно описание (stdio-команда или URL); имя без
     префикса получает <ext-id>.; spec проверяется правилами mcp.json (validate_config),
     битое описание — warning, остальные серверы работают; у записи origin
@@ -144,7 +144,7 @@ def extension_servers(runtime):
 
 def servers(runtime):
     """Все серверы: описания mcp/ включённых расширений + mcp.json — пользовательская
-    запись с тем же id побеждает (TASK-032); настройки раздела не мутируются."""
+    запись с тем же id побеждает; настройки раздела не мутируются."""
     merged = extension_servers(runtime)
     merged.update(load_config(runtime)["mcpServers"])
     return merged
@@ -392,7 +392,7 @@ def snapshot(runtime, context):
                     continue  # служебный конфиг колонки — не для модели
                 db.execute("INSERT INTO device_state VALUES (?,?,?)", (device["sn"], key, json.dumps(value, ensure_ascii=False)[:2000]))
     source = runtime.store.db  # общее соединение хранилища, только чтение
-    # TASK-079: таблица timers удалена — таймеры/будильники принадлежат колонке
+    # таблица timers удалена — таймеры/будильники принадлежат колонке
     for row in source.execute("SELECT scenario_id,scope,owner,key,value,updated_ts FROM scenario_data"):
         if row[1] == "system" or row[2] in user_ids or row[2] in sns or context.get("user_id") is None:
             db.execute("INSERT INTO scenario_data VALUES (?,?,?,?,?,?)", (*tuple(row)[:4], str(row[4])[:4000], _local(row[5], tz)))

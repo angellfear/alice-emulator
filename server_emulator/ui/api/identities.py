@@ -1,9 +1,9 @@
-"""Домен identities: реестр идентичностей (пользователи/устройства) (RF-03).
+"""Домен identities: реестр идентичностей (пользователи/устройства) .
 
 GET — слепок реестра + сводка активных сессий (без служебных ключей
 runtime/send/ws/transport) + activity («виден/последний IP» для таблицы устройств);
 POST — мутация привязки/удаления под runtime.lock, затем затронутым WS-сессиям рвётся
-соединение (1012 «переподключись») в фоне — ответ не ждёт колонку (TASK-057).
+соединение (1012 «переподключись») в фоне — ответ не ждёт колонку.
 """
 import copy
 
@@ -13,7 +13,7 @@ from . import route
 
 
 def _session_public(session):
-    # TASK-095: capabilities.raw — bytes протокольного кадра (TASK-069 кладёт в сессию
+    # capabilities.raw — bytes протокольного кадра (кладём в сессию
     # для диагностики); в JSON-ответе достаточно длины (bytes) и printable-превью —
     # с raw сериализация падала и вкладка «Устройства» не грузилась
     row = {k: v for k, v in session.items() if k not in ('runtime', 'send', 'ws', 'transport')}
@@ -62,7 +62,7 @@ async def identities(request, runtime, app):
     async with runtime.lock:
         result=runtime.identities.mutate(value)
         runtime.refresh_profiles()
-    # Закрытие — после мутации и в фоне (TASK-057): ответ не ждёт колонку, а переподключение
+    # Закрытие — после мутации и в фоне: ответ не ждёт колонку, а переподключение
     # уже видит новую идентичность
     runtime.closer.close([(s['ws'], s.get('transport')) for s in affected if s.get('ws')],
                          1012, b'Binding changed, reconnect')
@@ -71,16 +71,16 @@ async def identities(request, runtime, app):
 
 @route("route_mode", methods=("PUT",))
 async def route_mode(request, runtime, app):
-    """Маршрут одного устройства (TASK-044): PUT {sn, mode}. Соединение закрывается (1012,
+    """Маршрут одного устройства: PUT {sn, mode}. Соединение закрывается (1012,
     колонка переподключается сама) только если меняется обслуживание открытого WS:
-    переход в «Прозрачно» или из него (TASK-064)."""
+    переход в «Прозрачно» или из него."""
     value = await request.json()
     return web.json_response(await runtime.set_device_route_mode(value.get('sn'), value.get('mode')))
 
 
 @route("record_mode", methods=("PUT",))
 async def record_mode(request, runtime, app):
-    """Опция «Запись» одного устройства (TASK-054): PUT {sn, mode: off|on|misses}.
+    """Опция «Запись» одного устройства: PUT {sn, mode: off|on|misses}.
     Соединение не закрывается — опция читается на каждом обмене и действует сразу."""
     value = await request.json()
     return web.json_response(await runtime.set_device_record_mode(value.get('sn'), value.get('mode')))

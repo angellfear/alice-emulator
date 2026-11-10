@@ -15,7 +15,7 @@
 Секреты (type=secret) маскируются "__KEEP__" при чтении (как api_key),
 запись "__KEEP__" сохраняет прежнее значение.
 
-Расширения (TASK-032): папка params/ включённого расширения добавляет определения
+Расширения: папка params/ включённого расширения добавляет определения
 поверх каталога БД (только чтение, в БД не копируются): *.json — определение
 {key, scope, type, title, …}; key получает namespace «<scope>.<ext-id>.<имя>» —
 префикс области первым (правила validate_def), префикс расширения вторым; поэтому
@@ -56,9 +56,9 @@ def _json(value):
 class ParamStore:
     def __init__(self, db, extension_dirs=None):
         self.db = db  # соединение StateStore (sqlite3, FK включены)
-        self.extension_dirs = extension_dirs  # callable → [(origin, Path)] — слои params/, TASK-032
+        self.extension_dirs = extension_dirs  # callable → [(origin, Path)] — слои params/,
 
-    # --- слой расширений (TASK-032) ---------------------------------------------
+    # --- слой расширений ---------------------------------------------
     def _extension_layers(self):
         """Слои params/ включённых расширений: [(origin, Path)] (callable из runtime —
         extensions/layers.source_layers). Слой не задан или сбой — пусто, раздел работает."""
@@ -115,7 +115,7 @@ class ParamStore:
             if scopes and item["scope"] not in scopes:
                 continue
             items.append(item)
-        extension = self.extension_defs()  # записи расширений поверх БД (TASK-032)
+        extension = self.extension_defs()  # записи расширений поверх БД
         known = {item["key"] for item in items}
         items += [item for key, item in extension.items() if key not in known
                   and (not editable_only or item["user_editable"])
@@ -283,7 +283,7 @@ class ParamStore:
         raise KeyError(key)
 
     def resolve_view(self, sn=None, user_id=None, platform=None):
-        """Итог цепочки по всем определениям с уровнем-источником (TASK-060, UI «Итог/Откуда»):
+        """Итог цепочки по всем определениям с уровнем-источником (UI «Итог/Откуда»):
         {key: {"value": итог, "source": "device|user|platform|server|default"}}; секреты маской.
         Первый непустой уровень цепочки device → user → platform → server перекрывает младшие,
         значения нет ни на одном — default_value определения."""

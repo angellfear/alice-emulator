@@ -1,4 +1,4 @@
-"""TASK-088: переключение режима «Интеллект» не отменяет выбор голосового стека.
+"""Переключение режима «Интеллект» не отменяет выбор голосового стека.
 
 Дефект: переключатель в шапке слал PUT /api/settings полную копию настроек, загруженных
 при открытии страницы (`setLevel` в ui/app.js). Если во вкладке «Голос» выбран источник
@@ -132,7 +132,7 @@ async def test_intelligence_put_validates_mode(tmp_path):
                 r = await client.put(url + "/emulator/api/intelligence", json=bad)
                 assert r.status == 400, bad
             assert runtime.settings["intelligence"] == "agent"  # дефолт не изменился
-            # формат ext:<id> законен (недоступный режим откатывается на сценарии при ответе, TASK-034)
+            # формат ext:<id> законен (недоступный режим откатывается на сценарии при ответе)
             r = await client.put(url + "/emulator/api/intelligence", json={"intelligence": "ext:no-such"})
             assert r.status == 200 and runtime.settings["intelligence"] == "ext:no-such"
     finally:

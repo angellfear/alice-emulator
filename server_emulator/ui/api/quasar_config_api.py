@@ -165,12 +165,12 @@ async def quasar_composed(request, runtime, app):
 
 @route("quasar_source", methods=("GET", "PUT", "POST"))
 async def quasar_source(request, runtime, app):
-    """Источник конфига устройства (TASK-052).
+    """Источник конфига устройства.
 
     GET ?sn= → {mode, direct_last, custom, replace, transparent, can_fetch}; PUT {sn, mode?, custom?,
-    replace?, transparent?} — сохранение режима, своего ответа, замен regexp «Напрямую» (TASK-063) и/или
-    галочки «И в прозрачном маршруте» (TASK-065, bool) в state устройства; сохранённые replace сразу
-    прогоняются по последнему оригинальному ответу (TASK-103): в direct_last обновляются body_sent/replaced
+    replace?, transparent?} — сохранение режима, своего ответа, замен regexp «Напрямую» и/или
+    галочки «И в прозрачном маршруте» (bool) в state устройства; сохранённые replace сразу
+    прогоняются по последнему оригинальному ответу: в direct_last обновляются body_sent/replaced
     с отметкой preview или replace_error, до ближайшего запроса колонки
     (под runtime.lock; custom — JSON-объект с объектом config; replace — [{enabled, pattern, replace}],
     невалидный regex — 400 с номером строки, ничего не сохраняется); POST {sn, action} — generate (ответ
@@ -226,7 +226,7 @@ async def quasar_source(request, runtime, app):
                     state['quasar_direct_replace'] = rules
                 else:
                     state.pop('quasar_direct_replace', None)
-                # TASK-103: правила прогоняются по сохранённому оригиналу сразу — «После замен»
+                # правила прогоняются по сохранённому оригиналу сразу — «После замен»
                 # в UI обновляется без запроса колонки; прошлая отметка (реальная или превью) не актуальна
                 last = state.get('quasar_direct_last')
                 if isinstance(last, dict) and isinstance(last.get('body'), dict):

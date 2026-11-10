@@ -1,10 +1,10 @@
-"""SDK py-сценариев (TASK-018): публичный API — и для встроенных сценариев, и для
+"""SDK py-сценариев: публичный API — и для встроенных сценариев, и для
 расширений. Скрипт не лезет во внутренности Runtime: контекст запроса, построители
 ответа и сервисы — отсюда.
 
 Принцип: SDK НЕ дублирует логику — только обёртки и dataclass'ы над тем, что уже
 есть в движке (1.1.0: парсеры scenario_engine/parsers.py, форматтеры фильтров шаблонов, обновление
-датасета Executor; 1.2.0: ExtensionContext — настройки расширения для его кода, TASK-053; secret — раскрытие
+датасета Executor; 1.2.0: ExtensionContext — настройки расширения для его кода, secret — раскрытие
 ссылок env:ИМЯ, как у провайдеров).
 Построители (say/card/directive/silent) возвращают ровно ту структуру
 dict'ов, которую принимает compose-шаг (scenario_engine/reply_compose.compose_reply) —
@@ -53,7 +53,7 @@ def secret(value):
     return _secret(value)
 
 
-# --- 1.3.0: обработчики AAPI расширений и отправка на устройство (TASK-059) ----------
+# --- 1.3.0: обработчики AAPI расширений и отправка на устройство ----------
 
 _RUNTIME = None      # привязывает Runtime.__init__ (bind_runtime) — модульные отправки
 _LOADING = None      # id расширения, чьи aapi/*.py импортирует загрузчик (rebuild_extension_registries)
@@ -209,7 +209,7 @@ class _AapiContext:
 
 
 async def adapt_aapi_call(handler, conversation, incoming, trigger, meta=None):
-    """Мост реестра → публичная сигнатура (TASK-059): event (dict) + ctx (ExtensionContext
+    """Мост реестра → публичная сигнатура: event (dict) + ctx (ExtensionContext
     расширения-владельца, устройство, reply/send). Возвращённое приводится к bool."""
     event = _aapi_event(conversation, incoming, trigger)
     event["sn"] = conversation.trace_context.get("sn") or ""
@@ -308,9 +308,9 @@ def silent():
 
 @dataclass(frozen=True)
 class Ask:
-    """Уточнение (TASK-020): вопрос репликой, продолжение — функция `then` того же
+    """Уточнение: вопрос репликой, продолжение — функция `then` того же
     модуля (получает (ctx, answer); арность решает ScriptRunner); expect — подсказка
-    парсеру значения ответа (TASK-022), движок хранит её в данных ожидания и отдаёт
+    парсеру значения ответа, движок хранит её в данных ожидания и отдаёт
     продолжению через ctx.ask. Ожидание сохраняется так же, как для JSON-шага ask."""
     question: str
     then: str
@@ -372,7 +372,7 @@ class Event:
 class _ActionExecution:
     """Минимальный объект execution, который видит обработчик действия: контекст
     запроса (input/clock/user/device…), как у шага action в Executor, и extension —
-    ExtensionContext расширения-владельца действия (TASK-053), встроенному — None."""
+    ExtensionContext расширения-владельца действия, встроенному — None."""
 
     __slots__ = ("ctx", "extension")
 
@@ -406,14 +406,14 @@ class _ScenarioData:
 
 
 class ScenarioContext:
-    """Контекст py-сценария — единственный аргумент handle(ctx) (TASK-019).
+    """Контекст py-сценария — единственный аргумент handle(ctx).
 
     runtime — живой Runtime (или совместимый объект с scenario_executor); сервисы
     берут реестры из runtime.scenario_executor, ничего не дублируя. ctx — контекст
     запроса в формате шагов движка (input/clock/user/device/params/slots/state…);
     slots и state — ТЕ ЖЕ dict'ы, что у исполнения: правки переживают шаги диалога.
     dry_run=True (проверка сценария) — действия не выполняются, а пишутся в effects.
-    extension — ExtensionContext настроек расширения (TASK-053): его ставит
+    extension — ExtensionContext настроек расширения: его ставит
     intelligence.answer для режимов расширений (ctx.extension); у обычных
     py-сценариев и вне режимов он None.
     """
@@ -423,7 +423,7 @@ class ScenarioContext:
         self._ctx = ctx if isinstance(ctx, dict) else {}
         self._assets_dir = Path(assets_dir) if assets_dir else None  # <id>.assets рядом со скриптом
         self.dry_run = bool(dry_run)
-        self.extension = None  # ExtensionContext режима расширения (TASK-053), ставит intelligence.answer
+        self.extension = None  # ExtensionContext режима расширения, ставит intelligence.answer
         self.effects = []  # [{kind, name, arguments}] — что dry_run сделал бы (показывает проверка)
         self.slots = self._ctx.get("slots") if isinstance(self._ctx.get("slots"), dict) else {}
         self.state = self._ctx.get("state") if isinstance(self._ctx.get("state"), dict) else {}
@@ -460,9 +460,9 @@ class ScenarioContext:
 
     @property
     def ask(self):
-        """Данные уточнения, на которое пришло продолжение (TASK-020): dict
+        """Данные уточнения, на которое пришло продолжение: dict
         {question, expect} — что было спрослено и какая подсказка парсеру обещана
-        (разбор ответа по expect — TASK-022); вне продолжения — None."""
+        (разбор ответа по expect); вне продолжения — None."""
         value = self._ctx.get("ask")
         return dict(value) if isinstance(value, dict) else None
 
@@ -514,7 +514,7 @@ class ScenarioContext:
         """Параметры владельца/устройства/платформы/сервера + effective (docs/contracts/params-db.md)."""
         return self._ctx.get("params") or {}
 
-    # --- 1.4.0: состояние колонки из её запроса (TASK-079) ---------------------------
+    # --- 1.4.0: состояние колонки из её запроса ---------------------------
 
     @property
     def timers(self):
@@ -537,14 +537,14 @@ class ScenarioContext:
 
     @property
     def player(self):
-        """Состояние штатного плеера колонки из её запроса (capability 46, TASK-087):
+        """Состояние штатного плеера колонки из её запроса (capability 46):
         {state: idle/playing/paused/…, playing, title, subtitle, played_ms, duration_ms}.
         Пустой dict, если колонка ничего не сообщает — своей очереди у эмулятора нет."""
         return dict((self._ctx.get("station") or {}).get("player") or {})
 
     @property
     def volume(self):
-        """Громкость колонки из её запроса (capability 23 TVolumeCapability, TASK-083):
+        """Громкость колонки из её запроса (capability 23 TVolumeCapability):
         {muted, level, max_level, percent_level}. Пустой dict, если колонка ничего не
         сообщает — своего учёта громкости на сервере нет."""
         return dict((self._ctx.get("station") or {}).get("volume") or {})
@@ -584,7 +584,7 @@ class ScenarioContext:
         device.push, light.set — см. docs/contracts/scenario-json-v2.md). В dry_run
         действие НЕ выполняется: запись {kind, name, arguments} в ctx.effects, вернётся None.
         Обработчик получает execution.extension — ExtensionContext расширения-владельца
-        действия (TASK-053), встроенному — None."""
+        действия, встроенному — None."""
         if self.dry_run:
             self.effects.append({"kind": "action", "name": str(name), "arguments": dict(arguments)})
             return None
@@ -622,7 +622,7 @@ class ScenarioContext:
 
     @property
     def route_mode(self):
-        """Маршрут устройства (только чтение): emulate | hybrid | proxy (091). В «Вместе»
+        """Маршрут устройства (только чтение): emulate | hybrid | proxy . В «Вместе»
         промах эмулятора уходит настоящему Яндексу — сценарии данных и system.unavailable
         уступают, чтобы фразу получил Яндекс."""
         return self._ctx.get("route_mode") or "emulate"
@@ -664,7 +664,7 @@ class ScenarioContext:
         return value if value in LEVELS else "agent"
 
     def no_data_source(self):
-        """Ответ сценария данных без плагина-источника (090): «Простой» — стандартный ответ
+        """Ответ сценария данных без плагина-источника : «Простой» — стандартный ответ
         no_data_source (правка текста в настройках действует); «Модель/Агент» — None,
         фраза уходит модели. Использование:
         try:
@@ -672,7 +672,7 @@ class ScenarioContext:
         except SDKError:
             return ctx.no_data_source()"""
         if self.intelligence != "scenarios" or self.route_mode == "hybrid":
-            return None  # «Модель/Агент» — модель; «Вместе» — настоящий Яндекс (091)
+            return None  # «Модель/Агент» — модель; «Вместе» — настоящий Яндекс 
         from . import behavior
         reply = behavior.standard_for(self.settings.get("standard_replies") or [], "no_data_source")
         return say(reply["text"] if reply else "Для этого нет источника данных.")

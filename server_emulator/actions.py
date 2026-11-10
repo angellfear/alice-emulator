@@ -152,8 +152,8 @@ async def send_action(runtime, sn, action, arguments):
 
 
 def push_directive(server_type, name, payload=None, items=None):
-    """Push с одной произвольной директивой (TASK-059: sdk.send_directive) — тот же
-    конверт, что у push_message, без проверки каталога. items (TASK-079) — перечень
+    """Push с одной произвольной директивой (sdk.send_directive) — тот же
+    конверт, что у push_message, без проверки каталога. items — перечень
     элементов [{"name", "payload"?, "payload_raw"?, "is_led_silent"?}]: несколько штатных
     директив (таймеры/будильники) уходят одним Push-сообщением."""
     output = server_type()

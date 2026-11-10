@@ -1,4 +1,4 @@
-"""TASK-053: настройки расширения в его коде (ExtensionContext).
+"""Настройки расширения в его коде (ExtensionContext).
 
 Режим (ctx.extension), действие (execution.extension) и адаптер голосового стека
 (аргумент extension, если функция его принимает — проверка сигнатуры) читают
@@ -25,7 +25,7 @@ from tests.conftest import CTX
 TOKEN_ENV = "TEST_EXTENSION_SETTINGS_TOKEN"
 SECRET = "секрет-из-окружения"
 
-MODE_SRC = '''"""Режим расширения: отвечает значением настройки (TASK-053)."""
+MODE_SRC = '''"""Режим расширения: отвечает значением настройки."""
 MODE = {"id": "echo", "title": "Эхо"}
 
 
@@ -36,7 +36,7 @@ async def answer(ctx, text, history):
             "missing": ext.get("нет-поля", "нет"), "kind": type(ext.settings).__name__}
 '''
 
-ADAPTER_EXT_SRC = '''"""TTS-адаптер расширения: возвращает прочитанную настройку (TASK-053)."""
+ADAPTER_EXT_SRC = '''"""TTS-адаптер расширения: возвращает прочитанную настройку."""
 SERVICES = {
     "tts": {"fields": [{"key": "url", "label": "URL", "type": "text"}],
             "defaults": {"url": "http://127.0.0.1:9/v1/audio/speech"}},
@@ -210,7 +210,7 @@ async def test_second_extension_sees_only_own_settings(tmp_path, monkeypatch):
 
 
 async def test_action_outside_prefix_owned_via_declaration(tmp_path, monkeypatch):
-    """Имя вне префикса, объявленное в permissions.actions (TASK-033), — контекст
+    """Имя вне префикса, объявленное в permissions.actions, — контекст
     расширения-владельца всё равно передаётся."""
     monkeypatch.setenv(TOKEN_ENV, SECRET)
     runtime = Runtime(tmp_path)
@@ -323,7 +323,7 @@ async def speech_stream(runtime, config, text, extension=None):
 
 async def test_pipeline_calls_pass_extension(tmp_path, monkeypatch):
     """Конвейер (ProviderManager): распознавание, синтез, модель и потоковые режимы —
-    адаптер расширения получает свой ExtensionContext (TASK-053, все пути вызова)."""
+    адаптер расширения получает свой ExtensionContext (все пути вызова)."""
     monkeypatch.setenv(TOKEN_ENV, SECRET)
     runtime = Runtime(tmp_path)
     make_extension(runtime, extra={"voice/adapters/pipeline.py": ADAPTER_PIPELINE_SRC})

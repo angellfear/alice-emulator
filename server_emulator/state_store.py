@@ -1,4 +1,4 @@
-"""B02: SQLite-хранилище состояния эмулятора (identities/settings).
+"""SQLite-хранилище состояния эмулятора (identities/settings).
 
 - WAL, foreign_keys=ON, короткие транзакции;
 - settings — версионированные JSON-_payload'ы (история ревизий);
@@ -8,7 +8,7 @@
 - двойной записи в JSON и SQLite нет: после миграции источник один — БД;
 - close идемпотентен; операции после close дают явный RuntimeError.
 
-Writers таблиц (RF-08 — инвариант: каждую таблицу пишет только её владелец,
+Writers таблиц (инвариант: каждую таблицу пишет только её владелец,
 блокировка в store не нужна — сериализация на asyncio-цикле, мутации настроек
 под runtime.lock у админ-API):
 
@@ -63,7 +63,7 @@ CREATE INDEX IF NOT EXISTS param_defs_scope ON param_defs(scope, category);
 CREATE TABLE IF NOT EXISTS param_values(owner TEXT NOT NULL, key TEXT NOT NULL,
                                      value TEXT NOT NULL, updated_ts REAL NOT NULL,
                                      PRIMARY KEY(owner, key));
-DROP TABLE IF EXISTS timers; -- TASK-079: таймеры/будильники живут у колонки (её
+DROP TABLE IF EXISTS timers; -- таймеры/будильники живут у колонки (её
 --                                        состояние в запросе), серверного расписания больше нет
 CREATE TABLE IF NOT EXISTS scenario_data(scenario_id TEXT NOT NULL, scope TEXT NOT NULL,
                                          owner TEXT NOT NULL, key TEXT NOT NULL,
@@ -90,7 +90,7 @@ class StateStore:
         self.db.execute("PRAGMA foreign_keys=ON")
         with self.db:
             self.db.executescript(SCHEMA)
-            # B03: аддитивные колонки unassigned (старые БД получают ALTER'ом)
+            # Аддитивные колонки unassigned (старые БД получают ALTER'ом)
             columns = {row[1] for row in self.db.execute("PRAGMA table_info(unassigned)")}
             for column in ("source", "ip"):
                 if column not in columns:
@@ -104,9 +104,9 @@ class StateStore:
             for column, default in (("room", "''"), ("model", "''"), ("fields", "'{}'")):
                 if column not in device_columns:
                     self.db.execute(f"ALTER TABLE devices ADD COLUMN {column} TEXT NOT NULL DEFAULT {default}")
-            if "route_mode" not in device_columns:  # TASK-044: режим маршрута устройства
+            if "route_mode" not in device_columns:  # режим маршрута устройства
                 self.db.execute("ALTER TABLE devices ADD COLUMN route_mode TEXT")
-            if "record" not in device_columns:  # TASK-054: опция записи устройства (off | on | misses)
+            if "record" not in device_columns:  # опция записи устройства (off | on | misses)
                 self.db.execute("ALTER TABLE devices ADD COLUMN record TEXT")
             row = self.db.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()
             if row is None:
@@ -144,7 +144,7 @@ class StateStore:
         return [json.loads(r[0]) for r in self._live().execute(
             "SELECT payload FROM settings ORDER BY revision DESC LIMIT 50")]
 
-    # --- executions: ожидающие продолжения диалоги (R06) ------------------------
+    # --- executions: ожидающие продолжения диалоги  ------------------------
     def load_execution(self, dialog_id):
         row = self._live().execute("SELECT payload FROM executions WHERE dialog_id=?", (dialog_id,)).fetchone()
         return json.loads(row[0]) if row else None

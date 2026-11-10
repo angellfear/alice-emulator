@@ -1,4 +1,4 @@
-"""Общие помощники и фикстуры тестов (RF-01).
+"""Общие помощники и фикстуры тестов .
 
 Раньше фикстуры жили в тест-модулях и импортировались друг из друга
 ( listen — из test_emulator_runtime, types — из test_voice_pipeline и т.п.).
@@ -118,7 +118,7 @@ async def _open_session(runtime, url, text_phrase, follow_up=None, env_state=Non
                 message.Event.TextInput.Header.RequestId = "rq"
                 message.Event.TextInput.Header.DialogId = "dg1"
                 message.Event.TextInput.Request.Event.Text = phrase
-                if env_state:  # TASK-079: состояние колонки в запросе (EnvironmentStateRaw)
+                if env_state:  # состояние колонки в запросе (EnvironmentStateRaw)
                     message.Event.TextInput.Request.EnvironmentStateRaw = env_state
                 await ws.send_bytes(b"AAPI" + message.SerializeToString())
                 for _ in range(3):

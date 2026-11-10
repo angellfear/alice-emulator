@@ -1,4 +1,4 @@
-"""TASK-079: таймеры/будильники по директивам настоящего сервера.
+"""Таймеры/будильники по директивам настоящего сервера.
 
 station_state (разбор EnvironmentStateRaw), остаток/активные/сигнал, и WS-сценарии с
 подменённым состоянием колонки: установка/отмена/остаток таймера, будильник, «хватит»
@@ -54,7 +54,7 @@ def _station_type(full_name):
 
 def _state_raw(timers=(), alarms=(), screens=None, volume=None):
     """EnvironmentStateRaw как у колонки: cap 21 (TAlarmCapability.State) + cap 144 (экраны)
-    + cap 23 (TVolumeCapability.State, TASK-083).
+    + cap 23 (TVolumeCapability.State).
 
     timers: [{"timer_id","start_ts","duration","disabled"?,"currently_playing"?,"paused"?}]
     alarms: [{"alarm_id","hours","minutes"?,"disabled"?,"currently_playing"?}]
@@ -168,7 +168,7 @@ def test_station_state_screens():
 
 
 def test_station_state_volume_cap23():
-    """TASK-083: cap 23 TVolumeCapability.State (есть в каждом запросе, журнал 10-24…29)."""
+    """cap 23 TVolumeCapability.State (есть в каждом запросе, журнал 10-24…29)."""
     state = station_state.parse(_state_raw(volume={"level": 4, "max_level": 10}))
     assert state["volume"] == {"muted": False, "level": 4, "max_level": 10,
                                "percent_level": 40.0}  # PercentLevel как у колонки в образце
@@ -274,7 +274,7 @@ def _like_sample(expected, actual, path):
         assert actual == expected, path
 
 
-# --- сравнение с обезличенными образцами (tests/fixtures/directives, TASK-079) ------
+# --- сравнение с обезличенными образцами (tests/fixtures/directives) ------
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "directives"
 
@@ -444,7 +444,7 @@ async def test_hvatit_without_ringing_stays_media(tmp_path):
     assert {"alarm_stop_directive", "timer_stop_directive"}.isdisjoint(_names(reply))
 
 
-# --- TASK-083: громкость — тихий ответ директивой образца ----------------------------
+# --- громкость — тихий ответ директивой образца ----------------------------
 
 
 async def test_volume_sample_form_by_ws(tmp_path, monkeypatch):

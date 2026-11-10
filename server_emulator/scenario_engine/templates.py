@@ -1,4 +1,4 @@
-"""TASK-022: триггеры-шаблоны на hassil — полное совпадение фразы со слотами.
+"""Триггеры-шаблоны на hassil — полное совпадение фразы со слотами.
 
 Вид триггера (JSON v2, docs/contracts/scenario-json-v2.md «Триггер template»):
 
@@ -15,7 +15,7 @@
 Списки и skip_words собираются из НЕСКОЛЬКИХ источников-словарей (merge_lexicons):
 поздний источник приоритетнее — пользовательский перекрывает расширение, расширение —
 встроенный. Источник — словарь с разделом lists ({имя: список hassil}) и skip_words
-(список) либо asr ({wake_words, trailing_fillers}). Слои (TASK-030): встроенный
+(список) либо asr ({wake_words, trailing_fillers}). Слои: встроенный
 (builtin_source — scenarios/lexicons.json) → lists/*.json включённых расширений —
 их ставит runtime (set_extension_sources); механизм пользовательских списков пока
 не заведён, добавится в список после расширений.
@@ -56,7 +56,7 @@ def clean(text):
 def builtin_source():
     """Встроенный источник словарей: scenarios/lexicons.json (раздел lists; skip_words —
     asr.wake_words + asr.trailing_fillers). Читается напрямую, без library: источники
-    собирает вызывающий (dialog.py), слои расширений добавляет runtime (TASK-030).
+    собирает вызывающий (dialog.py), слои расширений добавляет runtime.
     Битый файл — пустой источник (ошибку покажет загрузка библиотеки сценариев)."""
     try:
         return json.loads(LEXICONS_PATH.read_text(encoding="utf-8"))
@@ -64,7 +64,7 @@ def builtin_source():
         return {}
 
 
-# TASK-030: провайдер источников словарей расширений. validate.py (check_template)
+# провайдер источников словарей расширений. validate.py (check_template)
 # про runtime не знает, поэтому runtime ставит callable при старте — как
 # proto_schemas.DIRECTORY. До установки (модульные тесты шаблонов) — только встроенный.
 _EXTENSION_SOURCES = None
@@ -275,7 +275,7 @@ def check_template(trigger, shared_lists=None):
     if not isinstance(slots, dict):
         raise TemplateError("template-триггер: slots — объект {имя: значение}")
     if shared_lists is None:
-        # TASK-030: сценарий может ссылаться на список расширения — валидация видит
+        # сценарий может ссылаться на список расширения — валидация видит
         # те же слои, что и матчинг (встроенный → расширения; провайдера нет — builtin)
         shared_lists = merge_lexicons([builtin_source()] + extension_sources())[0]
     for index, sentence in enumerate(sentences):

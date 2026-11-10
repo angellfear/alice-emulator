@@ -316,7 +316,7 @@ async def main(folder):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Демо-данные для скриншотов (TASK-075)")
+    parser = argparse.ArgumentParser(description="Демо-данные для скриншотов")
     parser.add_argument("folder", help="папка state для демо (создаётся, должна быть пуста)")
     args = parser.parse_args()
     asyncio.run(main(args.folder))

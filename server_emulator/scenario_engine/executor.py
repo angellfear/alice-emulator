@@ -1,7 +1,7 @@
-"""R06 / v9 §4: единый executor сценариев с ограниченными операциями.
+"""Единый executor сценариев с ограниченными операциями.
 
 Использует validate/bindings/proto_build. Операции:
-resolve / action / compose / ask / finish / error (TASK-027: fetch/extract/load/refresh/
+resolve / action / compose / ask / finish / error (fetch/extract/load/refresh/
 store/branch/set/wait_state удалены — сложная логика в py-сценариях).
 Ограничения: число шагов, общий deadline, TTL ожидания. Action ID даёт
 идемпотентность повторного запроса. Активный запуск закрепляет версию
@@ -9,9 +9,9 @@ store/branch/set/wait_state удалены — сложная логика в py
 диалоги персистентны (StateStore.executions) и переживают рестарт.
 
 Executor не знает транспорт; отправка
-скомпонованных сообщений — задача dialog/transport слоя (R07).
+скомпонованных сообщений — задача dialog/transport слоя .
 
-TASK-020: py-сценарий тоже уточняет (return ask(...) из sdk): ожидание хранится
+py-сценарий тоже уточняет (return ask(...) из sdk): ожидание хранится
 в ТОМ ЖЕ механизме, что у JSON-шага ask (awaiting/awaiting_question + снимок в
 StateStore.executions — переживает рестарт), продолжение — функция `then` того
 же модуля; фразы отмены и TTL снимают ожидание, как у JSON.
@@ -36,7 +36,7 @@ DEFAULT_DEADLINE_S = 300.0
 
 TERMINAL_OPS = ("finish", "error")
 
-# Отмена py-уточнения фразой (карточка TASK-020). Словарь lexicons «cancel»
+# Отмена py-уточнения фразой. Словарь lexicons «cancel»
 # (список фраз), если появится, перекрывает встроенный набор.
 CANCEL_PHRASES = ("отмена", "стоп")
 
@@ -78,10 +78,10 @@ class Execution:
         self.action_results = {}  # action_id → результат (идемпотентность)
         self.awaiting = None
         self.awaiting_question = None
-        self.script_ask = None  # py-уточнение (TASK-020): {path, mtime_ns, expect} пока ждём
+        self.script_ask = None  # py-уточнение: {path, mtime_ns, expect} пока ждём
         self.error = None
-        self.effects = []  # [{kind, name, arguments}] — dry-run эффекты py-сценария (TASK-019)
-        self.extension = None  # ExtensionContext владельца действия (TASK-053), на время вызова
+        self.effects = []  # [{kind, name, arguments}] — dry-run эффекты py-сценария
+        self.extension = None  # ExtensionContext владельца действия, на время вызова
         self.dry_run = False  # прогон-проверка: действия не выполняются, журнал ошибок молчит
         self.started = time.monotonic()
         self.deadline = self.started + deadline_s
@@ -135,7 +135,7 @@ class Executor:
 
     actions: ref → callable(arguments: dict, execution) → Any (эффекты: таймер,
       push, свет — без текстов и выбора веток). На время вызова execution.extension —
-      ExtensionContext расширения-владельца действия (TASK-053), встроенному — None.
+      ExtensionContext расширения-владельца действия, встроенному — None.
     resolvers: ref → callable(execution) → значение слота
     fetcher: async (url, query, ttl) → JSON (ctx.fetch_json SDK; кеш — забота fetcher)
     data_store: хранилище данных сценариев (scenario_data: user/device/system)
@@ -169,22 +169,22 @@ class Executor:
         if dialog_id in self.live:
             raise ValueError(f"диалог {dialog_id} уже исполняется")
         execution = Execution(dialog_id, scenario)
-        # TASK-022: сущности template-триггера приходят через ctx["slots"] (dialog.py) —
+        # сущности template-триггера приходят через ctx["slots"] (dialog.py) —
         # доступны шагам JSON ({{slots.*}}) так же, как слоты extract-шагов
         execution.slots.update(ctx.get("slots") or {})
-        # TASK-079: то же для ctx["state"] — стартовые значения state сценария от вызывающего
+        # то же для ctx["state"] — стартовые значения state сценария от вызывающего
         # (в диалоге voice.py state не приходит — поведение не меняется; прогон эталона
         # задаёт им фиксированный id директив вместо случайного uuid)
         execution.state.update(ctx.get("state") or {})
         execution.state["_store"] = self._load_store(scenario, ctx)
-        execution.dry_run = bool((ctx or {}).get("dry_run"))  # флаг для on_error (TASK-019)
+        execution.dry_run = bool((ctx or {}).get("dry_run"))  # флаг для on_error
         if (scenario.get("executor") or {}).get("kind") == "script":
             return await self._run_script(execution, ctx)
         return await self._drive(execution, ctx)
 
     async def answer(self, dialog_id, value, ctx):
         """Продолжение после ask: значение → слот (JSON) или вызов продолжения
-        py-сценария (TASK-020), исполнение дальше. None — ожидания нет или (JSON-ask)
+        py-сценария, исполнение дальше. None — ожидания нет или (JSON-ask)
         оно истекло по TTL и снято: вызывающий обрабатывает реплику как новую."""
         execution = self._execution_for(dialog_id)
         if execution is None:
@@ -193,7 +193,7 @@ class Executor:
             return None
         if (execution.scenario.get("executor") or {}).get("kind") == "script":
             return await self._answer_script(execution, value, ctx)
-        # TASK-097: у JSON-ask не было ни отмены фразой, ни TTL — вопрос «На какое время
+        # у JSON-ask не было ни отмены фразой, ни TTL — вопрос «На какое время
         # поставить будильник?» висел вечно (восстановленный из БД — и после перезапусков)
         # и съедал каждую реплику своего DialogId ещё до маршрутизации
         if self._is_cancel(value):  # «отмена»/«стоп» — ожидание снято, реплики нет
@@ -257,11 +257,11 @@ class Executor:
             self.live.pop(execution.dialog_id, None)
 
     async def _finish_with(self, execution, status):
-        # TASK-019: одна точка журнала ошибок (Runtime.recent) для JSON и script;
+        # одна точка журнала ошибок (Runtime.recent) для JSON и script;
         # dry-run — проверка сценария, её сбои в журнал не попадают
         if status == "errored" and not execution.dry_run and self.on_error is not None:
             try:
-                # TASK-095: последняя строка — тип и сообщение исключения; хвост трейсбека
+                # последняя строка — тип и сообщение исключения; хвост трейсбека
                 # (первые строки срезались [-300:]) в журнале нечитаем
                 error = str(execution.error or "").strip()
                 self.on_error({"kind": "scenario", "id": execution.scenario.get("id", ""),
@@ -271,7 +271,7 @@ class Executor:
         self._forget(execution.dialog_id)
         return Outcome(status, execution)
 
-    # --- py-исполнитель (TASK-019): kind: script → handle(ctx) из <id>.py -----------
+    # --- py-исполнитель: kind: script → handle(ctx) из <id>.py -----------
 
     async def _run_script(self, execution, ctx):
         self.live[execution.dialog_id] = (execution, None)
@@ -281,7 +281,7 @@ class Executor:
             path = self.script_path(execution.scenario) if self.script_path else None
             # SDK-контекст по решению координатора: совместимый объект с scenario_executor —
             # сервисы SDK работают через реестры этого Executor, Runtime внутрь не передаётся;
-            # ресурсы сценария (ctx.asset) — каталог <id>.assets рядом со скриптом (TASK-050)
+            # ресурсы сценария (ctx.asset) — каталог <id>.assets рядом со скриптом
             sdk_ctx = ScenarioContext(SimpleNamespace(scenario_executor=self), merged,
                                       dry_run=bool((ctx or {}).get("dry_run")),
                                       assets_dir=self._assets_dir(path))
@@ -308,7 +308,7 @@ class Executor:
         return path.with_suffix(".assets") if path is not None else None
 
     async def _script_result(self, execution, path, merged, result, none_is_decline):
-        """Разбор return-значения handle/продолжения (TASK-019/020): None — отказ или
+        """Разбор return-значения handle/продолжения: None — отказ или
         тихое завершение; Ask — ожидание в общем с JSON механизме (_wait_script_ask);
         dict/list из dict — сборка существующим compose (ошибки compose — как у шага).
         Пустой список `[]` — сценарий отработал без сообщений: finished, composed пуст
@@ -341,7 +341,7 @@ class Executor:
         """py-уточнение хранится ТОТ ЖЕ способ, что JSON-ask: awaiting/awaiting_question
         и снимок в StateStore.executions (сценарий, версия файла, ctx.state, имя функции
         продолжения, TTL) — переживает рестарт, видно в pending(), снимается cancel().
-        Продолжение — функция `then` того же модуля; expect — подсказка парсеру (TASK-022)."""
+        Продолжение — функция `then` того же модуля; expect — подсказка парсеру."""
         try:  # продолжение должно существовать уже при первом ask; валидатор файл
             self.scripts.function(path, ask.then)  # не читает — понятная ошибка здесь
         except Exception:
@@ -403,7 +403,7 @@ class Executor:
 
     def _cancel_phrases(self):
         """Фразы отмены ожидания: словарь lexicons «cancel» (список), если задан,
-        иначе встроенные («отмена», «стоп») из карточки TASK-020."""
+        иначе встроенные («отмена», «стоп»)."""
         cancel = self.lexicons.get("cancel") if isinstance(self.lexicons, dict) else None
         if isinstance(cancel, dict) and cancel.get("phrases"):
             return tuple(str(phrase).lower() for phrase in cancel["phrases"])
@@ -480,7 +480,7 @@ class Executor:
         if action_id in execution.action_results:
             execution.note(step["id"], "action", "ok", f"idempotent:{action_id}")
             return
-        execution.extension = extension_for_action(ref)  # TASK-053: настройки владельца, встроенному — None
+        execution.extension = extension_for_action(ref)  # настройки владельца, встроенному — None
         try:
             result = handler(arguments, execution)
             if inspect.isawaitable(result):
@@ -537,7 +537,7 @@ class Executor:
         return self.data_store.scenario_data_record(self._dataset_id(name), "system", "", str(key))
 
     async def refresh_dataset(self, name, key, args=None, timeout=10.0, dataset=None):
-        """Обновить запись датасета плагином `name` и дождаться с таймаутом (TASK-050).
+        """Обновить запись датасета плагином `name` и дождаться с таймаутом.
 
         Логика SDK (ctx.dataset_record): плагин запускается задачей,
         результат пишет в БД сам executor; параллельные вызовы на ту же запись (dataset,
@@ -553,7 +553,7 @@ class Executor:
         task = self._refreshing.get(job)
         if task is None or task.done():
 
-            def _reap(done, job=job):  # TASK-095: забрать позднюю ошибку плагина — после
+            def _reap(done, job=job):  # забрать позднюю ошибку плагина — после
                 # таймаута refresh_dataset задачу никто не ждёт, без этого её исключение
                 # терялось («Task exception was never retrieved»)
                 self._refreshing.pop(job, None)

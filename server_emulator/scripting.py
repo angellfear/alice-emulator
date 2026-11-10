@@ -1,8 +1,8 @@
-"""Общий движок py-скриптов (TASK-017): загрузка модуля по пути с кешем по mtime,
+"""Общий движок py-скриптов: загрузка модуля по пути с кешем по mtime,
 вызов функции с таймаутом (sync/async, 1 или 2 аргумента), текст сбоя.
 
 Один движок для эндпоинтов (<id>.py рядом с JSON, функция handle) и py-сценариев
-(TASK-019: handle и функции продолжения диалога). Префикс имени модуля задаётся
+(handle и функции продолжения диалога). Префикс имени модуля задаётся
 видом скриптов (endpoint_script_/scenario_script_), чтобы одноимённые модули
 разных видов не пересекались в sys.modules. Движок не знает ни про эндпоинты,
 ни про сценарии.
@@ -50,7 +50,7 @@ class ScriptRunner:
         return module
 
     def function(self, path, name="handle"):
-        """Функция модуля по имени (handle, продолжения диалога TASK-020) или ScriptError."""
+        """Функция модуля по имени (handle, продолжения диалога) или ScriptError."""
         handle = getattr(self._module(path), name, None)
         if not callable(handle):
             raise ScriptError(f"{path.name}: нет функции {name}(...)")

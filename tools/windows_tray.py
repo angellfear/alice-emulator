@@ -1,4 +1,4 @@
-"""Трей-лаунчер эмулятора для Windows (TASK-045); код сервера от этого модуля не зависит.
+"""Трей-лаунчер эмулятора для Windows; код сервера от этого модуля не зависит.
 
 Запускает `python -m server_emulator.server` без окна (настройки — state/server.json), следит за ним:
 упал — перезапуск через паузу, код RESTART_CODE — сразу; штатная остановка — `/__control/stop`
@@ -115,7 +115,7 @@ class Controller:
         self.commands = queue.Queue()
         self.on_change, self.on_exit, self.opener = on_change, on_exit, opener
         self.desired, self.exiting, self.stopping, self.stop_error, self.ready = True, False, False, False, False
-        self.updating, self.update_deadline = False, 0  # TASK-040: ждём план state/update/plan.json
+        self.updating, self.update_deadline = False, 0  # ждём план state/update/plan.json
         self.state_text = "Запуск сервера…"
         self.child, self.pid, self.retry_at, self.stop_deadline, self.value_missing_since = None, None, 0, 0, 0
         self.open_panel = open_panel
@@ -162,7 +162,7 @@ class Controller:
             self.pid, self.value_missing_since = None, 0
 
     def update_plan(self):
-        """План самообновления state/update/plan.json (TASK-040): None — ещё не готов или битый."""
+        """План самообновления state/update/plan.json: None — ещё не готов или битый."""
         try:
             return json.loads((self.state / "update" / "plan.json").read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -252,7 +252,7 @@ class Controller:
                 if code == server_config.RESTART_CODE:
                     self.retry_at = 0
                     self.note("Server asked for restart")
-                elif code == server_config.UPDATE_CODE:  # TASK-040: сервер ждёт updater, а не перезапуск
+                elif code == server_config.UPDATE_CODE:  # сервер ждёт updater, а не перезапуск
                     self.updating, self.update_deadline = True, time.monotonic() + 900
                     self.state_text = "Обновление…"
                     self.note("Server exited for self-update; waiting for plan")
@@ -394,7 +394,7 @@ def run_tray(open_panel=False):
 
 def main(open_panel=True):
     STATE.mkdir(parents=True, exist_ok=True)
-    # TASK-040: перезапуск трея после обновления — старый процесс ещё держит mutex, ждём его выхода
+    # перезапуск трея после обновления — старый процесс ещё держит mutex, ждём его выхода
     deadline = time.monotonic() + 20 if os.environ.get("ALICA_TRAY_TAKEOVER") else 0
     handle = single_instance()
     while handle is None and time.monotonic() < deadline:

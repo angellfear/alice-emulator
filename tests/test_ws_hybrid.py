@@ -319,7 +319,7 @@ async def test_no_answer_falls_back_to_previous_path(tmp_path):
 
 async def test_textinput_miss_skips_branch(tmp_path):
     """TextInput-промах (голосового хода нет) — ветка не открывается: текстовая пересылка
-    удалена как мёртвая (097), фраза уходит прежнему пути."""
+    удалена как мёртвая , фраза уходит прежнему пути."""
     stub, stub_base = await make_stub()
     runtime = _runtime(tempfile.mkdtemp(), stub_base)
     runner, url = await listen(_client_app(runtime))
@@ -447,7 +447,7 @@ async def test_branch_frames_journaled_per_record_option(tmp_path):
 
 
 async def test_column_protocol_replies_relayed_to_branch(tmp_path):
-    """Релей (097): StreamControl по потоку ветки и Ack по кадру ветки уходят в Яндекс —
+    """Релей: StreamControl по потоку ветки и Ack по кадру ветки уходят в Яндекс —
     без них её диалог «подвисает». Чужой поток (9) — не релеится."""
     stub, stub_base = await make_stub()
     runtime = _runtime(tempfile.mkdtemp(), stub_base)

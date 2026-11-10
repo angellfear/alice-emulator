@@ -19,22 +19,22 @@ from .server_config import RESTART_CODE
 from .legacy_replay import control_response, create_app as legacy_create_app
 from .runtime import Runtime, mount_ui, STANDALONE_KEY
 
-RUNTIME_KEY = web.AppKey("emulator_runtime", Runtime)  # фронт TLS (TASK-067) достаёт runtime из serve()
+RUNTIME_KEY = web.AppKey("emulator_runtime", Runtime)  # фронт TLS достаёт runtime из serve()
 
 
 def create_app(config=None, archive=None, runtime=None, control_token=None):
     if archive is not None:
         return legacy_create_app(config, archive)
     runtime = runtime or Runtime()
-    # TASK-043/044: standalone имеет собственный проход наверх (upstream) и режимы
+    # standalone имеет собственный проход наверх (upstream) и режимы
     # маршрута по устройствам — форс «всегда эмуляция» снят.
-    # B04: панель требует входа после bootstrap; трафик устройств не охраняется
+    # Панель требует входа после bootstrap; трафик устройств не охраняется
     app = web.Application(middlewares=[auth_middleware(runtime.auth)], client_max_size=16*1024**2)
     app[STANDALONE_KEY] = True
     app[RUNTIME_KEY] = runtime
     mount_auth(app, runtime.auth)
     mount_ui(app, runtime)
-    # M08: планировщик таймеров. Стартуем из on_startup: create_app вызывается
+    # Планировщик таймеров. Стартуем из on_startup: create_app вызывается
     # и вне цикла событий (python -m server_emulator.server), а create_task
     # требует работающий loop.
     async def start_background(app):
@@ -44,7 +44,7 @@ def create_app(config=None, archive=None, runtime=None, control_token=None):
         await runtime.close()
     app.on_cleanup.append(close_runtime)
     app[INFO_KEY] = {}
-    if control_token:  # TASK-045: остановка/перезапуск для трея — до общего маршрута устройств
+    if control_token:  # остановка/перезапуск для трея — до общего маршрута устройств
         control.mount(app, control_token)
     async def dispatch(request):
         if request.path == "/" and request.host.split(":",1)[0] in ("127.0.0.1", "localhost"):
@@ -75,7 +75,7 @@ async def serve(app, state, config):
     except ValueError as exc:
         tls = None
         errors.append(f"порт {config['port']} (SSL): {exc}")
-    # TASK-067: фронт TLS — слушает публичный порт сырым TCP, по SNI отдаёт соединение
+    # фронт TLS — слушает публичный порт сырым TCP, по SNI отдаёт соединение
     # внутреннему aiohttp-слушателю (TLS терминирует он) или ведёт туннелем к настоящему хосту
     front = None
     if config["ssl"] and tls is not None and config.get("front", True) and runtime is not None:
@@ -90,7 +90,7 @@ async def serve(app, state, config):
         plan.append(("http", config["http_port"], None))
     if not plan:  # SSL не настроен и HTTP выключен: основной порт без TLS, чтобы открыть панель и поправить
         plan.append(("http", config["port"], None))
-    # TASK-095: колонка присылает заголовки 16–19 КиБ (Cookie разрастается), дефолт aiohttp
+    # колонка присылает заголовки 16–19 КиБ (Cookie разрастается), дефолт aiohttp
     # 8190 байт отбивал их с 400 ещё до диспетчера; настоящий Яндекс такие принимает
     # Остановка/перезапуск мгновенны: открытый WS колонки не удерживает процесс (по умолчанию
     # aiohttp ждал бы завершения обработчиков shutdown_timeout — 60 с). Ноль нельзя: в aiohttp
@@ -130,7 +130,7 @@ async def serve(app, state, config):
             print("Ни один порт не открыт: " + "; ".join(errors), file=sys.stderr, flush=True)
             return 1
         server_config.confirm(state)
-        # TASK-068: старт — версия и слушатели (событие для «Дополнительно → Лог»)
+        # старт — версия и слушатели (событие для «Дополнительно → Лог»)
         server_log.log_event("info", "server",
                              "Сервер запущен" + (f" (версия {info['version']})" if info.get("version") else "")
                              + " — слушаю " + ", ".join(f"{entry['scheme']}://{entry['host']}:{entry['port']}"
@@ -144,7 +144,7 @@ async def serve(app, state, config):
             if "SSL" in error:
                 print("Ошибка " + error, file=sys.stderr, flush=True)
         code = await done
-        # TASK-068: штатная остановка или перезапуск (настройки/обновление) — в журнал
+        # штатная остановка или перезапуск (настройки/обновление) — в журнал
         server_log.log_event("info", "server",
                              "Сервер перезапускается" if code == RESTART_CODE else "Сервер остановлен")
         return code
@@ -177,7 +177,7 @@ def main(argv=None):
     from .version import current
     app[INFO_KEY] = {"state": str(Path(args.state).resolve()), "config": config, "overridden": overridden,
                      "url": server_config.local_url(config), "launcher": bool(os.environ.get("ALICA_LAUNCHER")),
-                     "version": current()["version"]}  # версию ждёт updater в /__control/status (TASK-040)
+                     "version": current()["version"]}  # версию ждёт updater в /__control/status
     try:
         code = asyncio.run(serve(app, args.state, config))
     except KeyboardInterrupt:
@@ -185,7 +185,7 @@ def main(argv=None):
     if code == RESTART_CODE and not os.environ.get("ALICA_LAUNCHER"):
         # без трея сервер перезапускает себя сам — с прежней командной строкой
         os.execv(sys.executable, [sys.executable, *sys.orig_argv[1:]])
-    sys.exit(code)  # UPDATE_CODE (TASK-040) без self-exec: updater запустит сервер после переключения тега
+    sys.exit(code)  # UPDATE_CODE без self-exec: updater запустит сервер после переключения тега
 
 
 if __name__ == "__main__":

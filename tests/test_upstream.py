@@ -1,4 +1,4 @@
-"""TASK-043: проход наверх (upstream) и журнал трафика. Только локальные серверы — Яндекс не трогается.
+"""Проход наверх (upstream) и журнал трафика. Только локальные серверы — Яндекс не трогается.
 
 Резолвер в HTTP/WS-тестах подменён (всё → 127.0.0.1): цель задаётся именем upstream.test,
 чтобы коннектор реально прошёл через резолвер. Цикл жизни журнала (ротация, лимиты тел
@@ -101,7 +101,7 @@ async def test_serve_journals_device_via_request(tmp_path):
     app.router.add_route("*", "/{p:.*}", proxy)
     runner, url = await listen(app)
     try:
-        # решение о пересылке с TASK-044 — dispatcher.route_mode_for; покрывается
+        # решение о пересылке с — dispatcher.route_mode_for; покрывается
         # tests/test_device_route_modes.py, здесь — механизм serve() и журнал.
         async with ClientSession() as client:
             async with client.get(url + "/hello?x=1", headers={"X-YaQuasarDeviceId": "dev-t"}) as response:

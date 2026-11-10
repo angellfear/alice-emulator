@@ -1,4 +1,4 @@
-"""B04: принципалы и сессии панели (admin/user), локальный bootstrap.
+"""Принципалы и сессии панели (admin/user), локальный bootstrap.
 
 Файла auth.json нет — панель ОТКРЫТА (локальная лаборатория, прежнее поведение,
 все автотесты работают без входа). `python -m server_emulator.auth` создаёт
@@ -9,7 +9,7 @@ cookie HttpOnly + SameSite=Strict (CSRF), отзыв logout/ревоком вс�
 
 Роли: admin — всё; user — auth-эндпоинты и кабинет /api/me/* (старые
 admin-маршруты для user закрыты 403). Админ открывает кабинет пользователя по
-ссылке-токену (X-Me-Token, TASK-062): токен действует только на /api/me/* и whoami.
+ссылке-токену (X-Me-Token): токен действует только на /api/me/* и whoami.
 Трафик УСТРОЙСТВ (прокси-порты, standalone device-маршруты) входа не требует.
 """
 from __future__ import annotations
@@ -30,7 +30,7 @@ from .server_log import log_event
 
 COOKIE = "alica_session"
 SESSION_TTL = 12 * 3600
-LINK_TTL = 12 * 3600  # токен кабинета для админа (TASK-062)
+LINK_TTL = 12 * 3600  # токен кабинета для админа
 LINK_HEADER = "X-Me-Token"
 PBKDF2_ITERATIONS = 120_000
 # Локальные управляющие вызовы трея/лаунчера: без сессии, но с маркером
@@ -52,7 +52,7 @@ def verify_password(password, record):
 
 
 def secret(value):
-    """B04: секрет может быть ссылкой env:VAR — значение живёт в окружении
+    """Секрет может быть ссылкой env:VAR — значение живёт в окружении
     процесса и не хранится в настройках/экспортах."""
     if isinstance(value, str) and value.startswith("env:"):
         return os.environ.get(value[4:], "")
@@ -240,7 +240,7 @@ def auth_middleware(store):
             raise web.HTTPUnauthorized(text='{"error":"unauthorized"}',
                                        content_type="application/json")
         if session["role"] != "admin" and path not in user_allowed                 and not path.startswith("/api/me/"):
-            # B04: старые admin-маршруты закрыты от обычного пользователя;
+            # Старые admin-маршруты закрыты от обычного пользователя;
             # кабинет пользователя (/api/me/*) — любая роль со своей сессией
             raise web.HTTPForbidden(text='{"error":"admin_only"}',
                                     content_type="application/json")
@@ -257,7 +257,7 @@ def mount_auth(app, store):
             return web.json_response({"error": "expected_json"}, status=400)
         result = store.login(str(value.get("name", "")), str(value.get("password", "")))
         if result is None:
-            # TASK-068: имя без пароля и без заголовков — в журнал сервера (источник auth)
+            # имя без пароля и без заголовков — в журнал сервера (источник auth)
             log_event("warning", "auth", f"Неудачный вход в панель: {str(value.get('name', ''))[:100] or '(без имени)'}",
                       ip=request.remote)
             await asyncio.sleep(0.3)  # грубый тормоз перебора
@@ -297,7 +297,7 @@ def mount_auth(app, store):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="B04: bootstrap администратора панели")
+    parser = argparse.ArgumentParser(description="Bootstrap администратора панели")
     parser.add_argument("--state", default=os.path.join(os.path.dirname(__file__), "state"),
                         help="каталог состояния эмулятора (auth.json)")
     parser.add_argument("--name", default="admin", help="имя администратора")

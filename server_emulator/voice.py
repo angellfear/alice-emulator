@@ -292,7 +292,7 @@ class Conversation:
 
         self.trace_by_channel = {}
 
-        # TASK-069: биометрия говорящего и состояние возможностей колонки (сессия устройства)
+        # биометрия говорящего и состояние возможностей колонки (сессия устройства)
 
         self.speaker = None
 
@@ -484,7 +484,7 @@ class Conversation:
 
         aapi_handlers.count(trigger)
 
-        aapi_handlers.notify_observers(self, incoming, trigger)  # TASK-059: наблюдатели фоном
+        aapi_handlers.notify_observers(self, incoming, trigger)  # наблюдатели фоном
 
         for handler in aapi_handlers.handlers(trigger, self.runtime.settings):
 
@@ -572,7 +572,7 @@ class Conversation:
                         '@@mm_typed_callback')
 
     async def _hybrid_relay_voice(self, incoming, request, hybrid):
-        """«Вместе», фаза 3 (098): промах — ветке уходит исходный голосовой ход колонки
+        """«Вместе», фаза 3 : промах — ветке уходит исходный голосовой ход колонки
         (VoiceInput + аудио + StreamControl, кадры как пришли, без перекодировки): Яндекс
         сам делает ASR и отвечает как в «Прозрачно». Текстовая пересылка удалена —
         мегамайнд не отвечает содержанием на текст станции (доказательство — «Итог» 097).
@@ -596,7 +596,7 @@ class Conversation:
     async def _on_text_input(self, incoming, trigger):
 
 
-        # «Вместе» (091): колбэки контента Яндекса — наверх, пока играет ветка Яндекса
+        # «Вместе» : колбэки контента Яндекса — наверх, пока играет ветка Яндекса
         hybrid = getattr(self.runtime, 'hybrid_session', None)
         mode_fn = getattr(self.runtime, 'hybrid_mode', None)
         name = incoming.Event.TextInput.Request.Event.Name
@@ -903,7 +903,7 @@ class Conversation:
 
 
 
-    # TASK-069: служебные события состояния колонки. Облако на них не отвечает (образец
+    # служебные события состояния колонки. Облако на них не отвечает (образец
     # журнала 2026-11-01: после MatchedUser/CapabilityUpdateState нет сообщений с их
     # MessageId в RefMessageId) — данные сохраняются, события считаются обработанными.
 
@@ -1209,7 +1209,7 @@ class Conversation:
         if not (self.runtime.settings.get('aapi_tts') and voice_output(self.runtime)[0] and spoken):
             return
         try:
-            if trace:  # TASK-088: pre-render звука отложенного ответа — тоже «отвечает» (api/live)
+            if trace:  # pre-render звука отложенного ответа — тоже «отвечает» (api/live)
                 trace.event('tts_start', 'server')
             pages, speech = await self._synthesize_cached([spoken], wait=OPEN_TTS_WAIT_S)
             answer['audio'] = await collect_pages(pages, speech)
@@ -1360,7 +1360,7 @@ class Conversation:
 
                 dialog_id = getattr(request.Header, 'DialogId', '') or incoming.Event.Header.MessageId
 
-                # TASK-058: колбэк — обработчик WS. Маршрут колбэка → внутреннее событие-запрос
+                # колбэк — обработчик WS. Маршрут колбэка → внутреннее событие-запрос
                 # данных (informers.requested и пр.), ответ колонке собирает сценарий-поставщик
                 # (триггер kind: provide); поставщика нет — умолчание колбэка (тихое подтверждение).
                 # Без маршрута — прежний путь event-сценариев (совместимость расширений),
@@ -1371,7 +1371,7 @@ class Conversation:
 
                 aapi_handlers.count(event_name)
 
-                aapi_handlers.notify_observers(self, incoming, event_name)  # TASK-059
+                aapi_handlers.notify_observers(self, incoming, event_name)
 
                 handled = False
 
@@ -1392,7 +1392,7 @@ class Conversation:
 
                 if not handled:
 
-                    # обработчики расширений на это имя события (TASK-059) — после встроенных
+                    # обработчики расширений на это имя события — после встроенных
 
                     for ext_handler in aapi_handlers.handlers(event_name, self.runtime.settings):
 
@@ -1458,7 +1458,7 @@ class Conversation:
 
             if dialog is not None and text and not agent_waits:
 
-                # R07: сценарии до заглушки; пустой каталог → handled=False → прежний путь
+                # Сценарии до заглушки; пустой каталог → handled=False → прежний путь
 
                 ctx = {'input': {'message_id': incoming.Event.Header.MessageId,
 
@@ -1474,13 +1474,13 @@ class Conversation:
 
                        'sequence': next(self.runtime.sequence)}
 
-                # TASK-079: таймеры/будильники/экраны «Часов» — из состояния запроса
+                # таймеры/будильники/экраны «Часов» — из состояния запроса
 
                 # (EnvironmentStateRaw); своих планировщиков таймеров на сервере больше нет
 
                 ctx['station'] = station_state.from_request(request)
 
-                # «Вместе» (091): режим маршрута и владелец плеера — сценариям и контрактам SDK
+                # «Вместе» : режим маршрута и владелец плеера — сценариям и контрактам SDK
                 hybrid = getattr(self.runtime, 'hybrid_session', None)
                 mode_fn = getattr(self.runtime, 'hybrid_mode', None)
                 if hybrid is not None and mode_fn is not None:
@@ -1532,7 +1532,7 @@ class Conversation:
 
                         try:
 
-                            if trace:  # TASK-088: синтез ответа сценария — «отвечает»
+                            if trace:  # синтез ответа сценария — «отвечает»
 
                                 trace.event('tts_start', 'server')
 
@@ -1577,7 +1577,7 @@ class Conversation:
 
                     return
 
-                # «Вместе», фаза 3 (098): промах — ветке уходит голосовой ход колонки;
+                # «Вместе», фаза 3 : промах — ветке уходит голосовой ход колонки;
                 # при отказе — прежний путь. TextInput-промахи (голоса нет) — сразу прежний путь
                 hybrid = getattr(self.runtime, 'hybrid_session', None)
                 mode_fn = getattr(self.runtime, 'hybrid_mode', None)
@@ -1608,7 +1608,7 @@ class Conversation:
 
                                                  request_id=getattr(request.Header, 'RequestId', '') or '',
 
-                                                 speaker=self.speaker)  # TASK-069: кто говорит
+                                                 speaker=self.speaker)  # кто говорит
 
             answer = await (self._chat_or_defer(chat, incoming, request, text, defer, trace) if defer else chat)
 

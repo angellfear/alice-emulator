@@ -1,4 +1,4 @@
-"""Сборка protobuf-ответа колонке (TASK-008, DEBT-02): AliceResponse — карточки,
+"""Сборка protobuf-ответа колонке (DEBT-02): AliceResponse — карточки,
 директивы (громкость, ShouldListen, экран Push), события AsrResult и фразы сбоев
 конвейера.
 
@@ -97,7 +97,7 @@ async def spoken_reply(conv, incoming, text, trace=None, request_id='', force_tt
 
             try:
 
-                if trace:  # TASK-088: начался синтез — ход в состоянии «отвечает» (строка шапки, api/live)
+                if trace:  # начался синтез — ход в состоянии «отвечает» (строка шапки, api/live)
 
                     trace.event('tts_start', 'server')
 
@@ -189,7 +189,7 @@ async def model_reply(conv, incoming, request, text, answer, trace=None, screen=
 
         try:
 
-            if trace:  # TASK-088: начался синтез — ход в состоянии «отвечает» (строка шапки, api/live)
+            if trace:  # начался синтез — ход в состоянии «отвечает» (строка шапки, api/live)
 
                 trace.event('tts_start', 'server')
 
