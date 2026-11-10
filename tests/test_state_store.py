@@ -1,9 +1,9 @@
-"""StateStore — CRUD, версионирование, миграция, откат, close."""
+"""StateStore — CRUD, версионирование, откат, close."""
 import json
 
 import pytest
 
-from server_emulator.state_store import MigrationConflict, StateStore, migrate_legacy
+from server_emulator.state_store import MigrationConflict, StateStore
 
 SETTINGS_V1 = {"mode": "emulate", "model": {"url": ""}}
 SETTINGS_V2 = {"mode": "proxy", "model": {"url": ""}}  # saved через API, не напрямую
@@ -78,72 +78,6 @@ def test_unknown_user_reference_rejected(tmp_path):
     store.close()
 
 
-def _legacy_files(tmp_path, identities=IDENTITIES, settings=SETTINGS_V1):
-    (tmp_path / "identities.json").write_text(json.dumps(identities), encoding="utf-8")
-    (tmp_path / "settings.json").write_text(json.dumps(settings), encoding="utf-8")
-
-
-def test_migration_imports_backs_up_unlinks_and_is_idempotent(tmp_path):
-    _legacy_files(tmp_path)
-    store = StateStore(tmp_path / "emulator.sqlite3")
-    report = migrate_legacy(tmp_path, store)
-    assert report["imported"] == ["identities.json", "settings.json"]
-    assert report["backup"] and (tmp_path / report["backup"]).is_dir()
-    for name in ("identities.json", "settings.json"):
-        assert not (tmp_path / name).exists()  # атомарное переключение на БД
-        assert (tmp_path / report["backup"] / name).exists()  # копии сохранены
-    assert store.load_settings() == SETTINGS_V1
-    assert len(store.load_identity_data()["devices"]) == 2
-    assert store.meta("legacy_migrated") == "1"
-    assert migrate_legacy(tmp_path, store) is None  # повторный запуск — no-op
-    store.close()
-
-
-def test_migration_conflict_rolls_back_and_keeps_files(tmp_path):
-    broken = json.loads(json.dumps(IDENTITIES))
-    broken["devices"][1]["device_ids"].append("dev-1")
-    _legacy_files(tmp_path, identities=broken)
-    store = StateStore(tmp_path / "emulator.sqlite3")
-    with pytest.raises(MigrationConflict) as exc:
-        migrate_legacy(tmp_path, store)
-    report = json.loads(str(exc.value))
-    assert report["imported"] == [] and report["conflict"]
-    # Файлы не тронуты (откат до unlink), БД без частичных данных, миграцию можно повторить
-    for name in ("identities.json", "settings.json"):
-        assert (tmp_path / name).exists()
-    assert store.load_identity_data()["devices"] == []
-    # Починка файла на месте → повторный запуск миграции успешен
-    (tmp_path / "identities.json").write_text(json.dumps(IDENTITIES), encoding="utf-8")
-    report2 = migrate_legacy(tmp_path, store)
-    assert report2["imported"] == ["identities.json", "settings.json"]
-    assert len(store.load_identity_data()["devices"]) == 2
-    store.close()
-
-
-def test_migration_conflict_settings_not_reimported_over_existing(tmp_path):
-    # settings в БД уже есть (seed) → миграция не перезаписывает их из JSON
-    store = StateStore(tmp_path / "emulator.sqlite3")
-    store.save_settings({"mode": "emulate", "model": {"url": ""}, "seeded": True})
-    (tmp_path / "settings.json").write_text(json.dumps({"mode": "proxy"}), encoding="utf-8")
-    report = migrate_legacy(tmp_path, store)
-    assert "settings.json" in report["imported"]  # файл изъят (backup есть)
-    assert store.load_settings()["seeded"] is True  # но данные БД не затёрты
-    store.close()
-
-
-def test_stray_other_files_after_migration_skipped_not_deleted(tmp_path):
-    _legacy_files(tmp_path)
-    store = StateStore(tmp_path / "emulator.sqlite3")
-    migrate_legacy(tmp_path, store)
-    # identities.json не мог появиться из кода после миграции; не удаляем молча
-    (tmp_path / "identities.json").write_text('{"users": []}', encoding="utf-8")
-    report = migrate_legacy(tmp_path, store)
-    assert report["imported"] == [] and report["skipped_stray"] == ["identities.json"]
-    assert (tmp_path / "identities.json").exists()
-    assert len(store.load_identity_data()["devices"]) == 2  # БД не перезаписана stray-файлом
-    store.close()
-
-
 def test_repeated_close_is_noop_and_operations_raise(tmp_path):
     store = StateStore(tmp_path / "emulator.sqlite3")
     store.save_settings(SETTINGS_V1)
@@ -155,5 +89,3 @@ def test_repeated_close_is_noop_and_operations_raise(tmp_path):
         store.save_settings(SETTINGS_V2)
     with pytest.raises(RuntimeError):
         store.set_meta("closed", "1")
-    with pytest.raises(RuntimeError):
-        migrate_legacy(tmp_path, store)

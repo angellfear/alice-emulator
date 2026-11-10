@@ -38,17 +38,6 @@ def level(runtime):
     return value if value in LEVELS else "agent"
 
 
-def migrate(settings):
-    """Настройки до появления режима: включённый агент (engine graph) — agent, иначе model.
-    Значение "ext:<id>" (режим расширения) — не мигрируем, живёт до отката в chat."""
-    if ext_id(settings.get("intelligence")) is not None:
-        return False
-    if settings.get("intelligence") not in LEVELS:
-        settings["intelligence"] = "agent" if (settings.get("agent") or {}).get("engine", "graph") == "graph" else "model"
-        return True
-    return False
-
-
 def not_understood(runtime):
     """Ответ режима scenarios на фразу без сценария (стандартный ответ или запасная фраза)."""
     from .behavior import standard_for

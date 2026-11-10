@@ -37,8 +37,6 @@ SCOPES = ("user", "device", "platform", "server")
 # Разделы внутри области: первый — «информация», второй — служебные нужды.
 CATEGORIES = {"user": ("profile", "service"), "device": ("info", "service"),
               "platform": ("info", "service"), "server": ("common", "service")}
-LEGACY_CATEGORIES = {"user": "profile", "device": "info", "glagol": "service", "server": "common"}
-LEGACY_KEY_CATEGORIES = {"user.wifi_hash": "service"}
 # Пути, общие для областей (итог цепочки params.effective): ближний владелец
 # перекрывает дальнего. Имена/псевдонимы у пользователя и колонки — разные сущности.
 EFFECTIVE_PATHS = ("location.", "timezone", "weather.")
@@ -392,39 +390,13 @@ class ParamStore:
          "hint": "Голая фраза «включи X»: параллельный опрос каталогов плагинов, ответ — нашедший", "default_value": 3},
     )
 
-    def seed(self, identities_data):
-        """Каталог + перенос значений из legacy-полей реестра (location/fields).
-        Идемпотентно: определения не перезаписывают изменённое, значения не трогает."""
+    def seed(self):
+        """Каталог параметров по умолчанию. Идемпотентно: определения не
+        перезаписывают изменённое."""
         existing = {d["key"]: d for d in self.defs()}
         for definition in self.SEED_DEFS:
             if definition["key"] not in existing:
                 self.def_upsert(dict(definition))
-        for item in existing.values():  # миграция разделов прежнего каталога
-            if item["category"] not in CATEGORIES.get(item["scope"], ()):
-                category = LEGACY_KEY_CATEGORIES.get(item["key"]) or LEGACY_CATEGORIES.get(
-                    item["category"], CATEGORIES[item["scope"]][-1])
-                self.def_upsert({**item, "category": category})
-        for user in identities_data.get("users", []):
-            owner = f"user:{user['id']}"
-            known = {k for k in self.values(owner)}
-            location = user.get("location") or {}
-            if "user.location.latitude" not in known and "latitude" in location:
-                self.set_value(owner, "user.location.latitude", location["latitude"])
-            if "user.location.longitude" not in known and "longitude" in location:
-                self.set_value(owner, "user.location.longitude", location["longitude"])
-            if "user.name" not in known and user.get("name"):
-                self.set_value(owner, "user.name", user["name"])
-            for field, value in (user.get("fields") or {}).items():
-                key = f"user.{field}"
-                if key not in known and self.def_get(key):
-                    self.set_value(owner, key, value)
-        for device in identities_data.get("devices", []):
-            owner = f"device:{device['sn']}"
-            known = {k for k in self.values(owner)}
-            if "device.name" not in known:
-                self.set_value(owner, "device.name", device.get("name", device["sn"]))
-            if device.get("room") and "device.room" not in known:
-                self.set_value(owner, "device.room", device["room"])
 
 
 def _put(tree, path, value):

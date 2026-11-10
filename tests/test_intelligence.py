@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from server_emulator import intelligence, mcp_hub
+from server_emulator import mcp_hub
 from server_emulator.runtime import Runtime
 
 
@@ -52,13 +52,6 @@ async def test_agent_level_keeps_tools(tmp_path, monkeypatch):
     await runtime.chat('привет')
     assert calls[0]['tools'][0]['function']['name'] == 'x'
     await runtime.close()
-
-
-@pytest.mark.parametrize('engine,expected', [('graph', 'agent'), ('legacy', 'model')])
-def test_migration_from_agent_engine(engine, expected):
-    settings = {'agent': {'engine': engine}}
-    assert intelligence.migrate(settings) and settings['intelligence'] == expected
-    assert not intelligence.migrate(settings)
 
 
 def test_validation_rejects_unknown_level(tmp_path):

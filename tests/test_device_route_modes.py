@@ -359,12 +359,6 @@ async def test_default_route_is_emulate(tmp_path):
                 assert response.status == 404
             async with client.get(url + "/emulator/api/identities") as response:
                 assert "default_route_mode" not in await response.json()
-            form = runtime.public()
-            form["default_route_mode"] = "proxy"  # устаревшая форма настроек
-            async with client.put(url + "/emulator/api/settings", json=form) as response:
-                assert response.status == 200
-                assert "default_route_mode" not in await response.json()
-            assert "default_route_mode" not in runtime.settings
             async with client.get(url + "/no/handler", headers={"Host": "quasar.yandex.net", "X-YaQuasarDeviceId": "d-id"}) as response:
                 assert response.status == 404
     finally:

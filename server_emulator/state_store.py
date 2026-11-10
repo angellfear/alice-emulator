@@ -18,13 +18,12 @@ Writers таблиц (инвариант: каждую таблицу пишет
                                       migrate_legacy;
 - executions                        → Executor._persist/_forget (scenario_engine);
 - param_defs / param_values         → ParamStore (params.py);
-- meta                              → set_meta (schema_version, legacy_migrated).
+- meta                              → set_meta (schema_version).
 """
 from __future__ import annotations
 
 import json
 import logging
-import shutil
 import sqlite3
 import time
 from pathlib import Path
@@ -32,7 +31,6 @@ from pathlib import Path
 log = logging.getLogger(__name__)
 
 SCHEMA_VERSION = 1
-LEGACY_FILES = ("identities.json", "settings.json")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -290,44 +288,3 @@ class _nullcontext:
 
     def __exit__(self, *exc):
         return False
-
-
-def migrate_legacy(directory, store):
-    """Однократный импорт legacy JSON в StateStore. Возвращает отчёт или None."""
-    directory = Path(directory)
-    db = store._live()
-    migrated = store.meta("legacy_migrated") == "1"
-    present = {name: directory / name for name in LEGACY_FILES}
-    present = {name: path for name, path in present.items() if path.exists()}
-    if migrated:
-        if not present:
-            return None
-        # После миграции единственный источник — БД. Прочие stray-файлы не
-        # импортируем и не удаляем — только отчёт.
-        return {"backup": None, "imported": [], "conflict": None,
-                "skipped_stray": sorted(present)}
-    report = {"backup": None, "imported": sorted(present), "conflict": None}
-    if present:
-        backup = directory / ("legacy-backup-" + time.strftime("%Y%m%d-%H%M%S"))
-        backup.mkdir(parents=True, exist_ok=True)  # повтор в ту же секунду — до-копируем
-        for path in present.values():
-            shutil.copy2(path, backup / path.name)  # backup ДО миграции
-        report["backup"] = backup.name
-    try:
-        with db:
-            if "settings.json" in present and store.load_settings() is None:
-                db.execute("INSERT INTO settings(payload,ts) VALUES(?,?)",
-                           (present["settings.json"].read_text(encoding="utf-8"), time.time()))
-            if "identities.json" in present:
-                store.save_identity_data(json.loads(present["identities.json"].read_text(encoding="utf-8")),
-                                         manage_transaction=False)
-            db.execute("INSERT INTO meta(key,value) VALUES('legacy_migrated','1') "
-                       "ON CONFLICT(key) DO UPDATE SET value='1'")
-    except (ValueError, sqlite3.IntegrityError, KeyError, json.JSONDecodeError) as exc:
-        # Откат произошёл (транзакция целиком); файлы не тронуты, backup сохранён.
-        report["imported"] = []
-        report["conflict"] = f"{type(exc).__name__}: {exc}"
-        raise MigrationConflict(json.dumps(report, ensure_ascii=False)) from exc
-    for path in present.values():
-        path.unlink()  # атомарное переключение: после успешного коммита
-    return report

@@ -1,16 +1,14 @@
-"""Переход реестра пакетов сценариев в каталог расширений.
+"""Реестр пакетов сценариев как источник-каталог расширений.
 
 Прежний реестр — манифест ``scenario-registry`` (``{format, packages:[{id, version, name,
 path?, url, sha256?}]}``) и пакеты ``scenario-package`` (JSON или zip с ``package.json``) —
-больше не отдельный механизм. Здесь три вещи:
+больше не отдельный механизм, а обычный источник-каталог. Здесь:
 
 * ``registry_entries`` — манифест реестра читается каталогом расширений (``catalog_entries``)
   как обычный источник-каталог: пакеты становятся записями каталога;
 * ``convert_package`` — установка такой записи: пакет сценариев разворачивается в
   data-расширение (``extension.json`` + ``scenarios/<раздел>/<id>.json``), дальше всё как у
-  любого расширения (включение, обновление, откат, удаление);
-* ``migrate_registry`` — миграция настроек: ``settings.registry.url`` → источник в
-  ``settings.extensions.sources``, установленные пакеты → расширения (по одному на пакет).
+  любого расширения (включение, обновление, откат, удаление).
 
 Скачивание, лимиты, sha256 и защита zip — общий код ``extensions/sources.py`` и менеджера;
 модуль только преобразует формат. Подраздел пакета (``path``/``_group``) в слое расширений не
@@ -21,7 +19,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-import time
 import zipfile
 import io
 from pathlib import Path
@@ -140,86 +137,3 @@ def _definition(scenario):
     clean = {k: v for k, v in scenario.items() if not str(k).startswith("_") and k != "enabled"}
     clean.setdefault("category", "custom")
     return clean
-
-
-def migrate_registry(runtime):
-    """Миграция настроек прежнего реестра. Вызывается Runtime после создания
-    менеджера расширений, до load_enabled.
-
-    * registry.url → extensions.sources (если источник допустим: https или loopback);
-    * каждый пакет из registry.installed → расширение класса data: версии из журнала
-      раскладываются по state/extensions/<id>/<версия>/, активная — последняя, предыдущая
-      (если была) доступна для отката; журнал откатов сохраняется, пока возможно;
-    * нетронутые копии сценариев пакета (совпадают с эталоном и включены) убираются из
-      пользовательских — теперь их отдаёт расширение; изменённые и выключенные остаются
-      и перекрывают сценарии расширения (пользовательское > расширение);
-    * ключ registry удаляется. Повторный запуск ничего не делает.
-
-    Возвращает отчёт {source, extensions, removed, skipped} или None, если мигрировать нечего."""
-    settings = runtime.settings
-    if "registry" not in settings:
-        return None
-    from .sources import parse_source
-    registry = settings.get("registry") if isinstance(settings.get("registry"), dict) else {}
-    manager = runtime.extensions
-    state = manager._state()
-    report = {"source": None, "extensions": [], "removed": [], "skipped": []}
-
-    url = str(registry.get("url") or "").strip()
-    if url:
-        try:
-            parse_source(url)
-        except ValueError as exc:
-            report["skipped"].append(f"источник {url}: {exc}")
-            log.warning("URL реестра сценариев не перенесён в источники расширений: %s", exc)
-        else:
-            if url not in state["sources"]:
-                state["sources"].append(url)
-            report["source"] = url
-
-    grouped = {}
-    for item in registry.get("installed") or []:
-        if isinstance(item, dict) and item.get("id") and isinstance(item.get("snapshot"), list):
-            grouped.setdefault(str(item["id"]), []).append(item)
-    scenarios = settings.get("scenarios") or []
-    for package_id, entries in grouped.items():
-        ext_id = extension_id(package_id)
-        if ext_id in state["installed"]:
-            report["skipped"].append(f"{package_id}: расширение {ext_id} уже есть")
-            continue
-        entries.sort(key=lambda h: h.get("installed_ts") or 0)
-        versions = {}  # semver → запись журнала (повтор версии — поздняя)
-        for entry in entries:
-            versions[normalize_version(entry.get("version"))] = entry
-        written = {}
-        for version, entry in versions.items():
-            try:
-                written[version] = write_tree(manager.version_dir(ext_id, version), ext_id, package_id,
-                                              version, entry["snapshot"])
-            except ValueError as exc:
-                report["skipped"].append(f"{package_id} {version}: {exc}")
-        if not written:
-            continue
-        order = [v for v in versions if v in written]
-        current, previous = order[-1], (order[-2] if len(order) > 1 else None)
-        state["installed"][ext_id] = {
-            "version": current, "previous": previous, "source": url if report["source"] else "",
-            "source_id": ext_id, "dev": None,
-            "installed_ts": versions[current].get("installed_ts") or time.time(), "check": None}
-        state["enabled"][ext_id] = True
-        manager._switch_current(ext_id, current)
-        snapshot = {s["id"]: _definition(s) for s in versions[current]["snapshot"]
-                    if isinstance(s, dict) and s.get("id")}
-        kept = []
-        for scenario in scenarios:
-            reference = snapshot.get(scenario.get("id")) if isinstance(scenario, dict) else None
-            if reference is not None and scenario.get("enabled") is not False                     and _definition(scenario) == reference:
-                report["removed"].append(scenario["id"])
-                continue
-            kept.append(scenario)
-        scenarios = kept
-        report["extensions"].append(ext_id)
-    settings["scenarios"] = scenarios
-    settings.pop("registry", None)
-    runtime.write("settings.json", settings)
-    return report

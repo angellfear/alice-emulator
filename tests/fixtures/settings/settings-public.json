@@ -1,0 +1,228 @@
+{
+  "intelligence": "agent",
+  "system_prompt": "Ты домашний голосовой помощник. Отвечай кратко по-русски.",
+  "model": {
+    "url": "https://api.example.test/v1",
+    "model": "test-model",
+    "api_key": "__KEEP__",
+    "temperature": 0.5,
+    "stub_text": ""
+  },
+  "stt": {
+    "url": "https://stt.example.test/v1",
+    "model": "test-asr",
+    "api_key": "env:TEST_ASR_KEY",
+    "language": "ru"
+  },
+  "tts": {
+    "url": "",
+    "model": "",
+    "api_key": "",
+    "voice": "",
+    "response_format": "opus"
+  },
+  "tools": [],
+  "device_context": {},
+  "aapi_model": true,
+  "aapi_voice": false,
+  "aapi_tts": false,
+  "alice2_settings": true,
+  "builtin_scenarios": true,
+  "builtin_disabled": [
+    "custom.old-one"
+  ],
+  "standard_replies": [
+    {
+      "id": "unclaimed",
+      "name": "Устройство не привязано",
+      "case": "unclaimed",
+      "enabled": true,
+      "text": "Своя реплика пользователя — миграция текст не перетирает."
+    },
+    {
+      "id": "not_understood",
+      "name": "Нет сценария",
+      "case": "not_understood",
+      "enabled": true,
+      "text": "Я пока этого не умею."
+    },
+    {
+      "id": "simple_unavailable",
+      "name": "Функция в простом режиме",
+      "case": "simple_unavailable",
+      "enabled": true,
+      "text": "В простом режиме это недоступно."
+    },
+    {
+      "id": "no_data_source",
+      "name": "Нет источника данных",
+      "case": "no_data_source",
+      "enabled": true,
+      "text": "Для этого нет источника данных."
+    }
+  ],
+  "weather": {
+    "latitude": "55.75",
+    "longitude": "37.61"
+  },
+  "scenarios": [
+    {
+      "format_version": 2,
+      "id": "custom.snapshot-a",
+      "version": "1.0.0",
+      "category": "custom",
+      "triggers": [
+        {
+          "kind": "phrase",
+          "phrases": [
+            "снимок раз"
+          ]
+        }
+      ],
+      "flow": [
+        {
+          "id": "say",
+          "op": "compose",
+          "reply": {
+            "text": "Первый снимок."
+          }
+        },
+        {
+          "id": "done",
+          "op": "finish"
+        }
+      ]
+    },
+    {
+      "format_version": 2,
+      "id": "custom.snapshot-b",
+      "version": "1.0.0",
+      "category": "custom",
+      "triggers": [
+        {
+          "kind": "phrase",
+          "phrases": [
+            "снимок два"
+          ]
+        }
+      ],
+      "flow": [
+        {
+          "id": "say",
+          "op": "compose",
+          "reply": {
+            "text": "Второй снимок."
+          }
+        },
+        {
+          "id": "done",
+          "op": "finish"
+        }
+      ]
+    }
+  ],
+  "agent": {
+    "engine": "graph",
+    "max_model_calls": 8,
+    "summarize_after": 30,
+    "keep_messages": 15,
+    "confirm_yes": [
+      "да",
+      "угу"
+    ],
+    "confirm_no": [
+      "нет",
+      "стоп"
+    ],
+    "confirm_prompt": "Подтвердите действие.",
+    "defer_mode": "push",
+    "async_reply_s": 2.5,
+    "async_wait_text": "Минутку.",
+    "webhook_token": "__KEEP__",
+    "daily_model_calls": 40,
+    "budgets": {
+      "u1": 25
+    },
+    "pii": [
+      "credit_card",
+      "secret",
+      "email"
+    ],
+    "suggest_cron": "0 5 * * *",
+    "suggest_min_count": 5,
+    "suggest_days": 5
+  },
+  "memory": {
+    "enabled": true,
+    "embed": {
+      "url": "https://embed.example.test/v1",
+      "model": "test-embed",
+      "api_key": "__KEEP__"
+    },
+    "recall_limit": 4,
+    "reflect_after_s": 300
+  },
+  "aliases": {
+    "my.upstream.test": "http://192.0.2.10:9000"
+  },
+  "self_update": {
+    "enabled": false,
+    "repo": "angellfear/alice-emulator",
+    "channel": "stable",
+    "interval_hours": 24,
+    "token": "__KEEP__",
+    "skipped": "",
+    "restart": "manager"
+  },
+  "upstream": {
+    "dns_servers": [
+      "192.0.2.53"
+    ],
+    "upstream_ip": {},
+    "journal": {
+      "max_body_kb": 128,
+      "max_size_mb": 50,
+      "max_age_days": 7
+    }
+  },
+  "voice_stack": {
+    "speak": true,
+    "card": false,
+    "asr": "p:test-asr",
+    "tts": "",
+    "llm": "p:test-llm"
+  },
+  "extensions": {
+    "sources": [
+      "https://ext.example.test/index.json"
+    ],
+    "enabled": {
+      "ext.test": true
+    },
+    "installed": {
+      "ext.test": {
+        "version": "1.0.0",
+        "previous": "",
+        "source": "https://ext.example.test/index.json",
+        "selfcheck": ""
+      }
+    },
+    "settings": {
+      "ext.test": {
+        "api_key": "test-ext-token",
+        "city": "Тест-град"
+      }
+    }
+  },
+  "oauth": {
+    "mode": "auto"
+  },
+  "providers": {},
+  "phrase_order": {
+    "kinds": [],
+    "plugins": {}
+  },
+  "fetch_state": {
+    "min_interval_s": 10
+  }
+}

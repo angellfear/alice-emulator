@@ -1,8 +1,7 @@
 """Каталог захваченных HTTP-эндпоинтов: переигрывание реальных ответов облака.
 
 Один JSON-файл на эндпоинт, по разделам как библиотека сценариев:
-state/endpoints/<category>/<id>.json (category: quasar, gproxy, egress…;
-плоские файлы старого формата при загрузке переносятся в свой раздел). Файлы — источник правды (можно править при остановленном
+state/endpoints/<category>/<id>.json (category: quasar, gproxy, egress…). Файлы — источник правды (можно править при остановленном
 сервере); битые файлы пропускаются. Наполнение — tools/endpoints_recover.py
 из capture-базы; сам эмулятор о базе не знает (прокси — отдельный компонент).
 
@@ -239,7 +238,7 @@ class EndpointCatalog:
         self.endpoints = []
         try:
             self.directory.mkdir(parents=True, exist_ok=True)
-            for path in sorted(self.directory.glob("*.json")) + sorted(self.directory.glob("*/*.json")):
+            for path in sorted(self.directory.glob("*/*.json")):
                 try:
                     item = json.loads(path.read_text(encoding="utf-8"))
                 except (OSError, ValueError):
@@ -247,13 +246,7 @@ class EndpointCatalog:
                 valid, error = self.validate(item)
                 if not valid:
                     continue
-                if path.parent == self.directory:  # старый плоский формат → раздел
-                    item.setdefault("category", category_of(item))
-                    item.pop("_group", None)
-                    self._save(item)
-                    path.unlink(missing_ok=True)
-                else:
-                    item["category"] = path.parent.name
+                item["category"] = path.parent.name
                 self.endpoints.append(item)
         except OSError:
             pass  # каталог недоступен — каталог пуст, эмуляция работает

@@ -1,7 +1,5 @@
-"""Реестр пакетов сценариев перенесён в каталог расширений.
-
-Миграция настроек (registry.url → источник, установленные пакеты → data-расширения, откаты,
-пользовательские копии) и установка пакетов прежнего реестра через общий менеджер расширений:
+"""Пакеты прежнего реестра сценариев устанавливаются через менеджер расширений
+(источник-каталог scenario-registry, конвертация пакета в data-расширение):
 sha256, origin, zip-бандл, обновление и откат. Сеть — локальный http-сервер aiohttp.
 """
 import hashlib
@@ -95,80 +93,8 @@ async def seed_old_state(tmp_path, **state):
     await runtime.close()
 
 
-async def test_migration_turns_registry_into_source_and_extensions(tmp_path):
-    fork = {**HELLO, "id": "user.fork", "triggers": [{"kind": "phrase", "phrases": ["вилка"]}]}
-    changed = {**fork, "flow": [{"id": "mine", "op": "finish"}]}  # локальная правка пакета
-    history = [
-        {"id": "pack.greet", "version": "1.0.0", "installed_ts": 100,
-         "scenarios": ["user.hello", "user.fork"],
-         "snapshot": [{**HELLO, "_group": "clock/watches"}, {**fork, "_group": "clock/watches"}]},
-        {"id": "pack.greet", "version": "2", "installed_ts": 200, "scenarios": ["user.hello", "user.fork"],
-         "snapshot": [{**HELLO_V2, "_group": "clock/watches"}, {**fork, "_group": "clock/watches"}]},
-    ]
-    pristine_v2 = {**HELLO_V2, "_group": "clock/watches"}  # у пользователя — нетронутая копия v2, как после install из реестра
-    await seed_old_state(tmp_path, **old_registry_state(
-        "https://example.com/manifest.json", history, [pristine_v2, changed]))
-
-    runtime = Runtime(tmp_path)
-    try:
-        settings = runtime.settings
-        assert "registry" not in settings  # второго механизма нет
-        assert "https://example.com/manifest.json" in settings["extensions"]["sources"]
-        installed = settings["extensions"]["installed"]["pack.greet"]
-        assert installed["version"] == "2.0.0" and installed["previous"] == "1.0.0"  # откат сохранён
-        assert installed["source"] == "https://example.com/manifest.json"
-        assert settings["extensions"]["enabled"]["pack.greet"] is True
-        # нетронутая копия ушла в расширение; локально изменённая осталась и перекрывает
-        assert [s["id"] for s in settings["scenarios"]] == ["user.fork"]
-        assert settings["scenarios"][0]["flow"][0]["id"] == "mine"
-        card = next(c for c in runtime.extensions.listing()["extensions"] if c["id"] == "pack.greet")
-        assert card["class"] == "data" and card["folders"] == ["scenarios"]
-        # сценарии работают: из расширения отвечает hello (версия 2)
-        assert phrases(runtime) == {"user.hello", "user.fork"}
-        runtime.settings["aapi_model"] = False
-        report = await runtime.dialog.handle_text("привет реестр", {"input": {"text": "привет реестр", "sn": "",
-                                                                              "message_id": "m", "request_id": "r",
-                                                                              "dialog_id": "d"}}, "dry", _sink)
-        assert report["handled"] and report["scenario"] == "user.hello"
-        # откат на версию 1 работает штатным менеджером
-        await runtime.extensions.rollback("pack.greet")
-        assert runtime.extensions.current_version("pack.greet") == "1.0.0"
-    finally:
-        await runtime.close()
-
-    # повторный запуск ничего не меняет (ключа registry нет)
-    again = Runtime(tmp_path)
-    try:
-        assert again.settings["extensions"]["installed"]["pack.greet"]["version"] == "1.0.0"
-        assert len(again.settings["extensions"]["sources"]) == 1
-    finally:
-        await again.close()
-
-
 async def _sink(data):
     return None
-
-
-async def test_migration_keeps_disabled_copy_and_skips_bad_source(tmp_path):
-    disabled = {**HELLO, "enabled": False}
-    history = [{"id": "pack.greet", "version": "1.0.0", "installed_ts": 1, "scenarios": ["user.hello"],
-                "snapshot": [HELLO]}]
-    await seed_old_state(tmp_path, **old_registry_state("http://example.com/manifest.json", history, [disabled]))
-    runtime = Runtime(tmp_path)
-    try:
-        assert runtime.settings["extensions"]["sources"] == []  # http не-loopback источником быть не может
-        assert [s["id"] for s in runtime.settings["scenarios"]] == ["user.hello"]  # выключенная копия остаётся
-        assert "pack.greet" in runtime.settings["extensions"]["installed"]
-    finally:
-        await runtime.close()
-
-
-async def test_migration_without_registry_does_nothing(tmp_path):
-    runtime = Runtime(tmp_path)
-    try:
-        assert "registry" not in runtime.settings and runtime.settings["extensions"]["sources"] == []
-    finally:
-        await runtime.close()
 
 
 def test_version_and_id_normalisation():

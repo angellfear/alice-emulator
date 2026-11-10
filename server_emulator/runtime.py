@@ -20,7 +20,7 @@ from .settings_service import DEFAULT, RECORD_MODES, ROUTE_MODES, SettingsServic
 from .schema import SetupRequired, load_type, schemas_ready
 from . import station_state
 from .device_images import DeviceImages, images_dir
-from .state_store import StateStore, migrate_legacy
+from .state_store import StateStore
 from .endpoints import EndpointCatalog
 from .params import ParamStore
 from .quasar_rules import RuleStore
@@ -63,7 +63,6 @@ ACTIVITY_STATES = {
 SERVICE_BY_STAGE = {"asr": "asr", "model": "llm", "tts": "tts"}
 # Прежний дефолт удалённого параметра server.weather.url — значения с ним переносить
 # не нужно (настройка плагина пуста = тот же URL).
-WEATHER_URL_LEGACY_DEFAULT = "https://api.open-meteo.com/v1/forecast"
 
 PHRASE_LIST_MAX_AGE = 60.0  # свежесть (с) записи датасета для закрытых списков справочника фраз
 PHRASE_LIST_TIMEOUT = 5.0   # ожидание плагина датасета в фоновом опросе (голос не ждём)
@@ -141,7 +140,6 @@ class Runtime:
         self.store.on_scenario_data = self._scenario_data_changed  # справочник фраз: lists_from
         from . import music
         music.load_token(self.store)  # захваченный OAuth аккаунта — из БД в кеш поставщика
-        self.migration_report = migrate_legacy(self.directory, self.store)
         # (DEBT-01): дефолты, миграции, валидация и сохранение настроек —
         # в settings_service.SettingsService; runtime держит текущий dict и оркестрацию.
         self.settings_service = SettingsService(self.store, self.directory)
@@ -164,14 +162,9 @@ class Runtime:
         self.sequence = itertools.count(1)  # SequenceNumber ответов (реальный счётчик сервера)
         self.lock = asyncio.Lock()
         self.identities = IdentityRegistry(self.directory, self.store)
-        # очередь миграции emulation_excluded — известным устройствам сразу
-        # route_mode=proxy, подключившиеся позже получают его при регистрации.
-        for sn in list(self.identities.pending_route_migration()):
-            if any(d['sn'] == sn for d in self.identities.data['devices']):
-                self.identities.apply_pending_route(sn)
         self.quasar_params = ParamStore(self.store.db,  # params/ расширений поверх БД
                                         extension_dirs=lambda: self._extension_layers("params"))
-        self.quasar_params.seed(self.identities.data)  # каталог+legacy-перенос, идемпотентно
+        self.quasar_params.seed()  # каталог параметров по умолчанию, идемпотентно
         self.sessions = {}
         self._phrase_lists_checked = 0.0  # последняя проверка свежести списков справочника фраз
         # fetch_state: sn → Future(SyncPushResponse) — ответ маршрутизирует обработчик
@@ -215,13 +208,10 @@ class Runtime:
         # точки подключения берут каталоги из runtime.extensions.contribution_dirs().
         from .extensions.manager import ExtensionManager
         self.extensions = ExtensionManager(self)
-        from .extensions.legacy_registry import migrate_registry
-        migrate_registry(self)  # прежний реестр сценариев → источник и расширения (единожды)
         self.extensions.load_enabled()
         # требования потребителей видов (providers.require) — при старте ядра:
         # потребитель импортируется лениво, записи реестра дообогащаются его функциями
         from .scenarios.informers import news as _news_consumer  # noqa: F401
-        self._migrate_weather_url()  # параметр server.weather.url → настройка плагина погоды
         from .sdk import bind_runtime  # sdk.send_push/send_directive без ctx
         bind_runtime(self)
         # check_template (validate.py про runtime не знает) разрешает {ссылки}
@@ -466,23 +456,6 @@ class Runtime:
         # устройств: dispatcher.route_mode_for + upstream.target_for.
         from .upstream import Upstream
         self.upstream = Upstream(self)
-
-    def _migrate_weather_url(self):
-        """Параметр server.weather.url переехал в настройку плагина погоды: непустое
-        значение сервера, отличное от умолчания, становится url плагина
-        builtin.open-meteo (если у плагина ещё пусто — пустая настройка значит дефолт);
-        после чего параметр удаляется из каталога вместе со значениями — миграция
-        однократна, ключа больше нет, без переноса погода молча вернулась бы на дефолт."""
-        old = self.quasar_params.raw_value("server", "server.weather.url")
-        self.quasar_params.def_remove("server.weather.url")
-        if not isinstance(old, str) or not old.strip() or old == WEATHER_URL_LEGACY_DEFAULT:
-            return
-        plugins = self.settings.get("extensions", {}).get("settings", {})
-        if (plugins.get("builtin.open-meteo") or {}).get("url"):
-            return  # у плагина уже своя настройка — старое значение не нужно
-        self.settings.setdefault("extensions", {}).setdefault("settings", {})[
-            "builtin.open-meteo"] = {"url": old}
-        self.store.save_settings(self.settings)
 
     async def close(self):
         """Идемпотентная остановка общих ресурсов (клиент, фоновые задачи)."""

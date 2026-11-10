@@ -16,7 +16,7 @@ def seed(runtime):
     registry.mutate({"operation": "user", "id": "u2", "name": "Борис"})
     registry.mutate({"operation": "device", "sn": "SN-A", "name": "Кухня", "user_id": "u1", "device_ids": ["ID-A"]})
     registry.mutate({"operation": "device", "sn": "SN-B", "name": "Гостиная", "user_id": "u2", "device_ids": ["ID-B"]})
-    runtime.quasar_params.seed(registry.data)
+    runtime.quasar_params.seed()
 
 
 @pytest.fixture

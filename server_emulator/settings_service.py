@@ -1,7 +1,7 @@
-"""Настройки эмулятора: дефолты, миграции, валидация, сохранение (шаг декомпозиции DEBT-01).
+"""Настройки эмулятора: дефолты, дозаполнение, валидация, сохранение.
 
-SettingsService владеет жизненным циклом настроек: загрузка из StateStore с миграцией
-режимной модели и аддитивной миграцией дефолтов, валидация входящих значений,
+SettingsService владеет жизненным циклом настроек: загрузка из StateStore
+с досевом отсутствующих значений по умолчанию, валидация входящих значений,
 маскирование секретов для UI, сохранение ревизией в БД: тела сценариев живут
 в файлах state/scenarios, ревизия хранит заглушки {id, enabled}.
 
@@ -10,11 +10,14 @@ Runtime держит текущий dict в runtime.settings и оркестри
 """
 import copy
 import json
-import logging
 import os
 from urllib.parse import urlsplit
 
-log = logging.getLogger(__name__)
+from .settings_models import (AgentSettings, AliasesSettings, ExtensionsSettings,
+                              FetchStateSettings, MemorySettings, ModelSettings,
+                              OAuthSettings, PhraseOrderSettings, ProvidersSettings,
+                              SelfUpdateSettings, SttSettings, TtsSettings, UpstreamSettings,
+                              VoiceStackSettings, WeatherSettings, checked_section)
 
 # Режимы маршрута (решение вместо двух режимов 2026-10-24): у каждого
 # устройства свой route_mode; без него (и для неизвестных устройств) — emulate,
@@ -22,9 +25,6 @@ log = logging.getLogger(__name__)
 # off | on | misses, пишется поверх любого маршрута.
 ROUTE_MODES = ("emulate", "hybrid", "proxy")
 RECORD_MODES = ("off", "on", "misses")
-ROUTE_MIGRATION_KEY = "route_migration"  # meta StateStore: {"excluded": [sn]} — очередь миграции
-RECORD_MIGRATION_KEY = "record_migration"  # meta: маршрут record → proxy + опция record, однократно
-LEGACY_REPO = "angellfear/alica_emule"  # прежнее имя репозитория — переводится миграцией на новое
 
 DEFAULT = {
     "intelligence": "agent",  # режим «Интеллект»: scenarios | model | agent (intelligence.py)
@@ -32,7 +32,7 @@ DEFAULT = {
     "model": {"url": "", "model": "", "api_key": "", "temperature": 0.3},
     "stt": {"url": "", "model": "", "api_key": "", "language": "ru"},
     "tts": {"url": "", "model": "", "api_key": "", "voice": "", "response_format": "opus"},
-    "mcp_servers": [], "tools": [], "device_context": {}, "aapi_model": False,
+    "tools": [], "device_context": {}, "aapi_model": False,
     "aapi_voice": False, "aapi_tts": False, "alice2_settings": False,
     "builtin_scenarios": True,  # простые команды (время/таймер/будильник/свет/громкость) без AI
     "builtin_disabled": [],  # id встроенных сценариев, выключенных по одному (каталог builtin)
@@ -76,8 +76,7 @@ DEFAULT = {
                     "interval_hours": 12, "token": "", "skipped": "", "restart": "self"},
     # Поставщики данных: выбранный поставщик по видам — settings["providers"][<вид>]
     # (id; пусто — первый включённый по алфавиту). Реестр видов —
-    # server_emulator/providers.py; прежний ключ settings["music"]["provider"]
-    # переносится в providers.music при загрузке (миграция ниже).
+    # server_emulator/providers.py.
     "providers": {},
     # Ручной порядок справочника фраз (равная точность — выше в списке): порядок
     # видов для споров между видами и плагинов внутри вида; плагины без вида —
@@ -120,47 +119,20 @@ class SettingsService:
         self.scenario_dir = directory / "scenarios"  # один JSON-файл на сценарий
 
     def load(self):
-        """Текущие настройки из БД: миграция режимной модели (partial больше не
-        существует), аддитивная миграция дефолтов, файлы сценариев как источник правды."""
+        """Текущие настройки из БД: досев отсутствующих значений по умолчанию,
+        файлы сценариев как источник правды."""
         stored = self.store.load_settings()
         settings = stored or copy.deepcopy(DEFAULT)
-        # Миграция режимной модели: partial больше не существует — стоявшие в нём
-        # переводятся в эмуляцию; список emulation_ws_local (H05) упразднён. Блок
-        # касается только настроек, где legacy-ключ ещё есть (без этого
-        # каждая загрузка добавляла mode обратно и перезатирала прежний маршрут по умолчанию).
-        legacy_mode = ("mode" in settings and settings["mode"] not in ("proxy", "emulate"))             or "emulation_ws_local" in settings
-        if "mode" in settings and settings["mode"] not in ("proxy", "emulate"):
-            settings["mode"] = "emulate"
-        settings.pop("emulation_ws_local", None)
-        from .intelligence import migrate
-        legacy_mode = migrate(settings) or legacy_mode  # до аддитивной миграции: выводится из agent.engine
-        # Аддитивная миграция дефолтов: настройки production засеяны раньше, чем
-        # появились новые ключи (builtin_scenarios и пр.) — доходим их значениями
-        # по умолчанию и фиксируем ревизией, не трогая существующие значения.
+        # Аддитивный досев дефолтов: настройки сохранены раньше, чем появились
+        # новые ключи — доходим их значениями по умолчанию, не трогая существующие.
         missing = {key: copy.deepcopy(value) for key, value in DEFAULT.items()
                    if key not in settings}
-        if missing or legacy_mode or stored is None:
+        if missing or stored is None:
             settings.update(missing)
             self.store.save_settings(settings)
         self._migrate_standard_replies(settings)
-        self._migrate_route_modes(settings)
-        self._migrate_record_route(settings)
-        self._migrate_default_route(settings)
-        self._migrate_legacy_aliases(settings)
-        self._migrate_repo_name(settings)
-        self._migrate_music_provider(settings)
         self.load_scenario_files(settings)
         return settings
-
-    def _migrate_music_provider(self, settings):
-        """Выбор поставщика музыки переехал в общий реестр видов поставщиков:
-        settings["music"]["provider"] → settings["providers"]["music"]; старый ключ
-        читается один раз и удаляется (миграция однократна — после неё ключа нет)."""
-        if not isinstance(settings.get("music"), dict):
-            return
-        from .providers import migrate as migrate_providers
-        if migrate_providers(settings):
-            self.store.save_settings(settings)
 
     def _migrate_standard_replies(self, settings):
         """Новые стандартные ответы доходим по id: изменённые пользователем тексты не трогаем."""
@@ -173,115 +145,6 @@ class SettingsService:
             settings["standard_replies"] = replies + added
             self.store.save_settings(settings)
 
-    def _migrate_route_modes(self, settings):
-        """Старая режимная модель (settings.mode + emulation_excluded) →
-        маршруты по устройствам. mode: emulate → default emulate; mode: proxy →
-        default record. Каждый SN из emulation_excluded попадает в очередь миграции
-        (meta route_migration): известным устройствам реестра сразу ставится
-        route_mode=proxy (Runtime), подключившиеся позже — при регистрации
-        (IdentityRegistry). Сами ключи из настроек удаляются."""
-        if "mode" not in settings and "emulation_excluded" not in settings:
-            return False
-        default = "record" if settings.get("mode") == "proxy" else "emulate"
-        excluded = [sn for sn in (settings.pop("emulation_excluded", None) or [])
-                    if isinstance(sn, str) and sn.strip()]
-        settings.pop("mode", None)
-        settings["default_route_mode"] = default  # легаси-режим определяет прежний default (его уберёт _migrate_default_route)
-        if excluded:
-            pending = self.store.meta(ROUTE_MIGRATION_KEY)
-            try:
-                known = json.loads(pending).get("excluded", []) if pending else []
-            except ValueError:
-                known = []
-            merged = list(dict.fromkeys([*known, *excluded]))
-            self.store.set_meta(ROUTE_MIGRATION_KEY, json.dumps({"excluded": merged}))
-            log.info("Миграция маршрутов: %d SN из emulation_excluded переведены на proxy", len(merged))
-        self.store.save_settings(settings)
-        return True
-
-    def _migrate_record_route(self, settings):
-        """«Запись» перестала быть маршрутом. Однократно (отметка в meta):
-        устройство с route_mode=record → proxy + record=on; default_route_mode=record →
-        proxy, и устройства без своего маршрута получают record=on (прежнее поведение).
-        SN из очереди миграции (emulation_excluded) — «прокси без журнала» —
-        запись не получают."""
-        default_record = settings.get("default_route_mode") == "record"
-        if self.store.meta(RECORD_MIGRATION_KEY) and not default_record:
-            return False  # остаток прежнего default (режимная миграция после отметки) — переносим снова
-        data = self.store.load_identity_data()
-        changed = 0
-        pending = self.store.meta(ROUTE_MIGRATION_KEY)
-        try:
-            excluded = set(json.loads(pending).get("excluded", [])) if pending else set()
-        except ValueError:
-            excluded = set()
-        for device in data["devices"]:
-            if device.get("route_mode") == "record":
-                device["route_mode"], device["record"] = "proxy", "on"
-                changed += 1
-            elif default_record and not device.get("route_mode") and device["sn"] not in excluded:
-                device["record"] = "on"
-                changed += 1
-        if changed:
-            self.store.save_identity_data(data)
-        if default_record:
-            settings["default_route_mode"] = "proxy"
-            self.store.save_settings(settings)
-        self.store.set_meta(RECORD_MIGRATION_KEY, "1")
-        if changed or default_record:
-            log.info("Миграция записи: маршрут record → proxy + опция record (устройств: %d)", changed)
-        return True
-
-    def _migrate_default_route(self, settings):
-        """Маршрута по умолчанию больше нет. Прежний default_route_mode ≠ emulate
-        переносится устройствам реестра без своего route_mode (поведение колонок не меняется
-        молча), ключ удаляется из настроек. Идёт после legacy-миграций (mode, record):
-        они приводят default к emulate | hybrid | proxy."""
-        if "default_route_mode" not in settings:
-            return False
-        default = settings.pop("default_route_mode")
-        changed = 0
-        if default in ROUTE_MODES and default != "emulate":
-            data = self.store.load_identity_data()
-            for device in data["devices"]:
-                if not device.get("route_mode"):
-                    device["route_mode"] = default
-                    changed += 1
-            if changed:
-                self.store.save_identity_data(data)
-        self.store.save_settings(settings)
-        log.info("Миграция маршрута по умолчанию: «%s» перенесён на устройства без своего маршрута (%d)", default, changed)
-        return True
-
-    LEGACY_ALIASES = {"quasar.local": "quasar.yandex.net", "rpc.local": "rpc.alice.yandex.net",
-                      "uniproxy.local": "uniproxy.alice.yandex.net"}
-
-    def _migrate_legacy_aliases(self, settings):
-        """Дефолтные алиасы `*.local` → настоящие домены (колонка и так ходит на них):
-        из сохранённых настроек удаляются ровно эти три пары, если их значения совпадают
-        со старыми умолчаниями. Алиасы пользователя не трогаются."""
-        aliases = settings.get("aliases")
-        if not isinstance(aliases, dict):
-            return False
-        extra = {k: v for k, v in aliases.items() if self.LEGACY_ALIASES.get(k) != v}
-        if len(extra) == len(aliases):
-            return False
-        settings["aliases"] = extra
-        self.store.save_settings(settings)
-        log.info("Миграция алиасов: убраны устаревшие *.local (колонка ходит на настоящие домены)")
-        return True
-
-    def _migrate_repo_name(self, settings):
-        """Репозиторий переименован (alica_emule → alice-emulator): прежний адрес в настройках
-        самообновления переводится на новый; свой адрес пользователя не трогается."""
-        su = settings.get("self_update")
-        if not isinstance(su, dict) or su.get("repo") != LEGACY_REPO:
-            return False
-        su["repo"] = DEFAULT["self_update"]["repo"]
-        self.store.save_settings(settings)
-        log.info("Миграция самообновления: репозиторий %s → %s", LEGACY_REPO, su["repo"])
-        return True
-
     def persist(self, settings):
         """Сохранение: ревизия в БД  + сверка каталога файлов сценариев."""
         self.store.save_settings(revision(settings))
@@ -292,8 +155,6 @@ class SettingsService:
         value = copy.deepcopy(settings)
         for name in ("model", "stt", "tts"):
             value[name]["api_key"] = masked_secret(value[name].get("api_key"))
-        for server in value["mcp_servers"]:
-            server["api_key"] = masked_secret(server.get("api_key"))
         embed = (value.get("memory") or {}).get("embed")
         if isinstance(embed, dict):
             embed["api_key"] = masked_secret(embed.get("api_key"))
@@ -307,10 +168,6 @@ class SettingsService:
     def validate(self, value, current):
         """Проверка присланных UI настроек → копия, готовая к persist.
         current — прежние настройки для восстановления секретов __KEEP__."""
-        # устаревшая форма UI присылает старые ключи режимов — не сохраняем их
-        value.pop("default_route_mode", None)
-        value.pop("mode", None)
-        value.pop("emulation_excluded", None)
         # служебное поле ревизии (сверка устаревшей копии формы) — не настройка
         value.pop("_rev", None)
         from .intelligence import LEVELS, ext_id
@@ -321,58 +178,47 @@ class SettingsService:
         if value.setdefault("intelligence", current.get("intelligence", "agent")) not in LEVELS \
                 and ext_id(value["intelligence"]) is None:
             raise ValueError("intelligence: " + " | ".join(LEVELS) + " или ext:<id>")
-        for key in ("tools", "mcp_servers"):
-            if not isinstance(value.get(key), list):
-                raise ValueError(key + ": нужен массив")
+        if not isinstance(value.get("tools"), list):
+            raise ValueError("tools: нужен массив")
         if not isinstance(value.get("device_context"), dict):
             raise ValueError("device_context: нужен объект")
         value = copy.deepcopy(value)
         # Режимы вывода ответа (карточка «Синтез (TTS)»): speak/card — булевы; озвучка
         # выключена делает карточку принудительно включённой — ответа совсем без текста нет.
-        if "voice_stack" not in value:
-            value["voice_stack"] = copy.deepcopy(current.get("voice_stack") or {})
-        stack = value["voice_stack"]
-        if not isinstance(stack, dict):
-            raise ValueError("voice_stack: нужен объект")
-        stack["speak"] = bool(stack.get("speak", True))
-        stack["card"] = True if not stack["speak"] else bool(stack.get("card", True))
+        value["voice_stack"] = checked_section(value.get("voice_stack") or {},
+                                               VoiceStackSettings, "voice_stack")
         from .behavior import validate_standard
-        value.pop("behaviors", None)  # раздел «Поведение» удалён: правила из старых settings вычищаются
         validate_standard(value.get('standard_replies', []))
-        for name in ("model", "stt", "tts"):
+        for name, section_model in (("model", ModelSettings), ("stt", SttSettings), ("tts", TtsSettings)):
             cfg = value[name]
-            validate_url(cfg.get("url", ""))
             if cfg.get("api_key") == "__KEEP__":
                 cfg["api_key"] = current[name].get("api_key", "")
-        embed = (value.get("memory") or {}).get("embed")
+            value[name] = checked_section(cfg, section_model, name)
+        if "weather" in value:
+            value["weather"] = checked_section(value["weather"], WeatherSettings, "weather")
+        if "aliases" in value:
+            value["aliases"] = checked_section(value["aliases"], AliasesSettings, "aliases")
+        if "upstream" in value:
+            value["upstream"] = checked_section(value["upstream"], UpstreamSettings, "upstream")
+        memory = value.get("memory")
+        embed = (memory or {}).get("embed")
         if isinstance(embed, dict) and embed.get("api_key") == "__KEEP__":
             embed["api_key"] = ((current.get("memory") or {}).get("embed") or {}).get("api_key", "")
+        if isinstance(memory, dict):
+            value["memory"] = checked_section(memory, MemorySettings, "memory")
         agent_cfg = value.get("agent")
-        if isinstance(agent_cfg, dict) and agent_cfg.get("webhook_token") == "__KEEP__":
-            agent_cfg["webhook_token"] = (current.get("agent") or {}).get("webhook_token", "")
+        if isinstance(agent_cfg, dict):
+            if agent_cfg.get("webhook_token") == "__KEEP__":
+                agent_cfg["webhook_token"] = (current.get("agent") or {}).get("webhook_token", "")
+            value["agent"] = checked_section(agent_cfg, AgentSettings, "agent")
         # Самообновление: форма без ключа — восстановить из current; присланное — по форме.
         if "self_update" not in value:
             value["self_update"] = copy.deepcopy(current.get("self_update") or DEFAULT["self_update"])
         else:
             su = value["self_update"]
-            if not isinstance(su, dict):
-                raise ValueError("self_update: нужен объект")
-            if not isinstance(su.setdefault("enabled", True), bool):
-                raise ValueError("self_update.enabled: нужен булев")
-            repo = su.setdefault("repo", DEFAULT["self_update"]["repo"])
-            if not (isinstance(repo, str) and len(repo.split("/")) == 2 and all(repo.split("/"))):
-                raise ValueError("self_update.repo: нужен owner/name")
-            if su.setdefault("channel", "stable") not in ("stable", "beta"):
-                raise ValueError("self_update.channel: stable | beta")
-            su["interval_hours"] = max(1, int(su.get("interval_hours") or 12))
-            if not isinstance(su.setdefault("token", ""), str):
-                raise ValueError("self_update.token: нужна строка или env:ИМЯ")
             if su.get("token") == "__KEEP__":
                 su["token"] = (current.get("self_update") or {}).get("token", "")
-            if not isinstance(su.setdefault("skipped", ""), str):
-                raise ValueError("self_update.skipped: нужна строка")
-            if su.setdefault("restart", "self") not in ("self", "manager"):
-                raise ValueError("self_update.restart: self | manager")
+            value["self_update"] = checked_section(su, SelfUpdateSettings, "self_update")
         # Медиа: список радио «имя → URL»; присланной формы нет — из current.
         # Поставщики данных: выбранный id по видам (проверку реестра делает
         # providers.selected — выключенное расширение просто не выбирается);
@@ -380,74 +226,31 @@ class SettingsService:
         if "providers" not in value:
             value["providers"] = copy.deepcopy(current.get("providers") or DEFAULT["providers"])
         else:
-            providers_state = value["providers"]
-            if not isinstance(providers_state, dict):
-                raise ValueError("providers: нужен объект")
-            value["providers"] = {str(k): str(v or "").strip()
-                                  for k, v in providers_state.items()}
+            value["providers"] = checked_section(value["providers"], ProvidersSettings, "providers")
         # OAuth/Passport: режим двух хостов; присланной формы нет — из current.
         if "oauth" not in value:
             value["oauth"] = copy.deepcopy(current.get("oauth") or DEFAULT["oauth"])
         else:
-            oauth = value["oauth"]
-            if not isinstance(oauth, dict):
-                raise ValueError("oauth: нужен объект")
-            if oauth.setdefault("mode", "auto") not in ("auto", "emulate", "upstream"):
-                raise ValueError("oauth.mode: auto | emulate | upstream")
+            value["oauth"] = checked_section(value["oauth"], OAuthSettings, "oauth")
         # Ручной порядок справочника фраз: формы UI пока нет — из current (появится
         # с редактором порядка); присланное — проверяем по форме.
         if "phrase_order" not in value:
             value["phrase_order"] = copy.deepcopy(current.get("phrase_order") or DEFAULT["phrase_order"])
         else:
-            phrase_order = value["phrase_order"]
-            if not isinstance(phrase_order, dict) or set(phrase_order) - {"kinds", "plugins"}:
-                raise ValueError("phrase_order: объект kinds/plugins")
-            if not isinstance(phrase_order.get("kinds"), list) \
-                    or not all(isinstance(k, str) and k for k in phrase_order["kinds"]):
-                raise ValueError("phrase_order.kinds: список названий видов")
-            plugins = phrase_order.setdefault("plugins", {})
-            if not isinstance(plugins, dict) or not all(
-                    isinstance(k, str) and isinstance(v, list)
-                    and all(isinstance(p, str) and p for p in v)
-                    for k, v in plugins.items()):
-                raise ValueError("phrase_order.plugins: вид → список id расширений")
+            value["phrase_order"] = checked_section(value["phrase_order"], PhraseOrderSettings, "phrase_order")
         # Опрос состояния колонки: UI хранит только min_interval_s (карточка «Состояние
         # (опрос)»); присланной формы нет — из current.
         if "fetch_state" not in value:
             value["fetch_state"] = copy.deepcopy(current.get("fetch_state") or DEFAULT["fetch_state"])
         else:
-            fetch_state = value["fetch_state"]
-            if not isinstance(fetch_state, dict):
-                raise ValueError("fetch_state: нужен объект")
-            try:
-                interval = fetch_state.get("min_interval_s")
-                fetch_state["min_interval_s"] = max(
-                    0.0, float(DEFAULT["fetch_state"]["min_interval_s"] if interval is None else interval))
-            except (TypeError, ValueError):
-                raise ValueError("fetch_state.min_interval_s: число секунд (0 — без лимита)") from None
+            value["fetch_state"] = checked_section(value["fetch_state"], FetchStateSettings, "fetch_state")
         # Расширения: устаревшая форма UI присылает настройки без ключа —
         # восстанавливаем из current (состояние расширений UI не редактирует);
         # присланное — проверяем по форме.
         if "extensions" not in value:
             value["extensions"] = copy.deepcopy(current.get("extensions") or DEFAULT["extensions"])
         else:
-            extensions = value["extensions"]
-            if not isinstance(extensions, dict):
-                raise ValueError("extensions: нужен объект")
-            sources = extensions.setdefault("sources", [])
-            if not isinstance(sources, list) or not all(isinstance(s, str) and s.strip() for s in sources):
-                raise ValueError("extensions.sources: нужен список URL/папок")
-            for key in ("enabled", "installed", "settings"):
-                bucket = extensions.setdefault(key, {})
-                if not isinstance(bucket, dict):
-                    raise ValueError(f"extensions.{key}: нужен объект")
-            if not all(isinstance(item, dict) for item in extensions["installed"].values()):
-                raise ValueError("extensions.installed: запись на расширение — объект")
-        old_servers = {s["id"]: s for s in current["mcp_servers"]}
-        for server in value["mcp_servers"]:
-            validate_url(server.get("url", ""))
-            if server.get("api_key") == "__KEEP__":
-                server["api_key"] = old_servers.get(server["id"], {}).get("api_key", "")
+            value["extensions"] = checked_section(value["extensions"], ExtensionsSettings, "extensions")
         # Сценарии: файлы state/scenarios — источник правды. Устаревшая форма UI
         # (открыта до добавления сценариев) присылает старый список — сервер
         # восстанавливает сценарии, чьи файлы на диске есть, а в присланном

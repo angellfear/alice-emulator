@@ -62,15 +62,13 @@ def test_resolve_chain_device_user_server_default(store):
     assert store.resolve("user.city") == "Пермь"  # default_value
 
 
-def test_seed_idempotent_with_legacy(tmp_path):
+def test_seed_idempotent(tmp_path):
     runtime = Runtime(directory=tmp_path)
-    runtime.identities.mutate({"operation": "user", "id": "u1", "name": "U",
-                               "location": {"latitude": 55.7, "longitude": 37.6},
-                               "fields": {"wifi_hash": "abc"}})
-    runtime.quasar_params.seed(runtime.identities.data)   # повторный сид — ничего не ломает
-    runtime.quasar_params.seed(runtime.identities.data)
+    runtime.identities.mutate({"operation": "user", "id": "u1", "name": "U"})
+    runtime.quasar_params.seed()   # повторный сид — ничего не ломает
+    runtime.quasar_params.seed()
+    runtime.quasar_params.set_value("user:u1", "user.wifi_hash", "abc")
     assert runtime.quasar_params.raw_value("user:u1", "user.wifi_hash") == "abc"
-    assert runtime.quasar_params.raw_value("user:u1", "user.location.latitude") == 55.7
     # $param читает стор: шаблонная сборка получает значение параметра
     from server_emulator.quasar_rules import compose_config
     device = {"sn": "SN1", "device_ids": ["SN1"], "name": "N", "user_id": "u1",

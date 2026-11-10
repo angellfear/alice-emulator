@@ -86,14 +86,10 @@ def transport(server):
 
 
 def load_config(runtime):
-    """mcp.json с диска; нет файла — создаётся (перенос settings.mcp_servers или заготовка)."""
+    """mcp.json с диска; нет файла — создаётся с заготовкой."""
     path = config_path(runtime)
     if not path.exists():
-        legacy = {s["id"]: {"type": "http", "url": s["url"],
-                            **({"headers": {"Authorization": "Bearer " + s["api_key"]}} if s.get("api_key") else {}),
-                            **({"disabled": True} if s.get("enabled") is False else {})}
-                  for s in runtime.settings.get("mcp_servers", []) if s.get("id") and s.get("url")}
-        save_config(runtime, {"mcpServers": legacy} if legacy else DEFAULT_CONFIG)
+        save_config(runtime, DEFAULT_CONFIG)
     return validate_config(json.loads(path.read_text(encoding="utf-8")))
 
 

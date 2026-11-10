@@ -40,12 +40,12 @@ def test_catalog_roundtrip_toggle_remove(tmp_path):
 
 
 def test_catalog_skips_broken_files(tmp_path):
-    directory = tmp_path / "endpoints"
-    directory.mkdir()
+    directory = tmp_path / "endpoints" / "quasar"
+    directory.mkdir(parents=True)
     (directory / "good.json").write_text(json.dumps(endpoint()), encoding="utf-8")
     (directory / "bad.json").write_text("{not json", encoding="utf-8")
     (directory / "invalid.json").write_text(json.dumps({"id": "x", "host": "t.host"}), encoding="utf-8")
-    catalog = EndpointCatalog(directory)
+    catalog = EndpointCatalog(tmp_path / "endpoints")
     assert [e["id"] for e in catalog.endpoints] == ["t.get"]
 
 
@@ -205,15 +205,6 @@ async def test_endpoint_template_served_dynamically(tmp_path):
     finally:
         await runner.cleanup()
         await runtime.close()
-
-
-def test_flat_file_migrates_to_category(tmp_path):
-    (tmp_path / "x.json").write_text(
-        json.dumps(endpoint(id="x", host="quasar.yandex.net")), encoding="utf-8")
-    catalog = EndpointCatalog(tmp_path)
-    assert (tmp_path / "quasar" / "x.json").exists()
-    assert not (tmp_path / "x.json").exists()
-    assert catalog.endpoints[0]["category"] == "quasar"
 
 
 def test_upsert_changes_url_and_category(tmp_path):

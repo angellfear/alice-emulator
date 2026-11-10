@@ -196,13 +196,9 @@ async def test_catalog_api_mode_and_sections(tmp_path):
         await runtime.close()
 
 
-def test_base_url_https_and_legacy_migration(tmp_path):
-    """Ссылки своих приложений — https (колонка не грузит открытый http): прежние
-    дефолты http://rpc.local и http://rpc.alice.yandex.net переводятся на BASE_URL,
-    свой адрес владельца не трогается."""
-    for legacy in ("http://rpc.local", "http://rpc.alice.yandex.net", "http://rpc.alice.yandex.net/"):
-        write_catalog(tmp_path, {"mode": "own", "public_base_url": legacy, "apps": []})
-        assert Catalog(tmp_path).value["public_base_url"] == BASE_URL == "https://rpc.alice.yandex.net"
+def test_base_url_defaults_to_https(tmp_path):
+    """Ссылки своих приложений — https (колонка не грузит открытый http):
+    без public_base_url подставляется BASE_URL, свой адрес владельца не трогается."""
     write_catalog(tmp_path, {"mode": "own", "apps": []})
     assert Catalog(tmp_path).value["public_base_url"] == BASE_URL
     write_catalog(tmp_path, {"mode": "own", "public_base_url": "https://apps.example.test", "apps": []})

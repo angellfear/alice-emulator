@@ -316,32 +316,6 @@ class ExtensionManager:
             if entry.get("version") != EMULATOR_VERSION:  # версия встроенного = версия эмулятора
                 entry["version"] = EMULATOR_VERSION
             state["enabled"].setdefault(ext_id, True)
-            self._adopt_builtin_settings(ext_id)
-
-    def _adopt_builtin_settings(self, ext_id):
-        """Перенос настроек внешней копии во встроенный плагин (общее правило, не код
-        под одно расширение): у встроенного builtin.<имя> сохранённых значений нет, а
-        у установленного внешнего <имя> они есть — встроенный получает однократную
-        копию значений внешнего по ключам своих settings.fields; дальше значения
-        живут раздельно (правилка встроенного не трогает внешнюю копию и наоборот).
-        Секреты переносятся как есть: ExtensionContext встроенного видит тот же
-        токен, в API он остаётся маской KEEP (public_values)."""
-        state = self._state()
-        if state["settings"].get(ext_id):
-            return  # у встроенного уже есть сохранённые значения — перенос не нужен
-        external = str(ext_id).removeprefix(BUILTIN_PREFIX)
-        source = state["settings"].get(external) or {}
-        if not source or external not in state["installed"]:
-            return  # внешней копии нет в installed или она не настроена
-        try:
-            manifest = self._load_manifest(ext_id)
-        except Exception:  # noqa: BLE001 — битый манифест: ошибку покажет карточка
-            return
-        keys = {f["key"] for f in (manifest.get("settings") or {}).get("fields") or []
-                if isinstance(f, dict) and isinstance(f.get("key"), str)}
-        values = {k: v for k, v in source.items() if k in keys}
-        if values:
-            state["settings"][ext_id] = values
 
     def _builtin_entry(self, ext_id):
         return (self._state()["installed"].get(ext_id) or {}).get("builtin")

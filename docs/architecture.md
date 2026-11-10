@@ -185,6 +185,7 @@ agent: ответ готов → TTS заранее → async_reply.keep()
 | Версия, релизы, обновление | [self-update](contracts/self-update.md) |
 | Каталог приложений | [catalog](contracts/catalog.md) |
 | Кабинет пользователя | [cabinet](contracts/cabinet.md) |
+| Настройки эмулятора | [settings](contracts/settings.md) |
 
 ## Зависимости
 
@@ -201,6 +202,8 @@ agent: ответ готов → TTS заранее → async_reply.keep()
 | mcp | MCP SDK (stdio + streamable HTTP) |
 | apscheduler | Задания по расписанию |
 | hassil | Шаблоны фраз сценариев |
+| jinja2 | Песочница шаблонов сценариев |
+| pydantic | Типизированные модели настроек |
 | aiodns | DNS прохода наверх и туннеля |
 | dulwich, packaging | Версия и самообновление без git CLI (чистый Python, без нативных бинарников под платформы) |
 | ddgs, trafilatura, httpx | web_search / web_fetch |
@@ -215,9 +218,7 @@ UI — vanilla JS (`server_emulator/ui/`), без сборки.
 | Критический | **God-object Runtime**: десятки компонентов в конструкторе, WS-сессии, переключение режимов; `runtime.*` читают 79 модулей | `runtime.py` | Явные зависимости и `typing.Protocol` между подсистемами, Runtime — только сборка |
 | Критический | **Монолит voice.py**: ASR, сборка ответа, TTS-поток, Push в одном файле | `voice.py` | Разделение по этапам; страховка — `tests/test_voice_e2e.py` |
 | Высокий | **Синхронный SQLite в event loop**, нарушение инварианта 1 | `state_store.py`, журналы, `agent/ops.py`, `agent/routines.py`, `updates.py` | `aiosqlite` |
-| Высокий | **Настройки — нетипизированный dict** с ручной валидацией | `settings_service.py` | Модели pydantic |
 | Высокий | **Миграции баз разбросаны** по конструкторам (`ALTER`, `PRAGMA user_version`) | все базы | Alembic |
-| Средний | **Свой шаблонизатор** `{{путь\|фильтр}}` | `scenario_engine/bindings.py` | Jinja2 `ImmutableSandboxedEnvironment` |
 | Средний | **LLM-адаптеры на голом aiohttp** и своя модель LangChain | `voice_stack/adapters/`, `agent/model.py` | SDK или LiteLLM |
 | Средний | Интеграционные тесты есть только у голосового потока | `tests/` | Сквозные тесты маршрутов и расширений |
 | Низкий | Фоновые циклы на `asyncio.sleep`, хотя APScheduler уже есть | `updates.py`, `self_update/`, `server_log.py` | Единый планировщик |

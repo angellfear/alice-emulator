@@ -75,7 +75,6 @@ def catalog_view(data):
 # колонке не грузит открытый http — нет иконки, «Что-то пошло не так» при установке.
 # Эмулятор отдаёт /__catalog/ и на фронте TLS (443).
 BASE_URL = 'https://rpc.alice.yandex.net'
-LEGACY_BASE_URLS = ('http://rpc.local', 'http://rpc.alice.yandex.net')  # прежние дефолты catalog.json
 MODES = ('direct', 'merged', 'own')
 
 
@@ -106,7 +105,6 @@ class Catalog:
     @staticmethod
     def _migrate(value):
         """catalog.json: выключатель `enabled` → режим `mode` (true → merged, false → direct);
-        прежние дефолты базового адреса (`http://rpc.local`, `http://rpc.alice.yandex.net`)
         → BASE_URL; разделы и режим присутствуют всегда."""
         if 'enabled' in value:
             value['mode']='merged' if value.pop('enabled') else 'direct'
@@ -114,8 +112,6 @@ class Catalog:
         value['sections']=[s for s in value.get('sections') or [] if isinstance(s,dict) and s.get('id')]
         value.setdefault('public_base_url',BASE_URL)
         value.setdefault('apps',[])
-        if str(value.get('public_base_url') or '').rstrip('/') in LEGACY_BASE_URLS:
-            value['public_base_url']=BASE_URL
         return value
 
     # --- слой расширений ----------------------------------------------------

@@ -35,13 +35,6 @@ def test_mcp_json_created_with_ha_template_and_validated(tmp_path):
         mcp_hub.save_config(runtime, {'mcpServers': {'alice': {'url': 'http://a'}}})
 
 
-def test_legacy_mcp_servers_migrate_to_mcp_json(tmp_path):
-    runtime = Runtime(tmp_path)
-    runtime.settings['mcp_servers'] = [{'id': 'dev', 'url': 'http://h/mcp', 'api_key': 'k'}]
-    server = mcp_hub.load_config(runtime)['mcpServers']['dev']
-    assert server == {'type': 'http', 'url': 'http://h/mcp', 'headers': {'Authorization': 'Bearer k'}}
-
-
 def home(tmp_path):
     runtime = Runtime(tmp_path)
     runtime.identities.mutate({'operation': 'user', 'id': 'u', 'name': 'Аня'})

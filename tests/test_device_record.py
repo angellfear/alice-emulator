@@ -13,7 +13,6 @@ from aiohttp import ClientSession, WSMsgType, web
 from server_emulator.runtime import Runtime
 from server_emulator.schema import load_type
 from server_emulator.server import create_app
-from server_emulator.state_store import StateStore
 from server_emulator.upstream.journal import TrafficJournal
 from tests.conftest import listen
 from tests.test_device_route_modes import alias_upstream, registry, start_upstream
@@ -85,44 +84,6 @@ def set_record(runtime, sn, mode):
 
 
 # --- маршрут и миграция -----------------------------------------------------------------
-
-async def test_migration_record_route_to_proxy_plus_record(tmp_path):
-    """record → proxy + record «Включено» (устройство и default, без своего маршрута)."""
-    runtime = Runtime(tmp_path)
-    runtime.identities.mutate({"operation": "user", "id": "u", "name": "U"})
-    for sn, alias in (("SN-A", "a-id"), ("SN-B", "b-id"), ("SN-C", "c-id")):
-        runtime.identities.mutate({"operation": "device", "sn": sn, "user_id": "u", "device_ids": [alias]})
-    runtime.identities.mutate({"operation": "route_mode", "sn": "SN-C", "mode": "emulate"})
-    await runtime.close()
-
-    store = StateStore(tmp_path / "emulator.sqlite3")
-    data = store.load_identity_data()
-    next(d for d in data["devices"] if d["sn"] == "SN-A")["route_mode"] = "record"  # прежний маршрут «Запись»
-    store.save_identity_data(data)
-    settings = dict(store.load_settings())
-    settings["default_route_mode"] = "record"
-    store.save_settings(settings)
-    store.db.execute("DELETE FROM meta WHERE key='record_migration'")  # состояние
-    store.db.commit()
-    store.close()
-
-    migrated = Runtime(tmp_path)
-    try:
-        assert "default_route_mode" not in migrated.settings  # прежний default перенесён на устройства
-        a, b, c = (migrated.identities.resolve(i) for i in ("a-id", "b-id", "c-id"))
-        assert (a["route_mode"], a["record"]) == ("proxy", "on")
-        assert (b["route_mode"], b["record"]) == ("proxy", "on")  # без своего маршрута: default record → proxy + запись
-        assert (c["route_mode"], c["record"]) == ("emulate", "off")  # свой маршрут — запись не включается
-    finally:
-        await migrated.close()
-    again = Runtime(tmp_path)  # однократно: повторная загрузка ничего не меняет
-    try:
-        assert "default_route_mode" not in again.settings
-        assert again.identities.resolve("b-id")["record"] == "on"
-        assert again.identities.resolve("c-id")["record"] == "off"
-    finally:
-        await again.close()
-
 
 async def test_record_is_not_a_route_mode(tmp_path):
     runtime = Runtime(tmp_path)

@@ -258,23 +258,3 @@ async def test_manual_check_and_button_do_not_need_enabled(monkeypatch, service)
         await runner.cleanup()
 
 
-@pytest.mark.parametrize("stored, expected", [("angellfear/alica_emule", "angellfear/alice-emulator"),
-                                              ("someone/fork", "someone/fork")])
-async def test_renamed_repo_migrates_in_settings(tmp_path, stored, expected):
-    """Репозиторий переименован: прежний адрес самообновления в сохранённых настройках переводится
-    на новый, свой адрес (форк) остаётся."""
-    from server_emulator.runtime import Runtime
-    from server_emulator.state_store import StateStore
-    runtime = Runtime(tmp_path)
-    await runtime.close()
-    store = StateStore(tmp_path / "emulator.sqlite3")
-    settings = dict(store.load_settings())
-    settings["self_update"] = {**settings["self_update"], "repo": stored}
-    store.save_settings(settings)
-    store.close()
-    migrated = Runtime(tmp_path)
-    try:
-        assert migrated.settings["self_update"]["repo"] == expected
-    finally:
-        await migrated.close()
-    assert StateStore(tmp_path / "emulator.sqlite3").load_settings()["self_update"]["repo"] == expected

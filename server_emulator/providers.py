@@ -159,18 +159,3 @@ def for_ext(kind, ext_id):
         if record.get("ext_id") == str(ext_id or ""):
             return record
     return None
-
-
-def migrate(settings):
-    """Прежний выбор поставщика музыки — в общий реестр видов:
-    settings["music"]["provider"] → settings["providers"]["music"] (старый ключ
-    читается один раз и удаляется). True — настройки изменились, их нужно сохранить."""
-    legacy = settings.get("music")
-    if not isinstance(legacy, dict):
-        return False
-    value = str(legacy.get("provider") or "").strip()
-    providers_state = settings.setdefault("providers", {})
-    if value and not str(providers_state.get("music") or "").strip():
-        providers_state["music"] = value
-    settings.pop("music", None)  # ключ больше не используется
-    return True

@@ -102,21 +102,18 @@ async def test_model_speech_and_mcp_with_local_providers(tmp_path):
 
 
 async def test_settings_form_keeps_secrets_and_ignores_default_route_mode(tmp_path):
-    """Маршрута по умолчанию нет — форма настроек его не сохраняет, секреты __KEEP__ целы."""
+    """Форма настроек сохраняет правки, секреты __KEEP__ целы."""
     runtime = Runtime(tmp_path)
     runtime.settings['model']['api_key'] = 'keep-secret'
-    stale_form = runtime.public()
-    stale_form['default_route_mode'] = 'hybrid'
+    form = runtime.public()
     runner, url = await listen(create_app(runtime=runtime))
     try:
         async with ClientSession(headers={'X-Emulator': '1'}) as client:
-            stale_form['system_prompt'] = 'edited prompt'
-            async with client.put(url+'/emulator/api/settings', json=stale_form) as response:
+            form['system_prompt'] = 'edited prompt'
+            async with client.put(url+'/emulator/api/settings', json=form) as response:
                 assert response.status == 200
-                assert 'default_route_mode' not in await response.json()
             assert runtime.settings['model']['api_key'] == 'keep-secret'
             assert runtime.settings['system_prompt'] == 'edited prompt'
-            assert 'default_route_mode' not in Runtime(tmp_path).settings
     finally:
         await runner.cleanup()
 
