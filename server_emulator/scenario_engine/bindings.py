@@ -7,15 +7,21 @@ Binding — декларативное описание источника зн�
 (профиль владельца и запись устройства: гео для погоды, комната для света).
 
 template  — реплика целиком в JSON: {"source": "template",
-"value": "Таймер на {{slots.seconds|duration}}."} — раскрытие {{путь|фильтр}}
+"value": "Таймер на {{slots.seconds|duration}}."} — раскрытие {{путь|фильтр(аргументы)}}
 по контексту; фильтры — закрытый реестр FILTERS (форматирование русских
 числительных), сами тексты фраз живут в JSON-сценарии.
 """
 from __future__ import annotations
 
 import datetime
+import functools
 import re
 import uuid
+
+from jinja2 import StrictUndefined, Undefined, nodes, pass_context
+from jinja2.exceptions import (SecurityError, TemplateAssertionError,
+                               TemplateSyntaxError, UndefinedError)
+from jinja2.sandbox import ImmutableSandboxedEnvironment
 
 SOURCES = {"constant", "input", "generated", "slot", "clock", "computed", "state",
            "user", "device", "animation", "template", "path"}
@@ -70,7 +76,7 @@ def _format_duration(seconds):
 # --- фильтры шаблонов : закрытый реестр форматирования --------------------
 
 def _filter_plural(value, args, ctx):
-    """{{slots.count|plural:минуту,минуты,минут}} → «5 минут» (формы: 1, 2-4, 5-0)."""
+    """{{slots.count|plural("минуту","минуты","минут")}} → «5 минут» (формы: 1, 2-4, 5-0)."""
     forms = [form.strip() for form in (args or "").split(",")]
     if len(forms) != 3:
         raise BindingError("plural: три формы через запятую (для 1, для 2-4, для 5-0)")
@@ -106,15 +112,15 @@ def _filter_signed(value, args, ctx):
 
 
 def _filter_round(value, args, ctx):
-    """{{slots.t|round}} → целое; {{slots.t|round:1}} → один знак."""
+    """{{slots.t|round}} → целое; {{slots.t|round(1)}} → один знак."""
     digits = int(args) if args else 0
     number = round(float(value), digits)
     return str(int(number)) if digits == 0 else str(number)
 
 
 def _filter_lookup(value, args, ctx):
-    """{{slots.code|lookup:icons}} → tables.icons[value] (таблица — данные сценария).
-    {{h.code|lookup:icons:h.is_day}} — двухуровневая таблица: сначала ключ по
+    """{{slots.code|lookup("icons")}} → tables.icons[value] (таблица — данные сценария).
+    {{h.code|lookup("icons", "h.is_day")}} — двухуровневая таблица: сначала ключ по
     пути h.is_day, затем value ("*" — значение по умолчанию на любом уровне)."""
     name, _, sub = (args or "").strip().partition(":")
     table = (ctx.get("tables") or {}).get(name.strip())
@@ -148,12 +154,12 @@ def _filter_hour_label(value, args, ctx):
 
 
 def _filter_div(value, args, ctx):
-    """{{slots.level|div:10}} → целая часть value / N (шкалы: 50 % → 5 из 10)."""
+    """{{slots.level|div(10)}} → целая часть value / N (шкалы: 50 % → 5 из 10)."""
     return str(int(float(value) // float(args or 1)))
 
 
 def _filter_mul(value, args, ctx):
-    """{{params.effective.weather.max_age_hours|mul:3600}} → часы в секунды."""
+    """{{params.effective.weather.max_age_hours|mul(3600)}} → часы в секунды."""
     result = float(value) * float(args or 1)
     return int(result) if result.is_integer() else result
 
@@ -177,30 +183,205 @@ FILTERS = {"plural": _filter_plural, "time_ru": _filter_time_ru,
            "default": _filter_default, "lower": _filter_lower, "json": _filter_json,
            "hour_label": _filter_hour_label, "div": _filter_div, "mul": _filter_mul}
 
-_TEMPLATE_TOKEN = re.compile(r"\{\{\s*([^{}|]+?)\s*(?:\|\s*([a-zA-Z_]+)\s*(?::\s*([^{}]*?)\s*)?)?\s*\}\}")
+# --- шаблоны : Jinja2-подмножество с закрытым реестром фильтров -------------
+# Разбор и раскрытие — ImmutableSandboxedEnvironment (доступа к атрибутам Python
+# у автора сценария нет), ошибки Undefined/Syntax/Security → BindingError.
+
+_ARG_JOINERS = {"plural": ",", "lookup": ":"}
 
 
-def _lookup(ctx, path):
-    """Точечный путь по контексту: словари по ключу, списки по индексу (a.0.b)."""
-    parts = path.strip().split(".")
-    if parts[0] not in ctx:
-        raise BindingError(f"template: неизвестный корень {parts[0]!r}")
-    node = ctx[parts[0]]
-    for part in parts[1:]:
-        if isinstance(node, dict) and part in node:
-            node = node[part]
-        elif isinstance(node, (list, tuple)) and part.lstrip("-").isdigit() and -len(node) <= int(part) < len(node):
-            node = node[int(part)]
+class _PathEnvironment(ImmutableSandboxedEnvironment):
+    """Точка в пути — только ключ словаря: getattr словаря берёт значение по
+    ключу, а не атрибут Python (items/keys/values/get — ключи контекста, не
+    методы dict); у прочих объектов атрибут не читается — undefined, раскрытие
+    даёт BindingError."""
+
+    def getattr(self, obj, attribute):
+        if isinstance(obj, dict) and attribute in obj:
+            return obj[attribute]
+        return self.undefined(obj=obj, name=attribute)
+
+
+_ENV = _PathEnvironment(undefined=StrictUndefined)
+
+
+def _registry_filter(name, fn, joiner):
+    """Обёртка фильтра реестра: аргументы вызова |имя("a","b") собираются в
+    строку-аргумент fn(value, args, ctx) — реестр остаётся закрытым."""
+    @pass_context
+    def run(ctx, value, *args, **kwargs):
+        if kwargs:
+            raise BindingError(_NO_FILTER_KWARGS)  # вторая линия защиты у статической
+        if not joiner and len(args) > 1:
+            raise BindingError("фильтр принимает один аргумент")
+        if joiner and args:
+            raw = joiner.join(args)
+        elif args:
+            raw = args[0]
         else:
-            raise BindingError(f"template: {path} отсутствует в контексте")
-    return node
+            raw = ""
+        return fn(value, raw, ctx)
+    run.__name__ = name
+    return run
 
+
+for _name, _fn in FILTERS.items():
+    _ENV.filters[_name] = _registry_filter(_name, _fn, _ARG_JOINERS.get(_name))
+
+_ONLY_SUBSTITUTIONS = "в шаблоне допускаются только подстановки {{ }}"
+_NO_FILTER_KWARGS = "именованные аргументы фильтра не входят в подмножество шаблонов"
+_NO_FILTER_CHAINS = "цепочки фильтров не поддерживаются — один фильтр на подстановку"
+_NOT_A_PATH = ("в подстановке — путь контекста и не больше одного фильтра реестра "
+               "с позиционными литеральными аргументами")
+
+
+def _path_text(root, parts):
+    return root + "".join(f".{part}" for part in parts)
+
+
+@functools.lru_cache(maxsize=4096)
+def _parsed(source):
+    """Кеш по строке исходника: запрет операторов/комментариев, дерево разбора,
+    выражение целиком-шаблона и цепочки путей — всё статическое, один раз на
+    вариант шаблона. Ошибки не кешируются (lru_cache хранит только успешные)."""
+    if "{#" in source or "{%" in source:
+        raise BindingError(_ONLY_SUBSTITUTIONS)
+    tree = _ENV.parse(source)
+    _only_substitutions(tree)
+    return source, tree, _whole_inner(source), _static_chains(tree)
+
+
+def _whole_inner(fixed):
+    """Выражение целиком-шаблона (ровно один {{…}} без текста вокруг) или None.
+    Скобки внутри строковых литералов вызова фильтра не считаются скобками
+    ({{lst|default("}}")}} — целиком-шаблон, тип сохраняется)."""
+    stripped = fixed.strip()
+    if len(stripped) <= 4 or not (stripped.startswith("{{") and stripped.endswith("}}")):
+        return None
+    inner = stripped[2:-2]
+    quote = None
+    index = 0
+    while index < len(inner) - 1:
+        ch = inner[index]
+        if quote:
+            if ch == quote:
+                quote = None
+        elif ch in "\"'":
+            quote = ch
+        elif (ch == "{" and inner[index + 1] == "{") or (ch == "}" and inner[index + 1] == "}"):
+            return None
+        index += 1
+    return inner.strip()
+
+
+def _static_chains(tree):
+    """Строгий проход дерева подмножества: подстановка — путь контекста
+    (корень + части) и не больше одного фильтра реестра с позиционными
+    литеральными аргументами. Прочие узлы (арифметика, сравнения, CondExpr,
+    вызовы, вычисляемые индексы, литералы-значения) — BindingError.
+    Возвращает цепочки путей (корень, части) для проверки контекста."""
+    chains = []
+    stack = [tree]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, (nodes.Template, nodes.Output, nodes.TemplateData)):
+            stack.extend(node.iter_child_nodes())
+        elif isinstance(node, nodes.Filter):
+            if node.name not in FILTERS:
+                raise BindingError(f"template: неизвестный фильтр {node.name}")
+            if node.kwargs or node.dyn_args or node.dyn_kwargs:
+                raise BindingError(_NO_FILTER_KWARGS)
+            if isinstance(node.node, nodes.Filter):
+                raise BindingError(_NO_FILTER_CHAINS)
+            if any(not isinstance(arg, nodes.Const) for arg in node.args):
+                raise BindingError(_NOT_A_PATH)
+            stack.append(node.node)  # значение фильтра — путь; аргументы уже проверены
+        elif isinstance(node, (nodes.Getattr, nodes.Getitem)):
+            chains.append(_collect_chain(node))
+        elif isinstance(node, nodes.Name):
+            if node.ctx != "load":
+                raise BindingError(_NOT_A_PATH)
+            chains.append((node.name, ()))
+        else:
+            raise BindingError(_NOT_A_PATH)
+    return tuple(chains)
+
+
+def _collect_chain(node):
+    """Цепочка Getattr/Getitem → (корень, части). Вычисляемый индекс и литерал
+    с атрибутами ({{ ''.__class__ }}) — вне подмножества: песочница
+    compile_expression литералы пропускает (undefined_to_none), отвергаем
+    статически."""
+    parts, current = [], node
+    while isinstance(current, (nodes.Getattr, nodes.Getitem)):
+        if isinstance(current, nodes.Getattr):
+            parts.append(current.attr)
+        elif isinstance(current.arg, nodes.Const):
+            parts.append(current.arg.value)
+        elif isinstance(current.arg, nodes.Neg) and isinstance(current.arg.node, nodes.Const) \
+                and isinstance(current.arg.node.value, int):
+            parts.append(-current.arg.node.value)
+        else:
+            raise BindingError(_NOT_A_PATH)
+        current = current.node
+    if not isinstance(current, nodes.Name):
+        raise BindingError("template: доступ к атрибутам литерала запрещён")
+    parts.reverse()
+    return current.name, tuple(parts)
+
+
+def _check_chains(chains, ctx):
+    """Пути в контексте (chains из кеша): корень в ctx, dict по ключу,
+    список по индексу (в т. ч. отрицательном); текст ошибки — полный путь."""
+    for root, parts in chains:
+        if root not in ctx:
+            raise BindingError(f"template: неизвестный корень {root!r}")
+        value = ctx[root]
+        for part in parts:
+            if isinstance(value, dict) and part in value:
+                value = value[part]
+            elif isinstance(value, (list, tuple)) and isinstance(part, int) \
+                    and -len(value) <= part < len(value):
+                value = value[part]
+            else:
+                raise BindingError(f"template: {_path_text(root, parts)} отсутствует в контексте")
+
+
+@functools.lru_cache(maxsize=4096)
+def _whole_expression(inner):
+    """Скомпилированное выражение целиком-шаблона. undefined_to_none=False:
+    отсутствующее значение не подменяется None — попадает в проверку Undefined."""
+    return _ENV.compile_expression(inner, undefined_to_none=False)
+
+
+@functools.lru_cache(maxsize=4096)
+def _mixed_template(fixed):
+    """Скомпилированный шаблон смешанного текста."""
+    return _ENV.from_string(fixed)
+
+
+def check_template(source):
+    """Синтаксическая проверка шаблона (валидатор, без контекста запроса):
+    BindingError на ошибку разбора или узел вне подмножества."""
+    try:
+        _parsed(str(source or ""))
+    except TemplateSyntaxError as exc:
+        raise BindingError(f"template: {exc.message}") from None
+
+
+def _only_substitutions(tree):
+    """Операторы и комментарии Jinja2 запрещены (правка через дерево — проверка
+    «{#»/«{%» выше): в теле только Output и TemplateData."""
+    for node in tree.body:
+        if not isinstance(node, (nodes.Output, nodes.TemplateData)):
+            raise BindingError(_ONLY_SUBSTITUTIONS)
 
 
 def expand(value, ctx):
     """Раскрытие значения сценария: binding-словарь → evaluate; строка с {{…}} →
-    шаблон (строка целиком из одного токена без фильтра → типизированное значение);
-    словари/списки — рекурсивно; $json — сериализация поддерева в строку JSON."""
+    шаблон (строка целиком из одного токена — значение без приведения к строке,
+    compile_expression того же окружения); словари/списки — рекурсивно;
+    $json — сериализация поддерева в строку JSON."""
     if isinstance(value, dict):
         if "source" in value and value.get("source") in SOURCES:
             return evaluate(value, ctx)
@@ -233,26 +414,53 @@ def expand(value, ctx):
         return {key: expand(item, ctx) for key, item in value.items()}
     if isinstance(value, list):
         return [expand(item, ctx) for item in value]
-    if isinstance(value, str) and "{{" in value:
-        whole = _TEMPLATE_TOKEN.fullmatch(value.strip())
-        if whole and whole.group(2) is None:
-            return _lookup(ctx, whole.group(1))
+    if isinstance(value, str) and ("{{" in value or "{%" in value or "{#" in value):
         return _expand_template(value, ctx)
     return value
+
+
+def _lookup(ctx, path):
+    """Точечный путь по контексту: словари по ключу, списки по индексу (a.0.b)."""
+    parts = path.strip().split(".")
+    if parts[0] not in ctx:
+        raise BindingError(f"template: неизвестный корень {parts[0]!r}")
+    node = ctx[parts[0]]
+    for part in parts[1:]:
+        if isinstance(node, dict) and part in node:
+            node = node[part]
+        elif isinstance(node, (list, tuple)) and part.lstrip("-").isdigit() and -len(node) <= int(part) < len(node):
+            node = node[int(part)]
+        else:
+            raise BindingError(f"template: {path} отсутствует в контексте")
+    return node
 
 
 def _expand_template(value, ctx):
     if not isinstance(value, str):
         raise BindingError("template: value должен быть строкой")
-    def replace(match):
-        node = _lookup(ctx, match.group(1))
-        op = match.group(2)
-        if op is None:
-            return str(node)
-        if op not in FILTERS:
-            raise BindingError(f"template: неизвестный фильтр {op}")
-        return str(FILTERS[op](node, match.group(3), ctx))
-    return _TEMPLATE_TOKEN.sub(replace, value)
+    try:
+        source, _, whole, chains = _parsed(value)
+    except TemplateSyntaxError as exc:
+        raise BindingError(f"template: {exc.message}") from None
+    _check_chains(chains, ctx)
+    if whole is not None:
+        try:
+            result = _whole_expression(whole)(ctx)
+        except BindingError:
+            raise
+        except (TemplateSyntaxError, TemplateAssertionError, UndefinedError, SecurityError,
+                TypeError) as exc:
+            raise BindingError(f"template: {exc.message}") from None
+        if isinstance(result, Undefined):  # вторая линия защиты рядом со статической
+            raise BindingError("template: значение отсутствует в контексте")
+        return result
+    try:
+        return _mixed_template(source).render(ctx)
+    except BindingError:
+        raise
+    except (TemplateSyntaxError, TemplateAssertionError, UndefinedError, SecurityError,
+            TypeError) as exc:
+        raise BindingError(f"template: {exc.message}") from None
 
 
 # Закрытый реестр: расширение — только правкой кода с тестами, не данными пакета.

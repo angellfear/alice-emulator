@@ -409,7 +409,7 @@ def test_formatters_equal_template_filters():
     assert format_hhmm("07:30") == "7:30"
     for n in (1, 2, 5, 11, 21, 24):
         assert plural(n, ("минуту", "минуты", "минут")) == expand(
-            "{{x|plural:минуту,минуты,минут}}", {"x": n})
+            "{{x|plural('минуту','минуты','минут')}}", {"x": n})
         assert plural(n, "минуту,минуты,минут") == plural(n, ["минуту", "минуты", "минут"])
     assert plural(5, ("минуту", "минуты", "минут")) == "5 минут"
     now = datetime.datetime(2026, 10, 30, 12, 5)

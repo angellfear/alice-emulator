@@ -72,10 +72,10 @@ def test_template_dotted_path_into_nested_fields():
 
 def test_plural_filter_forms():
     ctx = {"slots": {"count": 5}}
-    assert template("{{slots.count|plural:минуту,минуты,минут}}", ctx) == "5 минут"
+    assert template("{{slots.count|plural('минуту','минуты','минут')}}", ctx) == "5 минут"
     for count, word in ((1, "минуту"), (2, "минуты"), (4, "минуты"), (11, "минут"),
                         (21, "минуту"), (100, "минут")):
-        assert template("{{slots.count|plural:минуту,минуты,минут}}",
+        assert template("{{slots.count|plural('минуту','минуты','минут')}}",
                         {"slots": {"count": count}}) == f"{count} {word}"
 
 
@@ -93,7 +93,7 @@ def test_template_errors():
     with pytest.raises(BindingError):
         template("{{slots.seconds|nope}}", {"slots": {"seconds": 1}})  # фильтр не реестровый
     with pytest.raises(BindingError):
-        template("{{slots.count|plural:одна,две}}", {"slots": {"count": 1}})  # не три формы
+        template("{{slots.count|plural('одна','две')}}", {"slots": {"count": 1}})  # не три формы
     with pytest.raises(BindingError):
         template("{{slots.time|hhmm}}", {"slots": {"time": "завтра"}})  # не Ч:ММ
     with pytest.raises(BindingError):

@@ -326,7 +326,7 @@ def ask(question, then, expect=None):
 #
 # Обёртки над закрытым реестром фильтров scenario_engine/bindings.py — логика не
 # копируется: {{x|duration}} ≡ format_duration(x), {{x|hhmm}} ≡ format_hhmm(x),
-# {{x|plural:a,b,c}} ≡ plural(x, (a, b, c)), {{clock|time_ru}} ≡ time_ru(clock).
+# {{x|plural("a","b","c")}} ≡ plural(x, (a, b, c)), {{clock|time_ru}} ≡ time_ru(clock).
 # Некорректное значение — ValueError (BindingError), как ошибка шаблона у JSON.
 
 

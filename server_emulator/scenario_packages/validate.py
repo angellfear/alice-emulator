@@ -201,7 +201,28 @@ def validate_scenario(scenario):
     publication = scenario.get("publication", {"enabled": False})
     if not isinstance(publication, dict) or not isinstance(publication.get("enabled", False), bool):
         raise PackageError("publication.enabled: bool")
+    _check_templates(scenario, "scenario")
     return scenario
+
+
+def _check_templates(node, path, top=True):
+    """Строки-шаблоны сценария: синтаксис через разбор движка (BindingError → PackageError).
+    Заголовок и описание верхнего уровня не раскрываются движком и не проверяются
+    (вложенные ключи с теми же именами — поля директив — раскрываются, проверяются)."""
+    from ..scenario_engine.bindings import BindingError, check_template
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if top and key in ("title", "description"):
+                continue
+            _check_templates(value, f"{path}.{key}", top=False)
+    elif isinstance(node, list):
+        for index, item in enumerate(node):
+            _check_templates(item, f"{path}[{index}]", top=False)
+    elif isinstance(node, str) and ("{{" in node or "{%" in node or "{#" in node):
+        try:
+            check_template(node)
+        except BindingError as exc:
+            raise PackageError(f"{path}: шаблон — {exc}") from None
 
 
 def _validate_reply(reply, path="reply"):

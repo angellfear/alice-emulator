@@ -211,7 +211,7 @@ Minor: только добавления, форма построенных dict
 |---|---|---|
 | `format_duration(seconds)` | `{{x\|duration}}` | `5400` → «1 час 30 минут» |
 | `format_hhmm(value)` | `{{x\|hhmm}}` | `"07:30"` → «7:30» |
-| `plural(n, forms)` | `{{x\|plural:a,b,c}}` | `plural(5, ("минуту", "минуты", "минут"))` → «5 минут» (формы: 1, 2-4, 5-0) |
+| `plural(n, forms)` | `{{x\|plural("a","b","c")}}` | `plural(5, ("минуту", "минуты", "минут"))` → «5 минут» (формы: 1, 2-4, 5-0) |
 | `time_ru(value)` | `{{clock\|time_ru}}` | `time_ru(ctx.now)` → «12 часов 5 минут» |
 
 Некорректное значение (`format_duration(0)`, `format_hhmm("полвосьмого")`) — `ValueError`, как ошибка
