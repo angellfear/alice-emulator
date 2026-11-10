@@ -81,7 +81,7 @@
 | `music_thin_client_on_started` | x112: только `tts_play_placeholder` | `callbacks.ack` |
 | `music_thin_client_on_stopped` | x134: только `tts_play_placeholder` | `callbacks.ack` |
 | `@@mm_stack_engine_get_next` | x92: очередь Яндекса (см. ниже), x4: только placeholder | `music.stack_next` → сценарий `media.music`: поставщик есть — следующий трек; нет — сценарий отказывается, умолчание маршрута (тихий ack) |
-| кнопки экрана плеера (`@@mm_typed_callback`, `purpose=player_*`) | — | `callbacks.ack` |
+| кнопки экрана плеера (`@@mm_semantic_frame`, `PayloadRaw` = `NAlice.NAliceApi.TSemanticFrameRequestData`: `PlayerContinueSemanticFrame`, `PlayerNextTrackSemanticFrame`, `PlayerPrevTrackSemanticFrame`) | образца нет | `music.touch` — как кнопки виджета |
 | кнопки виджета музыки (`@@mm_typed_callback`, `NAlice.TMusicTouchTypedCallback`: `Continue`, `NextTrack`, `PrevTrack`) | образца нет | `music.touch` → сценарий `media.music`: ответы фраз «продолжи», «дальше», «предыдущий» без речи; нечего играть — тихий ack |
 
 - `music_thin_client_on_paused` / `on_resumed` / `on_progress` в журнале **не встречались**
@@ -114,6 +114,10 @@
   `request_params.disable_output_speech`. Поле запроса `music_command` (`continue`/`next`/`prev`)
   разбирается по схеме станции из `Command` (oneof `Value`); прочие команды (`Like`, `Repeat`,
   `Shuffle`…) идут в общий тихий ack. Лайк и пауза колонка выполняет сама.
+  Кнопки «плей», «далее», «назад» на экране плеера приходят иначе: `@@mm_semantic_frame`
+  без `Payload`, кадр — в `PayloadRaw` (`TSemanticFrameRequestData.TypedSemanticFrame`,
+  `Analytics.Purpose` = `player_continue`/`player_next_track`/`player_prev_track`).
+  Тот же `music_command` и тот же маршрут `music.touch`.
   Только при треке в плеере колонки (`ctx.player.title`); плеер пуст — сценарий
   отказывается, фраза уходит дальше (в играх «дальше» — ход модели).
 - В «Вместе» колбэки контента Яндекса уходят наверх до маршрута

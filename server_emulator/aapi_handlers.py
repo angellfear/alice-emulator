@@ -151,7 +151,8 @@ def _is_recover_commit(fields):
 
 def _is_music_touch(fields):
     """music_command=continue/next/prev (кнопки виджета музыки: TMusicTouchTypedCallback
-    Continue/NextTrack/PrevTrack)"""
+    Continue/NextTrack/PrevTrack; кнопки экрана плеера: PlayerContinue/NextTrack/PrevTrack
+    SemanticFrame)"""
     return bool(fields.get("music_command"))
 
 
@@ -182,6 +183,8 @@ callback_route('@@mm_semantic_frame', 'music.recover_commit', _is_recover_commit
 callback_route('', 'music.recover_commit', _is_recover_commit,
                'recoverCommit без имени события (server_action с music в Payload)',
                'event:[music=recoverCommit]')
+callback_route('@@mm_semantic_frame', 'music.touch', _is_music_touch, 'кнопки экрана плеера',
+               lambda fields: "event:@@mm_semantic_frame[music_command=%s]" % fields["music_command"])
 callback_route('@@mm_semantic_frame', 'callbacks.ack', None, 'семантический фрейм — тихое подтверждение',
                'event:@@mm_semantic_frame')
 # Колбэки штатного плеера колонки (TASK-087): своей очереди у эмулятора нет — на

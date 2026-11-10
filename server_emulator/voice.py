@@ -137,6 +137,26 @@ def _music_command(payload):
     return MUSIC_TOUCH_COMMANDS.get(touch.Command.WhichOneof('Value') or '', '')
 
 
+PLAYER_FRAME_REQUEST = 'NAlice.NAliceApi.TSemanticFrameRequestData'
+PLAYER_FRAME_COMMANDS = {'PlayerContinueSemanticFrame': 'continue',
+                         'PlayerNextTrackSemanticFrame': 'next',
+                         'PlayerPrevTrackSemanticFrame': 'prev'}
+
+
+def _player_frame_command(event_obj):
+    """Кнопки экрана плеера: @@mm_semantic_frame с PayloadRaw = TSemanticFrameRequestData
+    (PlayerContinue/NextTrack/PrevTrack) → continue/next/prev; иначе ''."""
+    raw = bytes(getattr(event_obj, 'PayloadRaw', b'') or b'')
+    if not raw:
+        return ''
+    try:
+        from server_emulator.schema import load_type, schemas_dir, station_file
+        request = load_type(schemas_dir(), station_file(), PLAYER_FRAME_REQUEST).FromString(raw)
+    except Exception:
+        return ''
+    return PLAYER_FRAME_COMMANDS.get(request.TypedSemanticFrame.WhichOneof('Type') or '', '')
+
+
 
 
 
@@ -198,7 +218,7 @@ def service_event_fields(request, event_obj):
             'frame_text': _string_member(frame_value.struct_value, 'text') if frame_value is not None and frame_value.WhichOneof('kind') == 'struct_value' else '',
             'music_type': _string_member(music_struct, 'type'),
             'music_token': _string_member(music_struct, 'recoverCommitToken'),
-            'music_command': _music_command(event_obj.Payload),
+            'music_command': _music_command(event_obj.Payload) or _player_frame_command(event_obj),
 
             'purpose': _string_member(analytics, 'purpose'),
 

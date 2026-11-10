@@ -978,6 +978,29 @@ def test_widget_play_parsed_as_continue():
     assert _music_command(payload) == ""
 
 
+PLAYER_FRAMES = {  # PayloadRaw кнопок экрана плеера (.202, 2026-11-10)
+    "next": b"\n\x0b\x82\x01\x08\n\x02\x08\x00\x12\x02\x08\x00\x12\x15\x10\x04\x1a\x11player_next_track",
+    "prev": b"\n\x0b\x8a\x01\x08\n\x02\x08\x00\x12\x02\x08\x00\x12\x15\x10\x04\x1a\x11player_prev_track",
+    "continue": b"\n\x07\xaa\x03\x04\x1a\x02\x08\x01\x12\x13\x10\x03\x1a\x0fplayer_continue",
+}
+
+
+def test_player_screen_frames_parsed_as_commands():
+    """Кнопки экрана плеера (@@mm_semantic_frame, PayloadRaw) — те же music_command,
+    что у виджета, и маршрут music.touch вместо тихого подтверждения."""
+    from types import SimpleNamespace
+    from server_emulator import aapi_handlers
+    from server_emulator.schema import schemas_ready
+    from server_emulator.voice import _player_frame_command
+    if not schemas_ready():
+        pytest.skip("нет схем протокола")
+    for command, raw in PLAYER_FRAMES.items():
+        assert _player_frame_command(SimpleNamespace(PayloadRaw=raw)) == command
+        assert aapi_handlers.route("@@mm_semantic_frame", {"music_command": command}) == "music.touch"
+    assert _player_frame_command(SimpleNamespace(PayloadRaw=b"")) == ""
+    assert aapi_handlers.route("@@mm_semantic_frame", {"music_command": ""}) == "callbacks.ack"
+
+
 def _touch_ctx(runtime, command, station=None):
     """Контекст колбэка кнопки виджета (как собирает voice.py с EVENT_FILTERS)."""
     ctx = service_ctx(runtime, "@@mm_typed_callback")
