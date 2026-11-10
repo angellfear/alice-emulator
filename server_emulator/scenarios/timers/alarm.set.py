@@ -1,7 +1,8 @@
 """Поставить будильник (TASK-079): директивы по образцам настоящего сервера.
 
 Время — слоты template-триггера ({time_word} или {hour}/{minute}/{day_period}), иначе
-разбор фразы; нет времени — уточнение (on_time). Дата: {date_word} («сегодня», «завтра»,
+разбор фразы; «через N минут» — текущее время колонки плюс длительность, с округлением
+вверх до минуты; нет времени — уточнение (on_time). Дата: {date_word} («сегодня», «завтра»,
 «послезавтра») или ближайшее будущее (время сегодня уже прошло — ставим на завтра).
 
 Образцы журнала 2026-10-22 05:47:24 и 2026-10-27 19:00:37: open_screen_alarm_list_directive
@@ -11,6 +12,7 @@
 будильник живёт у колонки, мы лишь отправляем директиву добавления.
 """
 import datetime
+import re
 
 from server_emulator import clock_directives
 from server_emulator.sdk import ask, format_hhmm, say
@@ -19,6 +21,7 @@ QUESTION = "На какое время поставить будильник?"
 
 LIST_PROTO = "NAlice.TClockAppCapability.TOpenScreenAlarmListDirective"
 ADD_PROTO = "NAlice.TAlarmCapability.TAlarmAddDirective"
+RELATIVE = re.compile(r"\bчерез\b")
 SNOOZE_MINUTES = 10  # SnoozeTime в обоих образцах alarm_add_directive
 
 
@@ -52,6 +55,8 @@ async def handle(ctx):
     target = ctx.find_device(fields=["name", "aliases"], contains_only=True)
     time_value = _slots_time(ctx.slots)
     if time_value is None:
+        time_value = _relative_time(ctx)
+    if time_value is None:
         time_value = ctx.parse_time(strip=(target or {}).get("aliases"))
     if time_value is None:
         ctx.state["target"] = _target_of(target)
@@ -59,8 +64,23 @@ async def handle(ctx):
     return await _start(ctx, target, time_value)
 
 
+def _relative_time(ctx, text=None):
+    """«через пять минут» → «ЧЧ:ММ» от текущего времени колонки (вверх до минуты, чтобы
+    будильник был в будущем); без «через» или без длительности — None."""
+    lowered = str(text if text is not None else ctx.text).lower()
+    if not RELATIVE.search(lowered):
+        return None
+    seconds = ctx.parse_duration(RELATIVE.split(lowered, 1)[1])
+    if not seconds:
+        return None
+    when = ctx.now + datetime.timedelta(seconds=seconds)
+    if when.second or when.microsecond:
+        when = when.replace(second=0, microsecond=0) + datetime.timedelta(minutes=1)
+    return f"{when.hour:02d}:{when.minute:02d}"
+
+
 async def on_time(ctx, answer):
-    time_value = ctx.parse_time(answer)
+    time_value = _relative_time(ctx, answer) or ctx.parse_time(answer)
     if time_value is None:
         raise ValueError("Не удалось понять время будильника")
     return await _start(ctx, ctx.state.get("target"), time_value)

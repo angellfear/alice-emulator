@@ -396,6 +396,25 @@ async def test_alarm_set_sends_sample_directives(tmp_path, monkeypatch):
     _check_sample("alarm-set.json", reply)
 
 
+async def test_alarm_set_relative_minutes(tmp_path, monkeypatch):
+    """«через 5 минут» — от текущего времени колонки, вверх до минуты; не 5:00."""
+    _freeze_clock(monkeypatch, datetime.datetime(2026, 11, 10, 6, 0, 30))
+    reply = await _ask(tmp_path, "поставь будильник через 5 минут")
+    alarm = _decoded(reply, "alarm_add_directive", ALARM_ADD)["Alarm"]
+    from zoneinfo import ZoneInfo  # колонка ставит по своему поясу, не по поясу машины
+    local = datetime.datetime(2026, 11, 10, 6, 0, 30).astimezone(ZoneInfo(alarm["Timezone"]["TimezoneName"]))
+    expected = local.replace(second=0) + datetime.timedelta(minutes=6)
+    assert alarm["LocalTime"] == {"Hours": expected.hour, "Minutes": expected.minute}
+    assert _speech(reply) == f"Будильник на {expected.hour}:{expected.minute:02d} поставил."
+
+
+async def test_alarm_not_set_by_garbled_cancel(tmp_path):
+    """Искажённое распознаванием «отмени будильник на 7 утра» будильник не ставит:
+    фраза без глагола установки совпадает только шаблоном целиком."""
+    reply = await _ask(tmp_path, "кудрали будильник на семь утра")
+    assert "alarm_add_directive" not in _names(reply)
+
+
 async def test_ring_alarm_stop_hvatit(tmp_path):
     raw = _state_raw(alarms=[{"alarm_id": ALARM_A, "hours": 7, "currently_playing": True}])
     reply = await _ask(tmp_path, "хватит", env_state=raw)
