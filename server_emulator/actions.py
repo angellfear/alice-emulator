@@ -25,8 +25,9 @@ CATALOG = [
 # Каналы доставки push-действий. Важные действия — квитируемый
 # SyncPush{ExecuteDirective} со статусом выполнения (started/completed/failed);
 # косметика — обычный Push без квитанции, push_tts — Push (реплику колонка
-# запрашивает сама TextInput'ом с тем же фреймом).
-EXECUTE_ACTIONS = {'push_update_config', 'player_pause', 'clear_queue'}
+# запрашивает сама TextInput'ом с тем же фреймом), push_update_config — Push по
+# образцу настоящего сервера (колонка сама запрашивает get_sync_info).
+EXECUTE_ACTIONS = {'player_pause', 'clear_queue'}
 
 
 def push_message(server_type, action, arguments):
@@ -63,6 +64,23 @@ def push_message(server_type, action, arguments):
                              {'PlayTimes': 1, 'SoundToPlay': sound}, 'centaur')
         return push_directive(server_type, '', items=[
             {'name': 'local_audio_file_play', 'payload_raw': payload_raw, 'is_led_silent': True}])
+    if action=='push_update_config':
+        # образец настоящего сервера: Push{Directives[client_action push_update_config]
+        # без payload и IsLedSilent, AnalyticsMetaInfo.RequestId}
+        if isinstance(arguments, dict) and arguments:
+            raise ValueError('Недопустимые параметры действия')
+        output=server_type()
+        output.Event.Header.MessageId=uuid.uuid4().hex
+        output.Event.Header.Ack=int(time.time()*1000)
+        push=output.Event.Push
+        push.DeduplicationPushId=uuid.uuid4().hex
+        push.PushIds.append(uuid.uuid4().hex)
+        directive=push.Directives.add()
+        directive.Type='client_action'
+        directive.Name=action
+        push.AnalyticsMetaInfo.RequestId=uuid.uuid4().hex
+        output.Timings.SendingTime.seconds=int(time.time())
+        return output
     if action=='draw_led_screen':
         frames = arguments.get('frames') if isinstance(arguments, dict) else None
         if not (isinstance(frames, list) and frames and all(isinstance(u, str) and u.startswith('http') for u in frames)):

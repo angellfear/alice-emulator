@@ -138,7 +138,7 @@ TextInput от станции в захватах — бардж-ин «стоп
 
 | Действие | Канал | Примечание |
 |---|---|---|
-| push_update_config | ExecuteDirective | конфигурация — со статусом |
+| push_update_config | Push | по образцу настоящего сервера: директива без payload и IsLedSilent, `AnalyticsMetaInfo.RequestId`; колонка сама запрашивает `get_sync_info` |
 | player_pause {—} | ExecuteDirective | директива `player_pause{smooth:false}` (образец media-pause) |
 | clear_queue {—} | ExecuteDirective | директива `clear_queue` |
 | sound_louder / sound_quiter / sound_set_level | Push | косметика |

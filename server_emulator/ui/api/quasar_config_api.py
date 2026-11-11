@@ -5,7 +5,8 @@ quasar_platforms — обзор раздела «Конфиг колонок»: 
 GET ?compose=<платформа> — итог без устройства (шаблон → общие → платформа) с происхождением;
 POST {action: create|rename, platform, to?} и DELETE ?platform= — файлы замен платформ.
 quasar_rules — замены слоя: GET ?layer=common|platform:<имя>|device:<SN> → {rules, inherited},
-PUT {layer, rules} — проверка и сохранение списка целиком. quasar_composed — итоговый
+PUT {layer, rules} — проверка и сохранение списка целиком; сохранение замен и источника
+шлёт push_update_config колонкам слоя с живой сессией (pushed — их SN). quasar_composed — итоговый
 конфиг устройства с происхождением значений. quasar_source — источник конфига устройства:
 generated | direct | custom, генерация образца и получение с оригинального сервера по
 запомненным в памяти заголовкам колонки. Guard и маппинг ошибок — ui/api/__init__.py.
@@ -47,6 +48,27 @@ def _sync_body(runtime, device):
     if group:
         result['group'] = group
     return result
+
+
+async def _push_config(runtime, sns):
+    """push_update_config колонкам с живой WS-сессией: колонка сама запросит
+    get_sync_info. Возвращает SN, которым push доставлен."""
+    pushed = []
+    for sn in sns:
+        item = await runtime.push_action(sn, 'push_update_config', {})
+        if item.get('delivery') == 'sent':
+            pushed.append(sn)
+    return pushed
+
+
+def _layer_devices(runtime, kind, name):
+    """SN устройств, чей конфиг меняет слой."""
+    devices = runtime.identities.data['devices']
+    if kind == 'device':
+        return [name]
+    if kind == 'platform':
+        return [d['sn'] for d in devices if device_platform(d) == name]
+    return [d['sn'] for d in devices]
 
 
 @route("quasar_platforms", methods=("GET", "POST", "DELETE"))
@@ -134,7 +156,8 @@ async def quasar_rules(request, runtime, app):
             runtime.identities.mutate({'operation': 'state', 'sn': name, 'state': state})
         else:
             store.save(name, rules)
-    return web.json_response({'saved': value.get('layer'), 'rules': rules})
+    pushed = await _push_config(runtime, _layer_devices(runtime, kind, name))
+    return web.json_response({'saved': value.get('layer'), 'rules': rules, 'pushed': pushed})
 
 
 @route("quasar_composed", methods=("GET",))
@@ -238,7 +261,7 @@ async def quasar_source(request, runtime, app):
                 else:
                     state.pop('quasar_direct_transparent', None)  # отсутствие поля — выключено
             runtime.identities.mutate({'operation': 'state', 'sn': sn, 'state': state})
-        return web.json_response({'saved': sn})
+        return web.json_response({'saved': sn, 'pushed': await _push_config(runtime, [sn])})
     action = value.get('action')
     if action == 'generate':
         return web.json_response(_sync_body(runtime, device))

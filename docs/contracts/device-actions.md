@@ -17,7 +17,7 @@ module: "server_emulator/runtime.py"
 | sound_quiter | — | 同上 (имя сохранено как есть — исторический контракт) | test_quasar_backend |
 | sound_set_level | level 0..10 | Payload(Struct): new_level, new_percent_level=level*10 | test_quasar_backend |
 | start_bluetooth / stop_bluetooth | — | 同上 | test_quasar_backend |
-| push_update_config | — | 同上 | test_quasar_backend |
+| push_update_config | — | Push.Directives[]: Name=действие, Type=client_action, без IsLedSilent; AnalyticsMetaInfo.RequestId (образец настоящего сервера) | test_push_actions |
 
 Каркас Push-сообщения: Header.MessageId (новый), Header.Ack (ms), Push.PushIds[]+DeduplicationPushId (новые UUID), Timings.SendingTime. Отправка возможна только в активную WS-сессию устройства с назначенным владельцем (runtime.py); чужой SN/чужая сессия → ошибка. Повтор Ack-подтверждённого MessageId не создаёт дубль действия.
 

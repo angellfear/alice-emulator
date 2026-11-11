@@ -235,9 +235,36 @@ async def test_push_action_delivery(tmp_path):
                 packet = await asyncio.wait_for(ws.receive(), 3)
                 assert packet.data.startswith(b"AAPI")
                 message = server_type.FromString(packet.data[4:])
-                # push_update_config — квитируемый ExecuteDirective : колонка
-                # фиктивного теста не отвечает квитанцией — API ждёт 5 с и вернёт unconfirmed
-                assert message.Event.SyncPush.SyncRequest.ExecuteDirective.Directive.Name == "push_update_config"
+                # push_update_config — обычный Push без квитанции (образец настоящего сервера)
+                assert message.Event.Push.Directives[0].Name == "push_update_config"
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
+async def test_saving_rules_pushes_update_config(tmp_path):
+    """Сохранение замен слоя — push_update_config колонкам слоя с живой сессией."""
+    runtime = Runtime(tmp_path)
+    registry(runtime)
+    _, server_type = types()
+    runner, url = await listen(create_app(runtime=runtime))
+    rules = [{"name": "x", "path": "/config/device_config/x", "kind": "select",
+              "value": "on", "options": {"on": 1}}]
+    try:
+        async with ClientSession() as client:
+            async with client.put(url + "/emulator/api/quasar_rules", headers={"X-Emulator": "1"},
+                                  json={"layer": "device:SN-Q", "rules": rules}) as r:
+                assert r.status == 200 and (await r.json())["pushed"] == []  # сессии нет
+            async with client.ws_connect(url + "/uni.ws",
+                                         headers={"x-uprx-device-id": "q-id"}) as ws:
+                for layer in ("device:SN-Q", "common"):
+                    async with client.put(url + "/emulator/api/quasar_rules",
+                                          headers={"X-Emulator": "1"},
+                                          json={"layer": layer, "rules": rules}) as r:
+                        assert r.status == 200 and (await r.json())["pushed"] == ["SN-Q"]
+                    packet = await asyncio.wait_for(ws.receive(), 3)
+                    message = server_type.FromString(packet.data[4:])
+                    assert message.Event.Push.Directives[0].Name == "push_update_config"
     finally:
         await runner.cleanup()
         await runtime.close()

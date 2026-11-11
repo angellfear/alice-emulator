@@ -28,15 +28,33 @@ def _catalog_ids():
 def test_execute_directive_wire_form():
     """Квитируемый кадр: SyncPush{ExecuteDirective{Directive, ResponsePolicy.OnFinishedPolicy}}."""
     cls = _cls()
-    message = execute_message(cls, "push_update_config")
+    message = execute_message(cls, "clear_queue")
     push = message.Event.SyncPush
     assert push.PushId and push.DeduplicationPushId
     directive = push.SyncRequest.ExecuteDirective.Directive
-    assert directive.Name == "push_update_config" and directive.Type == "client_action"
+    assert directive.Name == "clear_queue" and directive.Type == "client_action"
     assert push.SyncRequest.ExecuteDirective.ResponsePolicy.HasField("OnFinishedPolicy")
     parsed = cls.FromString(message.SerializeToString())  # бинарный roundtrip
-    assert parsed.Event.SyncPush.SyncRequest.ExecuteDirective.Directive.Name == "push_update_config"
+    assert parsed.Event.SyncPush.SyncRequest.ExecuteDirective.Directive.Name == "clear_queue"
     assert parsed.Event.SyncPush.SyncRequest.ExecuteDirective.ResponsePolicy.HasField("OnFinishedPolicy")
+
+
+def test_push_update_config_wire_form_matches_sample():
+    """push_update_config — обычный Push по образцу настоящего сервера: одна директива
+    client_action без payload и IsLedSilent, PushIds, DeduplicationPushId, RequestId."""
+    cls = _cls()
+    message = cls.FromString(push_message(cls, "push_update_config", {}).SerializeToString())
+    assert message.Event.WhichOneof("Event") == "Push"
+    push = message.Event.Push
+    assert message.Event.Header.MessageId and message.Event.Header.Ack
+    assert len(push.PushIds) == 1 and push.DeduplicationPushId
+    assert len(push.Directives) == 1
+    directive = push.Directives[0]
+    assert directive.Type == "client_action" and directive.Name == "push_update_config"
+    assert not directive.IsLedSilent and not directive.HasField("Payload")
+    assert push.AnalyticsMetaInfo.RequestId
+    with pytest.raises(ValueError):
+        push_message(cls, "push_update_config", {"x": 1})
 
 
 def test_execute_player_pause_payload():
@@ -68,9 +86,9 @@ def test_push_tts_wire_form():
 
 def test_catalog_channels():
     """Квитируемые действия — подмножество каталога; push_tts и косметика — Push."""
-    assert EXECUTE_ACTIONS == {"push_update_config", "player_pause", "clear_queue"}
+    assert EXECUTE_ACTIONS == {"player_pause", "clear_queue"}
     assert EXECUTE_ACTIONS <= _catalog_ids()
-    for action in ("push_tts", "sound_set_level", "start_bluetooth", "draw_led_screen"):
+    for action in ("push_tts", "push_update_config", "sound_set_level", "start_bluetooth", "draw_led_screen"):
         assert action in _catalog_ids() and action not in EXECUTE_ACTIONS
 
 
@@ -98,7 +116,7 @@ async def test_execute_receipt_completed(tmp_path):
     sent = []
     runtime = await _runtime_with_session(tmp_path, sent)
     client, server = message_types()
-    task = asyncio.ensure_future(runtime.push_action("SN-E", "push_update_config", {}))
+    task = asyncio.ensure_future(runtime.push_action("SN-E", "clear_queue", {}))
     while not sent:
         await asyncio.sleep(0.02)
     frame = server.FromString(sent[0][4:])
@@ -247,7 +265,7 @@ async def test_mcp_send_action_receipt(tmp_path):
     from server_emulator.actions import send_action
     cosmetic = await send_action(runtime, "SN-E", "sound_quiter", {})
     assert cosmetic["delivery"] == "sent" and cosmetic.get("origin") == "mcp"
-    task = asyncio.ensure_future(send_action(runtime, "SN-E", "push_update_config", {}))
+    task = asyncio.ensure_future(send_action(runtime, "SN-E", "clear_queue", {}))
     while len(sent) < 2:
         await asyncio.sleep(0.02)
     conversation = types.SimpleNamespace(runtime=runtime, trace_context={"sn": "SN-E"})
