@@ -481,10 +481,15 @@ class Runtime:
             self.routines.shutdown()
         await self.self_update.close()  # цикл проверки релизов и его клиент
         await self.server_log.close()  # доработать очередь журнала сервера
+        if self.agent is not None:
+            await self.agent.ops.close()  # соединение журнала прогонов агента
+        if self.routines is not None:
+            await self.routines.close()
+        await self.updates.close()  # соединение базы обновлений и суточный опрос
         await self.closer.drain()
         await self.upstream.close()  # доработать очередь журнала, закрыть клиента прохода
         await self.lifecycle.close()
-        self.store.close()
+        await self.store.close()  # дописать очередь записи в файл
         # доработать отменённые фоновые задачи (батчи stора памяти langgraph
         # отменяются в __del__ без ожидания) — иначе «Task was destroyed but it is pending!»
         await asyncio.sleep(0)
@@ -1038,7 +1043,7 @@ class Runtime:
             if not self.self_update.task:
                 self.self_update.start()  # проверка релизов с задержкой и по интервалу
             if self.routines is not None:
-                self.routines.start()
+                self.lifecycle.spawn(self.routines.start())  # планировщик и пропуски простоя
             self.warm_sound_cache(delay=20)  # локальный TTS поднимается autostart'ом
 
     def public(self):

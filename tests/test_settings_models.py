@@ -87,7 +87,7 @@ def test_secrets_do_not_leak():
     assert saved["token"] == "env:TEST_TOKEN"  # ссылка env — не секрет и не маскируется здесь
 
 
-def test_validate_uses_models(tmp_path):
+async def test_validate_uses_models(tmp_path):
     """Ручные проверки oauth/fetch_state заменены моделями: 4xx с именем поля,
     умолчания модели доливаются в раздел, разделы без формы — из current."""
     runtime = Runtime(tmp_path)
@@ -104,4 +104,4 @@ def test_validate_uses_models(tmp_path):
         saved = runtime.settings_service.validate(dict(current), current)
         assert saved["oauth"] == current["oauth"] and saved["fetch_state"] == current["fetch_state"]
     finally:
-        runtime.store.close()
+        await runtime.store.close()

@@ -155,7 +155,7 @@ async def test_covered_sni_splices_with_client_ip(tmp_path):
         assert payload["peer"] == [local[0], local[1]]   # реальный адрес колонки — из таблицы фронта
     finally:
         await stop_front(front, runner)
-        runtime.store.close()
+        await runtime.store.close()
 
 
 async def test_no_sni_splices(tmp_path):
@@ -167,7 +167,7 @@ async def test_no_sni_splices(tmp_path):
         assert payload["peer"] == [local[0], local[1]]   # без SNI — тоже таблица
     finally:
         await stop_front(front, runner)
-        runtime.store.close()
+        await runtime.store.close()
 
 
 async def test_uncovered_sni_tunnels_to_real_server(tmp_path):
@@ -181,7 +181,7 @@ async def test_uncovered_sni_tunnels_to_real_server(tmp_path):
     finally:
         real_server.close()
         await stop_front(front, runner)
-        runtime.store.close()
+        await runtime.store.close()
 
 
 async def test_loop_address_never_tunnels(tmp_path):
@@ -193,7 +193,7 @@ async def test_loop_address_never_tunnels(tmp_path):
         assert front.tunnels.get("loop.y.example.test") is None
     finally:
         await stop_front(front, runner)
-        runtime.store.close()
+        await runtime.store.close()
 
 
 def test_front_settings_roundtrip(tmp_path):

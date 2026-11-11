@@ -161,7 +161,7 @@ async def test_push_subscribe_through_http(tmp_path):
                 assert response.status == 200 and payload["status"] == "ok" and "sign" in payload
         assert runtime.endpoints.misses() == {}
         await runtime.upstream.journal.flush()
-        assert runtime.upstream.journal.list()["total"] == 0
+        assert (await runtime.upstream.journal.list())["total"] == 0
     finally:
         await runner.cleanup()
         await runtime.close()

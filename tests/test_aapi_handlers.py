@@ -142,7 +142,7 @@ async def test_continue_request_no_reply_logged(tmp_path):
         assert await conversation.receive(message, "ContinueRequest") is True
         assert sent == []
         await runtime.server_log.flush()
-        entries = runtime.server_log.query(source="ws")["items"]
+        entries = (await runtime.server_log.query(source="ws"))["items"]
         assert any("ContinueRequest" in item["message"] for item in entries)
         assert entries[0]["detail"].get("request_message_id") == "mid-9"
     finally:

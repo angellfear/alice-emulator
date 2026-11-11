@@ -60,7 +60,7 @@ async def test_apps_context_names_and_empty():
         registry(runtime, [])
         assert intelligence.apps_context(runtime, "SN-A") is None  # пустой список
     finally:
-        runtime.store.close()
+        await runtime.store.close()
 
 
 async def test_agent_prompt_carries_apps(tmp_path):

@@ -177,14 +177,14 @@ async def test_extension_update_rules(tmp_path):
     try:
         rules = updates.extension_rules()
         assert [r["origin"] for r in rules] == ["extension:coffee"]
-        settings = updates.settings()
+        settings = await updates.settings()
         merged = updates.with_extension_rules(settings)
         assert updates.effective(merged, {"sn": "SN-EXT"})[0] == "allow"
         policy, custom = updates.effective(merged, {"sn": "SN-X", "model": "yandexmini_2"})
         assert policy == "custom" and custom["updates"][0]["url"] == "https://ota.example.com/mini.zip"
         assert updates.effective(merged, {"sn": "SN-BAD"})[0] == settings["policy"]  # битое правило не применено
         # settings не мутируются и в БД правила не копируются
-        assert "SN-EXT" not in updates.settings()["devices"] and "platforms" not in updates.settings()
+        assert "SN-EXT" not in (await updates.settings())["devices"] and "platforms" not in await updates.settings()
         # пользовательская запись побеждает
         user = {**settings, "devices": {"SN-EXT": "deny"}}
         assert updates.effective(updates.with_extension_rules(user), {"sn": "SN-EXT"})[0] == "deny"

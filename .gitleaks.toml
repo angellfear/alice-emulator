@@ -73,7 +73,7 @@ keywords = ["wifi", "ssid", "password"]
   [[rules.allowlists]]
   description = "Тестовые значения в тестах и примерах (не данные пользователя)"
   paths = ['''^tests/''', '''^docs/''']
-  regexes = ['''^(?i:pw-\d+|abc\d*|new-hash|service|changeme|secret|test-token|password|x+)$''']
+  regexes = ['''^(?i:pw-\d+|abc\d*|new-hash|service|changeme|secret|test-token|password|wrong|top-secret|x+)$''']
   [[rules.allowlists]]
   description = "Карта «ключ параметра → категория» (LEGACY_KEY_CATEGORIES): значение service — имя категории, не пароль"
   paths = ['''^server_emulator/params\.py$''']

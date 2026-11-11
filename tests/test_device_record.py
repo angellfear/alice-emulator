@@ -49,7 +49,7 @@ async def ws_records(runtime, closed=True, wait=0.0):
     items = []
     for _ in range(60):
         await runtime.upstream.journal.flush()
-        items = [i for i in runtime.upstream.journal.list(limit=500)["items"] if i["kind"] == "ws"]
+        items = [i for i in (await runtime.upstream.journal.list(limit=500))["items"] if i["kind"] == "ws"]
         if not closed or any(i["event"] == "close" for i in items):
             break
         await asyncio.sleep(0.05)
@@ -134,8 +134,8 @@ async def test_off_writes_nothing_in_any_route(tmp_path):
                     async with client.get(url + path, headers=DEVICE):
                         pass
         await runtime.upstream.journal.flush()
-        assert runtime.upstream.journal.list()["total"] == 0
-        assert runtime.upstream.journal.groups() == []
+        assert (await runtime.upstream.journal.list())["total"] == 0
+        assert await runtime.upstream.journal.groups() == []
     finally:
         await stop(runtime, upstream_runner, runner)
 
@@ -158,14 +158,14 @@ async def test_on_records_emulator_and_upstream_answers(tmp_path):
             async with client.get(url + "/other/thing", headers=DEVICE) as response:
                 assert (await response.json())["from"] == "upstream"
         await runtime.upstream.journal.flush()
-        items = {(i["source"], i["path"]): i for i in runtime.upstream.journal.list()["items"]}
+        items = {(i["source"], i["path"]): i for i in (await runtime.upstream.journal.list())["items"]}
         handled = items[("emulator", "/check_updates")]
         miss = items[("emulator", "/no/handler?x=1")]
         up = items[("upstream", "/other/thing")]
         assert handled["unhandled"] == 0 and miss["unhandled"] == 1 and up["unhandled"] == 1
         assert miss["status"] == 404 and handled["device_sn"] == "SN-RC" and handled["host"] == "quasar.yandex.net"
         assert handled["key"] == "GET quasar.yandex.net /check_updates" and miss["key"] == "GET quasar.yandex.net /no/handler"
-        card = runtime.upstream.journal.item(miss["id"])
+        card = await runtime.upstream.journal.item(miss["id"])
         assert json.loads(card["response_body"])["error"] == "emulator_handler_not_found"
     finally:
         await stop(runtime, upstream_runner, runner)
@@ -181,7 +181,7 @@ async def test_misses_in_emulate_hybrid_and_proxy(tmp_path):
                 async with client.get(url + path, headers=DEVICE):
                     pass
                 await journal.flush()
-                return [(i["source"], i["path"]) for i in journal.list()["items"]]
+                return [(i["source"], i["path"]) for i in (await journal.list())["items"]]
 
             # эмуляция: пишется только промах (его ответ — 404 эмулятора)
             set_route(runtime, "SN-RC", "emulate")
@@ -197,7 +197,7 @@ async def test_misses_in_emulate_hybrid_and_proxy(tmp_path):
             await hit("/check_updates")
             assert await hit("/no/three") == [("upstream", "/no/three"), ("upstream", "/no/two"),
                                               ("emulator", "/no/one")]
-            assert all(i["unhandled"] == 1 for i in journal.list()["items"])
+            assert all(i["unhandled"] == 1 for i in (await journal.list())["items"])
     finally:
         await stop(runtime, upstream_runner, runner)
 
@@ -229,8 +229,8 @@ async def test_direct_sync_info_follows_record_option(tmp_path):
                 async with client.get(url + "/get_sync_info?device_id=rc-id", headers=DEVICE) as response:
                     assert response.status == 200
                 await runtime.upstream.journal.flush()
-                assert runtime.upstream.journal.list()["total"] == expected
-        assert runtime.upstream.journal.list()["items"][0]["source"] == "upstream"
+                assert (await runtime.upstream.journal.list())["total"] == expected
+        assert (await runtime.upstream.journal.list())["items"][0]["source"] == "upstream"
     finally:
         await stop(runtime, upstream_runner, runner)
 
@@ -247,11 +247,11 @@ async def test_group_keeps_ten_records_and_counts_all(tmp_path):
                 pass
         await runtime.upstream.journal.flush()
         journal = runtime.upstream.journal
-        assert journal.list()["total"] == 11  # 10 записей группы + 1 другого события
-        groups = {g["key"]: g for entry in journal.groups() for g in entry["groups"]}
+        assert (await journal.list())["total"] == 11  # 10 записей группы + 1 другого события
+        groups = {g["key"]: g for entry in await journal.groups() for g in entry["groups"]}
         assert groups["GET quasar.yandex.net /check_updates"]["count"] == 12  # счётчик не теряется при вытеснении
         assert groups["GET quasar.yandex.net /no/handler"]["count"] == 1
-        items = journal.group_items("SN-RC", "GET quasar.yandex.net /check_updates")
+        items = await journal.group_items("SN-RC", "GET quasar.yandex.net /check_updates")
         assert len(items) == 10
         assert items[0]["path"] == "/check_updates?n=11" and items[-1]["path"] == "/check_updates?n=2"  # старейшие вытеснены
         async with ClientSession(headers=API) as client:
@@ -280,9 +280,9 @@ async def test_emulator_records_mask_secret_headers(tmp_path):
                                   headers={**DEVICE, "Authorization": "OAuth emu-secret", "Cookie": "sid=emu-cookie"}):
                 pass
         await runtime.upstream.journal.flush()
-        item = runtime.upstream.journal.list()["items"][0]
+        item = (await runtime.upstream.journal.list())["items"][0]
         assert item["source"] == "emulator"
-        card = runtime.upstream.journal.item(item["id"])
+        card = await runtime.upstream.journal.item(item["id"])
         headers = [list(h) for h in card["request_headers"]]
         assert ["Authorization", "OAuth ***"] in headers and ["Cookie", "***"] in headers
         raw = b"".join(path.read_bytes() for path in Path(tmp_path).glob("traffic.sqlite3*"))
@@ -325,13 +325,13 @@ async def test_ws_emulator_audio_not_recorded_aapi_and_unknown_are(tmp_path):
         assert response["ref_message_id"] == syn["message_id"] and response["source"] == "emulator"
         assert all(i["device_sn"] == "SN-W" for i in items)
         journal = runtime.upstream.journal
-        card = journal.item(next(i["id"] for i in items if i["event"] == "unknown"))
+        card = await journal.item(next(i["id"] for i in items if i["event"] == "unknown"))
         assert card["request_body"] == b"not-aapi-text"
         # звук данными не пишется: ни в записях, ни в файле; в закрытии — только счётчики
-        close = journal.item(next(i["id"] for i in items if i["event"] == "close"))
+        close = await journal.item(next(i["id"] for i in items if i["event"] == "close"))
         assert (close["audio_in_frames"], close["audio_in_bytes"]) == (2, 30)
         for item in items:
-            card = journal.item(item["id"])
+            card = await journal.item(item["id"])
             assert b"audio-secret" not in (card["request_body"] or b"") + (card["response_body"] or b"")
         # карточка AAPI — текстовый вид protobuf
         async with ClientSession(headers=API) as client:
@@ -368,7 +368,7 @@ async def test_record_option_change_applies_without_reconnect(tmp_path):
                 await ws.send_bytes(client_frame("Ping"))  # запись выключена
                 await asyncio.sleep(0.2)
                 await runtime.upstream.journal.flush()
-                assert runtime.upstream.journal.list()["total"] == 0
+                assert (await runtime.upstream.journal.list())["total"] == 0
                 async with client.put(url + "/emulator/api/record_mode", json={"sn": "SN-W", "mode": "misses"},
                                       headers=API) as response:
                     assert response.status == 200
@@ -376,12 +376,12 @@ async def test_record_option_change_applies_without_reconnect(tmp_path):
                 await ws.send_bytes(client_frame("Ping"))  # то же соединение — уже пишется
                 await asyncio.sleep(0.2)
                 await runtime.upstream.journal.flush()
-                assert [i["key"] for i in runtime.upstream.journal.list()["items"]] == ["ws → Event.Ping"]
+                assert [i["key"] for i in (await runtime.upstream.journal.list())["items"]] == ["ws → Event.Ping"]
                 set_record(runtime, "SN-W", "off")
                 await ws.send_bytes(client_frame("Ping"))
                 await asyncio.sleep(0.2)
                 await runtime.upstream.journal.flush()
-                assert runtime.upstream.journal.list()["total"] == 1
+                assert (await runtime.upstream.journal.list())["total"] == 1
     finally:
         await stop(runtime, upstream_runner, runner)
 
@@ -427,11 +427,11 @@ async def test_ws_bridge_records_by_option(tmp_path):
                 await asyncio.wait_for(ws.receive(), 3)
         for _ in range(60):
             await journal.flush()
-            if record != "on" or any(i["event"] == "close" for i in journal.list(limit=500)["items"]):
+            if record != "on" or any(i["event"] == "close" for i in (await journal.list(limit=500))["items"]):
                 break
             await asyncio.sleep(0.05)
-        items = [journal.item(i["id"]) for i in journal.list(limit=500)["items"]]  # карточки: до очистки
-        journal.forget()
+        items = [await journal.item(i["id"]) for i in (await journal.list(limit=500))["items"]]  # карточки: до очистки
+        await journal.forget()
         return items
 
     try:

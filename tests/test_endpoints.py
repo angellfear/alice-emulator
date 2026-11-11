@@ -419,10 +419,10 @@ async def test_register_and_ota_v3(tmp_path):
                                            "x-yaquasarplatform": "chiron"}) as response:
                 assert response.status == 200
                 assert await response.json() == {}  # свежая база: политика deny, каталог пуст
-        value = runtime.updates.settings()
+        value = await runtime.updates.settings()
         value["policy"] = "custom"
         value["custom"] = {"updates": [dict(FIRMWARE)]}
-        runtime.updates.save(value)
+        await runtime.updates.save(value)
         async with ClientSession() as client:
             async with client.get(url + "/tv/api/v3/ota",
                                   headers={"Host": "quasar.yandex.net",
@@ -431,11 +431,11 @@ async def test_register_and_ota_v3(tmp_path):
             async with client.post(url + "/register?platform=chiron",
                                    headers={"Host": "quasar.yandex.net"}) as response:
                 assert (await response.json())["hasCriticalUpdate"] is True  # custom с записями
-        value = runtime.updates.settings()
+        value = await runtime.updates.settings()
         value["policy"] = "allow"
         value["custom"] = {"updates": []}
-        runtime.updates.save(value)
-        runtime.updates.record({"id": "att-1", "ts": 0, "endpoint": "ota", "device_sn": None,
+        await runtime.updates.save(value)
+        await runtime.updates.record({"id": "att-1", "ts": 0, "endpoint": "ota", "device_sn": None,
                                 "user_id": None, "device_id": None, "policy": "allow",
                                 "status": 200, "error": None, "ip": None},
                                {"updates": [dict(FIRMWARE)]})
@@ -451,9 +451,9 @@ async def test_register_and_ota_v3(tmp_path):
                                   headers={"Host": "quasar.yandex.net",
                                            "x-yaquasarplatform": "yandexstation"}) as response:
                 assert await response.json() == {}  # для другой платформы записи нет
-        value = runtime.updates.settings()
+        value = await runtime.updates.settings()
         value["policy"] = "deny"
-        runtime.updates.save(value)
+        await runtime.updates.save(value)
         async with ClientSession() as client:
             async with client.get(url + "/tv/api/v3/ota",
                                   headers={"Host": "quasar.yandex.net",

@@ -83,7 +83,7 @@ async def test_dispatch_answers_builtins_without_miss_or_journal(tmp_path):
                 assert response.status == 404  # сети нет (цель мертва) и кеша нет
         assert runtime.endpoints.misses() == {}  # ни один из запросов — не промах
         await runtime.upstream.journal.flush()
-        assert runtime.upstream.journal.list()["total"] == 0  # и в журнал «Запись» — тишина
+        assert (await runtime.upstream.journal.list())["total"] == 0  # и в журнал «Запись» — тишина
     finally:
         await runner.cleanup()
         await runtime.close()

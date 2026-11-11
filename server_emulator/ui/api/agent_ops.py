@@ -97,8 +97,8 @@ async def agent_ops(request, runtime, app):
         from ...agent import ops
         cfg = ops.options(runtime)
         return web.json_response({"available": True, "settings": _settings(runtime), "users": users,
-                                  "runs": service.ops.runs(limit=200), "usage": service.ops.usage(),
-                                  "misses": service.ops.misses(int(cfg["suggest_days"]))[:50]})
+                                  "runs": await service.ops.runs(limit=200), "usage": await service.ops.usage(),
+                                  "misses": (await service.ops.misses(int(cfg["suggest_days"])))[:50]})
     value = await request.json()
     if value.get("op") == "settings":
         await _save(runtime, value.get("settings") or {})

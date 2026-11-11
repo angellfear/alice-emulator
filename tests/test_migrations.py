@@ -55,7 +55,7 @@ def test_upgrade_all_creates_all_databases(tmp_path):
         assert revision_count(tmp_path / name) == 1, name
 
 
-def test_storages_self_migrate(tmp_path):
+async def test_storages_self_migrate(tmp_path):
     """Открытие хранилища без runtime: своё соединение с полной схемой ревизии."""
     from server_emulator.agent.ops import Ops
     from server_emulator.agent.routines import Routines
@@ -66,10 +66,9 @@ def test_storages_self_migrate(tmp_path):
     Updates(tmp_path)
     Ops(tmp_path)
     Routines(None, tmp_path / "routines.sqlite3")
-    journal = TrafficJournal(tmp_path / "traffic.sqlite3")
-    journal.db.close()
+    TrafficJournal(tmp_path / "traffic.sqlite3")  # соединение открывается лениво, в цикле
     store = StateStore(tmp_path / "emulator.sqlite3")
-    store.close()
+    await store.close()
     ServerLog(tmp_path / "server_log.sqlite3").db.close()
     for name, required in (
             ("updates.sqlite3", {"settings", "attempts", "urls", "sightings", "last_requests"}),

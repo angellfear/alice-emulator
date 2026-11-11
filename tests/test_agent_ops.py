@@ -37,7 +37,7 @@ async def test_run_is_traced_with_usage(tmp_path):
     assert answer['text'] == 'Привет'
     assert len(received) == 1
 
-    rows = runtime.agent.ops.runs()
+    rows = await runtime.agent.ops.runs()
     assert len(rows) == 1
     row = rows[0]
     assert row['kind'] == 'request'
@@ -67,7 +67,7 @@ async def test_daily_budget_blocks_model(tmp_path):
     assert second['text'] == ops.BUDGET_TEXT
     assert len(received) == 1  #_provider не вызывался второй раз
 
-    rows = runtime.agent.ops.runs()
+    rows = await runtime.agent.ops.runs()
     assert rows[0]['status'] == 'budget'  # последний прогон
     assert rows[1]['status'] == 'ok'
     await runtime.close()
@@ -96,10 +96,10 @@ async def test_misses_grouped(tmp_path):
     runtime.settings['model']['stub_text'] = ''
     now = time.time()
     for text in ('Включи гирлянду!', 'включи гирлянду', 'включи  гирлянду'):
-        runtime.agent.ops.record({'ts': now, 'thread': 'voice:SN1', 'kind': 'request', 'text': text})
-    runtime.agent.ops.record({'ts': now, 'thread': 'studio:x', 'kind': 'request', 'text': 'включи гирлянду'})
+        await runtime.agent.ops.record({'ts': now, 'thread': 'voice:SN1', 'kind': 'request', 'text': text})
+    await runtime.agent.ops.record({'ts': now, 'thread': 'studio:x', 'kind': 'request', 'text': 'включи гирлянду'})
 
-    groups = runtime.agent.ops.misses(min_count=3)
+    groups = await runtime.agent.ops.misses(min_count=3)
     assert len(groups) == 1
     assert groups[0]['phrase'] == 'включи гирлянду'
     assert groups[0]['count'] == 3
@@ -140,7 +140,7 @@ async def test_event_webhook_requires_token(tmp_path):
                 assert body['status'] == 'finished'
                 assert body['delivered'] == 'inbox'
 
-        inbox = runtime.routines.inbox('u')
+        inbox = await runtime.routines.inbox('u')
         assert len(inbox) == 1
     finally:
         await runner.cleanup()
@@ -229,7 +229,7 @@ async def test_disabled_agent_stops_routines_and_events(tmp_path):
 
     runtime.provider = provider
 
-    routine = runtime.routines.save({
+    routine = await runtime.routines.save({
         'title': 'Утро',
         'owner': 'u',
         'sn': 'SN1',
@@ -274,6 +274,6 @@ async def test_cancelled_request_is_traced(tmp_path):
     await asyncio.sleep(0.5)
     task.cancel()
     await asyncio.gather(task, return_exceptions=True)
-    rows = runtime.agent.ops.runs()
+    rows = await runtime.agent.ops.runs()
     assert [r['status'] for r in rows] == ['cancelled'] and rows[0]['text'] == 'расскажи сказку'
     await runtime.close()

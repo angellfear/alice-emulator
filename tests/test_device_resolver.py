@@ -177,9 +177,9 @@ async def test_http_device_id_mismatch_logged_and_priority_resolved(tmp_path):
     from tests.conftest import listen
 
     runtime = Runtime(directory=tmp_path)
-    value = runtime.updates.settings()
+    value = await runtime.updates.settings()
     value["policy"] = "deny"
-    runtime.updates.save(value)
+    await runtime.updates.save(value)
     runner, url = await listen(create_app(runtime=runtime))
     try:
         async with ClientSession() as client:

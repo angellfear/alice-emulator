@@ -146,6 +146,7 @@ async def test_validation_accepts_ext_format_rejects_garbage(tmp_path):
 async def test_ext_setting_survives_restart(tmp_path):
     runtime, _ = setup(tmp_path)
     runtime.settings_service.persist(runtime.settings)  # сохранение с ext-значением
+    await runtime.store.flush()  # «рестарт»: запись в файл дописана
     reopened = Runtime(tmp_path)
     assert reopened.settings["intelligence"] == "ext:coffee.echo"  # миграция не затирает режим расширения
     await reopened.close()

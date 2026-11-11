@@ -47,7 +47,7 @@ async def test_iot_transparent_forwarded_and_journaled(tmp_path):
                 assert (await response.json())["from"] == "upstream"
         assert calls == ["/iot/devices"]
         await runtime.upstream.journal.flush()
-        items = runtime.upstream.journal.list(device="SN-IOT")["items"]
+        items = (await runtime.upstream.journal.list(device="SN-IOT"))["items"]
         assert len(items) == 1
         assert items[0]["source"] == "upstream" and items[0]["status"] == 200
         assert items[0]["path"] == "/iot/devices"

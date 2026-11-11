@@ -21,6 +21,7 @@ async def test_standalone_persistence_and_admin_guards(tmp_path):
     await runtime.save_settings(settings)
     assert runtime.public()['model']['api_key'] == '__KEEP__'
     await runtime.save_settings(runtime.public())
+    await runtime.store.flush()  # «рестарт»: запись в файл дописана
     assert Runtime(tmp_path).settings['model']['api_key'] == 'private-key'
     runner, url = await listen(create_app(runtime=runtime))
     try:

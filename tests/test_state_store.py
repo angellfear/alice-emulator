@@ -17,15 +17,15 @@ IDENTITIES = {
 }
 
 
-def test_clean_install_creates_schema_and_empty_loads(tmp_path):
+async def test_clean_install_creates_schema_and_empty_loads(tmp_path):
     store = StateStore(tmp_path / "emulator.sqlite3")
     assert store.load_settings() is None
     data = store.load_identity_data()
     assert data == {"users": [], "devices": [], "unassigned": []}
-    store.close()
+    await store.close()
 
 
-def test_settings_revision_history(tmp_path):
+async def test_settings_revision_history(tmp_path):
     store = StateStore(tmp_path / "emulator.sqlite3")
     store.save_settings(SETTINGS_V1)
     store.save_settings({"mode": "emulate", "model": {"url": ""}, "stt": {"url": "http://x"}})
@@ -35,15 +35,15 @@ def test_settings_revision_history(tmp_path):
     assert len(history) == 2
     assert history[0] == latest  # DESC: свежая ревизия первой
     assert history[1] == SETTINGS_V1
-    store.close()
+    await store.close()
     # История переживает переоткрытие БД
     store2 = StateStore(tmp_path / "emulator.sqlite3")
     assert len(store2.settings_history()) == 2
     assert store2.load_settings() == latest
-    store2.close()
+    await store2.close()
 
 
-def test_identity_roundtrip_and_owner_devices(tmp_path):
+async def test_identity_roundtrip_and_owner_devices(tmp_path):
     store = StateStore(tmp_path / "emulator.sqlite3")
     store.save_identity_data(IDENTITIES)
     data = store.load_identity_data()
@@ -52,10 +52,10 @@ def test_identity_roundtrip_and_owner_devices(tmp_path):
     assert by_sn["SN-B"]["user_id"] == "u1"
     assert data["users"][0]["profile"]["timezone"] == "Europe/Moscow"
     assert [d["device_id"] for d in data["unassigned"]] == ["dev-x"]  # + source/ip/метки времени
-    store.close()
+    await store.close()
 
 
-def test_duplicate_alias_rejected_with_rollback(tmp_path):
+async def test_duplicate_alias_rejected_with_rollback(tmp_path):
     store = StateStore(tmp_path / "emulator.sqlite3")
     store.save_identity_data(IDENTITIES)
     broken = json.loads(json.dumps(IDENTITIES))
@@ -64,10 +64,10 @@ def test_duplicate_alias_rejected_with_rollback(tmp_path):
         store.save_identity_data(broken)
     # Откат целиком: прежние данные не тронуты
     assert [d["sn"] for d in store.load_identity_data()["devices"]] == ["SN-A", "SN-B"]
-    store.close()
+    await store.close()
 
 
-def test_unknown_user_reference_rejected(tmp_path):
+async def test_unknown_user_reference_rejected(tmp_path):
     store = StateStore(tmp_path / "emulator.sqlite3")
     store.save_identity_data(IDENTITIES)
     broken = json.loads(json.dumps(IDENTITIES))
@@ -75,14 +75,14 @@ def test_unknown_user_reference_rejected(tmp_path):
     with pytest.raises(MigrationConflict):
         store.save_identity_data(broken)
     assert store.load_identity_data()["devices"][0]["user_id"] == "u1"
-    store.close()
+    await store.close()
 
 
-def test_repeated_close_is_noop_and_operations_raise(tmp_path):
+async def test_repeated_close_is_noop_and_operations_raise(tmp_path):
     store = StateStore(tmp_path / "emulator.sqlite3")
     store.save_settings(SETTINGS_V1)
-    store.close()
-    store.close()  # идемпотентно
+    await store.close()
+    await store.close()  # идемпотентно
     with pytest.raises(RuntimeError):
         store.load_settings()
     with pytest.raises(RuntimeError):

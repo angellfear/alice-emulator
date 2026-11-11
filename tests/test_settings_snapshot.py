@@ -48,10 +48,10 @@ async def test_settings_roundtrip_full_form(tmp_path):
         form.pop("_rev"), again.pop("_rev")
         assert form == again == SNAPSHOT
     finally:
-        runtime.store.close()
+        await runtime.store.close()
 
 
-def test_default_passes_all_section_models(tmp_path):
+async def test_default_passes_all_section_models(tmp_path):
     """DEFAULT проходит каждую модель раздела (критерий шага 3)."""
     from copy import deepcopy
 
@@ -74,19 +74,19 @@ def test_default_passes_all_section_models(tmp_path):
         assert saved["agent"]["max_model_calls"] == 6 and saved["agent"]["keep_messages"] == 20
         assert saved["voice_stack"]["speak"] is True
     finally:
-        runtime.store.close()
+        await runtime.store.close()
 
 
-def test_default_aliases_empty(tmp_path):
+async def test_default_aliases_empty(tmp_path):
     """Умолчание aliases без *.local: колонка ходит на настоящие домены Яндекса."""
     runtime = Runtime(tmp_path)
     try:
         assert runtime.settings["aliases"] == {}
     finally:
-        runtime.store.close()
+        await runtime.store.close()
 
 
-def test_public_snapshot_matches_base(tmp_path):
+async def test_public_snapshot_matches_base(tmp_path):
     runtime = _runtime_with_base(tmp_path)
     try:
         public = runtime.public()
@@ -94,7 +94,7 @@ def test_public_snapshot_matches_base(tmp_path):
         public.pop("_rev")
         assert public == SNAPSHOT
     finally:
-        runtime.store.close()
+        await runtime.store.close()
 
 
 async def test_settings_api_snapshot(tmp_path):
@@ -112,4 +112,4 @@ async def test_settings_api_snapshot(tmp_path):
         value.pop("_rev")
         assert value == SNAPSHOT
     finally:
-        runtime.store.close()
+        await runtime.store.close()

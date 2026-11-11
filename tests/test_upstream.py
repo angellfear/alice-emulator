@@ -63,12 +63,12 @@ async def test_http_forward_returns_upstream_response_and_journals(tmp_path):
         assert any(k.lower() == "x-upstream" for k, _v in headers)
         assert seen == ["/api/data?q=1", "OAuth device-secret"]  # запрос дошёл до upstream с настоящим токеном
         await journal.flush()
-        items = journal.list(host="upstream.test")["items"]
+        items = (await journal.list(host="upstream.test"))["items"]
         assert len(items) == 1
         record = items[0]
         assert record["source"] == "upstream" and record["status"] == 200
         assert record["kind"] == "http" and record["device_sn"] == "SN-T"
-        detail = journal.item(record["id"])
+        detail = await journal.item(record["id"])
         assert json.loads(detail["response_body"])["path"] == "/api/data?q=1"
         assert any(k == "X-Device" for k, _v in detail["request_headers"])
         # секреты в журнале замаскированы, в файле их нет
@@ -107,7 +107,7 @@ async def test_serve_journals_device_via_request(tmp_path):
             async with client.get(url + "/hello?x=1", headers={"X-YaQuasarDeviceId": "dev-t"}) as response:
                 assert response.status == 200 and await response.read() == b"upstream-body"
         await runtime.upstream.journal.flush()
-        items = runtime.upstream.journal.list()["items"]
+        items = (await runtime.upstream.journal.list())["items"]
         assert len(items) == 1 and items[0]["source"] == "upstream"
         assert items[0]["device_id"] == "dev-t"  # DeviceId взят из заголовка соединения
         assert items[0]["path"] == "/hello?x=1"
@@ -156,7 +156,7 @@ async def test_ws_bridge_forwards_frames_both_ways_and_closes(tmp_path):
         items = []
         for _ in range(50):  # close-запись пишется при завершении обработчика моста
             await runtime.upstream.journal.flush()
-            items = runtime.upstream.journal.list(host="uniproxy.alice.yandex.net")["items"]
+            items = (await runtime.upstream.journal.list(host="uniproxy.alice.yandex.net"))["items"]
             if {"open", "close"} <= {item["event"] for item in items}:
                 break
             await asyncio.sleep(0.05)
@@ -164,10 +164,10 @@ async def test_ws_bridge_forwards_frames_both_ways_and_closes(tmp_path):
         unknown = [item for item in items if item["event"] == "unknown"]
         assert {item["direction"] for item in unknown} == {"client_to_server", "server_to_client"}
         # текстовый кадр — запись «неизвестный» как есть; звук (бинарный без AAPI) данными не пишется
-        cards = [runtime.upstream.journal.item(item["id"]) for item in unknown]
+        cards = [await runtime.upstream.journal.item(item["id"]) for item in unknown]
         assert any(card["request_body"] == "привет".encode() for card in cards)
         assert not any(b"" in (card["request_body"] or b"") + (card["response_body"] or b"") for card in cards)
-        close = runtime.upstream.journal.item(next(i["id"] for i in items if i["event"] == "close"))
+        close = await runtime.upstream.journal.item(next(i["id"] for i in items if i["event"] == "close"))
         assert (close["audio_in_frames"], close["audio_in_bytes"]) == (1, 2)
         assert (close["audio_out_frames"], close["audio_out_bytes"]) == (1, 2)
     finally:
@@ -209,7 +209,7 @@ async def test_forward_to_self_journals_error_and_raises(tmp_path):
                                                   host="loop.test", path="/x")
         assert not bait  # запрос не вернулся в самого себя
         await journal.flush()
-        items = journal.list()["items"]
+        items = (await journal.list())["items"]
         assert len(items) == 1 and items[0]["status"] == 502 and items[0]["error"]
     finally:
         await runner.cleanup()
@@ -223,7 +223,7 @@ async def test_journal_body_truncation(tmp_path):
                       status=200, source="upstream", request_size=99999, response_size=99999,
                       request_body=b"q" * 99999, response_body=b"r" * 99999)
         await journal.flush()
-        record = journal.item(journal.list()["items"][0]["id"])
+        record = await journal.item((await journal.list())["items"][0]["id"])
         assert record["body_truncated"] == 1  # усечено с отметкой
         assert len(record["request_body"]) == 1024 and len(record["response_body"]) == 1024
         assert record["request_size"] == 99999  # размеры остались настоящими
@@ -239,19 +239,18 @@ async def test_journal_rotation_by_age_and_size(tmp_path):
             age.write(kind="http", direction="exchange", host="a.test", method="GET", path=f"/{index}",
                       status=200, source="upstream")
         await age.flush()
-        with age.db:
-            age.db.execute("UPDATE exchanges SET ts=ts-30*86400")  # записи старше лимита
-        age.rotate()
-        assert age.list()["total"] == 0  # ротация по сроку
+        await age.db.execute("UPDATE exchanges SET ts=ts-30*86400")  # записи старше лимита
+        await age.rotate()
+        assert (await age.list())["total"] == 0  # ротация по сроку
 
         for _index in range(12):
             size.write(kind="http", direction="exchange", host="s.test", method="GET", path=f"/x{_index}",
                        status=200, source="upstream",
                        request_body=os.urandom(48 * 1024), response_body=os.urandom(48 * 1024))
         await size.flush()
-        assert size.list()["total"] == 12
-        size.rotate()
-        rotated = size.list()
+        assert (await size.list())["total"] == 12
+        await size.rotate()
+        rotated = await size.list()
         assert 0 < rotated["total"] < 12  # старые удалены, новые остались
         assert rotated["items"][0]["path"].startswith("/x")
     finally:
@@ -284,6 +283,6 @@ async def test_traffic_api_list_card_clear(tmp_path):
                 assert "attachment" in response.headers["Content-Disposition"]
             async with client.delete(url + "/emulator/api/traffic", headers={"X-Emulator": "1"}) as response:
                 assert response.status == 200
-            assert journal.list()["total"] == 0
+            assert (await journal.list())["total"] == 0
     finally:
         await runner.cleanup()

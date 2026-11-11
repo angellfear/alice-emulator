@@ -16,7 +16,9 @@ module: "server_emulator/server_log.py"
 ## Журнал
 
 Хранилище — `server_emulator/server_log.py`, SQLite `state/server_log.sqlite3` (WAL, очередь +
-фоновая запись, вызов `log()` диска не ждёт). Запись: `level` (info/warning/error), `source`
+фоновая запись через aiosqlite в цикле событий, вызов `log()` диска не ждёт; sync-соединение —
+только для кода без цикла: старт процесса, инструменты, тесты). Запись: `level`
+(info/warning/error), `source`
 (короткий код: server, tls, http, ws, upstream, quasar, extensions, scripts, scenarios, updates,
 self_update, auth), `message` (первая строка, на русском, без секретов), `device_sn`, `detail`
 (отдельные поля: хост, путь, код, причина; заголовки и тела не передаются). Повторы в пределах

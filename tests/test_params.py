@@ -9,10 +9,10 @@ from server_emulator.runtime import Runtime
 
 
 @pytest.fixture
-def store(tmp_path):
+async def store(tmp_path):
     runtime = Runtime(directory=tmp_path)
     yield runtime.quasar_params
-    runtime.store.close()
+    await runtime.store.close()
 
 
 def test_defs_crud_and_validation(store):
@@ -62,7 +62,7 @@ def test_resolve_chain_device_user_server_default(store):
     assert store.resolve("user.city") == "Пермь"  # default_value
 
 
-def test_seed_idempotent(tmp_path):
+async def test_seed_idempotent(tmp_path):
     runtime = Runtime(directory=tmp_path)
     runtime.identities.mutate({"operation": "user", "id": "u1", "name": "U"})
     runtime.quasar_params.seed()   # повторный сид — ничего не ломает
@@ -77,7 +77,7 @@ def test_seed_idempotent(tmp_path):
         {"name": "wifi", "path": "/wifi", "kind": "select", "value": "Значение",
          "options": {"Значение": "{{user.wifi_hash}}"}}])
     assert body["wifi"] == "abc"
-    runtime.store.close()
+    await runtime.store.close()
 
 
 def test_resolve_view_sources_and_secret(store):
@@ -144,4 +144,4 @@ async def test_params_admin_api(tmp_path):
             assert runtime.quasar_params.raw_value("user:u1", "user.api_token") == "s3cr3t"
     finally:
         await runner.cleanup()
-        runtime.store.close()
+        await runtime.store.close()

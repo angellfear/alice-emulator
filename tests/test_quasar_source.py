@@ -90,7 +90,7 @@ async def test_direct_forwards_and_saves_last(tmp_path):
         last = state_of(runtime).get("quasar_direct_last")
         assert last and last["status"] == 200 and last["body"] == STUB_CONFIG
         await runtime.upstream.journal.flush()
-        items = runtime.upstream.journal.list()["items"]
+        items = (await runtime.upstream.journal.list())["items"]
         assert items and items[0]["source"] == "upstream" and items[0]["path"] == "/get_sync_info?device_id=q-id"
     finally:
         await upstream_runner.cleanup()

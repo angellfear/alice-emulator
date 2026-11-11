@@ -48,7 +48,7 @@ async def test_block_then_tunnel_without_restart(tmp_path):
     finally:
         real_server.close()
         await stop_front(front, runner)
-        runtime.store.close()
+        await runtime.store.close()
 
 
 async def test_allowlist_tunnels_only_list(tmp_path):
@@ -69,7 +69,7 @@ async def test_allowlist_tunnels_only_list(tmp_path):
     finally:
         real_server.close()
         await stop_front(front, runner)
-        runtime.store.close()
+        await runtime.store.close()
 
 
 def test_decision_table(tmp_path):

@@ -575,11 +575,11 @@ class Dispatcher:
                                                    device_sn=device['sn'] if device else sn,
                                                    device_id=device_id, body=body, started=started)
         if quasar_token_route:
-            builtin = runtime.quasar.handle(request.method, path or request.path, device, device_id, body,
+            builtin = await runtime.quasar.handle(request.method, path or request.path, device, device_id, body,
                                             caller=caller, caller_id=caller_id, client_ip=self.client_ip(request),
                                             platform=request.query.get('platform', ''), headers=request.headers)
         else:
-            builtin = runtime.quasar.handle(request.method, path or request.path, device, device_id, body,
+            builtin = await runtime.quasar.handle(request.method, path or request.path, device, device_id, body,
                                             client_ip=self.client_ip(request), headers=request.headers,
                                             platform=request.query.get('platform', '')) \
                 if canonical_host == 'quasar.yandex.net' else None

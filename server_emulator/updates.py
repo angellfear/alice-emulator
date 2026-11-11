@@ -13,11 +13,11 @@ import asyncio
 import copy
 import json
 import logging
-import sqlite3
 import time
 import uuid
 from pathlib import Path
 from urllib.parse import urlsplit
+import aiosqlite
 from aiohttp import ClientSession, ClientTimeout, ClientError
 
 from .migrations import upgrade_database
@@ -72,14 +72,25 @@ class Updates:
         self.extension_dirs = extension_dirs  # callable → [(origin, Path)] — слои updates/,
         self._poll_task = None
         upgrade_database(self.path, "updates")  # схема — базовая ревизия ветки updates
-        with self.connect() as db:
-            if not db.execute('SELECT 1 FROM settings').fetchone():
-                db.execute('INSERT INTO settings VALUES (1,?)',(json.dumps({'policy':'deny','devices':{},'custom':{'updates':[]}}),))
+        self._db = None  # aiosqlite.Connection — открывается при первом обращении в цикле
+        self._open_lock = asyncio.Lock()
 
-    def connect(self):
-        db = sqlite3.connect(self.path,timeout=10)
-        db.row_factory=sqlite3.Row
-        return db
+    async def connect(self):
+        async with self._open_lock:
+            if self._db is None:
+                db = await aiosqlite.connect(self.path,timeout=10)
+                db.row_factory=aiosqlite.Row
+                self._db = db
+        return self._db
+
+    async def close(self):
+        if self._poll_task:
+            self._poll_task.cancel()
+            await asyncio.gather(self._poll_task,return_exceptions=True)
+            self._poll_task=None
+        if self._db is not None:
+            await self._db.close()
+            self._db=None
 
     # --- слой расширений ------------------------------------------------------
     def _extension_layers(self):
@@ -158,9 +169,12 @@ class Updates:
             merged[key]={**overlay[key],**(settings.get(key) or {})}
         return merged
 
-    def settings(self):
-        with self.connect() as db:
-            return json.loads(db.execute('SELECT value FROM settings WHERE id=1').fetchone()[0])
+    async def settings(self):
+        db = await self.connect()
+        row = await (await db.execute('SELECT value FROM settings WHERE id=1')).fetchone()
+        if row is None:  # настройки не сохранялись — политика по умолчанию
+            return {'policy':'deny','devices':{},'custom':{'updates':[]}}
+        return json.loads(row[0])
 
     @staticmethod
     def validate_url(value):
@@ -168,7 +182,7 @@ class Updates:
         if u.scheme not in ('http','https') or not u.hostname or u.username or u.password or u.fragment:
             raise ValueError('Требуется http(s) URL без credentials и fragment')
 
-    def save(self, value):
+    async def save(self, value):
         if value.get('policy') not in ('allow','deny','custom') or not isinstance(value.get('devices'),dict):
             raise ValueError('Политика: allow, deny или custom; devices — объект SN → политика')
         if any(p not in POLICIES for p in value['devices'].values()):
@@ -186,9 +200,10 @@ class Updates:
                 self.validate_url(update.get('url',''))
         unknown=sorted(set(value)-{'policy','devices','platforms','custom','custom_devices','custom_platforms'})
         if unknown:raise ValueError(f'Неизвестные поля настроек обновлений: {unknown}')
-        with self.connect() as db:
-            db.execute('UPDATE settings SET value=? WHERE id=1',(json.dumps(value,ensure_ascii=False),))
-        return self.settings()
+        db = await self.connect()
+        await db.execute('INSERT OR REPLACE INTO settings VALUES (1,?)',(json.dumps(value,ensure_ascii=False),))
+        await db.commit()
+        return await self.settings()
 
     def match(self,host,path,method):
         return next((copy.deepcopy(e) for e in ENDPOINTS if e['host']==host.lower() and e['path']==path and e['method']==method),None)
@@ -203,7 +218,7 @@ class Updates:
                     if len(data)>8*1024**2:raise ValueError('Ответ проверки обновлений превышает 8 MiB')
                 return response.status,dict(response.headers),bytes(data)
 
-    def record(self,attempt,payload):
+    async def record(self,attempt,payload):
         found={}
         def walk(value,metadata=None):
             if isinstance(value,dict):
@@ -217,19 +232,25 @@ class Updates:
             elif isinstance(value,list):
                 for v in value:walk(v,metadata)
         walk(payload)
-        with self.connect() as db:
-            inserted=db.execute('INSERT OR IGNORE INTO attempts (id,ts,endpoint,device_sn,user_id,device_id,policy,status,error,ip) VALUES (?,?,?,?,?,?,?,?,?,?)',tuple(attempt.get(k) for k in ('id','ts','endpoint','device_sn','user_id','device_id','policy','status','error','ip')))
+        db = await self.connect()
+        try:
+            inserted=await db.execute('INSERT OR IGNORE INTO attempts (id,ts,endpoint,device_sn,user_id,device_id,policy,status,error,ip) VALUES (?,?,?,?,?,?,?,?,?,?)',tuple(attempt.get(k) for k in ('id','ts','endpoint','device_sn','user_id','device_id','policy','status','error','ip')))
             if not inserted.rowcount:
-                db.execute('UPDATE attempts SET device_id=COALESCE(device_id,?),device_sn=COALESCE(device_sn,?),user_id=COALESCE(user_id,?),ip=COALESCE(ip,?) WHERE id=?',(attempt['device_id'],attempt['device_sn'],attempt['user_id'],attempt.get('ip'),attempt['id']))
+                await db.execute('UPDATE attempts SET device_id=COALESCE(device_id,?),device_sn=COALESCE(device_sn,?),user_id=COALESCE(user_id,?),ip=COALESCE(ip,?) WHERE id=?',(attempt['device_id'],attempt['device_sn'],attempt['user_id'],attempt.get('ip'),attempt['id']))
+                await db.commit()
                 return
             for url,meta in found.items():
-                db.execute('INSERT INTO urls VALUES (?,?,?,?,?) ON CONFLICT(url) DO UPDATE SET last_seen=excluded.last_seen,hits=urls.hits+1,metadata=excluded.metadata',(url,attempt['ts'],attempt['ts'],1,json.dumps(meta,ensure_ascii=False)))
-                db.execute('INSERT INTO sightings VALUES (?,?)',(attempt['id'],url))
+                await db.execute('INSERT INTO urls VALUES (?,?,?,?,?) ON CONFLICT(url) DO UPDATE SET last_seen=excluded.last_seen,hits=urls.hits+1,metadata=excluded.metadata',(url,attempt['ts'],attempt['ts'],1,json.dumps(meta,ensure_ascii=False)))
+                await db.execute('INSERT INTO sightings VALUES (?,?)',(attempt['id'],url))
+            await db.commit()
+        except BaseException:
+            await db.rollback()
+            raise
 
     async def handle(self,endpoint,query,headers,body,device,device_id,fetch=None,client_ip=None):
         if not self._poll_task:  # суточный опрос сервера, когда устройство молчит
             self._poll_task=asyncio.create_task(self.poll_loop())
-        settings=self.with_extension_rules(self.settings())  # + правила updates/ расширений
+        settings=self.with_extension_rules(await self.settings())  # + правила updates/ расширений
         policy,custom=self.effective(settings,device)
         target='https://'+endpoint['host']+endpoint['path']+('?' + query if query else '')
         # Forward the real request, including its authentication, but never persist credentials.
@@ -246,9 +267,9 @@ class Updates:
             error=type(exc).__name__
         attempt={'id':uuid.uuid4().hex,'ts':time.time(),'endpoint':endpoint['id'],'device_sn':device['sn'] if device else None,'user_id':device.get('user_id') if device else None,'device_id':device_id or None,'policy':policy,'status':status,'error':error,'ip':client_ip}
         if device_id or (device and device.get('sn')):  # последний запрос устройства — источник суточного опроса
-            await asyncio.to_thread(self.note_request,endpoint,target,endpoint['method'],headers,body,
+            await self.note_request(endpoint,target,endpoint['method'],headers,body,
                                     device['sn'] if device else device_id)
-        await asyncio.to_thread(self.record,attempt,payload)
+        await self.record(attempt,payload)
         original=raw
         if policy=='deny':
             result={'updates':[]} if endpoint['kind']=='list' else {'hasUpdate':False} if endpoint['kind']=='check' else {'allow':False} if endpoint['kind']=='allow' else {'status':'blocked'}
@@ -262,23 +283,26 @@ class Updates:
             raw=b'{"error":"update_upstream_unavailable"}'
         return status,raw,{k:v for k,v in reply_headers.items() if k.lower() in ('content-type','retry-after')},original,attempt
 
-    def note_request(self,endpoint,target,method,headers,body,device_sn):
+    async def note_request(self,endpoint,target,method,headers,body,device_sn):
         """Последний реальный запрос устройства к OTA-эндпойнту: из него суточный
         таймер переспрашивает реальный сервер, когда устройство молчит."""
-        with self.connect() as db:
-            db.execute('INSERT OR REPLACE INTO last_requests VALUES (?,?,?,?,?,?,?)',
-                       (endpoint['id'],device_sn,method,target,json.dumps(dict(headers)),
-                        sqlite3.Binary(body or b''),time.time()))
+        db = await self.connect()
+        await db.execute('INSERT OR REPLACE INTO last_requests VALUES (?,?,?,?,?,?,?)',
+                         (endpoint['id'],device_sn,method,target,json.dumps(dict(headers)),
+                          bytes(body or b''),time.time()))
+        await db.commit()
 
-    def due_requests(self):
+    async def due_requests(self):
         """Запросы устройств, не стучавшихся к OTA-эндпойнту более суток."""
         now=time.time()
-        with self.connect() as db:
-            return [dict(r) for r in db.execute('SELECT * FROM last_requests') if now-r['ts']>=86400]
+        db = await self.connect()
+        rows = await (await db.execute('SELECT * FROM last_requests')).fetchall()
+        return [dict(r) for r in rows if now-r['ts']>=86400]
 
-    def mark_polled(self,row):
-        with self.connect() as db:
-            db.execute('UPDATE last_requests SET ts=? WHERE endpoint=? AND device_sn=?',(time.time(),row['endpoint'],row['device_sn']))
+    async def mark_polled(self,row):
+        db = await self.connect()
+        await db.execute('UPDATE last_requests SET ts=? WHERE endpoint=? AND device_sn=?',(time.time(),row['endpoint'],row['device_sn']))
+        await db.commit()
 
     async def poll_loop(self):
         """Раз в 10 минут: если устройство не обращалось к эндпойнту более суток —
@@ -287,7 +311,7 @@ class Updates:
         while True:
             await asyncio.sleep(600)
             try:
-                for row in await asyncio.to_thread(self.due_requests):
+                for row in await self.due_requests():
                     try:
                         status,reply,raw=await self.fetch(row['target'],row['method'],json.loads(row['headers'] or '{}'),bytes(row['body'] or b''))
                         try:payload=json.loads(raw)
@@ -295,8 +319,8 @@ class Updates:
                         attempt={'id':uuid.uuid4().hex,'ts':time.time(),'endpoint':row['endpoint'],
                                  'device_sn':row['device_sn'],'user_id':None,'device_id':None,
                                  'policy':'auto','status':status,'error':None,'ip':None}
-                        await asyncio.to_thread(self.record,attempt,payload)
-                        await asyncio.to_thread(self.mark_polled,row)
+                        await self.record(attempt,payload)
+                        await self.mark_polled(row)
                         log.info('Суточный опрос обновлений: %s (%s) — ответ записан в каталог',row['device_sn'],row['endpoint'])
                     except Exception as exc:
                         log.warning('Суточный опрос обновлений не удался (%s): %s',row['device_sn'],exc)
@@ -316,19 +340,19 @@ class Updates:
             custom=settings.get('custom_devices',{}).get(device['sn'],custom)
         return policy,custom
 
-    def firmware_for(self,platform):
+    async def firmware_for(self,platform):
         """Объект прошивки платформы из каталога (свежая запись) — форма ответа /tv/api/v3/ota
         (образец: {md5_hash, priority, size, update_id, url, version}); только записанные
         поля, записи для платформы нет — {} (ничего не выдумываем)."""
         platform=str(platform or '').strip()
         if not platform:
             return {}
-        with self.connect() as db:
-            rows=db.execute('SELECT url, metadata FROM urls ORDER BY last_seen DESC LIMIT 500').fetchall()
-            per_url={}
-            for r in db.execute('SELECT s.url, a.device_sn AS device_sn FROM sightings s '
-                                'JOIN attempts a ON a.id=s.attempt_id WHERE a.device_sn IS NOT NULL'):
-                per_url.setdefault(r['url'],[]).append(r['device_sn'])
+        db = await self.connect()
+        rows=await (await db.execute('SELECT url, metadata FROM urls ORDER BY last_seen DESC LIMIT 500')).fetchall()
+        per_url={}
+        for r in await (await db.execute('SELECT s.url, a.device_sn AS device_sn FROM sightings s '
+                                         'JOIN attempts a ON a.id=s.attempt_id WHERE a.device_sn IS NOT NULL')).fetchall():
+            per_url.setdefault(r['url'],[]).append(r['device_sn'])
         for row in rows:
             if platform not in url_platforms(row['url'],per_url.get(row['url'],[]),[]):
                 continue
@@ -342,30 +366,30 @@ class Updates:
             return firmware
         return {}
 
-    def inventory(self,sn=None,sns=None):
-        with self.connect() as db:
-            if sn:
-                urls=db.execute('SELECT u.*,COUNT(*) scoped_hits FROM urls u JOIN sightings s ON s.url=u.url JOIN attempts a ON a.id=s.attempt_id WHERE a.device_sn=? GROUP BY u.url ORDER BY u.last_seen DESC LIMIT 200',(sn,)).fetchall()
-                attempts=db.execute('SELECT * FROM attempts WHERE device_sn=? ORDER BY ts DESC LIMIT 100',(sn,)).fetchall()
-            elif sns is not None:
-                marks=','.join('?'*len(sns)) or "''"
-                urls=db.execute(f'SELECT u.*,COUNT(*) scoped_hits FROM urls u JOIN sightings s ON s.url=u.url JOIN attempts a ON a.id=s.attempt_id WHERE a.device_sn IN ({marks}) GROUP BY u.url ORDER BY u.last_seen DESC LIMIT 200',tuple(sns)).fetchall()
-                attempts=db.execute(f'SELECT * FROM attempts WHERE device_sn IN ({marks}) ORDER BY ts DESC LIMIT 100',tuple(sns)).fetchall()
-            else:
-                urls=db.execute('SELECT * FROM urls ORDER BY last_seen DESC LIMIT 200').fetchall()
-                attempts=db.execute('SELECT * FROM attempts ORDER BY ts DESC LIMIT 100').fetchall()
-            # Каталог — все найденные URL (коллекция не зависит от области) и SN, у кого встречены
-            catalog=db.execute('SELECT u.*,GROUP_CONCAT(DISTINCT a.device_sn) sns FROM urls u LEFT JOIN sightings s ON s.url=u.url LEFT JOIN attempts a ON a.id=s.attempt_id GROUP BY u.url ORDER BY u.last_seen DESC LIMIT 500').fetchall()
-            # Версии, предложенные в каждой попытке (sightings → urls → metadata.version_code)
-            offered={}
-            ids=[a['id'] for a in attempts]
-            if ids:
-                marks=','.join('?'*len(ids))
-                for s in db.execute(f'SELECT s.attempt_id aid,u.metadata FROM sightings s JOIN urls u ON u.url=s.url WHERE s.attempt_id IN ({marks})',ids):
-                    try:vc=json.loads(s['metadata']).get('version_code')
-                    except (ValueError,TypeError):vc=None
-                    if vc:offered.setdefault(s['aid'],[]).append(int(vc))
-            return {'settings':self.settings(),'urls':[{**dict(r),'metadata':json.loads(r['metadata'])} for r in urls],'attempts':[dict(r) for r in attempts],
-                    'catalog':[{**dict(r),'metadata':json.loads(r['metadata']),'sns':[x for x in (r['sns'] or '').split(',') if x]} for r in catalog],
-                    'offered_versions':{k:sorted(set(v),reverse=True) for k,v in offered.items()},
-                    'extensions':self.extension_rules()}  # правила updates/ расширений
+    async def inventory(self,sn=None,sns=None):
+        db = await self.connect()
+        if sn:
+            urls=await (await db.execute('SELECT u.*,COUNT(*) scoped_hits FROM urls u JOIN sightings s ON s.url=u.url JOIN attempts a ON a.id=s.attempt_id WHERE a.device_sn=? GROUP BY u.url ORDER BY u.last_seen DESC LIMIT 200',(sn,))).fetchall()
+            attempts=await (await db.execute('SELECT * FROM attempts WHERE device_sn=? ORDER BY ts DESC LIMIT 100',(sn,))).fetchall()
+        elif sns is not None:
+            marks=','.join('?'*len(sns)) or "''"
+            urls=await (await db.execute(f'SELECT u.*,COUNT(*) scoped_hits FROM urls u JOIN sightings s ON s.url=u.url JOIN attempts a ON a.id=s.attempt_id WHERE a.device_sn IN ({marks}) GROUP BY u.url ORDER BY u.last_seen DESC LIMIT 200',tuple(sns))).fetchall()
+            attempts=await (await db.execute(f'SELECT * FROM attempts WHERE device_sn IN ({marks}) ORDER BY ts DESC LIMIT 100',tuple(sns))).fetchall()
+        else:
+            urls=await (await db.execute('SELECT * FROM urls ORDER BY last_seen DESC LIMIT 200')).fetchall()
+            attempts=await (await db.execute('SELECT * FROM attempts ORDER BY ts DESC LIMIT 100')).fetchall()
+        # Каталог — все найденные URL (коллекция не зависит от области) и SN, у кого встречены
+        catalog=await (await db.execute('SELECT u.*,GROUP_CONCAT(DISTINCT a.device_sn) sns FROM urls u LEFT JOIN sightings s ON s.url=u.url LEFT JOIN attempts a ON a.id=s.attempt_id GROUP BY u.url ORDER BY u.last_seen DESC LIMIT 500')).fetchall()
+        # Версии, предложенные в каждой попытке (sightings → urls → metadata.version_code)
+        offered={}
+        ids=[a['id'] for a in attempts]
+        if ids:
+            marks=','.join('?'*len(ids))
+            for s in await (await db.execute(f'SELECT s.attempt_id aid,u.metadata FROM sightings s JOIN urls u ON u.url=s.url WHERE s.attempt_id IN ({marks})',ids)).fetchall():
+                try:vc=json.loads(s['metadata']).get('version_code')
+                except (ValueError,TypeError):vc=None
+                if vc:offered.setdefault(s['aid'],[]).append(int(vc))
+        return {'settings':await self.settings(),'urls':[{**dict(r),'metadata':json.loads(r['metadata'])} for r in urls],'attempts':[dict(r) for r in attempts],
+                'catalog':[{**dict(r),'metadata':json.loads(r['metadata']),'sns':[x for x in (r['sns'] or '').split(',') if x]} for r in catalog],
+                'offered_versions':{k:sorted(set(v),reverse=True) for k,v in offered.items()},
+                'extensions':self.extension_rules()}  # правила updates/ расширений

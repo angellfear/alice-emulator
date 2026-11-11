@@ -75,7 +75,7 @@ async def test_front_stop_closes_tunnel_without_waiting(tmp_path):
         tunnel.cancel()
         await stop_silent_upstream(upstream, handlers)
         await runner.cleanup()
-        runtime.store.close()
+        await runtime.store.close()
 
 
 async def test_restart_with_open_ws_and_tunnel_is_instant(tmp_path, monkeypatch):

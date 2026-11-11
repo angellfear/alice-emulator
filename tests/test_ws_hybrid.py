@@ -44,7 +44,10 @@ async def _wait_until(predicate, what, timeout=3.0, step=0.02):
     нагрузкой xdist — регистрация кадра веткой это событие, у паузы нет длительности."""
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        if predicate():
+        result = predicate()
+        if asyncio.iscoroutine(result):
+            result = await result
+        if result:
             return
         await asyncio.sleep(step)
     raise AssertionError(f"не дождались за {timeout} с: {what}")
@@ -422,24 +425,28 @@ async def test_branch_frames_journaled_per_record_option(tmp_path):
                     # все его записи в журнал уже сделаны — условие вместо паузы
                     await _wait_until(lambda: (7, 2) in stub.closes,
                                       what="ветка получила голосовой ход целиком")
-            rows = runtime.upstream.journal.list(source="hybrid")["items"]
             if record == "on":
-                await _wait_until(lambda: any(r["message_id"] == "msg-v" for r in
-                                              runtime.upstream.journal.list(source="hybrid")["items"])
-                                  and any("srv-mid" in hs.branch_messages
-                                          for hs in _hybrid_sessions(runtime)),
+                answered = []  # сессия ветки уходит из runtime вместе с WS — ответ запоминается
+
+                async def _branch_recorded():
+                    if any("srv-mid" in hs.branch_messages for hs in _hybrid_sessions(runtime)):
+                        answered.append(True)
+                    rows_now = (await runtime.upstream.journal.list(source="hybrid"))["items"]
+                    return bool(answered) and any(r["message_id"] == "msg-v" for r in rows_now)
+                await _wait_until(_branch_recorded,
                                   what="кадры ветки в журнале, ответ ветки обработан")
-                rows = runtime.upstream.journal.list(source="hybrid")["items"]
+                rows = (await runtime.upstream.journal.list(source="hybrid"))["items"]
                 assert rows, "ветка должна писаться при «Запись: Включено»"
                 assert {"client_to_server", "server_to_client"} <= {r["direction"] for r in rows}
                 assert all(r["device_sn"] == SN for r in rows)
                 voice = next(r for r in rows if r["message_id"] == "msg-v")
-                full = runtime.upstream.journal.item(voice["id"])
+                full = await runtime.upstream.journal.item(voice["id"])
                 client_type, _ = _types()
                 replayed = client_type.FromString(full["request_body"][4:])
                 assert replayed.Event.WhichOneof("Event") == "VoiceInput"
                 assert replayed.Event.VoiceInput.Format == PCM_FORMAT
             else:
+                rows = (await runtime.upstream.journal.list(source="hybrid"))["items"]
                 assert rows == [], "при выключенной записи ветка не пишется"
         finally:
             await runner.cleanup()

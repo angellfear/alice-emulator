@@ -97,7 +97,7 @@ async def test_dialog_restart_continues_awaiting(tmp_path):
     async def send(data):
         pass
     await first.handle_text("поставь таймер", CTX, "dlg-r", send)
-    store.close()
+    await store.close()
     store2 = StateStore(tmp_path / "e.sqlite3")
     second = DialogManager(Executor(store=store2), lambda: [ask_scenario()], server_type())
     sent2 = []

@@ -72,20 +72,20 @@ async def test_http_modes_answer_and_journal(tmp_path):
             async with client.get(url + "/unknown/path", headers=DEVICE) as response:
                 assert response.status == 404
                 assert (await response.json())["error"] == "emulator_handler_not_found"
-            assert calls == [] and runtime.upstream.journal.list()["total"] == 0
+            assert calls == [] and (await runtime.upstream.journal.list())["total"] == 0
 
             # proxy: ответ upstream, запись выключена — журнала нет
             set_route(runtime, "SN-UP", "proxy")
             async with client.get(url + "/unknown/path", headers=DEVICE) as response:
                 assert (await response.json())["from"] == "upstream"
-            assert len(calls) == 1 and runtime.upstream.journal.list()["total"] == 0
+            assert len(calls) == 1 and (await runtime.upstream.journal.list())["total"] == 0
 
             # proxy + запись «Включено»: ответ upstream + запись журнала с устройством
             runtime.identities.mutate({"operation": "record", "sn": "SN-UP", "mode": "on"})
             async with client.get(url + "/unknown/path?q=1", headers=DEVICE) as response:
                 assert (await response.json())["from"] == "upstream"
             await runtime.upstream.journal.flush()
-            items = runtime.upstream.journal.list(device="SN-UP")["items"]
+            items = (await runtime.upstream.journal.list(device="SN-UP"))["items"]
             assert len(items) == 1
             assert items[0]["source"] == "upstream" and items[0]["status"] == 200
             assert items[0]["path"] == "/unknown/path?q=1"
@@ -120,13 +120,13 @@ async def test_hybrid_handled_stays_local_miss_goes_upstream(tmp_path):
             async with client.get(url + "/no/handler", headers=headers) as response:
                 assert (await response.json())["from"] == "upstream"
             await runtime.upstream.journal.flush()
-            assert runtime.upstream.journal.list()["total"] == 0
+            assert (await runtime.upstream.journal.list())["total"] == 0
             # «Нет обработчиков»: промах, ушедший наверх, пишется
             runtime.identities.mutate({"operation": "record", "sn": "SN-H", "mode": "misses"})
             async with client.get(url + "/no/handler", headers=headers) as response:
                 assert (await response.json())["from"] == "upstream"
             await runtime.upstream.journal.flush()
-            assert runtime.upstream.journal.list()["total"] == 1
+            assert (await runtime.upstream.journal.list())["total"] == 1
             async with client.get(url + "/emulator/api/misses", headers={"X-Emulator": "1"}) as response:
                 misses = (await response.json())["http"]
             assert any(m.get("forwarded") == "upstream" for m in misses)
@@ -196,7 +196,7 @@ async def test_ws_modes_bridge_or_local(tmp_path):
                     await ws.send_str("hello")
                     await asyncio.sleep(0.5)
             assert not [kind for kind, _ in calls if kind == "ws-open"]
-            assert runtime.upstream.journal.list()["total"] == 0
+            assert (await runtime.upstream.journal.list())["total"] == 0
 
             # proxy: мост; запись выключена — журнала нет, «Включено» — open + close + неизвестный кадр
             set_route(runtime, "SN-W", "proxy")
@@ -208,7 +208,7 @@ async def test_ws_modes_bridge_or_local(tmp_path):
                 items = []
                 for _ in range(50):  # close-запись пишется при завершении обработчика моста
                     await runtime.upstream.journal.flush()
-                    items = [i for i in runtime.upstream.journal.list()["items"] if i["kind"] == "ws"]
+                    items = [i for i in (await runtime.upstream.journal.list())["items"] if i["kind"] == "ws"]
                     if record == "off" or {"open", "close"} <= {i["event"] for i in items}:
                         break
                     await asyncio.sleep(0.05)
@@ -443,9 +443,9 @@ async def test_proxy_route_intercepts_ota(tmp_path):
     """OTA перехватывается и в «Прозрачно» — политика «Обновлений» действует,
     апстрим не вызван; запрос оригинала (для каталога URL) идёт мимо маршрута, петля закрыта."""
     runtime = Runtime(tmp_path)
-    value = runtime.updates.settings()
+    value = await runtime.updates.settings()
     value['policy'] = 'deny'
-    runtime.updates.save(value)
+    await runtime.updates.save(value)
     served, fetches = [], []
     upstream_runner, port = await start_upstream(served)
     alias_upstream(runtime, port)
@@ -466,7 +466,7 @@ async def test_proxy_route_intercepts_ota(tmp_path):
                 assert await response.json() == {"updates": []}  # ответ по политике, не от Яндекса
             assert served == []  # апстрим не вызван
             assert len(fetches) == 1 and fetches[0][1] == "1"  # оригинал запрошен с маркером probe
-            inventory = runtime.updates.inventory(sn="SN-UP")
+            inventory = await runtime.updates.inventory(sn="SN-UP")
             assert inventory["attempts"] and inventory["attempts"][0]["device_sn"] == "SN-UP"
             # остальной HTTP «Прозрачно» — как раньше, прямым проходом
             async with client.get(url + "/anything?device_id=up-id", headers={"Host": "quasar.yandex.net"}) as response:

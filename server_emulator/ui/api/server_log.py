@@ -15,10 +15,10 @@ async def server_log(request, runtime, app):
     store = runtime.server_log
     if request.method == "DELETE":
         await store.flush()
-        store.clear()
+        await store.clear()
         return web.json_response({"cleared": True})
     before = request.query.get("before", "")
-    return web.json_response(store.query(
+    return web.json_response(await store.query(
         level=request.query.get("level", ""),
         source=request.query.get("source", ""),
         q=request.query.get("q", ""),

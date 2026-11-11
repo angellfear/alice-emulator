@@ -112,7 +112,7 @@ class AgentService:
                 from .routines import inbox_prompt, tool_specs
                 extra = extra + tool_specs(routines, user_id, context.get("sn") or "",
                                            mcp_hub._timezone(runtime, context) or "Europe/Moscow")
-                unread = [] if context.get("background") or text is None else routines.inbox(user_id, unread=True)
+                unread = [] if context.get("background") or text is None else await routines.inbox(user_id, unread=True)
                 if unread:
                     context["inbox"], context["inbox_ids"] = inbox_prompt(unread), [i["id"] for i in unread]
             if getattr(runtime, "dialog", None) is not None:
@@ -201,8 +201,8 @@ class AgentService:
         thread = thread or "studio:" + uuid.uuid4().hex
         context = self.context(runtime, **context_values)
         context["text"] = text
-        if self.ops.over_budget(runtime, context.get("user_id")):
-            return self._budget_answer(thread, context)
+        if await self.ops.over_budget(runtime, context.get("user_id")):
+            return await self._budget_answer(thread, context)
         async with self.lock(thread), self._graph(runtime, context, text) as graph:
             config = {"configurable": {"thread_id": thread}}
             pending = await self._pending_calls(graph, thread)
@@ -224,10 +224,10 @@ class AgentService:
             try:
                 result = await graph.ainvoke(command, config)
             except Exception as exc:  # сбой провайдера модели — тоже в журнал прогонов
-                self._trace(thread, context, type(exc).__name__ + ": " + str(exc)[:200], "error")
+                await self._trace(thread, context, type(exc).__name__ + ": " + str(exc)[:200], "error")
                 raise
             except asyncio.CancelledError:  # колонка отменила запрос, не дождавшись модели
-                self._trace(thread, context, "Отменено колонкой до ответа модели", "cancelled")
+                await self._trace(thread, context, "Отменено колонкой до ответа модели", "cancelled")
                 raise
             return await self._answer(runtime, graph, thread, result, context)
 
@@ -277,7 +277,7 @@ class AgentService:
         pending = await self._pending_calls(graph, thread)
         self.pending[thread] = pending
         if context.get("inbox_ids"):
-            runtime.routines.mark_read(context["inbox_ids"])
+            await runtime.routines.mark_read(context["inbox_ids"])
         if not context.get("background"):
             self.reflector.schedule(runtime, thread, context.get("user_id"))
         last = next((m for m in reversed(result.get("messages", [])) if isinstance(m, AIMessage)), None)
@@ -289,16 +289,16 @@ class AgentService:
             text = options(runtime)["confirm_prompt"]
         elif pending:
             text = text.rstrip() + " " + options(runtime)["confirm_prompt"]
-        self._trace(thread, context, text, "pending" if pending else "limit" if text == LIMIT_TEXT else "ok")
+        await self._trace(thread, context, text, "pending" if pending else "limit" if text == LIMIT_TEXT else "ok")
         return {"text": text, "tool_calls": [_openai_call(c, thread) for c in pending],
                 "usage": last.response_metadata.get("usage", {}) if last is not None else {},
                 "tool_runs": context["runs"], "directives": context["directives"],
                 "scenario_messages": context["scenario_messages"], "thread": thread, "engine": "graph"}
 
-    def _trace(self, thread, context, answer, status):
+    async def _trace(self, thread, context, answer, status):
         usage = context.get("usage") or {}
         try:  # журнал не должен ломать ответ
-            self.ops.record({"ts": context["started"], "thread": thread, "kind": context.get("kind"),
+            await self.ops.record({"ts": context["started"], "thread": thread, "kind": context.get("kind"),
                              "user_id": context.get("user_id"), "sn": context.get("sn"), "text": context.get("text"),
                              "answer": answer, "tools": context["runs"], "model_calls": usage.get("calls", 0),
                              "tokens": usage.get("tokens", 0), "ms": int((time.time() - context["started"]) * 1000),
@@ -306,8 +306,8 @@ class AgentService:
         except Exception:
             pass
 
-    def _budget_answer(self, thread, context):
+    async def _budget_answer(self, thread, context):
         context.setdefault("kind", "background" if context.get("background") else "request")
-        self._trace(thread, context, ops.BUDGET_TEXT, "budget")
+        await self._trace(thread, context, ops.BUDGET_TEXT, "budget")
         return {"text": ops.BUDGET_TEXT, "tool_calls": [], "usage": {}, "tool_runs": [], "directives": [],
                 "scenario_messages": [], "thread": thread, "engine": "graph"}

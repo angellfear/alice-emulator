@@ -6,7 +6,8 @@ TLS-фронта, сбои сценариев и обработчиков энд
 лишнее удаляется с самых старых (чистка при старте и раз в час).
 
 Запись: log(level, source, message, device_sn=..., **detail) — в очередь, воркер пишет
-в SQLite (WAL, короткие транзакции); вызов не ждёт диска. Повторы в пределах часа
+через aiosqlite (WAL, короткие транзакции); вызов не ждёт диска. Код без цикла событий
+(старт процесса, инструменты) пишет напрямую на sync-соединении. Повторы в пределах часа
 склеиваются: тот же (level, source, message, device_sn) увеличивает count и last_ts,
 а не создаёт строку — иначе ошибки на каждом соединении забьют журнал. Секретов нет:
 detail принимает только отдельные поля (хост, путь, код, причина), заголовки и тела
@@ -28,6 +29,8 @@ import time
 import traceback
 from pathlib import Path
 
+import aiosqlite
+
 from .migrations import upgrade_database
 
 log = logging.getLogger(__name__)
@@ -41,6 +44,21 @@ GLUE_WINDOW = 3600  # секунды: повторы с тем же ключом
 MESSAGE_LIMIT = 500
 
 LIST_COLUMNS = ("id", "ts", "last_ts", "level", "source", "message", "device_sn", "detail", "count")
+
+_GLUE_SELECT = ("SELECT id, count FROM entries WHERE dedup=? AND last_ts >= ? "
+                "ORDER BY last_ts DESC LIMIT 1")
+_GLUE_UPDATE = "UPDATE entries SET count=?, last_ts=?, detail=? WHERE id=?"
+_INSERT = ("INSERT INTO entries(dedup, ts, last_ts, level, source, message, device_sn, detail, count) "
+           "VALUES(?,?,?,?,?,?,?,?,1)")
+
+
+def _detail_json(item):
+    return json.dumps(item["detail"], ensure_ascii=False) if item["detail"] else None
+
+
+def _insert_values(item, key):
+    return (key, item["ts"], item["ts"], item["level"], item["source"], item["message"],
+            item["device_sn"], _detail_json(item))
 
 # Журнал не должен расти сам: logging-обработчик ловит только WARNING+ (устанавливает
 # install_logging); сервер_log пишет о себе через logging — имя логгера отфильтровано.
@@ -70,7 +88,13 @@ def _clean_detail(detail):
 
 
 class ServerLog:
-    """SQLite-журнал сервера с асинхронной записью через очередь (схема журнала трафика)."""
+    """SQLite-журнал сервера с асинхронной записью через очередь (aiosqlite в цикле).
+
+    Два соединения к одной базе (WAL): sync `self.db` — только для кода без цикла
+    событий (старт процесса до asyncio.run, инструменты, тесты); aiosqlite `_adb` —
+    очередь записи и чтение в цикле (инвариант 1 архитектуры). Одновременно пишут
+    они не бывает: прямая запись — лишь когда воркера ещё нет или цикла нет.
+    """
 
     def __init__(self, path, max_rows=None):
         self.path = Path(path)
@@ -78,7 +102,10 @@ class ServerLog:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         upgrade_database(self.path, "server_log")  # схема — базовая ревизия ветки server_log
         self.db = sqlite3.connect(self.path, timeout=10, check_same_thread=False)
-        self.db.execute("PRAGMA journal_mode=WAL")
+        self.db.execute("PRAGMA journal_mode=WAL")  # журнальный режим хранится в файле базы
+        self.db.commit()
+        self._open_lock = asyncio.Lock()
+        self._adb = None  # aiosqlite.Connection — открывается при первом входе в цикл
         self._queue = None
         self._worker = None
         self._loop = None
@@ -86,7 +113,6 @@ class ServerLog:
         self._closed = False
         self._direct_lock = threading.Lock()
         self._last_rotation = time.monotonic()
-        self.rotate()
 
     # --- запись ---------------------------------------------------------------
     def log(self, level, source, message, *, device_sn=None, ts=None, **detail):
@@ -119,10 +145,17 @@ class ServerLog:
             self._queue = asyncio.Queue()
             self._worker = self._loop.create_task(self._run())
 
+    async def _ensure_adb(self):
+        """aiosqlite-соединение в цикле: WAL уже включён на sync-соединении (хранится в базе)."""
+        async with self._open_lock:  # воркер и чтение не должны открыть два соединения
+            if self._adb is None:
+                self._adb = await aiosqlite.connect(self.path, timeout=10)
+        return self._adb
+
     def _write_direct(self, item):
         with self._direct_lock:
             try:
-                self._insert(item)
+                self._insert_direct(item)
                 self.db.commit()
             except sqlite3.Error as exc:
                 log.warning("Журнал сервера: запись не удалась: %s", exc)
@@ -136,7 +169,7 @@ class ServerLog:
         await done.wait()
 
     async def close(self):
-        """Идемпотентная остановка: доработать очередь, закрыть БД."""
+        """Идемпотентная остановка: доработать очередь, закрыть оба соединения."""
         if self._closed:
             return
         self._closed = True
@@ -148,58 +181,66 @@ class ServerLog:
                 self._worker.cancel()
                 await asyncio.gather(self._worker, return_exceptions=True)
             self._worker = None
+        if self._adb is not None:
+            await self._adb.close()
+            self._adb = None
         self.db.close()
 
     async def _run(self):
+        await self._ensure_adb()
+        await self.rotate()  # чистка при старте записи
         while True:
             batch = [await self._queue.get()]
             while not self._queue.empty():
                 batch.append(self._queue.get_nowait())
             stop = any(item[0] == "stop" for item in batch)
             try:
-                self._apply(batch)
+                await self._apply(batch)
             except Exception as exc:  # noqa: BLE001 — журнал не должен ронять цикл
                 log.warning("Журнал сервера: запись не удалась: %s", exc)
             if stop:
                 break
 
-    def _apply(self, batch):
+    async def _apply(self, batch):
         events = []
         for item in batch:
             if item[0] == "flush":
                 events.append(item[1])
             elif item[0] == "entry":
-                self._insert(item[1])
-        self.db.commit()
+                await self._insert(item[1])
+        await self._adb.commit()
         for event in events:
             event.set()
         if time.monotonic() - self._last_rotation > 3600:  # чистка старше 3 суток — раз в час
             self._last_rotation = time.monotonic()
-            self.rotate()
+            await self.rotate()
 
-    def _insert(self, item):
+    async def _insert(self, item):
         """Вставка или склейка: тот же ключ в пределах часа — счётчик и время последнего."""
         key = _dedup_key(item["level"], item["source"], item["device_sn"], item["message"])
-        glued = self.db.execute(
-            "SELECT id, count FROM entries WHERE dedup=? AND last_ts >= ? ORDER BY last_ts DESC LIMIT 1",
-            (key, item["ts"] - GLUE_WINDOW)).fetchone()
+        cursor = await self._adb.execute(_GLUE_SELECT, (key, item["ts"] - GLUE_WINDOW))
+        glued = await cursor.fetchone()
         if glued is not None:
-            self.db.execute("UPDATE entries SET count=?, last_ts=?, detail=? WHERE id=?",
-                            (glued[1] + 1, item["ts"], json.dumps(item["detail"], ensure_ascii=False)
-                             if item["detail"] else None, glued[0]))
+            await self._adb.execute(_GLUE_UPDATE, (glued[1] + 1, item["ts"], _detail_json(item), glued[0]))
             return
-        self.db.execute(
-            "INSERT INTO entries(dedup, ts, last_ts, level, source, message, device_sn, detail, count) "
-            "VALUES(?,?,?,?,?,?,?,?,1)",
-            (key, item["ts"], item["ts"], item["level"], item["source"], item["message"],
-             item["device_sn"], json.dumps(item["detail"], ensure_ascii=False) if item["detail"] else None))
+        await self._adb.execute(_INSERT, _insert_values(item, key))
+
+    def _insert_direct(self, item):
+        """Та же вставка на sync-соединении — код без цикла событий (старт, инструменты)."""
+        key = _dedup_key(item["level"], item["source"], item["device_sn"], item["message"])
+        glued = self.db.execute(_GLUE_SELECT, (key, item["ts"] - GLUE_WINDOW)).fetchone()
+        if glued is not None:
+            self.db.execute(_GLUE_UPDATE, (glued[1] + 1, item["ts"], _detail_json(item), glued[0]))
+            return
+        self.db.execute(_INSERT, _insert_values(item, key))
 
     # --- чтение ---------------------------------------------------------------
-    def query(self, level=None, source=None, q=None, before=None, limit=200):
+    async def query(self, level=None, source=None, q=None, before=None, limit=200):
         """Список записей, новые сверху (по времени последнего случая — склеенная строка поднимается).
         level — имя или имена через запятую; q — подстрока сообщения или устройства;
         before — только события с last_ts меньше метки (пагинация «Показать ещё»).
         sources — коды источников, встречающиеся в журнале (вне фильтров)."""
+        adb = await self._ensure_adb()
         clauses, args = [], []
         names = [x for x in str(level or "").split(",") if x in LEVELS]
         if names:
@@ -214,11 +255,12 @@ class ServerLog:
         if before:
             clauses.append("last_ts < ?")
             args.append(float(before))
-        where = " WHERE " + " AND ".join(clauses) if clauses else ""
+        where_clause = " WHERE " + " AND ".join(clauses) if clauses else ""
         size = max(1, min(int(limit), 500))
-        rows = self.db.execute(f"SELECT {','.join(LIST_COLUMNS)} FROM entries{where} "
-                               "ORDER BY last_ts DESC, id DESC LIMIT ?",
-                               [*args, size + 1]).fetchall()
+        cursor = await adb.execute(f"SELECT {','.join(LIST_COLUMNS)} FROM entries{where_clause} "
+                                   "ORDER BY last_ts DESC, id DESC LIMIT ?",
+                                   [*args, size + 1])
+        rows = await cursor.fetchall()
         items = []
         for row in rows[:size]:
             item = dict(zip(LIST_COLUMNS, row))
@@ -227,25 +269,28 @@ class ServerLog:
             except ValueError:
                 item["detail"] = None
             items.append(item)
-        sources = [row[0] for row in self.db.execute("SELECT DISTINCT source FROM entries ORDER BY source")]
+        cursor = await adb.execute("SELECT DISTINCT source FROM entries ORDER BY source")
+        sources = [row[0] for row in await cursor.fetchall()]
         return {"items": items, "sources": sources, "more": len(rows) > size}
 
-    def clear(self):
+    async def clear(self):
         """Очистить журнал целиком (кнопка в UI)."""
-        with self.db:
-            self.db.execute("DELETE FROM entries")
+        await self._ensure_adb()
+        await self._adb.execute("DELETE FROM entries")
+        await self._adb.commit()
 
     # --- хранение -------------------------------------------------------------
-    def rotate(self, now=None):
+    async def rotate(self, now=None):
         """Удалить записи старше 3 суток (по времени последнего случая) и лишние строки."""
+        await self._ensure_adb()
         now = time.time() if now is None else now
-        with self.db:
-            self.db.execute("DELETE FROM entries WHERE last_ts < ?", (now - RETENTION_DAYS * 86400,))
-            extra = self.db.execute("SELECT COUNT(*) FROM entries").fetchone()[0] - self.max_rows
-            if extra > 0:
-                self.db.execute("DELETE FROM entries WHERE id IN "
-                                "(SELECT id FROM entries ORDER BY id LIMIT ?)", (extra,))
-            self.db.commit()
+        await self._adb.execute("DELETE FROM entries WHERE last_ts < ?", (now - RETENTION_DAYS * 86400,))
+        cursor = await self._adb.execute("SELECT COUNT(*) FROM entries")
+        extra = (await cursor.fetchone())[0] - self.max_rows
+        if extra > 0:
+            await self._adb.execute("DELETE FROM entries WHERE id IN "
+                                    "(SELECT id FROM entries ORDER BY id LIMIT ?)", (extra,))
+        await self._adb.commit()
 
 
 def where(exception, limit=6):

@@ -78,15 +78,15 @@ async def traffic(request, runtime, app):
     if request.method == "DELETE":
         item = request.query.get("item")
         await journal.flush()  # очистка не должна конкурировать с очередью записи
-        journal.forget(None if not item else int(item))
+        await journal.forget(None if not item else int(item))
         return web.json_response({"cleared": item or "*"})
     if request.query.get("item"):
-        record = journal.item(int(request.query["item"]))
+        record = await journal.item(int(request.query["item"]))
         if record is None:
             raise KeyError("Записи нет в журнале")
         return web.json_response(presented(record))
     if request.query.get("export"):
-        record = journal.item(int(request.query["export"]))
+        record = await journal.item(int(request.query["export"]))
         if record is None:
             raise KeyError("Записи нет в журнале")
         return web.json_response(presented(record), headers={
@@ -95,16 +95,16 @@ async def traffic(request, runtime, app):
     source = request.query.get("source") or None
     if request.query.get("groups"):
         devices = {d["sn"]: d for d in runtime.identities.data["devices"]}
-        result = journal.groups(device_sn=request.query.get("device_sn"), source=source, unhandled=unhandled)
+        result = await journal.groups(device_sn=request.query.get("device_sn"), source=source, unhandled=unhandled)
         for entry in result:
             known = devices.get(entry["device_sn"])
             entry["name"] = known.get("name") if known else None
             entry["record"] = (known.get("record") or "off") if known else None
         return web.json_response({"devices": result})
     if "key" in request.query and "device_sn" in request.query:
-        return web.json_response({"items": journal.group_items(request.query["device_sn"], request.query["key"],
+        return web.json_response({"items": await journal.group_items(request.query["device_sn"], request.query["key"],
                                                               source=source, unhandled=unhandled)})
     filters = {key: request.query[key] for key in ("device", "host", "source") if request.query.get(key)}
-    return web.json_response(journal.list(**filters, unhandled=unhandled,
+    return web.json_response(await journal.list(**filters, unhandled=unhandled,
                                           limit=int(request.query.get("limit", 100)),
                                           offset=int(request.query.get("offset", 0))))

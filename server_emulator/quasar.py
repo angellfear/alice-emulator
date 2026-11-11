@@ -153,7 +153,7 @@ class QuasarBackend:
             devices.append(item)
         return devices
 
-    def handle(self, method, path, device, device_id, body, caller=None, caller_id=None, client_ip=None, platform=None, headers=None):
+    async def handle(self, method, path, device, device_id, body, caller=None, caller_id=None, client_ip=None, platform=None, headers=None):
         routes = self.ROUTES
         if (method,path) not in routes:
             return None
@@ -163,7 +163,7 @@ class QuasarBackend:
             # Регистрация прошивки (образец quasar-server): критическое обновление — из
             # политик OTA (updates.py): custom с записями → да; deny/allow/пустой custom → нет.
             updates = self.runtime.updates
-            policy, custom = updates.effective(updates.settings(), device)
+            policy, custom = updates.effective(await updates.settings(), device)
             return 200, {'hasCriticalUpdate': bool((custom or {}).get('updates')) if policy=='custom' else False,
                          'status':'ok'}
         if path=='/tv/api/v3/updates':
@@ -173,14 +173,14 @@ class QuasarBackend:
             # v3-опрос прошивки: объект — только из каталога прошивок эмулятора (updates.py)
             # с учётом политики; записи нет — {} (ничего не выдумываем)
             updates = self.runtime.updates
-            policy, custom = updates.effective(updates.settings(), device)
+            policy, custom = updates.effective(await updates.settings(), device)
             if policy=='deny':
                 return 200, {}
             if policy=='custom':
                 items = (custom or {}).get('updates') or []
                 return 200, copy.deepcopy(items[0]) if items else {}
             platform_name = str((headers or {}).get('x-yaquasarplatform') or '')
-            return 200, updates.firmware_for(platform_name)
+            return 200, await updates.firmware_for(platform_name)
         if path=='/glagol/token':
             # v9 §8: query device_id — ЦЕЛЕВОЕ устройство (токен «для него»), вызывающий
             # определяется заголовками (или, без заголовков, сам запрашивает для себя).

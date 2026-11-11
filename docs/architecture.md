@@ -38,7 +38,7 @@
 
 ## Инварианты
 
-1. **Один event loop** — весь I/O через asyncio. Блокирующие вызовы в основном потоке запрещены; SQLite — через `aiosqlite`, тяжёлое — `asyncio.to_thread`. Сейчас нарушается, см. «Архитектурный долг».
+1. **Один event loop** — весь I/O через asyncio. Блокирующие вызовы в основном потоке запрещены; SQLite — через `aiosqlite`, тяжёлое — `asyncio.to_thread`. Исключения: снимки `:memory:` (`mcp_hub`, `archive.py`), память `StateStore` с асинхронной записью в файл (`docs/contracts/params-db.md`), прямая запись `server_log.py` вне цикла.
 2. **Раздельные БД** — у каждой подсистемы свой файл (таблица ниже). Подсистемы не читают чужие базы.
 3. **SQLite WAL** — все базы открываются с `journal_mode=WAL`. Один writer, много readers.
 4. **Состояние эмулятора только через StateStore** — `state_store.py` владеет своими таблицами, остальные модули обращаются через его API.
@@ -218,7 +218,6 @@ UI — vanilla JS (`server_emulator/ui/`), без сборки.
 |---|---|---|---|
 | Критический | **God-object Runtime**: десятки компонентов в конструкторе, WS-сессии, переключение режимов; `runtime.*` читают 79 модулей | `runtime.py` | Явные зависимости и `typing.Protocol` между подсистемами, Runtime — только сборка |
 | Критический | **Монолит voice.py**: ASR, сборка ответа, TTS-поток, Push в одном файле | `voice.py` | Разделение по этапам; страховка — `tests/test_voice_e2e.py` |
-| Высокий | **Синхронный SQLite в event loop**, нарушение инварианта 1 | `state_store.py`, журналы, `agent/ops.py`, `agent/routines.py`, `updates.py` | `aiosqlite` |
 | Высокий | **Миграции баз разбросаны** по конструкторам (`ALTER`, `PRAGMA user_version`) | все базы | Alembic |
 | Средний | **LLM-адаптеры на голом aiohttp** и своя модель LangChain | `voice_stack/adapters/`, `agent/model.py` | SDK или LiteLLM |
 | Средний | Интеграционные тесты есть только у голосового потока | `tests/` | Сквозные тесты маршрутов и расширений |

@@ -62,7 +62,7 @@ def routine(**values):
             'schedule': {'kind': 'cron', 'expr': '0 8 * * *'}, 'delivery': 'speak', **values}
 
 
-def test_validation_errors(tmp_path):
+async def test_validation_errors(tmp_path):
     runtime, _ = home(tmp_path)
     store = runtime.routines
     for bad, message in [({'schedule': {'kind': 'cron', 'expr': '0 8 *'}}, 'cron'),
@@ -71,32 +71,32 @@ def test_validation_errors(tmp_path):
                          ({'owner': 'ghost'}, 'owner'), ({'prompt': ''}, 'prompt'), ({'delivery': 'mail'}, 'delivery'),
                          ({'quiet': {'from': '25:00', 'to': '08:00'}}, 'quiet'), ({'tz': 'Mars/Base'}, 'tz')]:
         with pytest.raises(ValueError, match=message):
-            store.save(routine(**bad))
-    assert store.list() == []
+            await store.save(routine(**bad))
+    assert await store.list() == []
 
 
 async def test_agent_routine_speaks_on_live_speaker(tmp_path):
     runtime, calls = home(tmp_path, [{'content': 'Сегодня солнечно.'}])
     sent = live(runtime)
-    saved = runtime.routines.save(routine())
+    saved = await runtime.routines.save(routine())
     result = await runtime.routines.fire(saved['id'])
     assert result == {'status': 'finished', 'text': 'Сегодня солнечно.', 'delivered': 'spoken'}
     assert 'Сегодня солнечно.' in spoken(sent)
     system = calls[0]['messages'][0]['content']
     assert 'фоновое задание по расписанию «Утро»' in system
-    assert runtime.routines.runs(saved['id'])[0]['status'] == 'finished'
+    assert (await runtime.routines.runs(saved['id']))[0]['status'] == 'finished'
     await runtime.close()
 
 
 async def test_offline_goes_to_inbox_and_next_dialog_tells_it(tmp_path):
     runtime, calls = home(tmp_path, [{'content': 'Сегодня солнечно.'}, {'content': 'Кстати, сегодня солнечно.'}])
-    saved = runtime.routines.save(routine())
+    saved = await runtime.routines.save(routine())
     assert (await runtime.routines.fire(saved['id']))['delivered'] == 'inbox'
-    assert runtime.routines.inbox('u', unread=True)[0]['text'] == 'Сегодня солнечно.'
+    assert (await runtime.routines.inbox('u', unread=True))[0]['text'] == 'Сегодня солнечно.'
     runtime.settings['device_context'] = {'sn': 'SN1', 'user_id': 'u'}
     await runtime.chat('привет', thread='voice:SN1')
     assert 'Сегодня солнечно.' in calls[-1]['messages'][0]['content']
-    assert runtime.routines.inbox('u', unread=True) == []
+    assert await runtime.routines.inbox('u', unread=True) == []
     await runtime.close()
 
 
@@ -104,9 +104,9 @@ async def test_quiet_hours_and_silent(tmp_path, monkeypatch):
     runtime, _ = home(tmp_path, [{'content': 'Итог'}])
     sent = live(runtime)
     monkeypatch.setattr(routines_module, 'quiet_now', lambda r, now=None: bool(r.get('quiet')))
-    quiet = runtime.routines.save(routine(quiet={'from': '22:00', 'to': '08:00'}))
+    quiet = await runtime.routines.save(routine(quiet={'from': '22:00', 'to': '08:00'}))
     assert (await runtime.routines.fire(quiet['id']))['delivered'] == 'inbox' and sent == []
-    silent = runtime.routines.save(routine(title='Тихо', delivery='silent'))
+    silent = await runtime.routines.save(routine(title='Тихо', delivery='silent'))
     assert (await runtime.routines.fire(silent['id']))['delivered'] == 'silent' and sent == []
     await runtime.close()
 
@@ -121,7 +121,7 @@ def test_quiet_window_crosses_midnight():
 async def test_scenario_routine_runs_without_model(tmp_path):
     runtime, calls = home(tmp_path)
     sent = live(runtime)
-    saved = runtime.routines.save(routine(kind='scenario', scenario_id='device.bluetooth.on', text='включи блютуз',
+    saved = await runtime.routines.save(routine(kind='scenario', scenario_id='device.bluetooth.on', text='включи блютуз',
                                           prompt=None, delivery='silent'))
     result = await runtime.routines.fire(saved['id'])
     assert result['status'] == 'finished' and calls == []
@@ -131,37 +131,37 @@ async def test_scenario_routine_runs_without_model(tmp_path):
 
 async def test_daily_limit_and_once_disables(tmp_path):
     runtime, _ = home(tmp_path)
-    limited = runtime.routines.save(routine(max_runs_per_day=1, delivery='silent'))
+    limited = await runtime.routines.save(routine(max_runs_per_day=1, delivery='silent'))
     await runtime.routines.fire(limited['id'])
     assert (await runtime.routines.fire(limited['id']))['status'] == 'skipped_budget'
-    once = runtime.routines.save(routine(title='Раз', delivery='silent', schedule={'kind': 'once', 'expr': '2030-01-01T08:00'}))
+    once = await runtime.routines.save(routine(title='Раз', delivery='silent', schedule={'kind': 'once', 'expr': '2030-01-01T08:00'}))
     await runtime.routines.fire(once['id'])
-    assert runtime.routines.get(once['id'])['enabled'] is False
+    assert (await runtime.routines.get(once['id']))['enabled'] is False
     await runtime.close()
 
 
 async def test_start_marks_missed_and_schedules(tmp_path):
     runtime, _ = home(tmp_path)
-    saved = runtime.routines.save(routine(schedule={'kind': 'interval', 'expr': '60'}, delivery='silent'))
+    saved = await runtime.routines.save(routine(schedule={'kind': 'interval', 'expr': '60'}, delivery='silent'))
     with sqlite3.connect(runtime.routines.path) as db:  # задание создано час назад, ни разу не запускалось
         db.execute('UPDATE routines SET created = ? WHERE id = ?', (time.time() - 3600, saved['id']))
-    runtime.routines.start()
-    assert runtime.routines.runs(saved['id'])[0]['status'] == 'missed'
-    assert runtime.routines.get(saved['id'])['next_run'] > time.time()
+    await runtime.routines.start()
+    assert (await runtime.routines.runs(saved['id']))[0]['status'] == 'missed'
+    assert (await runtime.routines.get(saved['id']))['next_run'] > time.time()
     await runtime.close()
 
 
 async def test_scheduler_fires_job(tmp_path):
     runtime, _ = home(tmp_path, [{'content': 'Итог'}])
-    runtime.routines.start()
-    saved = runtime.routines.save(routine(delivery='silent'))
+    await runtime.routines.start()
+    saved = await runtime.routines.save(routine(delivery='silent'))
     runtime.routines.scheduler.modify_job(saved['id'], next_run_time=__import__('datetime').datetime.now(
         __import__('datetime').timezone.utc))
     for _ in range(50):
         await asyncio.sleep(0.05)
-        if runtime.routines.runs(saved['id']):
+        if await runtime.routines.runs(saved['id']):
             break
-    assert runtime.routines.runs(saved['id'])[0]['status'] == 'finished'
+    assert (await runtime.routines.runs(saved['id']))[0]['status'] == 'finished'
     await runtime.close()
 
 
@@ -176,9 +176,9 @@ async def test_agent_creates_routine_after_confirmation(tmp_path):
     runtime, _ = home(tmp_path, [tool_call('routine_create', arguments), {'content': 'Готово, каждое утро в 8.'}])
     runtime.settings['device_context'] = {'sn': 'SN1', 'user_id': 'u'}
     answer = await runtime.chat('каждое утро в 8 говори погоду', thread='voice:SN1')
-    assert answer['tool_calls'][0]['function']['name'] == 'routine_create' and runtime.routines.list() == []
+    assert answer['tool_calls'][0]['function']['name'] == 'routine_create' and await runtime.routines.list() == []
     answer = await runtime.chat('да', thread='voice:SN1')
-    created = runtime.routines.list()
+    created = await runtime.routines.list()
     assert answer['text'] == 'Готово, каждое утро в 8.' and len(created) == 1
     assert created[0]['owner'] == 'u' and created[0]['sn'] == 'SN1' and created[0]['created_by'] == 'agent'
     await runtime.close()
@@ -189,11 +189,11 @@ async def test_background_confirmation_goes_to_panel(tmp_path, monkeypatch):
     mcp_hub.save_config(runtime, {'mcpServers': {'ha': {'type': 'http', 'url': 'http://ha.invalid/mcp'}}})
     runtime.settings['tools'] = [{'name': 'ha__lock', 'server_id': 'ha', 'server_tool': 'lock', 'enabled': True,
                                   'risk': 'external', 'inputSchema': {'type': 'object', 'properties': {}}}]
-    saved = runtime.routines.save(routine(prompt='закрой замок на ночь', delivery='speak'))
+    saved = await runtime.routines.save(routine(prompt='закрой замок на ночь', delivery='speak'))
     result = await runtime.routines.fire(saved['id'])
     assert result['status'] == 'needs_confirmation' and result['delivered'] == 'inbox'
     assert runtime.pending_calls[-1]['thread_id'] == 'routine:' + saved['id']
-    assert 'ждёт подтверждения' in runtime.routines.inbox('u')[0]['text']
+    assert 'ждёт подтверждения' in (await runtime.routines.inbox('u'))[0]['text']
     await runtime.close()
 
 
@@ -212,7 +212,7 @@ async def test_routine_speech_is_synthesized_before_push(tmp_path):
         return await model(kind, payload, **kwargs)
     runtime.provider = provider
     sent = live(runtime)
-    saved = runtime.routines.save(routine())
+    saved = await runtime.routines.save(routine())
     await runtime.routines.fire(saved['id'])
     assert spoken(sent) == ['Сегодня солнечно.']
     assert next(iter(async_reply.ANSWERS.values()))['answer'].get('audio')
@@ -222,7 +222,7 @@ async def test_answer_to_routine_question_keeps_context(tmp_path):
     """Вопрос задания, сказанный на колонке, лежит в голосовом треде: «да» понятно модели."""
     runtime, calls = home(tmp_path, [{'content': 'Рассказать анекдот?'}, {'content': 'Слушай.'}])
     live(runtime)
-    saved = runtime.routines.save(routine())
+    saved = await runtime.routines.save(routine())
     assert (await runtime.routines.fire(saved['id']))['delivered'] == 'spoken'
     await runtime.chat('да', thread='voice:SN1', sn='SN1', user_id='u')
     roles = [(m['role'], m.get('content')) for m in calls[1]['messages'][1:]]

@@ -9,10 +9,12 @@
 """
 import datetime
 import json
+import asyncio
 import re
-import sqlite3
 import time
 from pathlib import Path
+
+import aiosqlite
 
 from ..migrations import upgrade_database
 
@@ -56,38 +58,49 @@ class Ops:
     def __init__(self, directory):
         self.path = str(Path(directory) / "agent_ops.sqlite3")
         upgrade_database(self.path, "agent_ops")  # схема — базовая ревизия ветки agent_ops
-        with self._db() as db:
-            db.execute("DELETE FROM runs WHERE ts < ?", (time.time() - KEEP_DAYS * 86400,))
+        self._db = None  # aiosqlite.Connection — открывается при первом обращении в цикле
+        self._open_lock = asyncio.Lock()
 
-    def _db(self):
-        db = sqlite3.connect(self.path, timeout=10)
-        db.row_factory = sqlite3.Row
-        return db
+    async def _conn(self):
+        async with self._open_lock:
+            if self._db is None:
+                db = await aiosqlite.connect(self.path, timeout=10)
+                db.row_factory = aiosqlite.Row
+                await db.execute("DELETE FROM runs WHERE ts < ?", (time.time() - KEEP_DAYS * 86400,))
+                await db.commit()  # чистка старых прогонов — при первом открытии
+                self._db = db
+        return self._db
 
-    def record(self, run):
+    async def close(self):
+        if self._db is not None:
+            await self._db.close()
+            self._db = None
+
+    async def record(self, run):
         hide = lambda value: re.sub(SECRET, "[REDACTED_SECRET]", value or "")[:500]  # noqa: E731
         tools = [{"name": r.get("name"), "status": r.get("status")} for r in run.get("tools") or []]
-        with self._db() as db:
-            db.execute("INSERT INTO runs (ts, day, thread, kind, user_id, sn, text, answer, tools, model_calls, tokens,"
+        db = await self._conn()
+        await db.execute("INSERT INTO runs (ts, day, thread, kind, user_id, sn, text, answer, tools, model_calls, tokens,"
                        " ms, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                        (run["ts"], _day(run["ts"]), run.get("thread"), run.get("kind"), run.get("user_id") or "",
                         run.get("sn") or "", hide(run.get("text")), hide(run.get("answer")),
                         json.dumps(tools, ensure_ascii=False), run.get("model_calls", 0), run.get("tokens", 0),
                         run.get("ms", 0), run.get("status") or "ok"))
+        await db.commit()
 
-    def runs(self, limit=100, user_id=None):
+    async def runs(self, limit=100, user_id=None):
         query, args = "SELECT * FROM runs", []
         if user_id:
             query, args = query + " WHERE user_id = ?", [user_id]
-        with self._db() as db:
-            rows = db.execute(query + " ORDER BY id DESC LIMIT ?", args + [limit]).fetchall()
+        db = await self._conn()
+        rows = await (await db.execute(query + " ORDER BY id DESC LIMIT ?", args + [limit])).fetchall()
         return [{**dict(r), "tools": json.loads(r["tools"] or "[]")} for r in rows]
 
-    def usage(self, day=None):
+    async def usage(self, day=None):
         """Расход за день по пользователям: {user_id: {runs, model_calls, tokens}}."""
-        with self._db() as db:
-            rows = db.execute("SELECT user_id, COUNT(*) runs, SUM(model_calls) calls, SUM(tokens) tokens FROM runs"
-                              " WHERE day = ? GROUP BY user_id", (day or _day(),)).fetchall()
+        db = await self._conn()
+        rows = await (await db.execute("SELECT user_id, COUNT(*) runs, SUM(model_calls) calls, SUM(tokens) tokens FROM runs"
+                                       " WHERE day = ? GROUP BY user_id", (day or _day(),))).fetchall()
         return {r["user_id"]: {"runs": r["runs"], "model_calls": r["calls"] or 0, "tokens": r["tokens"] or 0}
                 for r in rows}
 
@@ -95,15 +108,15 @@ class Ops:
         cfg = options(runtime)
         return int((cfg["budgets"] or {}).get(user_id or "", cfg["daily_model_calls"]) or 0)
 
-    def over_budget(self, runtime, user_id):
+    async def over_budget(self, runtime, user_id):
         limit = self.limit(runtime, user_id)
-        return bool(limit) and self.usage().get(user_id or "", {}).get("model_calls", 0) >= limit
+        return bool(limit) and (await self.usage()).get(user_id or "", {}).get("model_calls", 0) >= limit
 
-    def misses(self, days=7, min_count=1):
+    async def misses(self, days=7, min_count=1):
         """Голосовые просьбы, ушедшие агенту, сгруппированные по нормализованной фразе."""
-        with self._db() as db:
-            rows = db.execute("SELECT text, tools, ts FROM runs WHERE kind = 'request' AND thread LIKE 'voice:%' AND status != 'budget'"
-                              " AND ts >= ? ORDER BY ts", (time.time() - days * 86400,)).fetchall()
+        db = await self._conn()
+        rows = await (await db.execute("SELECT text, tools, ts FROM runs WHERE kind = 'request' AND thread LIKE 'voice:%' AND status != 'budget'"
+                                       " AND ts >= ? ORDER BY ts", (time.time() - days * 86400,))).fetchall()
         groups = {}
         for row in rows:
             key = normalize(row["text"])
@@ -125,7 +138,7 @@ class Ops:
         from . import scenario_edit
         drafted = {normalize(p) for d in scenario_edit.drafts(runtime)
                    for t in d["scenario"].get("triggers") or [] for p in t.get("phrases") or []}
-        misses = [m for m in self.misses(int(cfg["suggest_days"]), int(cfg["suggest_min_count"]))
+        misses = [m for m in await self.misses(int(cfg["suggest_days"]), int(cfg["suggest_min_count"]))
                   if m["phrase"] not in drafted][:10]
         from . import engine
         if not misses or engine(runtime) != "graph":

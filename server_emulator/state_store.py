@@ -1,6 +1,10 @@
 """SQLite-хранилище состояния эмулятора (identities/settings).
 
-- WAL, foreign_keys=ON, короткие транзакции;
+- чтение и первая запись — в памяти (sqlite3 `:memory:`, копия файла на момент открытия): sync,
+  без дискового ввода-вывода, цикл событий не блокируется; запись в файл — зеркало: транзакции
+  памяти ставятся в очередь и применяются воркером на aiosqlite (WAL, foreign_keys=ON, один writer);
+  вне цикла событий (старт процесса, инструменты, sync-тесты) транзакция пишется в файл сразу
+  на sync-соединении; flush() дожидается очереди, close() её дорабатывает;
 - settings — версионированные JSON-_payload'ы (история ревизий);
 - однократная миграция legacy JSON: backup ДО миграции, импорт в одной
   транзакции, при конфликте полный откат с отчётом, после успешного коммита
@@ -23,11 +27,15 @@ Writers таблиц (инвариант: каждую таблицу пишет
 """
 from __future__ import annotations
 
+import asyncio
+import collections
 import json
 import logging
 import sqlite3
 import time
 from pathlib import Path
+
+import aiosqlite
 
 from .migrations import upgrade_database
 
@@ -38,6 +46,50 @@ class MigrationConflict(ValueError):
     """Конфликт миграции/записи: транзакция откатана целиком, отчёт — в args[0]."""
 
 
+_WRITES = ("INSERT", "UPDATE", "DELETE", "REPLACE")
+
+
+class _MemoryDb:
+    """Соединение памяти с интерфейсом sqlite3.Connection, который используют вызывающие
+    (execute, with, in_transaction): записи транзакции копятся и по commit уходят в зеркало."""
+
+    def __init__(self, memory, mirror):
+        self._memory, self._mirror, self._ops = memory, mirror, []
+
+    @property
+    def in_transaction(self):
+        return self._memory.in_transaction
+
+    def execute(self, sql, params=()):
+        cursor = self._memory.execute(sql, params)
+        if sql.lstrip()[:7].upper().startswith(_WRITES):
+            self._ops.append((sql, tuple(params)))
+        return cursor
+
+    def commit(self):
+        self._memory.commit()
+        ops, self._ops = self._ops, []
+        if ops:
+            self._mirror(ops)
+
+    def rollback(self):
+        self._memory.rollback()
+        self._ops = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        if exc_type is None:
+            self.commit()
+        else:
+            self.rollback()
+        return False
+
+    def close(self):
+        self._memory.close()
+
+
 class StateStore:
     def __init__(self, path):
         self.path = Path(path)
@@ -45,15 +97,80 @@ class StateStore:
         self._closed = False
         self.on_scenario_data = None  # fn(scenario_id, key) после записи scenario_data (runtime)
         upgrade_database(self.path, "state")  # схема — базовая ревизия ветки state
-        self.db = sqlite3.connect(self.path, timeout=10)
-        self.db.row_factory = sqlite3.Row
-        self.db.execute("PRAGMA journal_mode=WAL")
-        self.db.execute("PRAGMA foreign_keys=ON")
+        self._pending = collections.deque()  # транзакции, ещё не записанные в файл
+        self._worker = None
+        self._wake = None
+        self._idle = None
+        self._adb = None  # aiosqlite.Connection — зеркало файла в цикле событий
+        self._file = None  # sync-соединение с файлом: загрузка при открытии и запись вне цикла
+        memory = sqlite3.connect(":memory:", check_same_thread=False)
+        self._file_connection().backup(memory)  # единственное чтение файла: снимок при открытии
+        memory.row_factory = sqlite3.Row
+        memory.execute("PRAGMA foreign_keys=ON")
+        self.db = _MemoryDb(memory, self._mirror)
+
+    def _file_connection(self):
+        if self._file is None:
+            self._file = sqlite3.connect(self.path, timeout=10)
+            self._file.execute("PRAGMA journal_mode=WAL")  # режим хранится в файле базы
+            self._file.execute("PRAGMA foreign_keys=ON")
+        return self._file
 
     def _live(self):
         if self._closed:
             raise RuntimeError("StateStore закрыт")
         return self.db
+
+    # --- зеркало в файл ----------------------------------------------------------
+    def _mirror(self, ops):
+        if self._closed:
+            raise RuntimeError("StateStore закрыт")
+        self._pending.append(ops)
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:  # нет цикла (старт, инструменты, sync-тесты): запись в файл сразу
+            self._drain_direct()
+            return
+        if self._worker is None or self._worker.done():
+            self._wake, self._idle = asyncio.Event(), asyncio.Event()
+            self._worker = loop.create_task(self._run())
+        self._idle.clear()
+        self._wake.set()
+
+    def _drain_direct(self):
+        file = self._file_connection()
+        while self._pending:
+            ops = self._pending.popleft()
+            try:
+                with file:
+                    for sql, params in ops:
+                        file.execute(sql, params)
+            except sqlite3.Error as exc:
+                log.warning("Хранилище состояния: запись в файл не удалась: %s", exc)
+
+    async def _run(self):
+        self._adb = await aiosqlite.connect(self.path, timeout=10)
+        await self._adb.execute("PRAGMA foreign_keys=ON")
+        while True:
+            await self._wake.wait()
+            self._wake.clear()
+            while self._pending:
+                ops = self._pending.popleft()
+                try:
+                    for sql, params in ops:
+                        await self._adb.execute(sql, params)
+                    await self._adb.commit()
+                except Exception as exc:  # noqa: BLE001 — зеркало не должно ронять цикл
+                    log.warning("Хранилище состояния: запись в файл не удалась: %s", exc)
+                    await self._adb.rollback()
+            self._idle.set()
+
+    async def flush(self):
+        """Дождаться записи в файл всего поставленного (остановка, тесты)."""
+        if self._worker is not None and not self._worker.done():
+            await self._idle.wait()
+        elif self._pending:
+            self._drain_direct()
 
     def meta(self, key):
         row = self._live().execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
@@ -212,11 +329,22 @@ class StateStore:
                            (item["device_id"], item.get("first_seen", time.time()), time.time(),
                             item.get("source"), item.get("ip")))
 
-    def close(self):
-        """Идемпотентное закрытие; повторный вызов — no-op."""
+    async def close(self):
+        """Идемпотентное закрытие: доработать очередь записи, закрыть соединения."""
         if self._closed:
             return
+        await self.flush()
         self._closed = True
+        if self._worker is not None:
+            self._worker.cancel()
+            await asyncio.gather(self._worker, return_exceptions=True)
+            self._worker = None
+        if self._adb is not None:
+            await self._adb.close()
+            self._adb = None
+        if self._file is not None:
+            self._file.close()
+            self._file = None
         self.db.close()
 
 

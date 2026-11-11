@@ -21,7 +21,9 @@ MemoryJobStore) пересобираются из неё при старте и 
 import copy
 import datetime
 import json
-import sqlite3
+import asyncio
+
+import aiosqlite
 import time
 import uuid
 from zoneinfo import ZoneInfo
@@ -119,23 +121,33 @@ class Routines:
         self.runtime, self.path = runtime, str(path)
         self.scheduler = None
         upgrade_database(self.path, "routines")  # схема — базовая ревизия ветки routines
+        self._db = None  # aiosqlite.Connection — открывается при первом обращении в цикле
+        self._open_lock = asyncio.Lock()
 
-    def _db(self):
-        db = sqlite3.connect(self.path, timeout=10)
-        db.row_factory = sqlite3.Row
-        return db
+    async def _conn(self):
+        async with self._open_lock:
+            if self._db is None:
+                db = await aiosqlite.connect(self.path, timeout=10)
+                db.row_factory = aiosqlite.Row
+                self._db = db
+        return self._db
+
+    async def close(self):
+        if self._db is not None:
+            await self._db.close()
+            self._db = None
 
     # --- хранилище -------------------------------------------------------------------
 
-    def list(self, owner=None):
-        with self._db() as db:
-            rows = db.execute("SELECT * FROM routines" + (" WHERE owner = ?" if owner else "") + " ORDER BY created",
-                              (owner,) if owner else ()).fetchall()
+    async def list(self, owner=None):
+        db = await self._conn()
+        rows = await (await db.execute("SELECT * FROM routines" + (" WHERE owner = ?" if owner else "") + " ORDER BY created",
+                                       (owner,) if owner else ())).fetchall()
         return [self._routine(row) for row in rows]
 
-    def get(self, routine_id):
-        with self._db() as db:
-            row = db.execute("SELECT * FROM routines WHERE id = ?", (routine_id,)).fetchone()
+    async def get(self, routine_id):
+        db = await self._conn()
+        row = await (await db.execute("SELECT * FROM routines WHERE id = ?", (routine_id,))).fetchone()
         if row is None:
             raise ValueError("Нет задания: " + str(routine_id))
         return self._routine(row)
@@ -148,57 +160,63 @@ class Routines:
             routine["next_run"] = job.next_run_time.timestamp() if job and job.next_run_time else None
         return routine
 
-    def save(self, routine):
+    async def save(self, routine):
         users = {u["id"] for u in self.runtime.identities.data["users"]}
         existing = None
         if routine.get("id"):
-            existing = self.get(routine["id"])
+            existing = await self.get(routine["id"])
             routine = {**existing, **routine}
         routine = validate({**routine, "created": (existing or {}).get("created") or time.time()}, users)
         routine_id = routine.get("id") or "r" + uuid.uuid4().hex[:10]
         data = {k: v for k, v in routine.items() if k not in ("id", "owner", "created", "last_run", "next_run")}
-        with self._db() as db:
-            db.execute("INSERT INTO routines (id, owner, data, created, last_run) VALUES (?, ?, ?, ?, ?) "
-                       "ON CONFLICT(id) DO UPDATE SET owner = excluded.owner, data = excluded.data",
-                       (routine_id, routine["owner"], json.dumps(data, ensure_ascii=False), routine["created"],
-                        (existing or {}).get("last_run")))
-        self._schedule(self.get(routine_id))
-        return self.get(routine_id)
+        db = await self._conn()
+        await db.execute("INSERT INTO routines (id, owner, data, created, last_run) VALUES (?, ?, ?, ?, ?) "
+                         "ON CONFLICT(id) DO UPDATE SET owner = excluded.owner, data = excluded.data",
+                         (routine_id, routine["owner"], json.dumps(data, ensure_ascii=False), routine["created"],
+                          (existing or {}).get("last_run")))
+        await db.commit()
+        saved = await self.get(routine_id)
+        self._schedule(saved)
+        return saved
 
-    def delete(self, routine_id):
-        self.get(routine_id)
-        with self._db() as db:
-            db.execute("DELETE FROM routines WHERE id = ?", (routine_id,))
+    async def delete(self, routine_id):
+        await self.get(routine_id)
+        db = await self._conn()
+        await db.execute("DELETE FROM routines WHERE id = ?", (routine_id,))
+        await db.commit()
         if self.scheduler and self.scheduler.get_job(routine_id):
             self.scheduler.remove_job(routine_id)
 
-    def runs(self, routine_id=None, limit=50):
-        with self._db() as db:
-            rows = db.execute("SELECT * FROM routine_runs" + (" WHERE routine_id = ?" if routine_id else "")
-                              + " ORDER BY id DESC LIMIT ?", ((routine_id, limit) if routine_id else (limit,))).fetchall()
+    async def runs(self, routine_id=None, limit=50):
+        db = await self._conn()
+        rows = await (await db.execute("SELECT * FROM routine_runs" + (" WHERE routine_id = ?" if routine_id else "")
+                                       + " ORDER BY id DESC LIMIT ?",
+                                       ((routine_id, limit) if routine_id else (limit,)))).fetchall()
         return [dict(row) for row in rows]
 
-    def _record(self, routine_id, status, text=None, error=None, delivered=None, ts=None):
-        with self._db() as db:
-            db.execute("INSERT INTO routine_runs (routine_id, ts, status, text, error, delivered) VALUES (?, ?, ?, ?, ?, ?)",
-                       (routine_id, ts or time.time(), status, text, error, delivered))
+    async def _record(self, routine_id, status, text=None, error=None, delivered=None, ts=None):
+        db = await self._conn()
+        await db.execute("INSERT INTO routine_runs (routine_id, ts, status, text, error, delivered) VALUES (?, ?, ?, ?, ?, ?)",
+                         (routine_id, ts or time.time(), status, text, error, delivered))
+        await db.commit()
 
-    def inbox(self, user_id=None, unread=False):
+    async def inbox(self, user_id=None, unread=False):
         query, args = "SELECT * FROM inbox WHERE 1=1", []
         if user_id:
             query, args = query + " AND user_id = ?", args + [user_id]
         if unread:
             query += " AND delivered IS NULL"
-        with self._db() as db:
-            return [dict(row) for row in db.execute(query + " ORDER BY id DESC LIMIT 100", args).fetchall()]
+        db = await self._conn()
+        return [dict(row) for row in await (await db.execute(query + " ORDER BY id DESC LIMIT 100", args)).fetchall()]
 
-    def mark_read(self, ids):
-        with self._db() as db:
-            db.executemany("UPDATE inbox SET delivered = ? WHERE id = ?", [(time.time(), i) for i in ids])
+    async def mark_read(self, ids):
+        db = await self._conn()
+        await db.executemany("UPDATE inbox SET delivered = ? WHERE id = ?", [(time.time(), i) for i in ids])
+        await db.commit()
 
     # --- планировщик -----------------------------------------------------------------
 
-    def start(self):
+    async def start(self):
         """Планировщик в текущем event loop; пропуски простоя — missed, без догоняющего запуска."""
         if self.scheduler is not None:
             return
@@ -206,16 +224,16 @@ class Routines:
         self.scheduler.start()
         self._schedule_suggest()
         now = time.time()
-        for routine in self.list():
+        for routine in await self.list():
             if not routine["enabled"]:
                 continue
             reference = datetime.datetime.fromtimestamp(routine["last_run"] or routine["created"], datetime.timezone.utc)
             due = trigger(routine).get_next_fire_time(None, reference + datetime.timedelta(seconds=1))
             if due is not None and due.timestamp() < now - MISSED_GRACE_S:
-                self._record(routine["id"], "missed", ts=due.timestamp(),
+                await self._record(routine["id"], "missed", ts=due.timestamp(),
                              error="сервер был выключен в момент запуска")
                 if routine["schedule"]["kind"] == "once":
-                    self.save({"id": routine["id"], "enabled": False})
+                    await self.save({"id": routine["id"], "enabled": False})
                     continue
             self._schedule(routine)
 
@@ -282,23 +300,24 @@ class Routines:
 
     async def fire(self, routine_id, manual=False):
         try:
-            routine = self.get(routine_id)
+            routine = await self.get(routine_id)
         except ValueError:
             return None
         if not routine["enabled"] and not manual:
             return None
         from . import engine
         if engine(self.runtime) != "graph":  # AI агент выключен во вкладке — задания стоят
-            self._record(routine_id, "skipped_disabled", error="AI агент выключен")
+            await self._record(routine_id, "skipped_disabled", error="AI агент выключен")
             return {"status": "skipped_disabled"}
         day_start = datetime.datetime.combine(datetime.date.today(), datetime.time()).timestamp()
-        today = [r for r in self.runs(routine_id, limit=routine["max_runs_per_day"] + 1)
+        today = [r for r in await self.runs(routine_id, limit=routine["max_runs_per_day"] + 1)
                  if r["ts"] >= day_start and r["status"] not in ("missed", "skipped_budget", "skipped_disabled")]
         if len(today) >= routine["max_runs_per_day"]:
-            self._record(routine_id, "skipped_budget", error=f"лимит {routine['max_runs_per_day']} запусков в сутки")
+            await self._record(routine_id, "skipped_budget", error=f"лимит {routine['max_runs_per_day']} запусков в сутки")
             return {"status": "skipped_budget"}
-        with self._db() as db:
-            db.execute("UPDATE routines SET last_run = ? WHERE id = ?", (time.time(), routine_id))
+        db = await self._conn()
+        await db.execute("UPDATE routines SET last_run = ? WHERE id = ?", (time.time(), routine_id))
+        await db.commit()
         scoped, sn = self._scoped(routine)
         try:
             if routine["kind"] == "scenario":
@@ -315,14 +334,14 @@ class Routines:
                     status = "needs_confirmation"
                     self.runtime.pending_calls = (self.runtime.pending_calls + answer["tool_calls"])[-30:]
         except Exception as exc:
-            self._record(routine_id, "error", error=type(exc).__name__ + ": " + str(exc)[:300])
+            await self._record(routine_id, "error", error=type(exc).__name__ + ": " + str(exc)[:300])
             return {"status": "error"}
         delivered = await self.deliver(routine, sn, text) if text and status != "needs_confirmation" else None
         if status == "needs_confirmation":
-            delivered = self._to_inbox(routine, sn, f"Задание «{routine['title']}» ждёт подтверждения в панели.")
-        self._record(routine_id, status, text=text, delivered=delivered)
+            delivered = await self._to_inbox(routine, sn, f"Задание «{routine['title']}» ждёт подтверждения в панели.")
+        await self._record(routine_id, status, text=text, delivered=delivered)
         if routine["schedule"]["kind"] == "once" and not manual:
-            self.save({"id": routine_id, "enabled": False})
+            await self.save({"id": routine_id, "enabled": False})
         return {"status": status, "text": text, "delivered": delivered}
 
     async def deliver(self, routine, sn, text):
@@ -348,7 +367,7 @@ class Routines:
             else:
                 await self._note_voice(sn, text, routine["title"])
                 return "spoken"
-        return self._to_inbox(routine, sn, text)
+        return await self._to_inbox(routine, sn, text)
 
     async def _note_voice(self, sn, text, title):
         """Сказанное — в голосовой тред колонки: ответ на вопрос задания попадёт туда (voice:<SN>)."""
@@ -360,10 +379,11 @@ class Routines:
         except Exception as exc:  # noqa: BLE001 — тред не обязателен: реплика уже доставлена
             self.runtime.recent = (self.runtime.recent + [{"kind": "routine", "error": type(exc).__name__ + ": " + str(exc)[:160]}])[-30:]
 
-    def _to_inbox(self, routine, sn, text):
-        with self._db() as db:
-            db.execute("INSERT INTO inbox (user_id, sn, routine_id, title, text, ts) VALUES (?, ?, ?, ?, ?, ?)",
-                       (routine["owner"], sn, routine["id"], routine["title"], text, time.time()))
+    async def _to_inbox(self, routine, sn, text):
+        db = await self._conn()
+        await db.execute("INSERT INTO inbox (user_id, sn, routine_id, title, text, ts) VALUES (?, ?, ?, ?, ?, ?)",
+                         (routine["owner"], sn, routine["id"], routine["title"], text, time.time()))
+        await db.commit()
         return "inbox"
 
 
@@ -379,8 +399,8 @@ def tool_specs(routines, user_id, sn, tz="Europe/Moscow"):
               "delivery": {"type": "string", "enum": list(DELIVERY)}, "enabled": {"type": "boolean"},
               "quiet": {"type": "object", "properties": {"from": {"type": "string"}, "to": {"type": "string"}}}}
 
-    def own(routine_id):
-        routine = routines.get(routine_id)
+    async def own(routine_id):
+        routine = await routines.get(routine_id)
         if routine["owner"] != user_id:
             raise ValueError("Задание другого пользователя")
         return routine
@@ -390,21 +410,21 @@ def tool_specs(routines, user_id, sn, tz="Europe/Moscow"):
                                        "next_run", "tz")}
 
     async def routine_list():
-        return json.dumps([brief(r) for r in routines.list(user_id)], ensure_ascii=False)
+        return json.dumps([brief(r) for r in await routines.list(user_id)], ensure_ascii=False)
 
     async def routine_create(**values):
         values = {k: v for k, v in values.items() if k in fields}
-        routine = routines.save({"tz": tz, **values, "owner": user_id, "sn": sn, "created_by": "agent"})
+        routine = await routines.save({"tz": tz, **values, "owner": user_id, "sn": sn, "created_by": "agent"})
         return json.dumps(brief(routine), ensure_ascii=False)
 
     async def routine_update(id, **values):
-        own(id)
-        routine = routines.save({**{k: v for k, v in values.items() if k in fields}, "id": id})
+        await own(id)
+        routine = await routines.save({**{k: v for k, v in values.items() if k in fields}, "id": id})
         return json.dumps(brief(routine), ensure_ascii=False)
 
     async def routine_delete(id):
-        own(id)
-        routines.delete(id)
+        await own(id)
+        await routines.delete(id)
         return "Задание удалено."
 
     return [

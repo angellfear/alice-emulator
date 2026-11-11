@@ -11,8 +11,8 @@ WS — направление и имя сообщения): на пару хр�
 настройки upstream.journal. Значения секретных заголовков (Authorization, Cookie, токены,
 тикеты) маскируются до записи — журнал и экспорт не содержат учётных данных колонки.
 Запись асинхронная, через очередь: обмен кладёт запись
-и не ждёт диска, воркер батчит и пишет в SQLite; flush() дожидается записи
-(остановка, тесты).
+и не ждёт диска, воркер батчит и пишет в SQLite через aiosqlite; flush() дожидается записи
+(остановка, тесты). Чтение и ротация — async на том же соединении (один writer, WAL).
 """
 from __future__ import annotations
 
@@ -24,6 +24,7 @@ import sqlite3
 import time
 from pathlib import Path
 
+import aiosqlite
 import zstandard
 
 from ..migrations import upgrade_database
@@ -78,9 +79,8 @@ class TrafficJournal:
         self.config = config or {}  # dict или callable → settings["upstream"]["journal"]
         self.path.parent.mkdir(parents=True, exist_ok=True)
         upgrade_database(self.path, "traffic")  # схема — базовая ревизия ветки traffic
-        self.db = sqlite3.connect(self.path, timeout=10)
-        self.db.execute("PRAGMA journal_mode=WAL")
-        self.db.execute("PRAGMA foreign_keys=ON")
+        self._open_lock = asyncio.Lock()
+        self.db = None  # aiosqlite.Connection — открывается при первом обращении в цикле
         self._queue = None
         self._worker = None
         self._closed = False
@@ -97,6 +97,15 @@ class TrafficJournal:
                 if isinstance(number, (int, float)) and not isinstance(number, bool) and number >= 0:
                     result[key] = number
         return result
+
+    async def _conn(self):
+        async with self._open_lock:  # воркер и чтение не должны открыть два соединения
+            if self.db is None:
+                db = await aiosqlite.connect(self.path, timeout=10)
+                await db.execute("PRAGMA journal_mode=WAL")
+                await db.execute("PRAGMA foreign_keys=ON")
+                self.db = db
+        return self.db
 
     def _ensure_worker(self):
         if self._worker is None and not self._closed:
@@ -135,36 +144,39 @@ class TrafficJournal:
                 self._worker.cancel()
                 await asyncio.gather(self._worker, return_exceptions=True)
             self._worker = None
-        self.db.close()
+        if self.db is not None:
+            await self.db.close()
+            self.db = None
 
     async def _run(self):
+        await self._conn()
         while True:
             batch = [await self._queue.get()]
             while not self._queue.empty():
                 batch.append(self._queue.get_nowait())
             stop = any(item[0] == "stop" for item in batch)
             try:
-                self._apply(batch)
+                await self._apply(batch)
             except Exception as exc:  # noqa: BLE001 — журнал не должен ронять цикл
                 log.warning("Журнал трафика: запись не удалась: %s", exc)
             if stop:
                 break
 
-    def _apply(self, batch):
+    async def _apply(self, batch):
         """Элементы партии обрабатываются в порядке очереди."""
         events = []
         for item in batch:
             if item[0] == "exchange":
-                self._insert(item[1])
+                await self._insert(item[1])
             elif item[0] == "flush":
                 events.append(item[1])
-        self.db.commit()
+        await self.db.commit()
         for event in events:
             event.set()
         self._writes += 1
-        self._rotate_maybe()
+        await self._rotate_maybe()
 
-    def _insert(self, fields):
+    async def _insert(self, fields):
         limit = int(self.settings()["max_body_kb"] * 1024)
         row = {column: fields.get(column) for column in COLUMNS}
         for name in ("request_headers", "response_headers"):
@@ -189,23 +201,23 @@ class TrafficJournal:
         for name in ("audio_in_frames", "audio_in_bytes", "audio_out_frames", "audio_out_bytes"):
             row[name] = int(row.get(name) or 0)
         columns = ",".join(row)
-        self.db.execute(f"INSERT INTO exchanges({columns}) VALUES({','.join('?' * len(row))})",
+        await self.db.execute(f"INSERT INTO exchanges({columns}) VALUES({','.join('?' * len(row))})",
                         tuple(row.values()))
         if row.get("key"):
             sn = row.get("device_sn") or ""
-            self.db.execute(
+            await self.db.execute(
                 "INSERT INTO journal_groups(device_sn, key, count, first_ts, last_ts) VALUES(?,?,1,?,?) "
                 "ON CONFLICT(device_sn, key) DO UPDATE SET count=count+1, last_ts=excluded.last_ts",
                 (sn, row["key"], row["ts"], row["ts"]))
-            self._trim(row.get("device_sn"), row["key"])
+            await self._trim(row.get("device_sn"), row["key"])
 
-    def _trim(self, device_sn, key):
+    async def _trim(self, device_sn, key):
         """На пару (устройство, ключ) остаются последние GROUP_LIMIT записей."""
-        self.db.execute("DELETE FROM exchanges WHERE id IN (SELECT id FROM exchanges WHERE device_sn IS ? AND key=? "
+        await self.db.execute("DELETE FROM exchanges WHERE id IN (SELECT id FROM exchanges WHERE device_sn IS ? AND key=? "
                         "ORDER BY id DESC LIMIT -1 OFFSET ?)", (device_sn, key, GROUP_LIMIT))
 
     # --- чтение ---------------------------------------------------------------
-    def list(self, device=None, host=None, source=None, unhandled=False, key=None, limit=100, offset=0):
+    async def list(self, device=None, host=None, source=None, unhandled=False, key=None, limit=100, offset=0):
         """Список обменов (без тел), новые сверху; фильтры: устройство и хост — подстрока,
         источник и ключ события — точное значение, unhandled — только запросы без обработчика."""
         clauses, args = [], []
@@ -224,13 +236,14 @@ class TrafficJournal:
         if unhandled:
             clauses.append("unhandled=1")
         where = " WHERE " + " AND ".join(clauses) if clauses else ""
-        total = self.db.execute("SELECT COUNT(*) FROM exchanges" + where, args).fetchone()[0]
-        rows = self.db.execute(f"SELECT {','.join(LIST_COLUMNS)} FROM exchanges{where} "
-                               "ORDER BY id DESC LIMIT ? OFFSET ?",
-                               [*args, max(1, min(int(limit), 500)), max(0, int(offset))]).fetchall()
+        db = await self._conn()
+        total = (await (await db.execute("SELECT COUNT(*) FROM exchanges" + where, args)).fetchone())[0]
+        rows = await (await db.execute(f"SELECT {','.join(LIST_COLUMNS)} FROM exchanges{where} "
+                                       "ORDER BY id DESC LIMIT ? OFFSET ?",
+                                       [*args, max(1, min(int(limit), 500)), max(0, int(offset))])).fetchall()
         return {"items": [dict(zip(LIST_COLUMNS, row)) for row in rows], "total": total}
 
-    def groups(self, device_sn=None, source=None, unhandled=False):
+    async def groups(self, device_sn=None, source=None, unhandled=False):
         """Группы событий по устройствам: [{device_sn, groups: [{key, count, first_ts, last_ts}]}].
         Счётчик count — все случаи (не теряется при вытеснении записей); с фильтрами источника
         и «без обработчика» остаются группы, где есть хотя бы одна подходящая запись."""
@@ -249,13 +262,14 @@ class TrafficJournal:
                            "AND e.key=g.key AND " + " AND ".join(inner) + ")")
         where = " WHERE " + " AND ".join(clauses) if clauses else ""
         result = {}
-        for sn, key, count, first_ts, last_ts in self.db.execute(
+        db = await self._conn()
+        for sn, key, count, first_ts, last_ts in await (await db.execute(
                 "SELECT g.device_sn, g.key, g.count, g.first_ts, g.last_ts FROM journal_groups g"
-                f"{where} ORDER BY g.last_ts DESC", args):
+                f"{where} ORDER BY g.last_ts DESC", args)).fetchall():
             result.setdefault(sn, []).append({"key": key, "count": count, "first_ts": first_ts, "last_ts": last_ts})
         return [{"device_sn": sn or None, "groups": groups} for sn, groups in result.items()]
 
-    def group_items(self, device_sn, key, source=None, unhandled=False):
+    async def group_items(self, device_sn, key, source=None, unhandled=False):
         """Записи группы (до GROUP_LIMIT), новые сверху, без тел."""
         clauses, args = ["device_sn IS ?", "key=?"], [device_sn or None, key]
         if source:
@@ -263,14 +277,16 @@ class TrafficJournal:
             args.append(source)
         if unhandled:
             clauses.append("unhandled=1")
-        rows = self.db.execute(f"SELECT {','.join(LIST_COLUMNS)} FROM exchanges WHERE {' AND '.join(clauses)} "
-                               "ORDER BY id DESC LIMIT ?", [*args, GROUP_LIMIT]).fetchall()
+        db = await self._conn()
+        rows = await (await db.execute(f"SELECT {','.join(LIST_COLUMNS)} FROM exchanges WHERE {' AND '.join(clauses)} "
+                                       "ORDER BY id DESC LIMIT ?", [*args, GROUP_LIMIT])).fetchall()
         return [dict(zip(LIST_COLUMNS, row)) for row in rows]
 
-    def item(self, exchange_id):
+    async def item(self, exchange_id):
         """Карточка обмена: заголовки, распакованные тела и кадры WS; None — нет записи."""
-        row = self.db.execute(f"SELECT {','.join(DETAIL_COLUMNS)} FROM exchanges WHERE id=?",
-                              (int(exchange_id),)).fetchone()
+        db = await self._conn()
+        row = await (await db.execute(f"SELECT {','.join(DETAIL_COLUMNS)} FROM exchanges WHERE id=?",
+                                      (int(exchange_id),))).fetchone()
         if row is None:
             return None
         record = dict(zip(DETAIL_COLUMNS, row))
@@ -283,8 +299,8 @@ class TrafficJournal:
             record[name] = self._decompress(record.get(name))
         record["frames"] = []
         if record.get("session"):
-            for frame in self.db.execute("SELECT sequence,ts,direction,binary,size,data FROM ws_frames "
-                                         "WHERE exchange_id=? ORDER BY sequence", (record["id"],)):
+            for frame in await (await db.execute("SELECT sequence,ts,direction,binary,size,data FROM ws_frames "
+                                                 "WHERE exchange_id=? ORDER BY sequence", (record["id"],))).fetchall():
                 record["frames"].append({"sequence": frame[0], "ts": frame[1], "direction": frame[2],
                                          "binary": bool(frame[3]), "size": frame[4],
                                          "data": self._decompress(frame[5])})
@@ -299,54 +315,58 @@ class TrafficJournal:
         except zstandard.ZstdError:
             return None
 
-    def forget(self, exchange_id=None):
+    async def forget(self, exchange_id=None):
         """Удалить запись (None — очистить журнал)."""
-        with self.db:
-            if exchange_id is None:
-                self.db.execute("DELETE FROM ws_frames")
-                self.db.execute("DELETE FROM exchanges")
-                self.db.execute("DELETE FROM journal_groups")
-            else:
-                self.db.execute("DELETE FROM exchanges WHERE id=?", (int(exchange_id),))
-                self._drop_empty_groups()
+        db = await self._conn()
+        if exchange_id is None:
+            await db.execute("DELETE FROM ws_frames")
+            await db.execute("DELETE FROM exchanges")
+            await db.execute("DELETE FROM journal_groups")
+        else:
+            await db.execute("DELETE FROM exchanges WHERE id=?", (int(exchange_id),))
+            await self._drop_empty_groups()
+        await db.commit()
 
-    def _drop_empty_groups(self):
+    async def _drop_empty_groups(self):
         """Группа без записей (удалена вручную или ротацией) из списка уходит."""
-        self.db.execute("DELETE FROM journal_groups WHERE NOT EXISTS (SELECT 1 FROM exchanges e "
+        await self.db.execute("DELETE FROM journal_groups WHERE NOT EXISTS (SELECT 1 FROM exchanges e "
                         "WHERE COALESCE(e.device_sn, '')=journal_groups.device_sn AND e.key=journal_groups.key)")
 
     # --- ротация ---------------------------------------------------------------
-    def _bytes_used(self):
+    async def _bytes_used(self):
         """Оценка занятого места: тела и кадры + постоянная часть строки."""
-        blobs = self.db.execute("SELECT COALESCE(SUM(LENGTH(request_body)+LENGTH(response_body)),0) "
-                                "FROM exchanges").fetchone()[0]
-        frames = self.db.execute("SELECT COALESCE(SUM(LENGTH(data)),0) FROM ws_frames").fetchone()[0]
-        count = self.db.execute("SELECT COUNT(*) FROM exchanges").fetchone()[0]
+        async def scalar(sql):
+            return (await (await self.db.execute(sql)).fetchone())[0]
+        blobs = await scalar("SELECT COALESCE(SUM(LENGTH(request_body)+LENGTH(response_body)),0) FROM exchanges")
+        frames = await scalar("SELECT COALESCE(SUM(LENGTH(data)),0) FROM ws_frames")
+        count = await scalar("SELECT COUNT(*) FROM exchanges")
         return int(blobs) + int(frames) + count * 512
 
-    def rotate(self, now=None):
+    async def rotate(self, now=None):
         """Ротация по сроку (max_age_days) и объёму данных (max_size_mb)."""
+        await self._conn()
         settings = self.settings()
         now = time.time() if now is None else now
         max_age = float(settings["max_age_days"]) * 86400
         if max_age > 0:
-            self.db.execute("DELETE FROM exchanges WHERE ts < ?", (now - max_age,))
+            await self.db.execute("DELETE FROM exchanges WHERE ts < ?", (now - max_age,))
         max_size = int(float(settings["max_size_mb"]) * 1024 ** 2)
         if max_size > 0:
-            while self._bytes_used() > max_size:
-                oldest = [row[0] for row in self.db.execute("SELECT id FROM exchanges ORDER BY id LIMIT 10")]
+            while await self._bytes_used() > max_size:
+                oldest = [row[0] for row in await (await self.db.execute(
+                    "SELECT id FROM exchanges ORDER BY id LIMIT 10")).fetchall()]
                 if not oldest:
                     break
                 marks = ",".join("?" * len(oldest))
-                self.db.execute(f"DELETE FROM exchanges WHERE id IN ({marks})", oldest)
-        self._drop_empty_groups()
-        self.db.commit()
+                await self.db.execute(f"DELETE FROM exchanges WHERE id IN ({marks})", oldest)
+        await self._drop_empty_groups()
+        await self.db.commit()
 
-    def _rotate_maybe(self):
+    async def _rotate_maybe(self):
         if time.monotonic() - self._last_age_rotation > AGE_ROTATE_EVERY_S or self._writes >= SIZE_CHECK_EVERY:
             self._writes = 0
             self._last_age_rotation = time.monotonic()
             try:
-                self.rotate()
-            except sqlite3.Error as exc:
+                await self.rotate()
+            except (sqlite3.Error, aiosqlite.Error) as exc:
                 log.warning("Ротация журнала трафика не удалась: %s", exc)

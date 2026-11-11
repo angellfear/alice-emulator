@@ -18,6 +18,7 @@ dependencies = [
   "langgraph>=1.2,<2",
   "langgraph-checkpoint-sqlite>=3.1,<4",
   "langmem>=0.0.30,<0.1",
+  "aiosqlite>=0.20,<1",
   "apscheduler>=3.11,<4",
   "ddgs>=9,<10",
   "trafilatura>=2,<3",

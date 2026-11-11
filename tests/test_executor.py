@@ -155,7 +155,7 @@ async def test_restart_during_await_resumes_from_store(tmp_path):
     ], slots={"city": {"type": "string"}})
     outcome = await first.execute(flow, CTX, "dlg-restart")
     assert outcome.status == "awaiting"
-    store.close()
+    await store.close()
 
     store2 = StateStore(tmp_path / "emulator.sqlite3")  # «рестарт» процесса
     second = Executor(store=store2)
