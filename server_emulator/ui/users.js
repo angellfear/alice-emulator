@@ -496,6 +496,11 @@
       const ip = node('small'); ip.className = 'ip'; ip.textContent = ipOf(device) ? 'IP ' + ipOf(device) : '';
       const modelLine = parsed ? parsed.name + (parsed.color ? ' · ' + parsed.color.label : '') : 'Неизвестная модель';
       about.append(node('b', modelLine), node('small', 'SN ' + device.sn), ip, node('small', device.name !== device.sn ? device.name : (device.device_ids[0] || '')));
+      if ((device.state || {}).upstream_config_generation === 'new') {
+        const gen = node('span', 'новый конфиг'); gen.className = 'chip warn';
+        gen.title = 'Яндекс отдаёт конфиг нового поколения — действует поставляемая защита get_sync_info (замены в панели Quasar).';
+        about.append(gen);
+      }
       modelCell.append(pic, about); row.append(modelCell);
 
       const bind = node('td');

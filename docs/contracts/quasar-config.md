@@ -23,8 +23,9 @@ emulate/hybrid; в «Прозрачно» конфиг отдаёт Яндекс
 = `ws://<local_domain>/v2/subscribe/websocket` (пуш-канал quasar-realtime) и
 `system_config.arpc_client.server_url` = `http://<local_domain>` (gproxy). Колонка применяет эти
 адреса из get_sync_info без перезагрузки (pushd — при смене значения; после холодной загрузки
-он начинает с `push.yandex.ru`, этот путь тоже обслуживается); пуш-канал эмулятор мостит к
-`push.yandex.ru` в любом маршруте (`dispatcher.XIVA_PATH`), пути `/gproxy/*` и `/report` на
+он начинает с `push.yandex.ru`, этот путь тоже обслуживается); пуш-канал в «Эмуляции» ведёт
+эмулятор (`push_channel.py`), в «Прозрачно» и «Вместе» мостит к `push.yandex.ru`
+(`dispatcher.XIVA_PATH`, правило — routing.md), пути `/gproxy/*` и `/report` на
 локальном домене обслуживает как `rpc.alice.yandex.net` и `report.appmetrica.yandex.net`
 (`dispatcher.LOCAL_DOMAIN_PATHS`; ответ startup AppMetrica отдаёт отчёты на `http://<local_domain>`).
 Остальные адреса колонка берёт из встроенного quasar.cfg и с сервера не меняет; WebSocket без TLS идёт на
@@ -252,6 +253,15 @@ quasar-server (MIT; commit и пересборка — `tools/build_quasar_defau
 `Строка N: <ошибка re>`, ничего не сохраняется. Пустой `pattern`, больше 50 правил, `pattern`/`replace`
 длиннее 2000 символов — тоже 400. Пустой список удаляет поле.
 
+Поставляемая защита — `quasar_defaults/rules/direct_replace.json` (формат `{"rules": […]}`; каталог
+подменяется `ALICA_QUASAR_RULES_DIR` наравне со слоем структурированных правил; файла нет или он не
+разбирается — защит нет). Правила чистят поля конфига нового поколения Яндекса
+(`runtime_owner.reboot_policy` → `{}`, `runtime_owner.requested_owner` → `null`,
+`switchStrategy` → `PROCESS_RESTART_AWAIT`, `quarkIntegrationVersion` → `9`) и применяются
+перед правилами устройства (`effective_direct_replace`) — его запись сильнее и перебивает.
+Превью «После замен» и отчёт `replaced` считают полный список. Читается на каждый ответ —
+правки файла действуют сразу.
+
 Применение (`quasar_replace.py`, из `Dispatcher.direct_sync_info`): только при статусе 200 и только
 включённые правила, по порядку. Тело распаковывается как в `decoded_json` (gzip/deflate), берётся
 текст UTF-8, к нему по очереди `re.sub(pattern, replace, text)` (синтаксис Python `re`: `\1`,
@@ -259,6 +269,15 @@ quasar-server (MIT; commit и пересборка — `tools/build_quasar_defau
 `Content-Length`; не изменился — оригинал байт-в-байт. Защита: исходное тело было JSON-объектом, а
 после замен перестало им быть (или regex упал во время работы) → колонке уходит **исходный** ответ,
 в `runtime.recent` пишется `{kind: quasar_replace, error}` с номером последнего применённого правила.
+
+Поколение конфига: `quasar_replace.config_generation` разбирает ответ upstream и по маркерам
+(`runtime_owner.requested_owner` непуст; `is_io_client_features_enabled_v1` включён;
+`switchStrategy: UPDATER_LIKE_REBOOT`) отличает новое поколение от старого (`None` — узла
+`system_config.centaur` нет). Поколение пишется в `state.upstream_config_generation`
+(`new`/`old`); приход нового — warning в журнале сервера; поддерживаемое поколение —
+константа `SUPPORTED_CONFIG_GENERATION`. Бейдж «новый конфиг» — в карточке устройства
+вкладки «Устройства». Тесты: `tests/test_config_generation.py` (фикстура — обезличенный
+живой ответ нового поколения).
 
 `state.quasar_direct_last.body` остаётся ответом Яндекса; если замены что-то изменили, добавляются
 `body_sent` (JSON после замен) и `replaced` (число сработавших правил). Журнал трафика пишет ответ

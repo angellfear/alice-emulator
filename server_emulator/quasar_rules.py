@@ -497,8 +497,9 @@ def account_rules(runtime, device):
 
 LOCAL_MODES = ("emulate", "hybrid")
 LOCAL_URLS = (("uniProxyUrl", "/config/system_config/uniProxyUrl", "ws://{domain}/uni.ws"),
-              # пуш-канал xiva: pushd переподключается на новый адрес живьём, эмулятор мостит
-              # его к push.yandex.ru (dispatcher, XIVA_PATH)
+              # пуш-канал xiva: pushd переподключается на новый адрес живьём; «Эмуляция» —
+              # канал ведёт эмулятор (push_channel), «Прозрачно»/«Вместе» — мост к
+              # push.yandex.ru (dispatcher, XIVA_PATH)
               ("xivaSubscribeUrl", "/config/system_config/pushd/xivaSubscribeUrl",
                "ws://{domain}/v2/subscribe/websocket"),
               # gproxy: arpc_client применяет адрес живьём; пути /gproxy/* на локальном домене

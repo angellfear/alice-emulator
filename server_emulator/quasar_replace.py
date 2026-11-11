@@ -1,18 +1,89 @@
 """Замены regexp в ответе Яндекса для режима «Напрямую».
 
 Правила своего у каждого устройства: state.quasar_direct_replace = [{enabled, pattern, replace}],
-порядок важен. validate_rules проверяет их при сохранении (PUT quasar_source); apply_replacements
-применяет включённые правила к тексту ответа get_sync_info до отправки колонке; preview_replacements
-прогоняет правила по сохранённому оригиналу (превью «После замен» в UI без запроса колонки).
-Python `re`: группы \\1, \\g<name>. Ничего не знает про aiohttp и runtime — чистые функции над байтами.
+порядок важен. Сверху к ним всегда применяются поставляемые правила защиты
+(quasar_defaults/rules/direct_replace.json — чистка полей нового поколения конфига Яндекса;
+ALICA_QUASAR_RULES_DIR подменяет каталог, effective_direct_replace ставит их перед правилами
+устройства — его запись сильнее). validate_rules проверяет правила при сохранении
+(PUT quasar_source); apply_replacements применяет включённые правила к тексту ответа
+get_sync_info до отправки колонке; preview_replacements прогоняет правила по сохранённому
+оригиналу (превью «После замен» в UI без запроса колонки). Python `re`: группы \\1, \\g<name>.
+config_generation определяет поколение конфига в разобранном ответе upstream. Ничего не знает
+про aiohttp и runtime — чистые функции над байтами и разобранным JSON.
 """
 import json
+import os
 import re
+from pathlib import Path
 
 from .upstream.forward import decoded_body
 
 MAX_RULES = 50
 MAX_TEXT = 2000
+RULES_DIR = Path(__file__).parent / "quasar_defaults" / "rules"  # поставляемый набор (в пакете)
+SHIPPED_REPLACE_FILE = "direct_replace.json"
+# поколение конфига, которое обслуживает эмулятор; меняется вместе с набором правил
+SUPPORTED_CONFIG_GENERATION = "old"
+
+
+def shipped_direct_replace(directory=None):
+    """Поставляемые правила защиты от конфига нового поколения: файл direct_replace.json
+    в каталоге поставляемого набора (по умолчанию — в пакете; ALICA_QUASAR_RULES_DIR
+    подменяет каталог для тестов, по образцу слоя структурированных правил). Читается на
+    каждый ответ — правки файла действуют сразу. Файла нет или он не разбирается — пустой
+    список (защиты нет, ответы проходят как есть)."""
+    base = directory or os.environ.get("ALICA_QUASAR_RULES_DIR") or RULES_DIR
+    try:
+        data = json.loads((Path(base) / SHIPPED_REPLACE_FILE).read_text(encoding="utf-8"))
+        return validate_rules(data["rules"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return []
+
+
+def effective_direct_replace(device_rules, directory=None):
+    """Полный список замен ответа «Напрямую»: поставляемая защита, затем правила
+    устройства (его запись сильнее — идёт позже и перебивает)."""
+    return shipped_direct_replace(directory) + list(device_rules or [])
+
+
+def config_generation(body):
+    """Поколение конфига в разобранном ответе upstream: "new" / "old"; None — ответ без
+    узла system_config.centaur (форма неожиданна, состояние устройства не пишется).
+
+    Маркеры нового поколения (любой): runtime_owner.requested_owner непуст (Яндекс
+    передаёт владение рантаймом внешнему компоненту); is_io_client_features_enabled_v1
+    включён; switchStrategy == "UPDATER_LIKE_REBOOT" (переключение рантайма перезагрузкой).
+    Не ловит по версиям приложения — колонка свою версию в get_sync_info не несёт."""
+    config = body.get("config") if isinstance(body, dict) else None
+    system = config.get("system_config") if isinstance(config, dict) else None
+    centaur = system.get("centaur") if isinstance(system, dict) else None
+    if not isinstance(centaur, dict):
+        return None
+    owner = (centaur.get("runtime_owner") or {}).get("requested_owner")
+    if owner:
+        return "new"
+    if _find_key(centaur, "is_io_client_features_enabled_v1") is True:
+        return "new"
+    if _find_key(centaur, "switchStrategy") == "UPDATER_LIKE_REBOOT":
+        return "new"
+    return "old"
+
+
+def _find_key(node, key):
+    """Первое значение ключа key в поддереве (поиск в глубину); None — не найдено."""
+    if isinstance(node, dict):
+        if key in node:
+            return node[key]
+        for value in node.values():
+            found = _find_key(value, key)
+            if found is not None:
+                return found
+    elif isinstance(node, list):
+        for value in node:
+            found = _find_key(value, key)
+            if found is not None:
+                return found
+    return None
 
 
 def validate_rules(value):

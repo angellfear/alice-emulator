@@ -1,7 +1,7 @@
 ---
 title: "Контракты HTTP (Quasar-бэкенд, OTA, каталог)"
 status: stable
-date: "2026-10-25"
+date: "2026-11-12"
 module: "server_emulator/quasar.py"
 ---
 
@@ -47,11 +47,28 @@ Endpoint'ы — фиксированный список в коде (`updates.EN
 | GET /__catalog/apk/{hash} | скачивание APK с ограничениями | test_catalog |
 | Admin: GET/PUT /api/catalog, POST /api/catalog/apk, PUT/DELETE /api/catalog/apps/{id} | инвентарь/загрузка/правки | test_catalog |
 
-## 4. Fallback маршрутов
+## 4. Заставки главного экрана (screensaver_settings.py)
 
-Порядок обслуживания маршрута: builtin Quasar → каталог захваченных эндпоинтов (state/endpoints, `docs/contracts/endpoints.md`) → локальный честный 404 `{"error":"emulator_handler_not_found"}`. Прозрачно пустить отдельный маршрут без режима прокси нельзя. Тест: test_emulator_runtime.
+Семейство `POST rpc.alice.yandex.net/gproxy/…`: `get_teaser_settings`, `save_teaser_settings`,
+`get_afisha_settings`, `save_afisha_settings`, `get_ya_disk_settings` — stateful-маршруты до
+каталога эндпоинтов (не затеняются им — как routes Квазара), `local_handler` считает их
+обработчиками («Запись» не пишет в «Без ответа»).
 
-## 5. Общие инварианты
+Наблюдение по настоящему серверу (.85, журнал): save несёт полный набор включённых коллекций
+(у включённых field 3 = 1 в teaser, field 2 = 1 в afisha) и отвечают 200 с пустым телом;
+GET отдаёт тот же каталог с field 2 = 1 у включённых — маркеры ответа совпали с флагами
+её save. Эмулятор ведёт себя так же: выбор хранится в состоянии устройства
+(`state.screensaver: teaser, afisha`) и зеркалится в GET; без сохранённого выбора — каталог
+без маркеров; битое тело save выбор не меняет (ответ тот же). Каталог коллекций и афиши —
+образцы настоящего сервера в коде (байт-равны захвату); `get_ya_disk_settings` — пустое тело.
+До обработчика `save_afisha_settings` отвечал 404 — разрыв цепочки сохранения (симптом
+«Фоны обновляются» на главном экране). Тест: test_screensaver_settings.
+
+## 5. Fallback маршрутов
+
+Порядок обслуживания маршрута: builtin Quasar и заставки (stateful) → каталог захваченных эндпоинтов (state/endpoints, `docs/contracts/endpoints.md`) → встроенные ответы без эндпоинтов → локальный честный 404 `{"error":"emulator_handler_not_found"}`. Прозрачно пустить отдельный маршрут без режима прокси нельзя. Тест: test_emulator_runtime.
+
+## 6. Общие инварианты
 
 - Клиентский device_id извлекается единым resolverом (`identity.collect_device_id`) в одном
   порядке приоритета во всех точках HTTP: заголовки `x-uprx-device-id` → `X-YaQuasarDeviceId` →

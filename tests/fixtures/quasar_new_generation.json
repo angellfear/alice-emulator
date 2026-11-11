@@ -1,0 +1,233 @@
+{
+ "status": "ok",
+ "tags": [],
+ "subscription": {
+  "mode": "subscription",
+  "enabled": false,
+  "ttl": 0,
+  "disabled_reason": "invalid_subscription_user",
+  "statusUrl": "https://plus.yandex.ru/module-brick?deviceId=C00T10001B6SAK&screen=unknown-uid"
+ },
+ "config": {
+  "system_config": {
+   "centaur": {
+    "runtime_owner": {
+     "config_revision": 1,
+     "reboot_policy": {
+      "end_hour": 5,
+      "start_hour": 2,
+      "type": "NORMAL_NIGHT_WINDOW"
+     },
+     "requested_owner": "com.yandex.io.sdk"
+    },
+    "meson": {
+     "nightIntervalEnd": 6,
+     "nightIntervalStart": 2,
+     "quarkIntegrationVersion": 8,
+     "switchStrategy": "UPDATER_LIKE_REBOOT"
+    },
+    "iocom": {
+     "enable_cold_capabilities": true,
+     "use_active_connection_for_all_directives": false
+    },
+    "is_io_client_features_enabled_v1": true,
+    "iosdk_reporter_settings": {
+     "events_white_list": [
+      "framedrop_stats",
+      "lmk_kill_process"
+     ]
+    },
+    "multiapp": {
+     "enabled_alice_ui_252": true,
+     "finish_task_on_hide": true,
+     "keep_alive_tasks_whitelist": [
+      "com.yandex.devices.player"
+     ],
+     "registry": {
+      "iosdk_capabilities": {
+       "AccessibilityVoiceControlCapability": {
+        "enable_strategy": "hosts_only",
+        "hosts": [
+         "ru.yandex.quasar.alice_ui_app"
+        ],
+        "switch_strategy": "instant"
+       },
+       "ClockAppCapability": {
+        "enable_strategy": "hosts_only",
+        "hosts": [
+         "com.yandex.devices.clock"
+        ],
+        "switch_strategy": "instant"
+       },
+       "PayCapability": {
+        "enable_strategy": "hosts_only",
+        "hosts": [
+         "com.yandex.devices.payment"
+        ],
+        "switch_strategy": "instant"
+       }
+      }
+     }
+    },
+    "audio_config": {
+     "vqe_metrics_enabled": true,
+     "vqe_metrics_timeout_min": 10
+    },
+    "screen_navigation_settings": {
+     "should_close_card_with_keyboard_on_go_back": true,
+     "swipes_enabled": true,
+     "swipes_timeout": 4000,
+     "voice_navigation_enabled": true
+    },
+    "informers_enabled": true,
+    "animate_layers": true
+   },
+   "com.yandex.io.sdk": {
+    "aliceSession": {
+     "enableUnconditionalShowSession": true
+    },
+    "isVqeEnabled": true
+   },
+   "onlineSpotterEnabled": true,
+   "counter_activation": {
+    "aliceTimeToWin": 0,
+    "commandTimeToWin": 150,
+    "enabled": true
+   },
+   "commandSpottersMode": "textInput"
+  },
+  "account_config": {
+   "aliceAdaptiveVolume": {
+    "enabled": true
+   },
+   "aliceProactivity": false,
+   "alwaysOnMicForShortcuts": false,
+   "audio_player": {
+    "crossfadeEnabled": false
+   },
+   "childContentAccess": "children",
+   "contentAccess": "medium",
+   "doNotUseUserLogs": true,
+   "enableChildVad": false,
+   "enabledCommandSpotters": {
+    "call": {
+     "answer": false
+    },
+    "music": {
+     "bluetooth": false,
+     "feedback": false,
+     "navigation": true,
+     "playAndPause": true,
+     "volume": true
+    },
+    "smartHome": {
+     "light": true,
+     "tv": true
+    },
+    "tv": {
+     "backToHome": true,
+     "navigation": true
+    }
+   },
+   "intonationSpotting": {},
+   "jingle": true,
+   "saveHistoryUsage": true,
+   "smartActivation": true,
+   "spotter": "alisa",
+   "useBiometryChildScoring": true,
+   "useRichModelForPro": true,
+   "user_wifi_config": {
+    "wifi_hash": "abc1"
+   }
+  },
+  "device_config": {
+   "allow_non_self_calls": true,
+   "beta": false,
+   "calls_settings": {
+    "incoming_dropin_policy": "deny",
+    "incoming_policy": "allow_device_owner",
+    "incoming_radionanny_policy": "deny"
+   },
+   "dndMode": {
+    "enabled": false,
+    "ends": "09:00:00+0500",
+    "features": {
+     "allowIncomingCalls": true
+    },
+    "platformSettings": {},
+    "starts": "23:00:00+0500"
+   },
+   "equalizer": {
+    "active_preset_id": "lessbass",
+    "bands": [
+     {
+      "freq": 60,
+      "gain": -6,
+      "width": 90
+     },
+     {
+      "freq": 230,
+      "gain": 0,
+      "width": 340
+     },
+     {
+      "freq": 910,
+      "gain": 0,
+      "width": 1340
+     },
+     {
+      "freq": 3600,
+      "gain": 0,
+      "width": 5200
+     },
+     {
+      "freq": 14000,
+      "gain": 0,
+      "width": 13000
+     }
+    ],
+    "custom_preset_bands": [
+     6,
+     3,
+     0,
+     -0.7,
+     -1.4
+    ],
+    "enabled": true,
+    "modes": {},
+    "smartEnabled": true
+   },
+   "intonationSpotting": {
+    "enableIntonationInterruption": true,
+    "enabled": true
+   },
+   "led": {
+    "time_visualization": {
+     "format": "24h"
+    }
+   },
+   "locale": "ru-RU",
+   "location": {
+    "latitude": 55.7558,
+    "longitude": 37.6173
+   },
+   "name": "Дуо 23",
+   "palm_gesture": true,
+   "radio_nanny_enabled": false,
+   "standby": {
+    "deepStandbyEnabled": true,
+    "deepStandbyTimeoutMinutes": 30
+   },
+   "tv_beta": false
+  }
+ },
+ "glagol": {
+  "security": {
+   "server_certificate": "-----BEGIN CERTIFICATE-----\nQ0YwMDAwMDAwLXRlc3QtZml4dHVyZQ==\n-----END CERTIFICATE-----",
+   "server_private_key": "test-fixture-server-private-key"
+  }
+ },
+ "alice_pro_subscription": {
+  "enabled": false
+ }
+}

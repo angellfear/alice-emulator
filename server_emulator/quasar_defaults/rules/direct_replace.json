@@ -1,0 +1,16 @@
+{
+  "rules": [
+    {"enabled": true,
+     "pattern": "\"reboot_policy\":\\{[^{}]*\\}",
+     "replace": "\"reboot_policy\":{}"},
+    {"enabled": true,
+     "pattern": "\"requested_owner\":\"[^\"]*\"",
+     "replace": "\"requested_owner\":null"},
+    {"enabled": true,
+     "pattern": "\"switchStrategy\":\"UPDATER_LIKE_REBOOT\"",
+     "replace": "\"switchStrategy\":\"PROCESS_RESTART_AWAIT\""},
+    {"enabled": true,
+     "pattern": "\"quarkIntegrationVersion\":8",
+     "replace": "\"quarkIntegrationVersion\":9"}
+  ]
+}

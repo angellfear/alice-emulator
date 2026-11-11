@@ -11,6 +11,7 @@ from google.protobuf import json_format
 
 from server_emulator.dispatcher import Dispatcher
 from server_emulator.endpoints import find_builtin
+from server_emulator import push_channel
 from server_emulator.runtime import ROOT, Runtime
 from server_emulator.schema import load_type
 from server_emulator.server import create_app
@@ -89,8 +90,8 @@ def test_report_sections_and_masking(tmp_path):
 
 
 async def test_builtin_gap_handlers(tmp_path):
-    """push_subscribe — ответ по образцу (sign/status/ts); галерея — пустой protobuf;
-    set_device_capability — принято."""
+    """push_subscribe — ответ по образцу (sign/status/ts, подпись локальным ключом);
+    галерея — пустой protobuf; set_device_capability — принято."""
     runtime = Runtime(tmp_path)
     try:
         dispatcher = Dispatcher(runtime)
@@ -101,6 +102,9 @@ async def test_builtin_gap_handlers(tmp_path):
         payload = json.loads(body)
         assert status == 200 and payload["status"] == "ok" and len(payload["sign"]) == 32
         assert payload["ts"] == str(int(time.time()))  # свежая метка, как у Яндекса
+        # подпись проверит сервер канала «Эмуляции» при открытии WS
+        assert push_channel.verify(runtime.quasar.key, payload["sign"], payload["ts"])
+        assert not push_channel.verify(runtime.quasar.key, payload["sign"], str(int(payload["ts"]) + 60))
         gallery = find_builtin("rpc.alice.yandex.net", "POST", "/gproxy/centaur_get_gallery")
         assert gallery["status"] == 200 and gallery["body"] == b""
         assert gallery["headers"]["Content-Type"] == "application/x-protobuf"
@@ -159,6 +163,7 @@ async def test_push_subscribe_through_http(tmp_path):
                                    headers={"Host": "quasar.yandex.net"}) as response:
                 payload = await response.json()
                 assert response.status == 200 and payload["status"] == "ok" and "sign" in payload
+                assert push_channel.verify(runtime.quasar.key, payload["sign"], payload["ts"])
         assert runtime.endpoints.misses() == {}
         await runtime.upstream.journal.flush()
         assert (await runtime.upstream.journal.list())["total"] == 0

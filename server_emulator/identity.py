@@ -252,6 +252,13 @@ class IdentityRegistry:
         known = [d for d in self.data['devices'] if d['sn'] in matches]
         return copy.deepcopy(known[0]) if len(known) == 1 else None
 
+    def resolve_sn(self, sn):
+        """Устройство по SN: device_id в запросе нет, а SN станция называет сама
+        (session в query подписки push-канала)."""
+        if not sn:
+            return None
+        return copy.deepcopy(next((d for d in self.data['devices'] if d['sn'] == sn), None))
+
     def mutate(self, request):
         value = self.public()
         value.setdefault('groups', [])

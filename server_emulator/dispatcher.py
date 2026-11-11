@@ -25,7 +25,10 @@ from multidict import CIMultiDict
 from .identity import collect_device_id
 from .endpoints import builtin_covers, clck_json_batch, find_builtin, startup_payload, CLCK_JSON_BATCHES
 from . import oauth_stubs
-from .quasar_replace import apply_replacements, replaced_headers
+from . import push_channel
+from . import screensaver_settings
+from .quasar_replace import (SUPPORTED_CONFIG_GENERATION, apply_replacements, config_generation,
+                             effective_direct_replace, replaced_headers)
 from .upstream import UpstreamError, forward_headers
 from .upstream.forward import decoded_json
 
@@ -117,6 +120,8 @@ class Dispatcher:
         host = (host or '').lower()
         if host == 'rpc.alice.yandex.net' and path == '/gproxy/get_app_catalog':
             return True  # каталог приложений: ответ собирает эмулятор или отдаёт наблюдённый
+        if screensaver_settings.handles(host, method, path):
+            return True  # заставки: выбор хранится и зеркалится (screensaver_settings)
         if runtime.updates.match(host, path, method):
             return True
         if host == 'quasar.yandex.net' and runtime.quasar.handles(method, path):
@@ -211,11 +216,9 @@ class Dispatcher:
             return 200, self.client_ip(request).encode(), {'Content-Type': 'text/plain'}
         if request.method == 'POST' and (host or '').lower() == 'quasar.yandex.net' \
                 and path == '/push_subscribe':
-            # подписка колонки на push-канал по образцу ответа Яндекса
-            # (журнал 2026-11-01: {"sign", "status": "ok", "ts"}); канал эмулятор не ведёт
-            import secrets
-            return 200, json.dumps({"sign": secrets.token_hex(16), "status": "ok",
-                                    "ts": str(int(time.time()))}).encode(), \
+            # подписка на push-канал: sign/ts подписывает локальный ключ — тот же
+            # ключ сервер канала «Эмуляции» проверяет при открытии WS (push_channel)
+            return 200, json.dumps(push_channel.subscribe(self.runtime.quasar.key)).encode(), \
                 {'Content-Type': 'application/json'}
         entry = find_builtin(host, request.method, path)
         if entry is not None:
@@ -349,8 +352,9 @@ class Dispatcher:
             return web.json_response({'error': 'upstream_unavailable', 'detail': str(exc)[:200]}, status=502)
         replaced = None
         if status == 200 and sn:
-            # замены regexp в ответе (правила устройства); сломанный JSON колонке не уходит
-            replaced = apply_replacements((device.get('state') or {}).get('quasar_direct_replace'), headers, payload)
+            # замены regexp в ответе (поставляемая защита + правила устройства); сломанный JSON колонке не уходит
+            replaced = apply_replacements(effective_direct_replace((device.get('state') or {}).get('quasar_direct_replace')),
+                                          headers, payload)
             if replaced and 'error' in replaced:
                 runtime.recent = (runtime.recent + [{'kind': 'quasar_replace', 'device_sn': sn,
                                                      'error': replaced['error']}])[-30:]
@@ -360,6 +364,12 @@ class Dispatcher:
                 replaced = None
             parsed = decoded_json(headers, payload)
             if parsed is not None:
+                # поколение конфига в ответе Яндекса: детект по маркерам нового поколения
+                generation = config_generation(parsed)
+                if generation is not None and generation != SUPPORTED_CONFIG_GENERATION:
+                    runtime.server_log.log("warning", "quasar",
+                                           "Яндекс прислал конфиг нового поколения — применяются поставляемые защиты get_sync_info",
+                                           device_sn=sn)
                 # state перечитывается под lock: снимок до пересылки устарел — правки UI за время
                 # запроса (режим, переопределения) иначе откатились бы
                 last = {'ts': time.time(), 'status': status, 'body': parsed}
@@ -370,6 +380,8 @@ class Dispatcher:
                     if current is not None:
                         state = dict(current.get('state') or {})
                         state['quasar_direct_last'] = last
+                        if generation is not None:
+                            state['upstream_config_generation'] = generation
                         runtime.identities.mutate({'operation': 'state', 'sn': sn, 'state': state})
         if replaced:
             return web.Response(status=status, body=replaced['payload'],
@@ -467,15 +479,28 @@ class Dispatcher:
             return await upstream.serve(request, target, host=host, path=path or request.path,
                                         journal=upstream.recording(sn, False), unhandled=True,
                                         device_sn=sn, device_id=device_id)
-        if is_ws and upstream is not None and (path or request.path) == XIVA_PATH:
+        if is_ws and (path or request.path) == XIVA_PATH:
             # Пуш-канал xiva (quasar-realtime): колонка держит его на локальном домене
-            # (system_config.pushd.xivaSubscribeUrl) или на push.yandex.ru — в любом маршруте
-            # мост к настоящему push.yandex.ru; сессия — SN колонки из запроса подписки
-            xiva_sn = sn or request.query.get("session") or None
-            target = upstream.target_for_host(XIVA_HOST, XIVA_PATH, request.query_string, websocket=True)
-            return await upstream.serve(request, target, host=XIVA_HOST, path=XIVA_PATH,
-                                        journal=lambda: upstream.record_mode(xiva_sn),
-                                        device_sn=xiva_sn, device_id=device_id or xiva_sn)
+            # (system_config.pushd.xivaSubscribeUrl) или на push.yandex.ru. pushd не
+            # передаёт device_id — режим маршрута берём у устройства по SN из session
+            # (его станция называет сама), затем по IP; устройство из заголовков уже
+            # учтено в route_mode выше.
+            if not sn and not device_id:
+                device = runtime.identities.resolve_sn(request.query.get("session")) \
+                    or runtime.identities.resolve_by_ip(self.client_ip(request))
+                if device:
+                    route_mode = device.get('route_mode') or 'emulate'
+            if route_mode != 'emulate' and upstream is not None:
+                # «Прозрачно»/«Вместе»: кадры отдаёт настоящий сервис — у устройства
+                # свой реальный OAuth; правило: локальный канал обслуживает «Эмуляцию»
+                xiva_sn = sn or request.query.get("session") or None
+                target = upstream.target_for_host(XIVA_HOST, XIVA_PATH, request.query_string, websocket=True)
+                return await upstream.serve(request, target, host=XIVA_HOST, path=XIVA_PATH,
+                                            journal=lambda: upstream.record_mode(xiva_sn),
+                                            device_sn=xiva_sn, device_id=device_id or xiva_sn)
+            # «Эмуляция» (и устройства без маршрута): локальный сервер канала —
+            # подпись локальным ключом, кадры по образцу живого обмена
+            return await push_channel.serve(request, runtime)
         if upstream is not None and route_mode == "proxy":
             # прямой проход — WS мостом, HTTP пересылкой. Запись в журнал — по опции
             # «Запись» устройства: HTTP решается здесь, WS — на каждом кадре.
@@ -608,6 +633,13 @@ class Dispatcher:
             output = json.dumps(startup_payload(local_domain(runtime) if route_mode in ("emulate", "hybrid") else ""),
                                 ensure_ascii=False).encode()
             headers = {'Content-Type': 'application/json'}
+        elif screensaver_settings.handles(canonical_host, request.method, path or request.path):
+            # Заставки (gproxy): выбор коллекций фонов хранится в состоянии устройства
+            # и зеркалится в GET — как у настоящего сервера; stateful-маршрут, каталог
+            # эндпоинтов не затеняет
+            status, output, headers = screensaver_settings.answer(
+                runtime, device['sn'] if device else sn,
+                request.method, path or request.path, body)
         elif (endpoint := runtime.endpoints.find(canonical_host, request.method, path or request.path)) is not None \
                 and endpoint.get("enabled"):
             # каталог эндпоинтов: захваченный ответ или динамический шаблон

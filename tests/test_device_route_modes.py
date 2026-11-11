@@ -10,7 +10,7 @@ import time
 
 from aiohttp import ClientSession, WSMsgType, web
 
-from server_emulator import voice, ws_close
+from server_emulator import push_channel, voice, ws_close
 from server_emulator.runtime import Runtime
 from server_emulator.server import create_app
 from tests.conftest import listen
@@ -485,9 +485,10 @@ async def test_proxy_route_intercepts_ota(tmp_path):
         await runtime.close()
 
 
-async def test_xiva_push_channel_bridged_on_local_domain(tmp_path):
-    """Пуш-канал xiva на локальном домене (pushd.xivaSubscribeUrl = ws://alica.lan/...) —
-    мост к push.yandex.ru в «Эмуляции», а не uniproxy эмулятора; запрос подписки — как есть."""
+async def test_xiva_push_channel_routes_by_mode(tmp_path):
+    """Пуш-канал xiva на локальном домене (pushd.xivaSubscribeUrl = ws://alica.lan/...):
+    «Прозрачно» и «Вместе» — мост к настоящему push.yandex.ru (кадры отдаёт настоящий
+    сервис); «Эмуляция» — локальный сервер канала (push_channel), наверх не уходит."""
     runtime = Runtime(tmp_path)
     registry(runtime, "SN-X", "x-id")
     calls = []
@@ -507,14 +508,29 @@ async def test_xiva_push_channel_bridged_on_local_domain(tmp_path):
     runtime.settings["aliases"] = {"push.yandex.ru": upstream_url}
     runner, url = await listen(create_app(runtime=runtime))
     try:
-        set_route(runtime, "SN-X", "emulate")
         query = "?service=quasar-realtime&client=q&session=SN-X&sign=s&ts=1&user=u"
         async with ClientSession() as client:
+            for mode in ("proxy", "hybrid"):
+                set_route(runtime, "SN-X", mode)
+                async with client.ws_connect(url + "/v2/subscribe/websocket" + query,
+                                             headers={"Host": "alica.lan"}) as ws:
+                    await ws.send_str("ping")
+                    assert (await asyncio.wait_for(ws.receive(), 3)).data == "xiva:ping"
+            assert calls == [("xiva-open", "/v2/subscribe/websocket" + query)] * 2
+
+            calls.clear()
+            set_route(runtime, "SN-X", "emulate")
+            answer = push_channel.subscribe(runtime.quasar.key)
+            query = ("?service=quasar-realtime,messenger-prod&client=q&session=SN-X"
+                     f"&sign={answer['sign']}&ts={answer['ts']}&user=1002003")
             async with client.ws_connect(url + "/v2/subscribe/websocket" + query,
                                          headers={"Host": "alica.lan"}) as ws:
-                await ws.send_str("ping")
-                assert (await asyncio.wait_for(ws.receive(), 3)).data == "xiva:ping"
-        assert calls == [("xiva-open", "/v2/subscribe/websocket" + query)]
+                ping = json.loads((await asyncio.wait_for(ws.receive(), 3)).data)
+                assert ping["operation"] == "ping" and ping["server-interval-sec"] == 60
+                subscribed = json.loads((await asyncio.wait_for(ws.receive(), 3)).data)
+                assert subscribed["operation"] == "subscribed" and subscribed["service"] == "messenger-prod"
+        assert calls == []
     finally:
         await upstream_runner.cleanup()
         await runner.cleanup()
+        await runtime.close()

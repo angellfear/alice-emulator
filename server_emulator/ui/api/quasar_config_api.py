@@ -17,7 +17,7 @@ from aiohttp import web
 
 from ...quasar_config import (count_keys, device_platform, generated_base, generated_platforms,
                               poll_period_warnings)
-from ...quasar_replace import preview_replacements, validate_rules
+from ...quasar_replace import effective_direct_replace, preview_replacements, validate_rules
 from ...quasar_rules import compose_config
 from ...quasar_rules import validate_rules as validate_quasar_rules
 from ...upstream import UpstreamError
@@ -250,7 +250,8 @@ async def quasar_source(request, runtime, app):
                 if isinstance(last, dict) and isinstance(last.get('body'), dict):
                     for key in ('body_sent', 'replaced', 'preview', 'replace_error'):
                         last.pop(key, None)
-                    preview = preview_replacements(rules, last['body'])
+                    # превью — по полному списку замен: поставляемая защита + правила устройства
+                    preview = preview_replacements(effective_direct_replace(rules), last['body'])
                     if preview and 'error' in preview:
                         last['replace_error'] = preview['error']
                     elif preview:
