@@ -181,6 +181,26 @@ def test_music_bare_template_other_domain_guard(text, is_music):
         assert foreign, (text, hits)
 
 
+VIDEO_CASES = [("включи комедию", "комедия"), ("включи боевик", "боевик"),
+               ("поставь мультики", "мультик"), ("включи ужастик", "ужастик"),
+               ("включи сериал друзья", "сериал"), ("включи фильм интерстеллар", "фильм"),
+               ("включи песню комедия", ""), ("включи группу кино", ""),
+               ("включи светлану лободу", "")]
+
+
+@pytest.mark.parametrize("text,domain", VIDEO_CASES)
+def test_media_other_domain_by_lemma(text, domain):
+    """Кино, сериалы и жанры отсекаются от музыки в любой форме слова; маркер музыки сильнее."""
+    from server_emulator.scenario_engine.bindings import _media_other_domain
+    assert _media_other_domain(text) == domain
+
+
+@pytest.mark.parametrize("text", ["включи комедию", "включи боевик", "поставь мультики"])
+def test_video_phrases_not_routed_to_music(text):
+    got, reason, _slots = full_route(text)
+    assert got != "media.music", (text, got, reason)
+
+
 # --- пользовательский сценарий перебивает шаблон встроенного -------------------------
 
 def test_user_phrase_beats_builtin_template():

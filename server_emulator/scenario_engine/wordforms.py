@@ -49,3 +49,12 @@ def case_forms(name):
         if form != " ".join(words) and form not in forms:
             forms.append(form)
     return tuple(forms)
+
+
+@lru_cache(maxsize=4096)
+def lemma(word):
+    """Нормальная форма слова («комедию» → «комедия»); не кириллица — как есть."""
+    word = str(word or "").lower()
+    if not any("а" <= ch <= "я" or ch == "ё" for ch in word):
+        return word
+    return _analyzer().parse(word)[0].normal_form
