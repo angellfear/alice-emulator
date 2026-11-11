@@ -80,10 +80,7 @@ async def handle(ctx):
     elif domain == "places":
         args = {k: (ctx.settings.get("weather") or {}).get(k)
                 for k in ("latitude", "longitude")}
-    # владелец совпавшей записи справочника — его поставщик; иначе выбранный на вкладке
-    entry = ctx.phrase_entry or {}
-    provider = providers.for_ext("knowledge", entry.get("ext_id")) if entry.get("ext_id") else None
-    provider = provider or providers.selected("knowledge", ctx.settings)
+    provider = ctx.provider("knowledge")
     if provider is None:
         return ctx.no_data_source()
     supports = provider.get("supports")

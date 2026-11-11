@@ -37,7 +37,7 @@ from .extensions.context import (ExtensionContext, action_context,  # ExtensionC
 from .scenario_engine import bindings as _bindings
 from .scenario_engine import parsers as _parsers
 
-SDK_VERSION = "2.5.0"  # 2.5.0: dataset_context(name) — настройки для кода datasets/*.py; 2.4.0: ctx.music; 2.3.0: ctx.route_mode, ctx.player_owner; 2.2.0: ctx.intelligence, no_data_source; 2.1.0: ctx.data
+SDK_VERSION = "2.6.0"  # 2.6.0: ctx.provider(kind); 2.5.0: dataset_context(name) — настройки для кода datasets/*.py; 2.4.0: ctx.music; 2.3.0: ctx.route_mode, ctx.player_owner; 2.2.0: ctx.intelligence, no_data_source; 2.1.0: ctx.data
 DATASET_REFRESH_TIMEOUT_S = 10.0  # как у шага refresh без timeout
 
 
@@ -645,6 +645,16 @@ class ScenarioContext:
         фраз сильнее: у сценария есть ctx.phrase_entry — её владелец и отвечает."""
         from . import music as _music
         return _music.selected(self.settings)
+
+    def provider(self, kind):
+        """Поставщик вида kind (2.6.0): владелец совпавшей записи справочника
+        (ctx.phrase_entry.ext_id), иначе выбранный на вкладке «Поставщики»
+        (settings["providers"][kind], пусто — первый включённый). Нет — None.
+        Функции поставщика вызывать через server_emulator.providers.invoke."""
+        from . import providers as _providers
+        ext_id = (self.phrase_entry or {}).get("ext_id")
+        owner = _providers.for_ext(kind, ext_id) if ext_id else None
+        return owner or _providers.selected(kind, self.settings)
 
     @property
     def phrase_entry(self):

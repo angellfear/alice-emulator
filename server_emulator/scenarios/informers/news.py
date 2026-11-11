@@ -16,9 +16,9 @@ MAX_HEADLINES = 3  # реплика не читает всю ленту
 
 
 async def handle(ctx):
-    # владелец совпавшей записи справочника — его поставщик; прямой запуск — выбранный
-    entry = ctx.phrase_entry or {}
-    provider = providers.for_ext("news", entry.get("ext_id")) if entry.get("ext_id")         else providers.selected("news", ctx.settings)
+    provider = ctx.provider("news")
+    if provider is None:
+        return {"text": "Нет данных о новостях: поставщик недоступен."}
     try:
         result = await providers.invoke(ctx, provider, provider["headlines"], "")
     except Exception:  # noqa: BLE001 — сбой поставщика не роняет сценарий

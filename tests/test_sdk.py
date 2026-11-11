@@ -328,8 +328,26 @@ def ctx_of(text="", executor=None, **inner):
     return ScenarioContext(runtime_of(executor or Executor(lexicons=LEXICONS)), base)
 
 
-def test_sdk_version_is_2_4_0():
-    assert SDK_VERSION == "2.5.0"  # 2.5.0: dataset_context(name); 2.4.0: ctx.music; 2.2.0: ctx.intelligence, no_data_source
+def test_sdk_version():
+    assert SDK_VERSION == "2.6.0"
+
+
+def test_ctx_provider_prefers_phrase_entry_owner_then_selected(monkeypatch):
+    from server_emulator import providers
+    bucket = {"a": {"id": "a", "ext_id": "ext.a"}, "b": {"id": "b", "ext_id": "ext.b"}}
+    monkeypatch.setitem(providers.PROVIDERS, "news", bucket)
+
+    def ctx(inner, settings=None):
+        runtime = SimpleNamespace(scenario_executor=Executor(), directory=None,
+                                  settings=settings or {})
+        return ScenarioContext(runtime, inner)
+
+    assert ctx({}).provider("news")["id"] == "a"  # авто — первый по алфавиту
+    assert ctx({}, {"providers": {"news": "b"}}).provider("news")["id"] == "b"
+    owned = ctx({"phrase_entry": {"id": "x", "ext_id": "ext.b"}}, {"providers": {"news": "a"}})
+    assert owned.provider("news")["id"] == "b"  # владелец записи сильнее выбора
+    assert ctx({}, {"providers": {"news": "gone"}}).provider("news") is None
+    assert ctx({}).provider("weather-none") is None
 
 
 def test_devices_come_from_home_and_are_read_only_copy():
