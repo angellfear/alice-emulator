@@ -152,6 +152,16 @@ def test_compose_reply_builds_directives_and_speech():
     assert replay.PayloadRaw == b"\x01\x02\x03"
 
 
+def test_compose_reply_empty_payload_is_on_the_wire():
+    """«главный экран»: go_home с пустым Payload {}, без Payload — нет поля вовсе."""
+    spec = {"text": "", "card": False, "directives": [
+        {"name": "go_home", "is_led_silent": True, "payload": {}}, {"name": "clear_queue"}]}
+    go_home, clear = compose_reply(spec, _ctx("x"), "server_emulator/schemas").Event.AliceResponse.Response.Directives
+    assert go_home.HasField("Payload") and not go_home.AnalyticsType
+    assert b"*\x00" in go_home.SerializeToString()
+    assert not clear.HasField("Payload")
+
+
 def test_compose_reply_speech_only_without_card():
     message = compose_reply({"speech": "Только голос.", "card": False}, _ctx("x"), "server_emulator/schemas")
     response = message.Event.AliceResponse

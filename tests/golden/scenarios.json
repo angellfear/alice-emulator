@@ -13,6 +13,7 @@
       "device.apps.list",
       "device.bluetooth.off",
       "device.bluetooth.on",
+      "device.home",
       "device.led.emotion",
       "device.player.pause",
       "device.player.rewind",
@@ -620,6 +621,97 @@
         }
       ],
       "id": "device.bluetooth.on"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "главный экран"
+          },
+          "name": "device.home-trigger0-0",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    },
+                    {
+                      "is_led_silent": true,
+                      "name": "go_home",
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": ""
+                }
+              ],
+              "reason": "template",
+              "scenario": "device.home",
+              "speech": "",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "главный экран"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "на главный экран"
+          },
+          "name": "device.home-trigger0-1",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    },
+                    {
+                      "is_led_silent": true,
+                      "name": "go_home",
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": ""
+                }
+              ],
+              "reason": "template",
+              "scenario": "device.home",
+              "speech": "",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "на главный экран"
+            }
+          ]
+        }
+      ],
+      "id": "device.home"
     },
     {
       "cases": [

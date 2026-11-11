@@ -65,6 +65,7 @@ def compose_reply(spec, ctx, schemas_root):
             directive.PayloadRaw = encode(schemas_root, item["proto"], expand(item.get("fields") or {}, ctx),
                                           item.get("schema") or "centaur")
         if item.get("payload") is not None:
+            directive.Payload.SetInParent()  # пустой Payload {} тоже уходит на провод
             directive.Payload.update(expand(item["payload"], ctx))  # Struct: вложенные dict/list
         if item.get("payload_raw"):
             directive.PayloadRaw = base64.b64decode(expand(item["payload_raw"], ctx))

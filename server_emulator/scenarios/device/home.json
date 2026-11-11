@@ -1,0 +1,29 @@
+{
+ "format_version": 2,
+ "version": "1.0.0",
+ "category": "device",
+ "id": "device.home",
+ "title": {
+  "ru": "Главный экран",
+  "en": "Home screen"
+ },
+ "priority": 100,
+ "triggers": [
+  {
+   "kind": "phrase",
+   "phrases": [
+    "главный экран",
+    "на главный экран"
+   ]
+  },
+  {
+   "kind": "template",
+   "sentences": [
+    "[(вернись|перейди|выйди|открой|покажи)] [на] главный экран"
+   ]
+  }
+ ],
+ "executor": {
+  "kind": "script"
+ }
+}

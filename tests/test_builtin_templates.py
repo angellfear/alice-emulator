@@ -93,6 +93,8 @@ TABLE = [
     ("пауза", "device.player.pause", {}),
     ("останови музыку", "device.player.pause", {}),
     ("стоп", "device.player.pause", {}),
+    ("главный экран", "device.home", {}),
+    ("вернись на главный экран", "device.home", {}),
     ("покажи глазки", "device.led.emotion", {"led_emotion": "joy"}),
     ("подмигни мне", "device.led.emotion", {"led_emotion": "wink"}),
     ("сколько времени", "informers.clock", {}),
