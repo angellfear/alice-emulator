@@ -173,18 +173,25 @@ async def search(ctx, query, kind):      # kind: music | tales | podcast | audio
     return {"tracks": [Track, ...], "start": 0, "context": {...}}   # очередь режется до MAX_QUEUE=5
 
 async def neighbor(ctx, track_id, context, step):   # step +1/-1, 0 — текущий; None — дальше нечего
-    return Track | None                   # голосом/колбэком колонка id не передаёт — поставщик ведёт очередь сам
+    return Track | None                   # позицию очереди не двигает — её сверяет commit
 
 async def rate(ctx, track_id, like):     # необязательна; None — не поддерживается
     return True | None
+
+async def commit(ctx, track_id):         # необязательна; recoverCommit — подтверждённый старт трека
+    return True | None                   # позиция очереди сверяется с играющим; чужой трек — None
 
 # Track = {"id", "title", "artist", "album"?, "duration_ms", "cover_url"?,
 #          "stream": {"url", "format": "mp3|aac|flac", "decode_key"?}}
 ```
 
-- Вызов функций поставщика — `music.search/neighbor/rate(ctx, provider, …)` ядра: они
+- Вызов функций поставщика — `music.search/neighbor/rate/commit(ctx, provider, …)` ядра: они
   ставят коду поставщика его настройки (`ctx.extension`, как у режимов «Интеллекта») и
   приводят результат к контракту (Track без `id`/`title`/`stream.url` отбрасывается).
+- Позиция очереди поставщика двигается только подтверждённым стартом трека
+  (recoverCommit → `commit`): предзагрузка `@@mm_stack_engine_get_next` и явные
+  «дальше/предыдущий» её не сдвигают, иначе «предыдущий» после предзагрузки возвращает
+  играющий трек вместо прошлого.
 - Маршруты: «Вместе» — сценарии музыки отказываются всегда (Яндекс отвечает сам через
   релей голоса; колбэки контента Яндекса уходят наверх). «Напрямую»/
   «Эмуляция» — поставщик есть: играет он во всех режимах «Интеллекта»; поставщика нет:

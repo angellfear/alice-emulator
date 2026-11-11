@@ -143,7 +143,7 @@ UNSPECIFIED_KEY = "MUSIC_PROVIDER_UNSPECIFIED"
 
 
 # потребитель вида music: обязательные функции поставщика (см. providers.require)
-_providers.require("music", ("search", "neighbor"), ("rate",))
+_providers.require("music", ("search", "neighbor"), ("rate", "commit"))
 
 
 def selected(settings):
@@ -267,6 +267,17 @@ async def rate(ctx, provider, track_id, like=True):
     if provider is None or provider.get("rate") is None:
         return None
     raw = await _call(ctx, provider, provider["rate"], ctx, track_id, bool(like))
+    return True if raw else None
+
+
+async def commit(ctx, provider, track_id):
+    """commit поставщика (необязательная): колонка подтвердила старт трека (recoverCommit) —
+    поставщик сверяет позицию очереди с играющим треком. Позицию двигает только он:
+    neighbor предзагрузку (@@mm_stack_engine_get_next) и явные шаги её не сдвигают.
+    True — подтвердил (трек из его очереди), иначе None."""
+    if provider is None or provider.get("commit") is None:
+        return None
+    raw = await _call(ctx, provider, provider["commit"], ctx, str(track_id or ""))
     return True if raw else None
 
 

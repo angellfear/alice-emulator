@@ -5,6 +5,7 @@
 Настоящий Яндекс из тестов не дёргается: URL-константы модуля подменяются на
 локальный подменный HTTP.
 """
+import asyncio
 import hashlib
 import importlib.util
 from pathlib import Path
@@ -59,12 +60,15 @@ class FakeMusic:
         self.search_payload = {"result": {"tracks": {"results": ITEMS}}}
         self.info_payload = None  # собирается фикстурой: ссылка на XML подменного сервера
         self.rated = []  # [(kind, uid, track-ids)]
+        self.delay = 0.0  # сек: download-info отвечает с задержкой (тест таймаута)
 
     async def search(self, request):
         self.searches.append(dict(request.query))
         return web.json_response(self.search_payload)
 
     async def info(self, request):
+        if self.delay:
+            await asyncio.sleep(self.delay)
         self.infos.append(request.match_info["tid"])
         return web.json_response(self.info_payload)
 
@@ -181,6 +185,33 @@ async def test_neighbor_steps_through_queue_and_fetches_links(provider, fake):
     assert back["id"] == "102"
     assert await provider.neighbor(Ctx(), "101", None, -1) is None  # назад с первого — некуда
     assert await provider.neighbor(Ctx(sn="SN-другой"), "", None, 1) is None  # без очереди
+
+
+async def test_prev_after_next_and_prefetch_returns_previous_track(provider, fake):
+    """Позицию очереди двигает только подтверждённый старт трека (recoverCommit → commit):
+    «дальше» и предзагрузка @@mm_stack_engine_get_next её не сдвигают — «предыдущий»
+    возвращает прошлый трек, а не играющий."""
+    await provider.search(Ctx(), "ветер", "music")  # включи: очередь 101–103, current = 0
+    second = await provider.neighbor(Ctx(), "", None, 1)  # «дальше»
+    assert second["id"] == "102"
+    assert await provider.commit(Ctx(), "102") is True  # колонка подтвердила старт
+    third = await provider.neighbor(Ctx(), "", None, 1)  # предзагрузка get_next
+    assert third["id"] == "103"
+    back = await provider.neighbor(Ctx(), "", None, -1)  # «предыдущий»
+    assert back["id"] == "101"  # прошлый, а не играющий
+    assert await provider.commit(Ctx(), "42") is None  # чужой трек позицию не двигает
+    assert await provider.commit(Ctx(sn="SN-другой"), "101") is None  # очереди нет
+
+
+async def test_neighbor_link_fetch_is_bounded(provider, fake):
+    """Добор ссылки в neighbor — с коротким таймаутом запроса (LINK_TIMEOUT_S): медленный
+    API не тянет ответ колонке (задержка «плей» 10–15 с была на этом пути). Фейк отвечает
+    позже таймаута — neighbor вернул бы трек, успей запрос дождаться: None доказывает,
+    что оборвал именно таймаут. Поиск ходит со стандартным таймаутом библиотеки."""
+    await provider.search(Ctx(), "ветер", "music")
+    fake.delay = provider.LINK_TIMEOUT_S + 3
+    assert await provider.neighbor(Ctx(), "101", None, 1) is None  # таймаут раньше ответа фейка
+    assert fake.infos  # до API сходили — оборвал таймаут
 
 
 async def test_rate_likes_and_dislikes_in_account(provider, fake):

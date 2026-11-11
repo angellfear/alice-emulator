@@ -23,7 +23,7 @@ module: "server_emulator/providers.py"
 
 | Вид | Потребитель → функции | Кто читает | Состояние |
 |---|---|---|---|
-| `music` | `music.py` → `search(ctx, query, kind)`, `neighbor(ctx, track_id, context, step)`; опционально `rate(ctx, track_id, like)` | сценарий `media.music`, ядро `music.py` | работает |
+| `music` | `music.py` → `search(ctx, query, kind)`, `neighbor(ctx, track_id, context, step)`; опционально `rate(ctx, track_id, like)`, `commit(ctx, track_id)` | сценарий `media.music`, ядро `music.py` | работает |
 | `weather` | `scenario_plugins.py` → `forecast(ctx, location)` — прогноз в форме Open-Meteo (`current`/`hourly`/`daily`), `location` — `{"latitude", "longitude", "timezone"?}` из параметров дома | сценарий `informers.weather`, виджет погоды | работает |
 | `news` | `scenarios/informers/news.py` → `headlines(ctx, kind)` → `{"items": ["заголовок", …], "note"?}` | сценарий `informers.news` | работает (встроенный — заглушка без сети) |
 | `knowledge` | `plugins/knowledge/scenarios/knowledge/knowledge.py` → `record(ctx, domain, key, args)` → значение домена или `{"value", "updated_at"}` (таблица доменов — docs/contracts/datasets.md); опционально `supports(ctx, domain)` → bool | сценарий `knowledge.knowledge` (`builtin.knowledge`) | встроенного поставщика нет — поставщик даёт расширение |

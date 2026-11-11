@@ -253,14 +253,20 @@ def _reply(ctx, found, query, ext_id=""):
 
 def _with_commit(ctx, provider, track, offset_ms=0):
     """step_reply «дальше»/«продолжи» с токеном recoverCommit (колонка вернёт его при
-    старте трека)."""
-    token = music.keep_commit(track)
+    старте трека; токен запоминает и поставщика — позицию очереди сверяет он)."""
+    token = music.keep_commit(track, str(provider.get("ext_id") or ""))
     return music.step_reply(track, provider, offset_ms=offset_ms, commit_token=token)
 
 
 async def _recover_commit(ctx):
     """recoverCommit: колонка подтвердила старт трека (присылает его при старте каждого
     трека) — токен снимается, ответ тихий. Следующий трек здесь не отдаётся: audio_play
-    в ответ заменил бы только что начавшийся трек."""
-    music.take_commit(ctx.event.music_token)
+    в ответ заменил бы только что начавшийся трек. Поставщик по записи токена сверяет
+    позицию очереди с играющим треком (commit): сдвинуть её может только подтверждённый
+    переход — предзагрузка @@mm_stack_engine_get_next и явные шаги позицию не двигают."""
+    record = music.take_commit(ctx.event.music_token)
+    if record is not None:
+        from server_emulator import providers
+        provider = providers.for_ext("music", record.get("ext_id") or "") or ctx.music
+        await music.commit(ctx, provider, record.get("current_id"))
     return None

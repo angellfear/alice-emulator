@@ -318,6 +318,22 @@ async def test_provider_neighbor_steps_and_edges(provider):
     assert await provider.neighbor(ProviderCtx(sn="SN-другой"), None, None, 1) is None  # без очереди
 
 
+async def test_provider_prev_after_next_and_prefetch_returns_previous_track(provider):
+    """Позицию очереди двигает только подтверждённый старт трека (recoverCommit → commit):
+    «дальше» и предзагрузка @@mm_stack_engine_get_next её не сдвигают — «предыдущий»
+    возвращает прошлый трек, а не играющий."""
+    queue = [{"id": f"q{i}", "title": f"Q{i}", "stream": {"url": f"u{i}", "format": "mp3"}}
+             for i in range(3)]
+    provider.STATE["SN-1"] = {"queue": queue, "current": 0, "saved_ts": 0}
+    ctx = ProviderCtx()
+    assert (await provider.neighbor(ctx, "", None, 1))["id"] == "q1"  # «дальше»
+    assert await provider.commit(ctx, "q1") is True  # колонка подтвердила старт
+    assert (await provider.neighbor(ctx, "", None, 1))["id"] == "q2"  # предзагрузка get_next
+    assert (await provider.neighbor(ctx, "", None, -1))["id"] == "q0"  # «предыдущий» — прошлый, а не играющий q1
+    assert await provider.commit(ctx, "иное") is None  # чужой трек позицию не двигает
+    assert await provider.commit(ProviderCtx(sn="SN-другой"), "q0") is None  # очереди нет
+
+
 async def test_provider_rate_not_supported(provider):
     assert await provider.rate(ProviderCtx(), "q0", True) is None
 

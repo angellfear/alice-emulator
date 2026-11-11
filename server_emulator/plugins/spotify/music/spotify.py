@@ -335,7 +335,9 @@ async def search(ctx, query, kind="music"):
 
 
 async def neighbor(ctx, track_id, context, step):
-    """Соседний трек очереди (интерфейс ядра): Track или None — дальше нечего."""
+    """Соседний трек очереди (интерфейс ядра): Track или None — дальше нечего.
+    Позицию очереди двигает только commit (recoverCommit — подтверждённый старт трека):
+    предзагрузка @@mm_stack_engine_get_next и явные шаги её не сдвигают."""
     state = STATE.get(_owner(ctx))
     if not state:
         return None
@@ -352,8 +354,21 @@ async def neighbor(ctx, track_id, context, step):
     index = current + (0 if step == 0 else 1 if step > 0 else -1)  # 0 — текущий (продолжение)
     if not 0 <= index < len(queue):
         return None
-    state["current"] = index
     return queue[index]
+
+
+async def commit(ctx, track_id):
+    """Сверка позиции очереди с подтверждённым стартом трека (интерфейс ядра, recoverCommit):
+    чужого трека в очереди нет — позиция не меняется."""
+    state = STATE.get(_owner(ctx))
+    if not state:
+        return None
+    queue = [track for track in state.get("queue") or [] if isinstance(track, dict)]
+    index = next((i for i, track in enumerate(queue) if str(track.get("id")) == str(track_id)), None)
+    if index is None:
+        return None
+    state["current"] = index
+    return True
 
 
 async def rate(ctx, track_id, like):

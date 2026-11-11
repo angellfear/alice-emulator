@@ -45,6 +45,7 @@ QUEUE_LIMIT = 5
 BASE_URL = None  # None — адрес API по умолчанию библиотеки (api.music.yandex.net)
 COVER_SIZE = "200x200"
 REDIRECT_TIMEOUT_S = 5
+LINK_TIMEOUT_S = 2  # добор ссылки в neighbor (шаги, «плей», предзагрузка) — короткий таймаут запроса
 
 STATE = {}  # владелец → {"queue": [Track], "current": int}
 
@@ -75,9 +76,15 @@ def _language(ctx):
     return str(settings.get("market") or "ru")
 
 
-def _client(ctx, token):
-    """Клиент библиотеки без init(): статус аккаунта для поиска и ссылок не нужен."""
-    return Client(token, base_url=BASE_URL, language=_language(ctx))
+def _client(ctx, token, timeout=None):
+    """Клиент библиотеки без init(): статус аккаунта для поиска и ссылок не нужен.
+    timeout — свой таймаут каждого запроса (у библиотеки 5 с); neighbor добирает
+    ссылку коротким (LINK_TIMEOUT_S): задержку ответа колонке он не должен тянуть."""
+    if timeout is None:
+        return Client(token, base_url=BASE_URL, language=_language(ctx))
+    from yandex_music.utils.request import Request
+    return Client(token, base_url=BASE_URL, language=_language(ctx),
+                  request=Request(timeout=timeout))
 
 
 def _track_meta(track):
@@ -184,13 +191,32 @@ def _neighbor_sync(ctx, track_id, step):
     target = index + int(step)
     if not 0 <= target < len(queue):
         return None
-    entry["current"] = target
+    # позицию очереди двигает только commit (recoverCommit — подтверждённый старт трека):
+    # предзагрузка @@mm_stack_engine_get_next и явные шаги её не сдвигают
     try:  # ссылку соседнего трека добираем при переходе (подпись ссылки живёт недолго)
-        track = _with_stream(_client(ctx, token), queue[target])
+        track = _with_stream(_client(ctx, token, LINK_TIMEOUT_S), queue[target])
     except Exception:
         return None
     entry["queue"][target] = track
     return track
+
+
+def _commit_sync(ctx, track_id):
+    """Колонка подтвердила старт трека (recoverCommit) — позиция очереди сверяется
+    с играющим треком; чужого трека в очереди нет — позиция не меняется."""
+    entry = _cached_queue(_owner(ctx))
+    if not entry:
+        return None
+    index = next((i for i, t in enumerate(entry["queue"]) if str(t["id"]) == str(track_id)), None)
+    if index is None:
+        return None
+    entry["current"] = index
+    return True
+
+
+async def commit(ctx, track_id):
+    """Сверка позиции очереди с подтверждённым стартом трека (интерфейс ядра, recoverCommit)."""
+    return await asyncio.to_thread(_commit_sync, ctx, str(track_id or ""))
 
 
 async def rate(ctx, track_id, like):

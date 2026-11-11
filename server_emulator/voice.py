@@ -1126,8 +1126,9 @@ class Conversation:
         """continue_session, шаг 1: вместо речи — tts_play_placeholder с OnFinish
         (TypedCallbackRequest = Struct continue_session_stage1): колонка после
         проигрывания сама пришлёт stage2-фрейм, и ответ уйдёт на него (образец
-        quasar-server input-handler.ts)."""
-        output = self.server_type()
+        quasar-server input-handler.ts). Кадр как у обычного ответа — через event():
+        без Header (MessageId/RefMessageId) колонка кадр не принимает."""
+        output = self.event(incoming, 'AliceResponse')
         response = output.Event.AliceResponse
         response.Header.RequestId = getattr(request.Header, 'RequestId', '') or ''
         response.Header.ResponseId = uuid.uuid4().hex

@@ -60,11 +60,13 @@ async def defer_run(tmp_path, model_delay=2.0, answer=ANSWER, mode="continue_ses
 
 
 async def test_placeholder_with_on_finish(tmp_path):
-    """Шаг 1: вместо речи — tts_play_placeholder с OnFinish continue_session_stage1."""
+    """Шаг 1: вместо речи — tts_play_placeholder с OnFinish continue_session_stage1;
+    Header кадра как у обычного ответа: MessageId сервера и RefMessageId запроса."""
     runtime, conv, client, server, events, first, tts = await defer_run(tmp_path)
     try:
         assert len(first) == 1
         reply = first[0]
+        assert reply.Header.MessageId and reply.Header.RefMessageId == "m1"  # без Header колонка кадр не принимает
         assert reply.AliceResponse.VoiceResponse.OutputSpeech.Text == ""  # речи нет
         [directive] = reply.AliceResponse.Response.Directives
         assert directive.Name == "tts_play_placeholder"

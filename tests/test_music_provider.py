@@ -97,6 +97,10 @@ async def rate(ctx, track_id, like):
     _note(["rate", track_id, like])
     return True
 
+async def commit(ctx, track_id):
+    _note(["commit", track_id])
+    return True
+
 PROVIDER = {{"id": "{provider_id}", "title": "Поставщик для теста"{service_part}}}
 '''
 
@@ -896,7 +900,8 @@ async def test_start_reply_carries_recover_commit_token(tmp_path):
 
 async def test_commit_is_silent_and_consumes_token(tmp_path):
     """Колонка подтверждает старт каждого трека — ответ тихий, трек не переключается,
-    токен снимается; соседа заранее не запрашиваем (neighbor сдвигает очередь поставщика)."""
+    токен снимается; соседа заранее не запрашиваем, поставщик сверяет позицию очереди
+    с играющим треком (commit)."""
     runtime = Runtime(tmp_path)
     marker = tmp_path / "marker.json"
     make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)}, phrases=MUSIC_PHRASES)
@@ -911,6 +916,7 @@ async def test_commit_is_silent_and_consumes_token(tmp_path):
         assert not commit_report["handled"]  # умолчание маршрута — тихое подтверждение
         assert music.take_commit(token) is None  # токен снят
         calls = json.loads(marker.read_text(encoding="utf-8"))
+        assert ["commit", "t1"] in calls  # позиция очереди сверена с играющим треком
         assert not [call for call in calls if call[0] == "neighbor"]
     finally:
         await runtime.close()
