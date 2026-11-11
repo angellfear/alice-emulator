@@ -89,6 +89,21 @@ def forward_headers(headers, websocket=False):
     return [(k, v) for k, v in pairs if k.lower() not in excluded]
 
 
+WIRE_CLOSE_CODES = frozenset((1000, 1001, 1002, 1003, 1007, 1008, 1009, 1010, 1011))
+
+
+def wire_close_code(code):
+    """Код закрытия, который можно отправлять в сеть.
+
+    1005 «код не получен», 1006 «обрыв» и 1015 «ошибка TLS» — внутренние статусы:
+    по RFC 6455 на проводе они запрещены, принимающая сторона отвечает
+    PROTOCOL_ERROR. Обрыв соединения наверху (1006) честно превращается в 1011,
+    остальным нелегальным уходит 1000."""
+    if code == 1006:
+        return 1011
+    return code if code in WIRE_CLOSE_CODES else 1000
+
+
 class Forwarder:
     """Пересылка HTTP-обменов и WS-мостов upstream с журналированием."""
 
@@ -216,7 +231,7 @@ class Forwarder:
                     await destination.pong(msg.data)
                 elif msg.type == WSMsgType.ERROR:
                     raise source.exception() or RuntimeError("WebSocket error")
-            await destination.close(code=source.close_code or 1000)
+            await destination.close(code=wire_close_code(source.close_code))
 
         tasks = (asyncio.create_task(pump(local, remote, "client_to_server")),
                  asyncio.create_task(pump(remote, local, "server_to_client")))

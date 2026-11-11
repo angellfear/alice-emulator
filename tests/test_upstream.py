@@ -175,6 +175,51 @@ async def test_ws_bridge_forwards_frames_both_ways_and_closes(tmp_path):
         await runner.cleanup()
 
 
+async def test_ws_bridge_sends_legal_close_code_when_upstream_closes_reserved(tmp_path):
+    runtime = Runtime(tmp_path)
+    runtime.identities.mutate({"operation": "device", "sn": "SN-WS", "device_ids": ["ws-id"]})
+
+    async def ws_handler(request):
+        ws = web.WebSocketResponse(autoping=False)
+        await ws.prepare(request)
+        await ws.close(code=1006)  # aiohttp исходящие коды не проверяет: 1006 уходит в сеть как есть
+        return ws
+
+    upstream = web.Application()
+    upstream.router.add_route("GET", "/uni.ws", ws_handler)
+    upstream_runner, port = await start_upstream(upstream)
+    runtime.upstream.forwarder.resolver = StubResolver()
+
+    async def bridge(request):
+        return await runtime.upstream.serve(request, f"ws://uniproxy.test:{port}/uni.ws",
+                                            host="uniproxy.alice.yandex.net")
+
+    app = web.Application()
+    app.router.add_route("GET", "/uni.ws", bridge)
+    runner, url = await listen(app)
+    try:
+        async with ClientSession() as client:
+            async with client.ws_connect(url + "/uni.ws", headers={"x-uprx-device-id": "ws-id"}) as ws:
+                msg = await asyncio.wait_for(ws.receive(), 3)
+                # 1006 на проводе запрещён — колонке уходит легальный 1011 «внутренняя ошибка»
+                assert msg.type == WSMsgType.CLOSE and msg.data == 1011
+        await runtime.upstream.journal.flush()
+        items = []
+        for _ in range(50):
+            await runtime.upstream.journal.flush()
+            items = (await runtime.upstream.journal.list(host="uniproxy.alice.yandex.net"))["items"]
+            if {"open", "close"} <= {item["event"] for item in items}:
+                break
+            await asyncio.sleep(0.05)
+        assert {"open", "close"} <= {item["event"] for item in items}
+        close = await runtime.upstream.journal.item(next(i["id"] for i in items if i["event"] == "close"))
+        assert close["close_code"] == 1006  # в журнале — наблюдаемый код наверху
+    finally:
+        await upstream_runner.cleanup()
+        await runner.cleanup()
+        await runtime.close()
+
+
 async def test_resolver_loop_protection_and_pins():
     """Петля: адрес самого сервера в пересылку не идёт; пин на чужой адрес работает."""
     own = "127.0.0.1"
