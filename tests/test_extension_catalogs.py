@@ -74,9 +74,12 @@ def coffee_files():
             "status": 200, "mode": "script", "content_type": "application/json", "body_base64": "",
         }, ensure_ascii=False),
         "endpoints/coffee.motd.py": MOTD_PY,
-        "quasar/common.json": json.dumps({"config": {"extension_key": "coffee"}}, ensure_ascii=False),
-        "quasar/platforms/coffee.json": json.dumps(
-            {"config": {"device_config": {"drink": "latte"}}}, ensure_ascii=False),
+        "quasar/rules/common.json": json.dumps({"rules": [
+            {"name": "extension_key", "path": "/config/extension_key", "kind": "select",
+             "value": "Значение", "options": {"Значение": "coffee"}}]}, ensure_ascii=False),
+        "quasar/rules/platforms/coffee.json": json.dumps({"rules": [
+            {"name": "drink", "path": "/config/device_config/drink", "kind": "select",
+             "value": "Значение", "options": {"Значение": "latte"}}]}, ensure_ascii=False),
     }
 
 
@@ -267,14 +270,15 @@ async def test_extension_quasar_layers(tmp_path):
         assert body["config"]["extension_key"] == "coffee"
         assert body["config"]["device_config"]["drink"] == "latte"
         # свои замены поверх слоя расширения; файл расширения не меняется
-        store.save("common", [{"name": "u", "path": "/config/user_key", "kind": "value", "value": 1}])
-        store.save("coffee", [{"name": "drink", "path": "/config/device_config/drink", "kind": "value",
-                               "value": "ristretto"}])
+        store.save("common", [{"name": "u", "path": "/config/user_key", "kind": "select",
+                               "value": "Значение", "options": {"Значение": 1}}])
+        store.save("coffee", [{"name": "drink", "path": "/config/device_config/drink", "kind": "select",
+                               "value": "Значение", "options": {"Значение": "ristretto"}}])
         body = compose_config(runtime, "coffee", None, render=False)
         assert body["config"]["user_key"] == 1 and body["config"]["extension_key"] == "coffee"
         assert body["config"]["device_config"]["drink"] == "ristretto"
-        assert json.loads((root / "quasar/platforms/coffee.json").read_text(encoding="utf-8")
-                          )["config"]["device_config"] == {"drink": "latte"}
+        saved = json.loads((root / "quasar/rules/platforms/coffee.json").read_text(encoding="utf-8"))
+        assert saved["rules"][0]["options"]["Значение"] == "latte"
         store.remove_platform("coffee")
         assert compose_config(runtime, "coffee", None, render=False)["config"]["device_config"]["drink"] == "latte"
     finally:

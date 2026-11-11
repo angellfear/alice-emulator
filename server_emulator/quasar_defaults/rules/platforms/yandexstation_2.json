@@ -1,0 +1,2252 @@
+{
+  "rules": [
+    {
+      "id": "45970c7c3c",
+      "name": "quasmodrom_subgroup",
+      "path": "/config/system_config/appmetrikaReportEnvironment/quasmodrom_subgroup",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "production"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "2a3b01624e",
+      "name": "test_buckets",
+      "path": "/config/system_config/appmetrikaReportEnvironment/test_buckets",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "1710193,0,90;1721928,0,38;1669616,0,45;1723829,0,65;721150,0,42;1618607,0,81;1217762,0,92;945524,0,17;950035,0,81;956122,0,8;1288685,0,58;1599003,0,87;1669758,0,28;1493492,0,84"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "fa7f9e2e58",
+      "name": "testids",
+      "path": "/config/system_config/appmetrikaReportEnvironment/testids",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "1058670_1058695_1058696_1058739_1058743_1058746_1074585_1098487_1118599_1122174_1155918_1294733_1323627_1367806_1395542_1420044_1431608_1432181_1450785_1457247_1457514_1458555_1493492_1533258_1576431_1669616_1678420_1686993_1703790_1710274_1723829_1723947_721150"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "2cce67d6e1",
+      "name": "activation/alisa",
+      "path": "/config/system_config/audioInput/model_storage/models/spotter/activation~1alisa",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "crc": 661529932,
+          "fallbackUrls": [
+            "https://quasar.s3.yandex.net/spotters/mshgs_ru-RU-quasar2-alisa-07Apr25-bnr-ft-full-context-i8-tuned-on-rodina-patched.zip"
+          ],
+          "format": "zip",
+          "type": "activation",
+          "url": "https://cdnrlh4uplgcoewzir6e.svc.cdn.yandex.net/spotters/mshgs_ru-RU-quasar2-alisa-07Apr25-bnr-ft-full-context-i8-tuned-on-rodina-patched.zip",
+          "word": "alisa"
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "24fa4ee5f9",
+      "name": "calldSinkOptions",
+      "path": "/config/system_config/audioclient/calldSinkOptions",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "stream-type": "alarm"
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "2e0d964921",
+      "name": "common",
+      "path": "/config/system_config/audioclient/extraPlaybackParams/common",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "sinkOptions": {
+            "stream-type": "alarm"
+          }
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "e9fb972b6b",
+      "name": "sinkOptions",
+      "path": "/config/system_config/audioclient/extraPlaybackParams/sinkOptions",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "stream-type": "alarm"
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "ad53d21281",
+      "name": "radioStreamType",
+      "path": "/config/system_config/audioclient/radioStreamType",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "alarm"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "6e49c78a30",
+      "name": "voice",
+      "path": "/config/system_config/audioclient/volume/voice",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": 75
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "6c2c073484",
+      "name": "allowOnlyChildrenDailyUsage",
+      "path": "/config/system_config/com.yandex.capabilities/deviceControlPanelCapabilityV1/allowOnlyChildrenDailyUsage",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Выкл"
+    },
+    {
+      "id": "c9acc3ec88",
+      "name": "divUiCapabilityBackgroundDirectives",
+      "path": "/config/system_config/com.yandex.capabilities/divUiCapabilityBackgroundDirectives",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "add_to_watch_list_directive",
+          "clear_queue",
+          "draw_animation_directive",
+          "draw_led_screen",
+          "force_display_cards",
+          "go_backward",
+          "go_down",
+          "go_forward",
+          "go_left",
+          "go_up",
+          "load_screensavers",
+          "player_pause",
+          "remove_from_watch_list_directive",
+          "sound_louder",
+          "sound_mute",
+          "sound_quiter",
+          "sound_set_level",
+          "sound_unmute",
+          "tandem_update_media_directive",
+          "tts_play_placeholder",
+          "type"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "53c65dd56b",
+      "name": "authorizePupaDirectiveEnabled",
+      "path": "/config/system_config/com.yandex.capabilities/multiAccountCapability/authorizePupaDirectiveEnabled",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "757aa7c164",
+      "name": "expandAccountListDirectiveEnabled",
+      "path": "/config/system_config/com.yandex.capabilities/multiAccountCapability/expandAccountListDirectiveEnabled",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "31ccf7362c",
+      "name": "showLoginScreenDirectiveEnabled",
+      "path": "/config/system_config/com.yandex.capabilities/multiAccountCapability/showLoginScreenDirectiveEnabled",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "531ce88822",
+      "name": "sourceInputCapabilityEnabled",
+      "path": "/config/system_config/com.yandex.capabilities/sourceInputCapabilityEnabled",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Выкл"
+    },
+    {
+      "id": "40526b350a",
+      "name": "browserPackageName",
+      "path": "/config/system_config/com.yandex.devices.appstore/browserPackageName",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "com.yandex.browser.tv"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "dd0cbe0257",
+      "name": "defaultChannelsUpdatePeriodMinutes",
+      "path": "/config/system_config/com.yandex.devices.feature.tvchannellist/defaultChannelsUpdatePeriodMinutes",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": 55
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "b426c5d7c3",
+      "name": "showNativeSubtitles",
+      "path": "/config/system_config/com.yandex.devices.feature.webplayer.ui/supportedPlayers/rutube/showNativeSubtitles",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "43958b5d87",
+      "name": "useNativeOverlayV2",
+      "path": "/config/system_config/com.yandex.devices.feature.webplayer.ui/supportedPlayers/rutube/useNativeOverlayV2",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "dcbbe37014",
+      "name": "equalizer",
+      "path": "/config/system_config/com.yandex.io.sdk/equalizer",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "isEnabled": true
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "9d7c7ca060",
+      "name": "hdmiAudioEnabled",
+      "path": "/config/system_config/com.yandex.io.sdk/hdmiAudioEnabled",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "ce772a6bc3",
+      "name": "supportedMediaSessionApplications",
+      "path": "/config/system_config/com.yandex.io.sdk/mediaSession/supportedMediaSessionApplications",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "com.ctcmediagroup.videomore",
+          "com.yandex.tv.webplayer",
+          "com.yandex.tv.ytplayer",
+          "ru.litres.android.audio",
+          "ru.start.androidmobile",
+          "ru.ivi.client",
+          "ru.kinopoisk.yandex.tv",
+          "ru.rt.video.app.tv"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "913e99dd80",
+      "name": "metricsCollectorType",
+      "path": "/config/system_config/com.yandex.io.sdk/metricsCollectorType",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "YANDEXSTATION_2"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "12af484fbd",
+      "name": "navigateHomeOnSleepTimeoutMs",
+      "path": "/config/system_config/com.yandex.io.sdk/navigateHomeOnSleepTimeoutMs",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": 600000
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "734e421790",
+      "name": "wifiResetterOn",
+      "path": "/config/system_config/com.yandex.io.sdk/wifiResetterOn",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "b256f518c3",
+      "name": "nightIntervalEnd",
+      "path": "/config/system_config/com.yandex.launcher.updaterapp/settings/nightIntervalEnd",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": 8
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "75cc04ebe7",
+      "name": "updateFrequencyMin",
+      "path": "/config/system_config/com.yandex.launcher.updaterapp/settings/updateFrequencyMin",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": 180
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "9ec9b6914a",
+      "name": "updateInterruptStrategy",
+      "path": "/config/system_config/com.yandex.launcher.updaterapp/settings/updateInterruptStrategy",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "never"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "76c0221ce4",
+      "name": "file_size",
+      "path": "/config/system_config/com.yandex.launcher.updaterapp/media/video/forcedUpdateBackgroundVideo/default/file_size",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": 22644839
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "54c70e588d",
+      "name": "url",
+      "path": "/config/system_config/com.yandex.launcher.updaterapp/media/video/forcedUpdateBackgroundVideo/default/url",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "https://androidtvprod.s3.yandex.net/suw_video/v2/alice_onboarding_4k.mp4"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "bb1ce77540",
+      "name": "file_size",
+      "path": "/config/system_config/com.yandex.launcher.updaterapp/media/video/suwUpdateBackgroundVideo/default/file_size",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": 22644839
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "bd34c88e85",
+      "name": "url",
+      "path": "/config/system_config/com.yandex.launcher.updaterapp/media/video/suwUpdateBackgroundVideo/default/url",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "https://androidtvprod.s3.yandex.net/suw_video/v2/alice_onboarding_4k.mp4"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "0cbf613c78",
+      "name": "newSerialNavigatorEnabled",
+      "path": "/config/system_config/com.yandex.tv.home/serialNavigatorScreen/newSerialNavigatorEnabled",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "713bc26e64",
+      "name": "newCacheLogic",
+      "path": "/config/system_config/com.yandex.tv.home/appsMarketCache/newCacheLogic",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "a40d24fbf7",
+      "name": "glideBackgroundTransformationsEnabled",
+      "path": "/config/system_config/com.yandex.tv.home/glideBackgroundTransformationsEnabled",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "674918acac",
+      "name": "homeResetFocusOnIdleMillis",
+      "path": "/config/system_config/com.yandex.tv.home/homeResetFocusOnIdleMillis",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": 300000
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "b5b2cdf38c",
+      "name": "newDesignCategoriesIds",
+      "path": "/config/system_config/com.yandex.tv.home/newDesignCategoriesIds",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "music"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "b1a01b5b5e",
+      "name": "customAppIconsPackages",
+      "path": "/config/system_config/com.yandex.tv.home/recentsConfig/customAppIconsPackages",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "ag.tv.a24h",
+          "com.fitstars.tv"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "fd162cc527",
+      "name": "whitelist",
+      "path": "/config/system_config/com.yandex.tv.services/notifications/whitelist",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "channelGridErrorNotification",
+          "freeSpaceInspector",
+          "musicPlayerNoLyricsNotification",
+          "purchasedSuccessfulNotification",
+          "rcuLowBatteryLevelNotification",
+          "setFavoritesNotification",
+          "tvPlayerPlaybackStopNotification"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "1e65b3c114",
+      "name": "newNotificationDesignEnabled",
+      "path": "/config/system_config/com.yandex.tv.services/notifications/newNotificationDesignEnabled",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "2f878f0663",
+      "name": "accountListVoiceControlsEnabled",
+      "path": "/config/system_config/com.yandex.tv.services/accountListVoiceControlsEnabled",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "310186757c",
+      "name": "accountListVoiceNavigationEnabled",
+      "path": "/config/system_config/com.yandex.tv.services/accountListVoiceNavigationEnabled",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "63efba98b6",
+      "name": "whitelist",
+      "path": "/config/system_config/com.yandex.tv.services/crashSender/whitelist",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "ru.yandex.",
+          "com.yandex.",
+          "audioserver",
+          "com.android.providers.media.module",
+          "com.android.providers.tv",
+          "com.android.tv.settings",
+          "com.android.systemui",
+          "com.ctv.android.tvboot",
+          "com.droidlogic",
+          "com.mediatek.tv.agent",
+          "com.mediatek.tvinput",
+          "com.mediatek.androidbox",
+          "com.mediatek.wwtv.tvcenter",
+          "/system/bin/audioserver",
+          "/system/bin/surfaceflinger",
+          "/system/bin/wificond",
+          "media.codec",
+          "media.swcodec",
+          "/vendor/bin/hw/android.hardware.bluetooth",
+          "/vendor/bin/hw/android.hardware.audio",
+          "/vendor/bin/hw/android.hardware.wifi",
+          "/vendor/bin/hw/android.hardware.media.c2",
+          "/vendor/bin/hw/android.hardware.graphics.composer"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "7fb634954f",
+      "name": "fastWakeupEnabled",
+      "path": "/config/system_config/com.yandex.tv.services/fastWakeupEnabled",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Выкл"
+    },
+    {
+      "id": "8315626889",
+      "name": "fastWakeupSettingsEnabled",
+      "path": "/config/system_config/com.yandex.tv.services/fastWakeupSettingsEnabled",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Выкл"
+    },
+    {
+      "id": "a784049c37",
+      "name": "identicalShowDelay",
+      "path": "/config/system_config/com.yandex.tv.services/hints/identicalShowDelay",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "main_screen_opened": 120
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "c76fc8f95f",
+      "name": "triggers",
+      "path": "/config/system_config/com.yandex.tv.services/hints/triggers",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "app_market_screen_opened",
+          "category_navigation_on_video_content",
+          "details_screen_opened",
+          "main_navigation_on_video_content",
+          "main_screen_opened",
+          "music_player_screen_opened",
+          "music_screen_opened",
+          "profile_screen_opened",
+          "tv_channels_screen_opened",
+          "video_player_screen_opened",
+          "tv_channels_add_to_favourites"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "9b330227f7",
+      "name": "mergeContentSettingsWithAppEnabled",
+      "path": "/config/system_config/com.yandex.tv.services/mergeContentSettingsWithAppEnabled",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "e399d411e9",
+      "name": "whitelist",
+      "path": "/config/system_config/com.yandex.tv.services/realtimeEvents/whitelist",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "app_error",
+          "app_crash",
+          "app_heartbeat",
+          "error_screen_show",
+          "tv_player_heartbeat",
+          "youtube_player_heartbeat",
+          "native_player_heartbeat",
+          "restore_state_success",
+          "restore_state_start",
+          "restore_state_fail",
+          "restore_transition_success",
+          "restore_transition_start",
+          "restore_transition_fail",
+          "audio_record_heartbeat",
+          "audio_record_muted_heartbeat",
+          "card_show",
+          "account_login_fail",
+          "account_login_success",
+          "webview_player_heartbeat",
+          "verification_failed",
+          "tv_network_error"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "cb42869564",
+      "name": "stationIrRemoteDesign",
+      "path": "/config/system_config/com.yandex.tv.services/stationIrRemoteDesign",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "56ef3033b5",
+      "name": "tokenRenew",
+      "path": "/config/system_config/com.yandex.tv.services/tokenRenew",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "initialDelaySec": 3600,
+          "renewPeriodSec": 43200,
+          "tokenRenewEnabled": true
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "4af45e41cc",
+      "name": "adbEnabled",
+      "path": "/config/system_config/com.yandex.tv.services.platform/adbEnabled",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Выкл"
+    },
+    {
+      "id": "fb4fe1c964",
+      "name": "appUsageTrackerEnabledV1",
+      "path": "/config/system_config/com.yandex.tv.services.platform/appUsageTrackerEnabledV1",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "66321db466",
+      "name": "appUsageTrackerPlaybackStatusList",
+      "path": "/config/system_config/com.yandex.tv.services.platform/appUsageTrackerPlaybackStatusList",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          3
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "9bcdbf2471",
+      "name": "developmentSettingsEnabled",
+      "path": "/config/system_config/com.yandex.tv.services.platform/developmentSettingsEnabled",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Выкл"
+    },
+    {
+      "id": "1a793b2055",
+      "name": "deviceControlPanelAppUsageUpdatePeriodMs",
+      "path": "/config/system_config/com.yandex.tv.services.platform/deviceControlPanelAppUsageUpdatePeriodMs",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": 60000
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "3a3dd2ad50",
+      "name": "supportedMediaSessionApplications",
+      "path": "/config/system_config/com.yandex.tv.services.platform/supportedMediaSessionApplications",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "com.ctcmediagroup.videomore",
+          "ru.litres.android.audio",
+          "ru.start.androidmobile",
+          "com.yandex.tv.ytplayer",
+          "com.yandex.tv.webplayer",
+          "ru.ivi.client",
+          "ru.kinopoisk.yandex.tv",
+          "ru.rt.video.app.tv"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "d923835d5b",
+      "name": "voiceVolumeStep",
+      "path": "/config/system_config/com.yandex.tv.services.platform/voiceVolumeStep",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": 10
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "2df77c0318",
+      "name": "quasmodrom_subgroup",
+      "path": "/config/system_config/env/quasmodrom_subgroup",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "production"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "01a6486f1d",
+      "name": "test_buckets",
+      "path": "/config/system_config/env/test_buckets",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "1710193,0,90;1721928,0,38;1669616,0,45;1723829,0,65;721150,0,42;1618607,0,81;1217762,0,92;945524,0,17;950035,0,81;956122,0,8;1288685,0,58;1599003,0,87;1669758,0,28;1493492,0,84"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "d9a2dbe432",
+      "name": "testids",
+      "path": "/config/system_config/env/testids",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "1058670_1058695_1058696_1058739_1058743_1058746_1074585_1098487_1118599_1122174_1155918_1294733_1323627_1367806_1395542_1420044_1431608_1432181_1450785_1457247_1457514_1458555_1493492_1533258_1576431_1669616_1678420_1686993_1703790_1710274_1723829_1723947_721150"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "ce060069d1",
+      "name": "experiments",
+      "path": "/config/system_config/experiments",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "ENABLE_SCENARIO_TRIGGER_PHRASE_V2",
+          "account_switch_enabled",
+          "add_bilingual_hints",
+          "alice2_disable_greetings_ios",
+          "alice_2_0",
+          "alice_2_0_base_staff",
+          "alice_2_0_streaming_response_supported",
+          "alice_disable_deepseek_r1_with_trial_group",
+          "alice_disable_external_thinking",
+          "alice_disable_yagpt_5_lite",
+          "alice_disable_yagpt_5_pro",
+          "alice_enable_deep_research",
+          "alice_enable_deepseek_r1_with_trial_group",
+          "alice_enable_external_thinking_for_all",
+          "alice_group_thinking_pro_trial_requests_limit=100",
+          "alice_has_borders_div_paddings",
+          "alice_memory_additional_embedder_model_tag=embedder_12_09_2025",
+          "alice_memory_change_get_embedder_model_tag=embedder_12_09_2025",
+          "alice_memory_disable_default_facts_except_one",
+          "alice_memory_enable_new_memory_embedder",
+          "alice_show_use_thin_fm_radio",
+          "alice_subscription=plus",
+          "assume_has_supports_streaming_sf",
+          "bg_ar_enable_new_reminders",
+          "bg_beggins_alice.screen.change_brightness",
+          "bg_beggins_change_current_profile",
+          "bg_beggins_launch_tv_channel_v2",
+          "bg_beggins_music_songs_from_this_album",
+          "bg_beggins_ny_congratulation_with_wishes",
+          "bg_beggins_ny_simple_congratulation",
+          "bg_beggins_open_favorites_movie_list",
+          "bg_beggins_tv_controls.update.install",
+          "bg_beggins_tv_controls.update.later",
+          "bg_draw_picture_yandexart",
+          "bg_en_enable_new_reminders",
+          "bg_enable_hide_item_from_delayed",
+          "bg_enable_iot_car_controls",
+          "bg_enable_pro_plus_rename",
+          "bg_enable_pro_plus_rename_new",
+          "bg_enable_say_with_emotion",
+          "bg_enable_vlm_live_multiroom",
+          "bg_enable_what_is_alice_plus",
+          "bg_exp_form_iot_action_capability_cooking",
+          "bg_exp_form_iot_action_capability_cooking_v2",
+          "bg_exp_form_iot_action_capability_do_not_disturb",
+          "bg_exp_form_iot_action_capability_sound_alarm",
+          "bg_exp_form_iot_query_capability_cooking",
+          "bg_fix_bugreport",
+          "bg_fresh_alice_form=AliceZelibobaNyCongratulationWithWishes",
+          "bg_fresh_alice_form=AliceZelibobaNySimpleCongratulation",
+          "bg_fresh_alice_form=alice.account_control.select_account_item",
+          "bg_fresh_alice_form=alice.language_tutor",
+          "bg_fresh_alice_form=alice.ny_congratulation_with_wishes",
+          "bg_fresh_alice_form=alice.ny_simple_congratulation",
+          "bg_fresh_alice_form=alice.screen.change_brightness",
+          "bg_fresh_alice_prefix=alice.bugreport.send",
+          "bg_fresh_alice_prefix=alice.change_current_profile",
+          "bg_fresh_alice_prefix=alice.watch_list",
+          "bg_fresh_granet_form=alice.account_control.switch",
+          "bg_fresh_granet_form=alice.alice_memory_not_pro_suggestion",
+          "bg_fresh_granet_form=alice.alice_memory_pro_active_suggestion",
+          "bg_fresh_granet_form=alice.alice_memory_pro_suggestion",
+          "bg_fresh_granet_prefix=alice.voice.whisper",
+          "bg_get_time",
+          "bg_kk_enable_new_reminders",
+          "bg_renew_what_is_alice_pro",
+          "bg_specify_device_exp",
+          "bg_update_what_is_alice_pro",
+          "cachalot_mm_context_save",
+          "card_detail_param_entitysearch_array_param=rearr=entsearch_experiment=ignore-score-filter",
+          "change_track",
+          "chat_onboarding_draw_picture",
+          "commands_multiroom_client_redirect",
+          "compact_weather_everywhere_except_homescreen",
+          "delayed_gallery_add_remove_button",
+          "dialogovo_disable_genesis_skill_in_alice_1_0",
+          "dialogovo_disable_genesis_skill_update_is_required",
+          "dialogovo_open_chat_on_help_to_create_and_cloud_ui",
+          "dialogovo_redirect_on_genesis_skill_call_in_cloud_ui",
+          "dialogovo_return_genesis_skill_placeholder_if_client_supports_send_text_input",
+          "dialogovo_return_genesis_skill_placeholder_on_scenario_on_alice_2_0",
+          "dialogovo_use_v2_abuse_api",
+          "direct_banner_combo_limit=4",
+          "direct_banner_limit=4",
+          "disable_alice_2_0_on_cloud_ui",
+          "disable_bookmate_option",
+          "disable_launch_tv_for_turned_on_magritte",
+          "disable_personal_tv_channel",
+          "disable_ru_en_translation_for_pro",
+          "disable_tts_cache_for_bilingual",
+          "draw_picture_add_flags_for_limiter",
+          "draw_picture_add_new_limit_directives",
+          "draw_picture_mark_unethical",
+          "draw_picture_yandex_art",
+          "enable_alice_memory_saving",
+          "enable_change_menu_view",
+          "enable_dialog_history_title_summarization",
+          "enable_directive_tab_navigation",
+          "enable_dont_skip_video_fragment",
+          "enable_input_control_scenario",
+          "enable_multiquery",
+          "enable_new_billing_phrases",
+          "enable_new_external_app_phrases",
+          "enable_new_tabs_phrases",
+          "enable_open_kids_tab_by_voice",
+          "enable_parse_base_info_no_kp_in_rpc",
+          "enable_skip_tv_ad",
+          "enable_tv_update_controls",
+          "enable_watch_list_scenario",
+          "enrollment_x_token_enabled",
+          "exp_add_source_frame_actions",
+          "exp_enable_memory_suggestions_postroll",
+          "exp_forced_add_frame_actions",
+          "exp_hw_add_point_camera",
+          "exp_hw_change_voice_unavailable",
+          "exp_hw_get_time_ru",
+          "exp_mark_callback_as_undefined_mode",
+          "exp_rename_to_alice_plus",
+          "experiment_flag_for_uniproxy_correctness_alert",
+          "fake_new_feature_toggle_voice_athene_grey",
+          "fast_command_navigation",
+          "file_quota_enabled",
+          "file_service_use_neuroexpert",
+          "file_upload_files_support",
+          "flag_use_capability_in_open_search",
+          "frontend_vh_flags=pron=rec_param=single_item_mixed=1",
+          "frontend_vh_flags=pron=rec_param=static_kp_top10=1",
+          "generic_happynewyear_2023",
+          "go_home_on_screen_off",
+          "granet_alice_memory_not_pro_suggestion",
+          "granet_alice_memory_pro_active_suggestion",
+          "granet_alice_memory_pro_suggestion",
+          "hw_alarm_mango_battery_notify",
+          "hw_alice_show_without_playlist_of_day",
+          "hw_alternative_search_rephrase_normalization",
+          "hw_bugreport_chat_redirect",
+          "hw_calls_enable_automatic_sound_enlarging",
+          "hw_calls_enable_default_noise_reduction",
+          "hw_device_calls_without_radionanny_check_dnd",
+          "hw_device_volume_from_capability",
+          "hw_disable_sip_calls",
+          "hw_dummy_change_screen_brightness",
+          "hw_dummy_open_favorites_movie_list",
+          "hw_enable_ats_call",
+          "hw_enable_ats_call_to_nanny",
+          "hw_enable_ats_extended_directives",
+          "hw_enable_ats_software_mute_dropin_calls",
+          "hw_enable_audio_speed_scenario",
+          "hw_enable_default_clear_queue_for_tv",
+          "hw_enable_device_call_hw2",
+          "hw_enable_device_call_platforms=quinglong",
+          "hw_enable_do_not_check_callee_registration",
+          "hw_enable_infocontext_request_in_summarizer",
+          "hw_enable_multiaccount_call_to_nanny",
+          "hw_enable_old_sound_level_mapping",
+          "hw_enable_request_to_update",
+          "hw_enable_ru_eng_bilingvo_template",
+          "hw_enable_say_with_emotion",
+          "hw_file_service_show_stub_for_empty_text_response",
+          "hw_gc_add_source_suggest",
+          "hw_gc_change_suggest_order_on_tv",
+          "hw_gc_disable_serp_suggest",
+          "hw_gc_disable_source_suggest",
+          "hw_gc_enable_ru_eng_bilingvo_handcrafted",
+          "hw_gc_microintents_disable_new_emotional_tts",
+          "hw_get_sound_level_from_capability",
+          "hw_language_tutor_feedback_preset=default",
+          "hw_language_tutor_preset=default",
+          "hw_language_tutor_send_eou_key",
+          "hw_language_tutor_use_separate_feedback_model",
+          "hw_lt_enable_response_ethic",
+          "hw_morning_show_on_magritte",
+          "hw_morning_show_on_tv",
+          "hw_music_add_new_session_on_stack_multi_query_params",
+          "hw_music_buy_plus_push",
+          "hw_music_dont_add_new_session_on_not_new_requested_content",
+          "hw_music_enable_bookmate_option",
+          "hw_music_enable_fm_radio_external_partners",
+          "hw_music_enable_smart_crossfade",
+          "hw_music_enable_thick_player_commands",
+          "hw_music_fm_radio_add_safe_timeline_cgi_to_stream_url",
+          "hw_music_force_audio_player_state_setting",
+          "hw_music_multiroom_client_redirect",
+          "hw_music_search_using_apphost",
+          "hw_music_search_using_apphost_sdk",
+          "hw_music_skip_disliked_tracks_in_albums",
+          "hw_music_skip_disliked_tracks_in_artists",
+          "hw_music_skip_disliked_tracks_in_playlists",
+          "hw_music_skip_disliked_tracks_in_playlists_all_disliked",
+          "hw_music_start_shuffle_with_current_track",
+          "hw_music_suggest_like_after_what_is_playing_probability=0.2",
+          "hw_music_thin_client_fairytales_recommendations",
+          "hw_music_thin_client_fm_radio",
+          "hw_music_thin_client_generative",
+          "hw_music_thin_client_meditation",
+          "hw_music_thin_client_multiroom",
+          "hw_music_thin_client_show_tail",
+          "hw_nlg_sound_prases_with_percent_word",
+          "hw_onboarding_enable_chat_surface_what_can_you_do",
+          "hw_onboarding_enable_fullscreen_greetings",
+          "hw_onboarding_enable_promo",
+          "hw_onboarding_greetings_use_updated_backend",
+          "hw_one_percent_minimum_volume",
+          "hw_open_app_fixlist_tv_irrelevant",
+          "hw_set_proactivity_hints",
+          "hw_sip_call_commands_v2",
+          "hw_sip_check_dnd",
+          "hw_sip_get_caller_name",
+          "hw_sip_make_call_v2",
+          "hw_timer_capability_exp",
+          "hw_use_music_web_search_non_personalized_whitelist",
+          "hw_voiceprint_enable_enrollment_sharing",
+          "hw_voiceprint_force_supported_surface",
+          "hwf_alarm_capability_exp",
+          "hwf_reminders_worldwide",
+          "ignore_guest_without_guest_data",
+          "kr_alice_vision_allow_query_from_history_enabled",
+          "kr_alice_vision_dialog_history_enabled",
+          "kr_alice_vision_download_image_on_defer",
+          "kr_alice_vision_file_input_support_enabled",
+          "kr_alice_vision_ignore_chats_with_non_image_files_enabled",
+          "kr_alice_vision_max_infocontexts=3",
+          "kr_alice_vision_request_after_image_limit=10",
+          "kr_alice_vision_send_default_query_enabled",
+          "kr_alice_vision_use_rn_infocontexts",
+          "kr_alice_vision_vlm_streaming_proxy_subgraph",
+          "kronstadt_enable_account_linking_for_web_standalone",
+          "live_tv_flag",
+          "mm_add_preclassifier_confident_frame_HollywoodMusic=alice.music.fm_radio_play",
+          "mm_add_refresh_account_directive_instead_of_multiaccount_remove",
+          "mm_alice_vision_new_priority",
+          "mm_classifier_deepresearch_threshold=0.571",
+          "mm_deep_research_max_chunk_size=50",
+          "mm_default_whisper_config_for_unauthorized_users=true",
+          "mm_disable_memory_in_chat",
+          "mm_disable_music",
+          "mm_disable_protocol_scenario=SkillDiscoveryGc",
+          "mm_disable_protocol_scenario=VideoCommand",
+          "mm_disable_response_url_classifier",
+          "mm_enable_bilingvo_ethics_responses",
+          "mm_enable_classifier_complex_query",
+          "mm_enable_classifier_deepresearch",
+          "mm_enable_default_tts_play_placeholder",
+          "mm_enable_memory",
+          "mm_enable_player_features",
+          "mm_enable_protocol_scenario=AccountControl",
+          "mm_enable_protocol_scenario=AliceVision",
+          "mm_enable_protocol_scenario=FileService",
+          "mm_enable_protocol_scenario=LanguageTutor",
+          "mm_enable_protocol_scenario=MemoryQuestions",
+          "mm_enable_protocol_scenario=MultiQuerySequencer",
+          "mm_enable_protocol_scenario=NaviCommands",
+          "mm_enable_protocol_scenario=Voice",
+          "mm_enable_session_reset",
+          "mm_enable_whisper_modifier",
+          "mm_exp_bilingual_transfer_postclassify",
+          "mm_exp_call_classifiers_after_pack_response",
+          "mm_exp_disable_emotions_classifier",
+          "mm_exp_disable_emotions_classifier_only_by_disabling_tts",
+          "mm_exp_use_speaker_formula_for_magritte_turned_off_postclassify",
+          "mm_exp_use_streaming_v2_ethic_classifier",
+          "mm_fix_deep_research_links",
+          "mm_fm_radio_prefer_hw_music_over_vins_on_smart_speakers",
+          "mm_force_deep_research_run_model=BT_REASONING",
+          "mm_force_whisper_sound_level=24",
+          "mm_memory_inside_summarizer",
+          "mm_protocol_priority_scenario_early_win",
+          "mm_reject_terramind_iot_car_controls",
+          "mm_reject_terramind_iot_cooking",
+          "mm_reject_terramind_iot_cooking_specify_duration",
+          "mm_reject_terramind_iot_cooking_specify_duration_v2",
+          "mm_reject_terramind_iot_cooking_specify_temperature",
+          "mm_reject_terramind_iot_cooking_v2",
+          "mm_reject_terramind_iot_do_not_disturb",
+          "mm_reject_terramind_iot_ptz_memory",
+          "mm_reject_terramind_iot_query_cooking",
+          "mm_reject_terramind_iot_sound_alarm",
+          "mm_reject_terramind_iot_valve_water_leakage",
+          "mm_reject_terramind_iot_vlm_live",
+          "mm_subscribe_to_frame=alice.ny_congratulation_with_wishes:Blueprints",
+          "mm_subscribe_to_frame=alice.ny_simple_congratulation:Blueprints",
+          "mm_subscribe_to_frame=alice.open_favorites_movie_list:Blueprints",
+          "mm_subscribe_to_frame=alice.screen.change_brightness:Blueprints",
+          "mm_thinking_classifiers_debug",
+          "mm_unsubscribe_from_frame=personal_assistant.navi.add_point:Vins",
+          "mm_unsubscribe_from_frame=personal_assistant.navi.add_point__camera_type:Vins",
+          "mm_unsubscribe_from_frame=personal_assistant.navi.add_point__confirmation_no:Vins",
+          "mm_unsubscribe_from_frame=personal_assistant.navi.add_point__ellipsis:Vins",
+          "mm_unsubscribe_from_frame=personal_assistant.navi.add_point__text:Vins",
+          "mm_unsubscribe_from_frame=personal_assistant.navi.add_point__what_lane:Vins",
+          "mm_unsubscribe_from_frame=personal_assistant.navi.change_voice:Vins",
+          "mm_unsubscribe_from_frame=personal_assistant.navi.change_voice__ellipsis:Vins",
+          "mm_unsubscribe_from_frame=personal_assistant.navi.hide_layer:Vins",
+          "mm_unsubscribe_from_frame=personal_assistant.navi.how_long_traffic_jam:Vins",
+          "mm_unsubscribe_from_frame=personal_assistant.navi.reset_route:Vins",
+          "mm_unsubscribe_from_frame=personal_assistant.navi.show_layer:Vins",
+          "mm_unsubscribe_from_frame=personal_assistant.navi.show_route_on_map:Vins",
+          "mm_unsubscribe_from_frame=personal_assistant.navi.when_we_get_there:Vins",
+          "mm_unsubscribe_from_frame=personal_assistant.scenarios.get_time:Vins",
+          "mm_unsubscribe_from_frame=personal_assistant.scenarios.get_time__ellipsis:Vins",
+          "mm_use_common_whisper_config_in_mobile_surfaces",
+          "mm_use_deepseek_summarizer",
+          "mm_use_files_summarizer",
+          "mm_use_new_routing_for_pro_summarizer",
+          "mm_use_summarizers_with_limiters",
+          "mm_use_trt_summarizer",
+          "mm_whisper_ttl=390000",
+          "mm_write_logs_in_patcher",
+          "mono_kp_promotion_card_details_enabled",
+          "mono_kp_promotion_category_enabled",
+          "mono_kp_promotion_enabled",
+          "mono_kp_promotion_recent_pin",
+          "mono_kp_promotion_screensaver_enabled",
+          "music_thick_player_commands_in_hollywood",
+          "navi_simple_commands_blueprint",
+          "open_browser_on_search_fallback",
+          "play_season_and_episode_current_video",
+          "radio_play_in_quasar",
+          "redirect_to_thin_player",
+          "reminders_cancel_scene_krsdt",
+          "reminders_create_scene_krsdt",
+          "reminders_create_tcb_krsdt",
+          "reminders_disable_vins_ar",
+          "reminders_disable_vins_en",
+          "reminders_disable_vins_kz",
+          "reminders_disable_vins_ru_not_centaur",
+          "reminders_enable_functions_datasource_reading",
+          "reminders_general_list_scene_krsdt",
+          "reminders_hide_cancel_button",
+          "rename_bookmate_option",
+          "scenario_SmartDeviceExternalApp_use_substituted_user_data",
+          "scenario_TvMain_use_substituted_user_data",
+          "scenario_Video_use_substituted_user_data",
+          "scenario_WatchList_use_substituted_user_data",
+          "scenario_calculator_disable_dummy",
+          "screen_on_before_video",
+          "screensaver_enable_highlight_schedule",
+          "screensaver_enable_theme_schedule",
+          "search_infocontext_cgi_gaw_context_scoring_model_id=2024/12/rebmash/7704847795:prod",
+          "search_infocontext_cgi_gaw_pregeneration_sort_expression=Pregeneration.ContextScoring_0",
+          "search_infocontext_cgi_gaw_prescoring_sort_expression=Prop.SearchGPTDocBadClsPriority+(Prop.SpamContentBinaryValue*-1000)+(Prop.DssmPageQualityRTHubSlot7<1?(Prop.DssmPageQualityRTHubSlot7<=0.545?(Prop.DssmPageQualityRTHubSlot7-0.545)*4:0):0)",
+          "send_grid_voice_buttons_for_channel_name",
+          "series_request_video_movies_exp",
+          "skillrec_alice_base_announce",
+          "skillrec_alice_chat_pro",
+          "skillrec_whisper_turn_off_postrolls",
+          "start_context_load_for_active_user",
+          "start_hockey_promo_enabled",
+          "suggest_history_apphost_backend",
+          "switch_to_my_account_enabled",
+          "tandem_contextual_sound_change",
+          "tandem_sound_change",
+          "tts_domain_music",
+          "tts_routing_patch:emotional_alice.gpu:*:*->shitova.gpu",
+          "tv_channels_regional_voice",
+          "tv_channels_turn_on_hockey",
+          "tv_controls_enable_open_settings",
+          "tv_div_enable_fullscreen_card_suggests",
+          "tv_div_weather",
+          "tv_div_weather_enable_background_preview",
+          "tv_div_weather_enable_compact_templates",
+          "tv_div_weather_forced_compact_templates",
+          "tv_main_delayed_from_kp",
+          "tv_main_delayed_gallery_can_use_pk_id_in_hide_directive",
+          "tv_main_feature_use_gradient_from_thumbnail",
+          "tv_main_nav_exp",
+          "tv_main_number_of_carousels=4",
+          "tv_main_rename_vk",
+          "tv_main_use_new_music_api",
+          "universal_weather_card",
+          "unlimited_without_guarantee_instead_trial",
+          "up_protobufed_alice_request",
+          "up_protobufed_synchronize_state",
+          "use_coarse_scale_parameter",
+          "use_on_off_magritte_capability",
+          "use_open_purchase_serial_navigator",
+          "use_open_season_video_scene",
+          "use_video_search_backend_in_rpc",
+          "video_card_detail_use_new_qr",
+          "video_disable_no_filter",
+          "video_enable_host_in_search",
+          "video_enable_short_qr_billing_url",
+          "video_filter_persons_not_popular_on_kp",
+          "video_movies_recommender_exp_delayed_view_position=2",
+          "video_movies_recommender_exp_karaoke_position=6",
+          "video_movies_recommender_exp_planned_to_watch_position=5",
+          "video_new_seasons_path",
+          "video_not_use_video_es",
+          "video_parse_vh_license",
+          "video_rename_vk",
+          "video_show_qr_in_payment_scene",
+          "video_trim_search_requests",
+          "video_use_pure_player_skip_fragment",
+          "video_use_pure_quality_switch",
+          "video_use_pure_track_switch",
+          "video_use_web_search",
+          "video_web_in_arpc_search",
+          "videoresult_cgi_exp_flags=use_vkvideo_host_in_players=1",
+          "videoresult_cgi_rearr=scheme_Local/FilterBannedVideo/ForceBanHosts=ctc.ru",
+          "videoresult_cgi_relev=vblackhosts=ctc.ru",
+          "vins_add_irrelevant_intents=personal_assistant.navi.add_point",
+          "vins_add_irrelevant_intents=personal_assistant.navi.add_point__camera_type",
+          "vins_add_irrelevant_intents=personal_assistant.navi.add_point__confirmation_no",
+          "vins_add_irrelevant_intents=personal_assistant.navi.add_point__ellipsis",
+          "vins_add_irrelevant_intents=personal_assistant.navi.add_point__text",
+          "vins_add_irrelevant_intents=personal_assistant.navi.add_point__what_lane",
+          "vins_add_irrelevant_intents=personal_assistant.navi.change_voice",
+          "vins_add_irrelevant_intents=personal_assistant.navi.change_voice__ellipsis",
+          "vins_add_irrelevant_intents=personal_assistant.navi.hide_layer",
+          "vins_add_irrelevant_intents=personal_assistant.navi.how_long_traffic_jam",
+          "vins_add_irrelevant_intents=personal_assistant.navi.reset_route",
+          "vins_add_irrelevant_intents=personal_assistant.navi.show_layer",
+          "vins_add_irrelevant_intents=personal_assistant.navi.show_route_on_map",
+          "vins_add_irrelevant_intents=personal_assistant.navi.when_we_get_there",
+          "vins_add_irrelevant_intents=personal_assistant.scenarios.get_time",
+          "vins_add_irrelevant_intents=personal_assistant.scenarios.get_time__ellipsis",
+          "vins_add_irrelevant_intents=personal_assistant.scenarios.music_fairy_tale",
+          "vins_add_irrelevant_intents=personal_assistant.scenarios.player.next_track",
+          "vins_add_irrelevant_intents=personal_assistant.scenarios.player.previous_track",
+          "vins_add_irrelevant_intents=personal_assistant.scenarios.player_dislike",
+          "vins_add_irrelevant_intents=personal_assistant.scenarios.player_like",
+          "vins_add_irrelevant_intents=personal_assistant.scenarios.quasar.go_backward",
+          "vins_add_irrelevant_intents=personal_assistant.scenarios.quasar.go_down",
+          "vins_add_irrelevant_intents=personal_assistant.scenarios.quasar.go_forward",
+          "vins_add_irrelevant_intents=personal_assistant.scenarios.quasar.go_up",
+          "vins_add_irrelevant_intents=personal_assistant.scenarios.search__skills_discovery",
+          "vins_increase_seconds_since_pause",
+          "vins_music_play_force_irrelevant",
+          "watch_list_over_mymovies",
+          "websearch_bass_music_cgi_init_meta=use-src-yabs_organic_boost=0",
+          "websearch_cgi_exp_flags=disable_video_search=1",
+          "websearch_cgi_exp_flags=use_vkvideo_host_in_players=1",
+          "websearch_cgi_init_meta=use-src-yabs_organic_boost=0",
+          "websearch_cgi_rearr=scheme_Local/EntitySearch/DeleteSvodOfferForYanswer=0",
+          "websearch_mm_cgi_rearr=scheme_Local/GenerativeAnswer/SkipFreshTiers=0",
+          "where_else_to_watch_on",
+          "yandexart_beautify_with_prompt_model",
+          "yandexart_override_model=v13_mid_16step"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "5e3b5b7b38",
+      "name": "logcatDst",
+      "path": "/config/system_config/fluent-bit/variables/logcatDst",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "http"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "7967f1c153",
+      "name": "personal_assistant.scenarios.player.pause",
+      "path": "/config/system_config/hybrid_request_factory/hybrid/scenarios/fast_command_scenario/supported_frames/personal_assistant.scenarios.player.pause",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "alarm",
+          "music",
+          "bluetooth"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "2f2610749f",
+      "name": "personal_assistant.scenarios.quasar.go_back",
+      "path": "/config/system_config/hybrid_request_factory/hybrid/scenarios/fast_command_scenario/supported_frames/personal_assistant.scenarios.quasar.go_back",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "tv_main",
+          "search_results",
+          "tv_grid",
+          "tv_catalog",
+          "content_details",
+          "serial_navigator",
+          "actor_screen",
+          "account_list",
+          "video_player",
+          "side_options",
+          "tv_channel_list"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "215bebde54",
+      "name": "personal_assistant.scenarios.quasar.go_down",
+      "path": "/config/system_config/hybrid_request_factory/hybrid/scenarios/fast_command_scenario/supported_frames/personal_assistant.scenarios.quasar.go_down",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "tv_main",
+          "search_results",
+          "tv_grid",
+          "tv_catalog",
+          "content_details",
+          "serial_navigator",
+          "actor_screen",
+          "side_options",
+          "tv_channel_list"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "dc00aa3192",
+      "name": "personal_assistant.scenarios.quasar.go_forward",
+      "path": "/config/system_config/hybrid_request_factory/hybrid/scenarios/fast_command_scenario/supported_frames/personal_assistant.scenarios.quasar.go_forward",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "tv_main",
+          "search_results",
+          "tv_grid",
+          "tv_catalog",
+          "content_details",
+          "serial_navigator",
+          "actor_screen"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "e3c570c13f",
+      "name": "personal_assistant.scenarios.quasar.go_left",
+      "path": "/config/system_config/hybrid_request_factory/hybrid/scenarios/fast_command_scenario/supported_frames/personal_assistant.scenarios.quasar.go_left",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "tv_main",
+          "search_results",
+          "tv_grid",
+          "tv_catalog",
+          "content_details",
+          "serial_navigator",
+          "actor_screen"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "6045ae42f0",
+      "name": "personal_assistant.scenarios.quasar.go_up",
+      "path": "/config/system_config/hybrid_request_factory/hybrid/scenarios/fast_command_scenario/supported_frames/personal_assistant.scenarios.quasar.go_up",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "tv_main",
+          "search_results",
+          "tv_grid",
+          "tv_catalog",
+          "content_details",
+          "serial_navigator",
+          "actor_screen",
+          "side_options",
+          "tv_channel_list"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "4626382962",
+      "name": "latency_ms",
+      "path": "/config/system_config/multiroomd/latency_ms",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": -110
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "d50cfcdc4d",
+      "name": "quasmodrom_subgroup",
+      "path": "/config/system_config/quasmodrom_subgroup",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "production"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "75c837a6ec",
+      "name": "pollPeriodSec",
+      "path": "/config/system_config/syncd/pollPeriodSec",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": 1800
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "95b51340ca",
+      "name": "clientEventsWhitelist",
+      "path": "/config/system_config/voiceDialogSettings/protoAliceApi/clientEventsWhitelist",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "VoiceInput",
+          "TextInput",
+          "MusicInput",
+          "SynchronizeStateRequest",
+          "StreamControl",
+          "LogSpotter",
+          "MatchedUser"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "f715bebbba",
+      "name": "serverEventsWhitelist",
+      "path": "/config/system_config/voiceDialogSettings/protoAliceApi/serverEventsWhitelist",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "AliceResponse",
+          "DeferredAliceResponse",
+          "StreamControl",
+          "Push",
+          "LogAck",
+          "GoAway",
+          "EventException"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "9c15b38e6e",
+      "name": "connectivityDefaultReachabilityCheckDelayS",
+      "path": "/config/system_config/yandexTvGeneral/connectivityDefaultReachabilityCheckDelayS",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": 60
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "74fea3db4b",
+      "name": "blockShowCardDirectiveNames",
+      "path": "/config/system_config/blockShowCardDirectiveNames",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "player_pause",
+          "tts_play_placeholder",
+          "draw_led_screen",
+          "force_display_cards",
+          "clear_queue",
+          "alarms_update",
+          "audio_stop",
+          "@@mm_stack_engine_get_next",
+          "alarm_set_sound",
+          "alarm_reset_sound",
+          "alarm_set_max_level",
+          "start_bluetooth",
+          "stop_bluetooth",
+          "listen"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "f15df272c2",
+      "name": "directiveWhitelist",
+      "path": "/config/system_config/com.yandex.tv.daydream/screenSaverConfig/aliceOverlayConfig/directiveWhitelist",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "divui_show_view",
+          "draw_animation_directive",
+          "tts_play_placeholder",
+          "load_screensavers",
+          "sound_louder",
+          "sound_quiter",
+          "sound_mute",
+          "sound_unmute",
+          "sound_set_level",
+          "alarms_update",
+          "alarm_set_sound",
+          "alarm_reset_sound",
+          "alarm_set_max_level",
+          "start_music_recognizer",
+          "set_timer",
+          "timer_stop_playing",
+          "cancel_timer",
+          "alarm_new",
+          "alarms_update_directive",
+          "alarm_stop_directive",
+          "alarm_set_max_level_directive",
+          "set_timer_directive",
+          "timer_set_directive",
+          "cancel_timer_directive",
+          "resume_timer_directive",
+          "pause_timer_directive",
+          "timer_stop_playing_directive",
+          "draw_led_screen",
+          "alarm_sound_settings_update_directive",
+          "alarm_update_sound_level_directive",
+          "alarm_update_directive",
+          "alarm_snooze_directive",
+          "alarm_stop_directive",
+          "alarm_cancel_directive",
+          "alarm_add_directive",
+          "timer_cancel_directive",
+          "timer_pause_directive",
+          "timer_resume_directive",
+          "timer_stop_directive",
+          "on_off_directive",
+          "player_pause",
+          "audio_stop",
+          "set_timezone",
+          "set_location",
+          "iot_start_discovery_directive",
+          "iot_finish_discovery_directive",
+          "iot_sync_endpoints_directive",
+          "iot_endpoints_state_changed_directive",
+          "iot_restore_networks_directive",
+          "sync_iot_scenarios_directive",
+          "set_iot_user_info",
+          "set_iot_account_settings",
+          "prepare_media_alarm_directive",
+          "add_iot_scenarios_directive",
+          "unsubscribe_iot_endpoints_directive",
+          "subscribe_iot_endpoints_directive",
+          "iot_forget_devices_directive",
+          "iot_cancel_discovery_directive",
+          "remove_iot_scenarios_directive",
+          "iot_finish_system_discovery_directive",
+          "set_brightness_level_directive",
+          "divui_hide_all_views",
+          "divui_hide_view",
+          "clear_queue"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "244be17d52",
+      "name": "disableDownloadScreensaversWhenHdmiIsNotConnected",
+      "path": "/config/system_config/com.yandex.tv.daydream/screenSaverConfig/disableDownloadScreensaversWhenHdmiIsNotConnected",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "77a1aaf861",
+      "name": "enqueueWorkWhenConnected",
+      "path": "/config/system_config/com.yandex.tv.daydream/screenSaverConfig/enqueueWorkWhenConnected",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Выкл"
+    },
+    {
+      "id": "5e150fc58a",
+      "name": "screenSaverSettingsTipTimeoutSeconds",
+      "path": "/config/system_config/com.yandex.tv.daydream/screenSaverConfig/screenSaverSettingsTipTimeoutSeconds",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": 10
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "bcc6cc8564",
+      "name": "stopScreensaverWhenHdmiIsNotConnected",
+      "path": "/config/system_config/com.yandex.tv.daydream/screenSaverConfig/stopScreensaverWhenHdmiIsNotConnected",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "40e43d7bc4",
+      "name": "themedScreenSaverEnabled",
+      "path": "/config/system_config/com.yandex.tv.daydream/screenSaverConfig/themedScreenSaverEnabled",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "dea64d222b",
+      "name": "com.yandex.tv.feature.calls",
+      "path": "/config/system_config/com.yandex.tv.feature.calls",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "isUiEnabled": true
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "6fde19fff2",
+      "name": "enableOutputSurfaceWorkaround",
+      "path": "/config/system_config/com.yandex.tv.feature.tvplayer/enableOutputSurfaceWorkaround",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "b361ddaaea",
+      "name": "daytimeTimeoutMs",
+      "path": "/config/system_config/com.yandex.tv.feature.tvplayer.ui/multiplexInactivityStopV1/daytimeTimeoutMs",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": 10800000
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "dc2f39a1c5",
+      "name": "nighttimeTimeoutMs",
+      "path": "/config/system_config/com.yandex.tv.feature.tvplayer.ui/multiplexInactivityStopV1/nighttimeTimeoutMs",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": 7200000
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "cf86254c7f",
+      "name": "timeoutMs",
+      "path": "/config/system_config/com.yandex.tv.feature.tvplayer.ui/multiplexInactivityStopV1/timeoutMs",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": 10800000
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "2a644bbddf",
+      "name": "enabledWhatsNewFeatures",
+      "path": "/config/system_config/com.yandex.tv.feature.whatsnew/enabledWhatsNewFeatures",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "karaoke_promo",
+          "sport_section"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "8c9cb525c7",
+      "name": "supportedWhatsNewFeatures",
+      "path": "/config/system_config/com.yandex.tv.feature.whatsnew/supportedWhatsNewFeatures",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "karaoke_promo",
+          "sport_section"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "e3a3c6dd59",
+      "name": "multiplexAutoStopV1",
+      "path": "/config/system_config/com.yandex.tv.live/multiplexAutoStopV1",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "notificationDurationMs": 60000,
+          "remainingTimeThresholdPercentage": 10,
+          "timeoutMs": 10800000
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "6d7821206d",
+      "name": "stopBackgroundMusicWhenTurnOffScreenEnabledV2",
+      "path": "/config/system_config/com.yandex.tv.music/stopBackgroundMusicWhenTurnOffScreenEnabledV2",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "d73491e8cb",
+      "name": "isTtsOnBluetoothPairingScreenEnabled",
+      "path": "/config/system_config/com.yandex.tv.setupwizard/isTtsOnBluetoothPairingScreenEnabled",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "a9c4ecca0d",
+      "name": "enableOutputSurfaceWorkaround",
+      "path": "/config/system_config/com.yandex.tv.videoplayer/enableOutputSurfaceWorkaround",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "7e240bd46d",
+      "name": "deviceStateHandlerConfig",
+      "path": "/config/system_config/deviceStateHandlerConfig",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "showClockAfterMs": 1000
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "a6bc2483a5",
+      "name": "javaWifiResetterSettings",
+      "path": "/config/system_config/javaWifiResetterSettings",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "wifiResetDelayAfterInternetDisappeared": 60000,
+          "wifiResetEnabled": true,
+          "wifiResetInterval": 120000
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "2e5d1a1a47",
+      "name": "networkMetricaLoggingEnabled",
+      "path": "/config/system_config/networkMetricaLoggingEnabled",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "16088101f2",
+      "name": "ntpd",
+      "path": "/config/system_config/ntpd",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "syncCheckPeriodSec": 18000,
+          "syncEnabled": false,
+          "syncInitialPeriodSec": 60,
+          "syncParams": {
+            "ntpServers": [
+              "0.ru.pool.ntp.org",
+              "1.ru.pool.ntp.org",
+              "2.ru.pool.ntp.org",
+              "3.ru.pool.ntp.org"
+            ]
+          }
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "dd6ae5af71",
+      "name": "onlyTelemetryMode",
+      "path": "/config/system_config/onlyTelemetryMode",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Выкл"
+    },
+    {
+      "id": "ca32566b2e",
+      "name": "enabled",
+      "path": "/config/system_config/spectrogramAnimation/enabled",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "9749820ea2",
+      "name": "preset",
+      "path": "/config/system_config/spectrogramAnimation/preset",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "random"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "aca35abc9f",
+      "name": "barsBottom",
+      "path": "/config/system_config/spectrogramAnimation/presets/barsBottom",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "barWidth": 1,
+          "brightnessFading": 0.2,
+          "fill": "bars",
+          "origin": "bottom"
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "b16596eaa0",
+      "name": "barsCenter",
+      "path": "/config/system_config/spectrogramAnimation/presets/barsCenter",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "bandCount": 26,
+          "bandSmoothingFactor": 0.8,
+          "barWidth": 1,
+          "brightnessFading": 0.2,
+          "fill": "bars",
+          "frequencyMax": 2000,
+          "frequencyMin": 40,
+          "origin": "center",
+          "splineOrder": 5
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "d41d6cfbbd",
+      "name": "bricksSmall",
+      "path": "/config/system_config/spectrogramAnimation/presets/bricksSmall",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "bandSmoothingFactor": 0.8,
+          "brickColor": 1,
+          "brickHeight": 1,
+          "brickWidth": 2,
+          "brightnessFading": 0.2,
+          "falloffColor": 0.75,
+          "falloffSpeed": 0,
+          "frequencyMax": 3000,
+          "frequencyMin": 40,
+          "type": "bricks"
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "d24fb5f4f9",
+      "name": "flame",
+      "path": "/config/system_config/spectrogramAnimation/presets/flame",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "barWidth": 0,
+          "origin": "bottom"
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "4a0f27cfec",
+      "name": "pads",
+      "path": "/config/system_config/spectrogramAnimation/presets/pads",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "bandSmoothingFactor": 0.9,
+          "brightnessFading": 0,
+          "brightnessGamma": 0.5,
+          "cols": 6,
+          "frequencyMax": 3000,
+          "frequencyMin": 100,
+          "padSize": 3,
+          "padSpacing": 4,
+          "rows": 4,
+          "type": "pads",
+          "xOffset": 2,
+          "yOffset": 2
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "6b9e4c398a",
+      "name": "random",
+      "path": "/config/system_config/spectrogramAnimation/presets/random",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "presets": [
+            "flame",
+            "waveCenter",
+            "pads",
+            "barsBottom",
+            "barsCenter",
+            "bricksSmall"
+          ],
+          "type": "random"
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "47b90b686a",
+      "name": "waveCenter",
+      "path": "/config/system_config/spectrogramAnimation/presets/waveCenter",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "bandCount": 12,
+          "bandSmoothingFactor": 0.8,
+          "barWidth": 0,
+          "brightnessFading": 0.25,
+          "frequencyMax": 3200,
+          "frequencyMin": 30,
+          "splineOrder": 5
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "f20176a4dd",
+      "name": "clickdaemon",
+      "path": "/config/system_config/teleme3d/clickdaemon",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "+events": [
+            "ntpSync",
+            "ntpException"
+          ]
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "f2bdf5f7bf",
+      "name": "usb_password_manager",
+      "path": "/config/system_config/usb_password_manager",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "enabled": true
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "943d357f19",
+      "name": "noUniproxy",
+      "path": "/config/system_config/wifiReseter/noUniproxy",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "intervalSec": 60,
+          "method": "old"
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "5ed12cd26f",
+      "name": "allow_non_self_calls",
+      "path": "/config/device_config/allow_non_self_calls",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "6a9ea59ccd",
+      "name": "calls_settings",
+      "path": "/config/device_config/calls_settings",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "incoming_dropin_policy": "allow_device_owner",
+          "incoming_policy": "allow_device_owner_and_guests"
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "4808c19d72",
+      "name": "equalizer",
+      "path": "/config/device_config/equalizer",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "active_preset_id": "custom",
+          "bands": [
+            {
+              "freq": 60,
+              "gain": 0,
+              "width": 90
+            },
+            {
+              "freq": 230,
+              "gain": 0,
+              "width": 340
+            },
+            {
+              "freq": 910,
+              "gain": 0,
+              "width": 1340
+            },
+            {
+              "freq": 3600,
+              "gain": 0,
+              "width": 5200
+            },
+            {
+              "freq": 14000,
+              "gain": 0,
+              "width": 13000
+            }
+          ],
+          "custom_preset_bands": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "enabled": false,
+          "smartEnabled": false
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "4d14b5e08b",
+      "name": "hdmiAudio",
+      "path": "/config/device_config/hdmiAudio",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "3c1d578bce",
+      "name": "latitude",
+      "path": "/config/device_config/location/latitude",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": 59.405514
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "9ac808ba4c",
+      "name": "longitude",
+      "path": "/config/device_config/location/longitude",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": 56.811031
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "a592b4ce24",
+      "name": "value",
+      "path": "/config/device_config/led/brightness/value",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": 0.5
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "62547ec2d3",
+      "name": "auto",
+      "path": "/config/device_config/led/music_equalizer_visualization/auto",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "e70fbe807f",
+      "name": "style",
+      "path": "/config/device_config/led/music_equalizer_visualization/style",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "pads"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "45a572f08c",
+      "name": "size",
+      "path": "/config/device_config/led/time_visualization/size",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "large"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "ddf9637d68",
+      "name": "deepStandbyTimeoutMinutes",
+      "path": "/config/device_config/standby/deepStandbyTimeoutMinutes",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": 240
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "294d4e3893",
+      "name": "Теги платформы",
+      "path": "/tags",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "QUASARINFRA-241",
+          "kinopoisk_a3m_to_kpa_deleted",
+          "QUASARINFRASUP-1060"
+        ]
+      },
+      "value": "Значение"
+    }
+  ]
+}

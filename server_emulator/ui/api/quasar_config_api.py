@@ -17,7 +17,7 @@ from aiohttp import web
 from ...quasar_config import (count_keys, device_platform, generated_base, generated_platforms,
                               poll_period_warnings)
 from ...quasar_replace import preview_replacements, validate_rules
-from ...quasar_rules import compose_config, layer_select_options, rules_as_list
+from ...quasar_rules import compose_config
 from ...quasar_rules import validate_rules as validate_quasar_rules
 from ...upstream import UpstreamError
 from ...upstream.forward import decoded_json
@@ -32,15 +32,8 @@ def _device(runtime, sn):
     return device
 
 
-def _legacy(runtime, device):
-    state = device.get('state') or {}
-    return isinstance((state.get('quasar') or {}).get('config'), dict) and runtime.quasar_rules.is_empty()
-
-
 def _sync_body(runtime, device):
     """Ответ get_sync_info, который собрал бы эмулятор (для action: generate)."""
-    if _legacy(runtime, device):
-        raise ValueError('Устройство на legacy-конфиге state.quasar — генерация недоступна')
     state = device.get('state') or {}
     body = compose_config(runtime, device_platform(device), device,
                           device_rules=state.get('quasar_overrides'))
@@ -71,8 +64,9 @@ async def quasar_platforms(request, runtime, app):
             return web.json_response({'platform': name, 'config': body, 'origins': trace})
         return web.json_response({
             'builtin_platforms': generated_platforms(),
-            'common_rules': len(store.load('common')),
-            'platforms': [{'platform': p, 'rules': len(store.load(p))} for p in store.platforms()],
+            'common_rules': len(store.layer_rules('common')[0]),
+            'platforms': [{'platform': p, 'rules': len(store.layer_rules(p)[0])}
+                          for p in store.platforms()],
             'devices': len(runtime.identities.data['devices'])})
     if request.method == 'POST':
         value = await request.json()
@@ -110,19 +104,21 @@ def _layer(runtime, layer):
 
 @route("quasar_rules", methods=("GET", "PUT"))
 async def quasar_rules(request, runtime, app):
-    """Замены слоя. inherited — правила того же слоя из расширений (только чтение)."""
+    """Замены слоя: поставляемый набор ⊕ правки state (флаги shipped/modified, снятые
+    правила — removed с исходником base для «сбросить к поставляемому»). inherited —
+    правила того же слоя из расширений (только чтение)."""
     store = runtime.quasar_rules
     if request.method == 'GET':
         kind, name = _layer(runtime, request.query.get('layer'))
         if kind == 'device':
             device = _device(runtime, name)
             platform = device_platform(device)
-            rules = rules_as_list((device.get('state') or {}).get('quasar_overrides'),
-                                  layer_select_options(runtime, platform))
+            rules = (device.get('state') or {}).get('quasar_overrides') or []
             return web.json_response({'layer': f'device:{name}', 'platform': platform,
                                       'rules': rules, 'inherited': []})
         inherited = [{'origin': ext_id, 'rules': rules} for ext_id, rules in store.extension_rules(name)]
-        return web.json_response({'layer': request.query['layer'], 'rules': store.load(name),
+        return web.json_response({'layer': request.query['layer'],
+                                  'rules': store.layer_rules(name)[1],
                                   'inherited': inherited})
     value = await request.json()
     kind, name = _layer(runtime, value.get('layer'))
@@ -149,18 +145,17 @@ async def quasar_composed(request, runtime, app):
     device = _device(runtime, request.query.get('device', ''))
     state = device.get('state') or {}
     platform = device_platform(device)
-    if _legacy(runtime, device):
-        return web.json_response({'legacy': True, 'platform': None,
-                                  'config': state.get('quasar', {}), 'origins': {}})
     trace = {}
+    errors = []
     render = request.query.get('raw') != '1'  # raw=1 — параметры {{ключ}}, db/run маркерами
     try:
         body = compose_config(runtime, platform, device, device_rules=state.get('quasar_overrides'),
-                              trace=trace, render=render)
+                              trace=trace, render=render, errors=errors)
     except Exception as exc:
         return web.json_response({'error': str(exc) or 'ошибка сборки конфига', 'platform': platform})
-    return web.json_response({'legacy': False, 'platform': platform, 'config': body,
-                              'origins': trace, 'warnings': poll_period_warnings(body)})
+    return web.json_response({'platform': platform, 'config': body,
+                              'origins': trace, 'warnings': poll_period_warnings(body),
+                              'errors': errors})
 
 
 @route("quasar_source", methods=("GET", "PUT", "POST"))

@@ -37,7 +37,8 @@ def test_missing_key_no_warning(body):
 def test_compose_value_unchanged(tmp_path):
     runtime = FakeRuntime(tmp_path)
     runtime.quasar_rules.save("common", [{"name": "poll", "path": "/config/system_config/syncd/pollPeriodSec",
-                                          "kind": "value", "value": 1200}])
+                                          "kind": "select", "value": "Значение",
+                                          "options": {"Значение": 1200}}])
     body = compose_config(runtime, "", None)
     assert body["config"]["system_config"]["syncd"]["pollPeriodSec"] == 1200
     assert len(poll_period_warnings(body)) == 1
@@ -56,7 +57,7 @@ async def test_composed_api_returns_warnings(tmp_path):
     runtime.identities.mutate({'operation': 'device', 'sn': 'SN-1', 'user_id': 'u1',
                                'device_ids': ['id-1'], 'profile': {'platform': 'chiron'}})
     runtime.quasar_rules.save("common", [{"name": "poll", "path": "/config/system_config/syncd/pollPeriodSec",
-                                          "kind": "value", "value": 1200}])
+                                          "kind": "select", "value": "Значение", "options": {"Значение": 1200}}])
     runner, url = await listen(create_app(runtime=runtime))
     try:
         async with ClientSession() as client:

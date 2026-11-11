@@ -108,12 +108,11 @@
   const escPart=s=>String(s).replace(/~/g,'~0').replace(/\//g,'~1');
   const unescPart=s=>s.replace(/~1/g,'/').replace(/~0/g,'~');
   const pointerParts=p=>p.split('/').slice(1).map(unescPart);
-  // ввод пользователя: «/a/b» как есть, «a.b» — через точку
+  // ввод пользователя: путь через «/», ведущий «/» необязателен
   const toPointer=text=>{
     const t=(text||'').trim();
     if(!t)return '';
-    if(t.startsWith('/'))return t;
-    return '/'+t.split('.').filter(Boolean).map(escPart).join('/');
+    return t.startsWith('/')?t:'/'+t;
   };
   const valueAt=(tree,pointer)=>{
     let node=tree;
@@ -293,6 +292,7 @@
     edit:'M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4',
     up:'M12 19V5M6 11l6-6 6 6',
     down:'M12 5v14M6 13l6 6 6-6',
+    reset:'M1 4v6h6M3.51 15a9 9 0 1 0 2.13-9.36L1 10',
     del:'M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13M10 11v6M14 11v6'};
   function iconButton(icon,label,onclick,extra=''){
     const b=make('button','','icon-btn qr-icon'+(extra?' '+extra:''));b.type='button';
@@ -302,16 +302,23 @@
     return b;
   }
   function ruleRow(rule,index,rules,ctx){
-    const row=make('div','','qr-row'+(rule.enabled===false?' off':''));
+    const row=make('div','','qr-row'+(rule.enabled===false||rule.removed?' off':''));
     const label=rule.name||rule.path;
-    const on=make('input','','qr-on');on.type='checkbox';on.checked=rule.enabled!==false;
+    const on=make('input','','qr-on');on.type='checkbox';on.checked=rule.enabled!==false&&!rule.removed;
     on.setAttribute('aria-label','Включена: '+label);on.title=on.checked?'Включена':'Отключена';
-    on.disabled=!!ctx.readOnly;
+    on.disabled=!!ctx.readOnly||!!rule.removed;
     on.onchange=()=>work(async()=>{
       try{await ctx.save(rules.map((r,i)=>i===index?{...r,enabled:on.checked}:r))}
       catch(e){on.checked=!on.checked;throw e}
     });
     const name=make('span',rule.name||pointerParts(rule.path).slice(-1)[0],'qr-name');
+    if(rule.shipped){ // поставляемый набор: бейдж у имени, правки state — «изменено/снято»
+      const badge=make('span',rule.removed?'снято':rule.modified?'изменено':'поставляемое','chip');
+      badge.title=rule.removed?'Поставляемое правило снято правкой state — кнопка «Сбросить» возвращает его'
+        :rule.modified?'Правка state поверх поставляемого правила — «Сбросить» возвращает исходное'
+        :'Правило поставляемого набора (в пакете); правка сохранится в state';
+      name.append(' ',badge);
+    }
     const path=make('code',rule.path,'qr-path');
     row.append(on,name,path);
     const ctl=make('div','','qr-ctl');
@@ -347,15 +354,25 @@
     }
     row.append(ctl);
     const acts=make('div','','qr-acts');
-    if(!ctx.readOnly)acts.append(
-      iconButton('edit','Редактировать: '+label,()=>ruleDialog({...ctx,rules,index})),
-      iconButton('up','Выше',index>0?()=>ctx.save(move(rules,index,-1)):null),
-      iconButton('down','Ниже',index<rules.length-1?()=>ctx.save(move(rules,index,1)):null),
-      iconButton('del','Удалить: '+label,async()=>{
-        if(await askDialog('Удалить замену «'+label+'»?',
-          [{label:'Отмена',className:'secondary',value:false},{label:'Удалить',className:'danger',value:true}],'Удаление замены'))
-          await ctx.save(rules.filter((_,i)=>i!==index));
-      },'danger-icon'));
+    if(rule.removed){  // снятое поставляемое — только «сбросить к поставляемому»
+      acts.append(iconButton('reset','Сбросить к поставляемому: '+label,
+        ()=>ctx.save(rules.map((r,i)=>i===index?r.base:r))));
+      row.append(acts);
+      return row;
+    }
+    if(!ctx.readOnly){
+      const reset=rule.modified?()=>ctx.save(rules.map((r,i)=>i===index?r.base:r)):null;
+      acts.append(
+        iconButton('edit','Редактировать: '+label,()=>ruleDialog({...ctx,rules,index})),
+        iconButton('up','Выше',!rule.shipped&&index>0&&!rules[index-1].shipped?()=>ctx.save(move(rules,index,-1)):null),
+        iconButton('down','Ниже',!rule.shipped&&index<rules.length-1&&!rules[index+1].shipped?()=>ctx.save(move(rules,index,1)):null),
+        ...(reset?[iconButton('reset','Сбросить к поставляемому: '+label,reset)]:[]),
+        iconButton('del','Удалить: '+label,async()=>{
+          if(await askDialog('Удалить замену «'+label+'»?',
+            [{label:'Отмена',className:'secondary',value:false},{label:'Удалить',className:'danger',value:true}],'Удаление замены'))
+            await ctx.save(rules.filter((_,i)=>i!==index));
+        },'danger-icon'));
+    }
     row.append(acts);
     return row;
   }
@@ -525,7 +542,7 @@
         const entries=isArr?v.map((x,i)=>[String(i),x]):Object.entries(v);
         if(!entries.length){lines.push({text:pad+prefix+(isArr?'[]':'{}')+(isLast?'':','),path});return}
         lines.push({text:pad+prefix+(isArr?'[':'{'),path});
-        entries.forEach(([key,child],i)=>fmt(child,path?path+'.'+key:key,isArr?'':JSON.stringify(key)+': ',indent+2,i===entries.length-1));
+        entries.forEach(([key,child],i)=>fmt(child,path+'/'+escPart(key),isArr?'':JSON.stringify(key)+': ',indent+2,i===entries.length-1));
         lines.push({text:pad+(isArr?']':'}')+(isLast?'':','),path});
       }else lines.push({text:pad+prefix+JSON.stringify(v)+(isLast?'':','),path});
     };
@@ -534,9 +551,9 @@
   }
   const originFor=(path,origins)=>{
     if(path&&origins[path])return origins[path];
-    const parts=(path||'').split('.');
+    const parts=pointerParts(path||'');
     for(let n=parts.length-1;n>0;n--){
-      const ancestor=parts.slice(0,n).join('.');
+      const ancestor='/'+parts.slice(0,n).map(escPart).join('/');
       if(origins[ancestor])return origins[ancestor];
     }
     return 'встроенный шаблон';
@@ -560,7 +577,7 @@
     if(onPick)cm.on('mousedown',(_,e)=>{
       if(e.target.closest&&e.target.closest('.CodeMirror-gutters'))return;
       const line=lineAt(e);if(!line||!line.path)return;
-      const parts=line.path.split('.');
+      const parts=pointerParts(line.path);
       while(parts.length&&/^\d+$/.test(parts[parts.length-1]))parts.pop(); // элемент списка → сам список
       if(!parts.length)return;
       e.preventDefault();tip.hidden=true;
@@ -654,17 +671,23 @@
   // «Генерируемый»: замены устройства + итог устройства (клик по строке — новая замена)
   async function renderGenerated(root,device){
     const layer='device:'+device.sn;
-    const [data,composed]=await Promise.all([api('quasar_rules?layer='+q(layer)),
-      api('quasar_composed?raw=1&device='+q(device.sn))]);
+    const [data,composed,full]=await Promise.all([api('quasar_rules?layer='+q(layer)),
+      api('quasar_composed?raw=1&device='+q(device.sn)),
+      api('quasar_composed?device='+q(device.sn))]);
     const platform=data.platform||'';
     const current=composed.config&&typeof composed.config==='object'?composed.config:null;
     const save=async next=>{await put('quasar_rules',{layer,rules:next});invalidate();await render()};
     root.append(make('h4','Замены'+(platform?' · '+platform:'')));
     root.append(ruleList(data.rules,{layer,platform,device,current}));
+    if((full.errors||[]).length){ // неразрешённые подстановки/db/скрипты: правило пропущено — нижний слой стоит
+      const box=make('div','','sc-err');
+      for(const item of full.errors)
+        box.append(make('div',(item.layer||'замены')+' «'+item.rule+'»: '+item.error));
+      root.append(box);
+    }
     root.append(make('h4','Итог устройства'));
     const viewer=make('div');root.append(viewer);
     if(composed.error){viewer.append(make('p','Конфиг не собирается: '+composed.error,'sc-err'));return}
-    if(composed.legacy){viewer.append(make('p','Устройство на прежнем конфиге state.quasar.','hint'));return}
     composedViewer(viewer,current||{},composed.origins||{},
       pointer=>work(()=>ruleDialog({rules:data.rules,index:null,layer,platform,device,current,save,prefill:{path:pointer}})));
   }

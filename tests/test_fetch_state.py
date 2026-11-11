@@ -264,8 +264,10 @@ async def test_fetch_state_assistant_mapping(tmp_path):
     runner, client, ws = await _station_ws(runtime, client_type)
     try:
         runtime.identities.mutate({"operation": "user_quasar_overrides", "id": "owner",
-                                   "quasar_overrides": [{"path": "config.account_config.spotter",
-                                                         "source": "yasmina"}]})
+                                   "quasar_overrides": [{"name": "spotter",
+                                                         "path": "/config/account_config/spotter",
+                                                         "kind": "select", "value": "Значение",
+                                                         "options": {"Значение": "yasmina"}}]})
         poll = asyncio.ensure_future(runtime.fetch_state(SN))
         push = await _next_event(ws, server_type, "SyncPush")
         response = _response(client_type)
@@ -274,8 +276,10 @@ async def test_fetch_state_assistant_mapping(tmp_path):
         result = await asyncio.wait_for(poll, 5)
         assert result["assistant_name"] == "Ясмина"
         runtime.identities.mutate({"operation": "user_quasar_overrides", "id": "owner",
-                                   "quasar_overrides": [{"path": "config.account_config.spotter",
-                                                         "source": "anna"}]})
+                                   "quasar_overrides": [{"name": "spotter",
+                                                         "path": "/config/account_config/spotter",
+                                                         "kind": "select", "value": "Значение",
+                                                         "options": {"Значение": "anna"}}]})
         repeat = asyncio.ensure_future(runtime.fetch_state(SN))
         push = await _next_event(ws, server_type, "SyncPush")
         response = _response(client_type)

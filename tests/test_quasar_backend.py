@@ -11,7 +11,6 @@ def setup_registry(runtime):
     for owner in ('a','b'):
         runtime.identities.mutate({'operation':'user','id':owner,'name':owner})
         runtime.identities.mutate({'operation':'device','sn':'SN-'+owner,'user_id':owner,'device_ids':['id-'+owner]})
-        runtime.identities.mutate({'operation':'state','sn':'SN-'+owner,'state':{'quasar':{'config':{'device_config':{'name':owner}},'tags':[]}}})
 
 
 async def test_native_http_and_tokens_are_scoped_and_persistent(tmp_path):
@@ -20,7 +19,7 @@ async def test_native_http_and_tokens_are_scoped_and_persistent(tmp_path):
     try:
         async with ClientSession(headers={'Host':'quasar.yandex.net'}) as client:
             async with client.get(url+'/get_sync_info?device_id=id-a') as r:
-                assert (await r.json())['config']['device_config']['name']=='a'
+                assert (await r.json())['config']['device_config']['name']=='SN-a'  # имя реестра: без name — серийник
             async with client.get(url+'/glagol/device_list?device_id=id-a') as r:
                 assert [d['id'] for d in (await r.json())['devices']]==['id-a']
             async with client.get(url+'/get_sync_info?device_id=unknown') as r:

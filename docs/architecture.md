@@ -78,7 +78,7 @@
 | Адаптеры голосового стека | `state/voice_stack/adapters/*.py` | [voice-stack](contracts/voice-stack.md) |
 | MCP-серверы | `state/mcp.json` | [mcp](contracts/mcp.md) |
 | Сценарии | `state/scenarios/` | [scenarios](contracts/scenarios.md), [JSON v2](contracts/scenario-json-v2.md) |
-| Замены Quasar-конфига | `state/quasar/rules/` | [quasar-config](contracts/quasar-config.md) |
+| Замены Quasar-конфига | поставляемые — `server_emulator/quasar_defaults/rules/`, правки — `state/quasar/rules/` | [quasar-config](contracts/quasar-config.md) |
 
 Приоритет при совпадении имён: **пользовательское > расширение > встроенное**. Расширение с кодом исполняется в процессе сервера без песочницы и ставится только с подтверждением.
 

@@ -1,7 +1,7 @@
 ---
 title: "Параметры: БД, разделы UI, роли"
 status: stable
-date: "2026-10-25"
+date: "2026-11-11"
 module: "server_emulator/state_store.py"
 ---
 
@@ -26,16 +26,22 @@ module: "server_emulator/state_store.py"
 
 Цепочка разрешения: **device → user → platform → server → default_value** по
 ключу без префикса области. Сценариям — `params.<scope>.*` и `params.effective.*`
-(`ParamStore.context`), секреты в контекст не попадают. Старые разделы
-(user/device/glagol/server) мигрируются при сиде (`LEGACY_CATEGORIES`).
+(`ParamStore.context`), секреты в контекст не попадают.
 Данные сценариев и плагинов — отдельная таблица `scenario_data`
 (docs/contracts/scenario-json-v2.md). UI каркаса — позже.
 
 ## Принцип
 
 Параметр = запись каталога (определение: ключ/тип/роль/подпись) + значение у
-владельца. Редакторы рендерятся по определениям (как инлайн-узлы конфигов).
-`$param` в шаблонах Quasar читает этот стор — единая точка resolve_param уже есть.
+владельца. Редакторы рендерятся по определениям каталога. Значения каталога
+вкладываются в корни подстановок Quasar-конфига (`context_for` в
+quasar_config.py: `user.wifi_hash`, `device.glagol_cert`, `server.*` — ключ
+через точку; пути, занятые реестром, не перезаписываются).
+Поставляемые замены Quasar-конфига ссылаются на `user.wifi_hash`,
+`user.location.latitude/longitude`: параметр
+с определением, но без значения на всех уровнях цепочки — замена пропускается,
+в шапке UI закреплённое уведомление «не заполнен параметр X», пока значение
+не задано (docs/contracts/quasar-config.md, «Новая установка»).
 
 ## БД (additive, emulator.sqlite3)
 
@@ -57,12 +63,10 @@ module: "server_emulator/state_store.py"
       PRIMARY KEY(owner, key)
     )
 
-Разрешение `$param(key, device, user)`: param_values по цепочке
-**device → user → server → default_value** (наследование: устройство
-перекрывает пользователя, пользователь — серверный дефолт).
+Разрешение `ParamStore.resolve(key, user_id, sn, platform)`: param_values по
+цепочке **device → user → platform → server → default_value** (наследование:
+устройство перекрывает пользователя, пользователь — серверный дефолт).
 
-Миграция: users.location/users.fields → param_values(user:…) + defs из сида;
-legacy-поля реестра остаются (не ломать), но источник правды — param_values.
 Каталог-сид: user.wifi_hash, user.location.latitude/longitude (editable);
 device.name/room (editable); server.* — стартовые серверные (задел, пополняет
 админ). Таймзона дома, имя дома, часовой пояс отчётов — первые кандидаты server.
@@ -114,10 +118,11 @@ device.name/room (editable); server.* — стартовые серверные 
 - server_emulator/params.py: ParamStore — каталог param_defs (валидация ключей/
   типов/select-вариантов/числовых пределов), значения param_values, секреты
   (маска __KEEP__ при чтении, запись маски сохраняет прежнее), разрешение
-  $param цепочкой device → user → server → default_value, идемпотентный сид
-  (каталог + перенос legacy location/fields).
-- resolve_param: сначала стор параметров, затем legacy-реестр; шаблон common
-  переведён на канонический ключ $param user.wifi_hash.
+  resolve цепочкой device → user → platform → server → default_value,
+  идемпотентный сид каталога.
+- Значения каталога — в корнях подстановок Quasar-конфига (context_for);
+  glagol_security (quasar.py) читает device.glagol_cert/glagol_key напрямую
+  из стора.
 - Админ-API: params (GET/PUT/DELETE каталога), param_values (GET ?owner=,
   PUT с валидацией). Раздел «Параметры»: таблица определений, диалог
   создания/правки, серверные значения. Карточка пользователя («Пользователи»
@@ -133,6 +138,7 @@ device.name/room (editable); server.* — стартовые серверные 
 
 - device.glagol_cert / device.glagol_key — scope=device, type=secret,
   category=glagol; значения всех известных станций перенесены из реальных
-  ответов облака (get_sync_info → glagol.security). Ссылки в common.json —
-  `$param`. Алгоритм генерации новых сертификатов облаком не восстановлен
-  (см. docs/contracts/quasar-config.md).
+  ответов облака (get_sync_info → glagol.security); glagol_security (quasar.py)
+  читает их напрямую из стора — заданные параметры сильнее автогена
+  (state.glagol_security). Алгоритм генерации новых сертификатов облаком
+  не восстановлен (см. docs/contracts/quasar-config.md).

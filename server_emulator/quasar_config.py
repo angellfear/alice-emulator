@@ -3,13 +3,13 @@
 Встроенный шаблон (quasar_defaults/): общий дефолт ответа /get_sync_info плюс квирк
 платформы — generated_base(platform). Замены поверх шаблона — quasar_rules.py.
 
-Источники значений: context_for — {{токены}} строк (время, устройство, владелец);
-resolve_param — параметры (device.sn, user.name, каталог «Параметры», пути реестра);
-db_lookup — значение из реестра эмулятора; run_command — stdout скрипта из белого
-списка state/quasar/scripts. resolve_tree — финальный проход по телу: строки с
-{{токенами}}, маркеры {"expr"|"db"|"run"} и инлайн-узлы прежнего формата тел
-расширений ($select/$bool/$param/$string/$number/$list с $name/$hint) — внутри
-вариантов выбора и значений, перенесённых из прежних тел.
+Динамика — строки с подстановками {{путь|фильтр}} раскрываются окружением Jinja2
+сценарного движка (bindings, строгое подмножество): корни контекста — context_for
+(запросное время, устройство и владелец из реестра, каталог «Параметры»); строка
+целиком из одной подстановки даёт её значение как есть (число, объект). Маркеры
+{"db": "user.…"} и {"run": "скрипт"} — значение из реестра и stdout скрипта из
+белого списка state/quasar/scripts. resolve_tree — обход тела: строки с
+подстановками и маркеры разрешаются, остальное как есть.
 """
 import copy
 import json
@@ -21,14 +21,14 @@ import time
 import uuid
 from pathlib import Path
 
-from .params import ParamError
+from jsonpointer import escape
 
-SOURCE_KEYS = ("expr", "db", "run", "delete")
+from .scenario_engine.bindings import BindingError, expand as expand_binding
+
+SOURCE_KEYS = ("db", "run", "delete")
 SCRIPTS_DIRNAME = "scripts"
-INLINE_KEYS = ("$select", "$string", "$number", "$bool", "$list", "$param")
-META_KEYS = ("$name", "$hint")
 RUN_TIMEOUT_S = 3
-_TOKEN_DOTTED = re.compile(r"\{\{\s*([a-z_][a-z0-9_.]*)\s*\}\}")
+_TOKENS = re.compile(r"\{\{\s*(.*?)\s*\}\}")  # подпись происхождения, не разбор
 
 
 class QuasarConfigError(ValueError):
@@ -112,77 +112,58 @@ def generated_base(platform):
 # --- контекст и источники значений (динамика) -----------------------------------
 
 def context_for(runtime, device):
-    """Токены шаблонов: запросное время + реестр (пользователь/устройство)."""
+    """Корни подстановок {{…}}: запросное время; device/user — вложенные значения
+    реестра; каталог «Параметры» вкладывается в те же корни (цепочка device → user
+    → platform → server → default, занятые реестром пути не перезаписываются)."""
     now = time.time()
     context = {"now": int(now), "now_ms": int(now * 1000),
                "now_iso": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "uuid": uuid.uuid4().hex,
-               "device_id": "", "device_name": "", "platform": "", "user_id": ""}
+               "device_id": "", "device_name": "", "platform": "", "user_id": "",
+               "device": {}, "user": {}}
     if device:
         context.update({"device_id": next(iter(device.get("device_ids", [])), device.get("sn", "")),
                         "device_name": device.get("name", ""),
                         "platform": (device.get("profile") or {}).get("platform", "")})
+        device_root = {"name": device.get("name", ""), "sn": device.get("sn", ""),
+                       "fields": copy.deepcopy(device.get("fields") or {})}
+        if device.get("room"):
+            device_root["room"] = device["room"]
+        context["device"] = device_root
         user = None
         if device.get("user_id"):
             user = next((u for u in runtime.identities.data["users"] if u["id"] == device["user_id"]), None)
         if user:
             context["user_id"] = user["id"]
-            context["user.name"] = user.get("name", "")
-            for section in ("location", "fields"):
-                for key, value in (user.get(section) or {}).items():
-                    context[f"user.{section}.{key}"] = value
-        context["device.name"] = device.get("name", "")
-        if device.get("room"):
-            context["device.room"] = device["room"]
-        for key, value in (device.get("fields") or {}).items():
-            context[f"device.fields.{key}"] = value
+            context["user"] = {"id": user["id"], "name": user.get("name", ""),
+                               "location": copy.deepcopy(user.get("location") or {}),
+                               "fields": copy.deepcopy(user.get("fields") or {})}
+    params = getattr(runtime, "quasar_params", None)
+    if params is not None:
+        for definition in params.defs():
+            try:
+                value = params.resolve(definition["key"], user_id=context["user_id"] or None,
+                                       sn=device.get("sn") if device else None,
+                                       platform=context["platform"] or None)
+            except KeyError:
+                continue  # значения нет ни на одном уровне цепочки
+            _nest(context, definition["key"], value)
     return context
 
 
-def resolve_param(name, runtime, device, context):
-    """Параметры-заглушки ($param): известные пути из реестра/контекста.
-    TODO: единая система параметров (сессии, вычислимые, расширяемые) —
-    здесь одна точка расширения, дальше только эта функция."""
-    if not isinstance(name, str) or not name:
-        raise QuasarConfigError("$param: пустое имя")
-    sessions = getattr(runtime, "sessions", {}) or {}
-    if name == "device.sn":
-        return (device or {}).get("sn", "")
-    if name in ("device.id", "device.device_id"):
-        return context.get("device_id", "")
-    if name == "device.name":
-        return context.get("device_name", "")
-    if name == "device.room":
-        return context.get("device.room", "")
-    if name == "device.platform":
-        return context.get("platform", "")
-    if name == "user.id":
-        return context.get("user_id", "")
-    if name == "user.name":
-        return context.get("user.name", "")
-    if name == "session.sn":  # SN устройства активной WS-сессии этого запроса
-        sn = (device or {}).get("sn")
-        session = next((s for s in sessions.values() if s.get("device_sn") == sn), None)
-        return (session or {}).get("device_sn", "")
-    if name in context:
-        return context[name]
-    # Стор параметров (каталог+значения, цепочка device → user → server → default)
-    store = getattr(runtime, "quasar_params", None)
-    if store is not None:
-        try:
-            user_id = (device or {}).get("user_id")
-            return store.resolve(name, user_id=user_id, sn=(device or {}).get("sn"),
-                                 platform=context.get("platform") or None)
-        except KeyError:
-            pass
-        except ParamError:  # секрет-маска и т.п. — ниже попробуем legacy
-            pass
-    # legacy: пути реестра (user.location.*, user.fields.*, device.fields.*…)
-    if name.startswith(("user.", "device.")):
-        try:
-            return db_lookup(name, runtime, device)
-        except QuasarConfigError:
-            pass
-    raise QuasarConfigError(f"$param: параметр {name!r} не найден (стор параметров и реестр)")
+def _nest(context, key, value):
+    """Значение каталога «Параметры» (ключ через точку) — в корни контекста;
+    занятые реестром пути не перезаписываются."""
+    parts = str(key).split(".")
+    node = context
+    for part in parts[:-1]:
+        existing = node.get(part)
+        if not isinstance(existing, dict):
+            if part in node:
+                return  # реестр занял путь не-объектом — параметр не вкладываем
+            existing = node[part] = {}
+        node = existing
+    if parts[-1] not in node:
+        node[parts[-1]] = value
 
 
 def db_lookup(path, runtime, device):
@@ -243,40 +224,19 @@ def run_command(command, runtime, device, context):
 
 
 def resolve_source(value, runtime, device, context, trace=None, path="", render=True):
-    """Разрешение листа: source-маркеры и строки-шаблоны; остальное как есть.
-    render=False — сборка без устройства (просмотр слоёв): {{токены}} и
-    source-маркеры (expr/db/run) остаются в тексте, подставлять нечего."""
+    """Разрешение листа: строка с {{…}} — шаблон bindings (строка целиком из одной
+    подстановки — её значение как есть); маркеры {"db"|"run"} — источники; остальное
+    как есть. render=False — сборка без устройства: подстановки и маркеры остаются
+    в тексте, подставлять нечего."""
     if not render:
         return value
     if isinstance(value, str):
-        if "{{" in value:
-            # токен вне контекста запроса — параметр (каталог «Параметры», пути реестра)
-            def lookup(name, strict):
-                if context.get(name) is not None:
-                    return context[name]
-                try:
-                    return resolve_param(name, runtime, device, context)
-                except QuasarConfigError:
-                    if strict:
-                        raise
-                    return None
-
-            def substitute(match):
-                found = lookup(match.group(1), False)
-                return "" if found is None else str(found)
+        if "{{" in value or "{%" in value or "{#" in value:
             if trace is not None:
-                used = sorted({m.group(1) for m in _TOKEN_DOTTED.finditer(value)})
+                used = sorted(set(_TOKENS.findall(value)))
                 trace[path] = "динамика {{" + "}}, {{".join(used) + "}}"
-            whole = _TOKEN_DOTTED.fullmatch(value.strip())
-            if whole:
-                # строка из одной подстановки — её значение как есть (число, объект);
-                # параметра нет — ошибка, а не пустая строка в ответе колонке
-                found = lookup(whole.group(1), whole.group(1) not in context)
-                return "" if found is None else found
-            return _TOKEN_DOTTED.sub(substitute, value)
+            return expand_binding(value, context)
         return value
-    if isinstance(value, dict) and set(value) == {"expr"}:
-        return resolve_source(value["expr"], runtime, device, context, trace, path)
     if isinstance(value, dict) and set(value) == {"db"}:
         result = db_lookup(value["db"], runtime, device)
         if trace is not None:
@@ -290,67 +250,73 @@ def resolve_source(value, runtime, device, context, trace=None, path="", render=
     return value
 
 
-# --- инлайн-узлы -------------------------------------------------------------------
-
-def inline_type(node):
-    """Тип инлайн-узла или None: ровно один $-ключ типа.
-    $select: рядом допустимы варианты (любые не-$ ключи) и $name/$hint;
-    прочие типы: только $name/$hint рядом."""
-    if not isinstance(node, dict):
-        return None
-    keys = set(node)
-    types = keys & set(INLINE_KEYS)
-    if not types:
-        return None
-    if len(types) > 1:
-        raise QuasarConfigError(f"инлайн-узел: один $-ключ типа, получено: {sorted(types)}")
-    kind = next(iter(types))
-    if kind != "$select":
-        stray = keys - {kind} - set(META_KEYS)
-        if stray:
-            raise QuasarConfigError(f"инлайн-узел {kind}: рядом допустимы только $name/$hint, "
-                                    f"лишние: {sorted(stray)}")
-    return kind
-
-
-def resolve_inline(node, kind, runtime, device, context, trace=None, path="", render=True):
-    if kind == "$select":
-        chosen = node[kind]
-        option = node.get(chosen) if isinstance(chosen, str) else None
-        if option is None:
-            raise QuasarConfigError(f"$select: вариант {chosen!r} не определён в узле "
-                                    f"«{node.get('$name', '?')}»")
-        if trace is not None and path not in trace:  # выбор переопределением важнее
-            trace[path] = f"шаблон «{node.get('$name') or path}»: вариант «{chosen}»"
-        return resolve_tree(option, runtime, device, context, trace, path, render)
-    if kind == "$param":
-        result = resolve_param(node[kind], runtime, device, context)
-        if trace is not None:
-            trace[path] = f"параметр {node[kind]}"
-        return result
-    if trace is not None and kind not in ("$select", "$param") and path not in trace:
-        trace[path] = f"шаблон «{node.get('$name') or path}»"
-    return resolve_tree(node[kind], runtime, device, context, trace, path, render)  # $string/$number/$list/$bool
-
-
-def resolve_tree(tree, runtime, device, context, trace=None, path="", render=True):
-    """Обход: инлайн-узлы и source-маркеры разрешаются, строки рендерятся.
-    render=False — строки и маркеры остаются как есть (сборка без устройства)."""
+def resolve_tree(tree, runtime, device, context, trace=None, path="", render=True,
+                 errors=None, label="шаблон"):
+    """Обход: строки с подстановками и маркеры разрешаются, остальное как есть.
+    render=False — всё остаётся как есть (сборка без устройства). Ошибка источника:
+    errors is None — исключение (проверка правила при применении); иначе запись
+    {layer, rule, path, error} в errors и значение как есть — сборка продолжается."""
     if isinstance(tree, dict):
-        kind = inline_type(tree)
-        if kind is not None:
-            return resolve_inline(tree, kind, runtime, device, context, trace, path, render)
         marker = set(tree)
         if len(marker) == 1 and next(iter(marker)) in SOURCE_KEYS:
             if "delete" in marker:
                 raise QuasarConfigError("delete-маркер допустим только в переопределении")
-            return resolve_source(tree, runtime, device, context, trace, path, render)
+            return _resolve_or_report(tree, runtime, device, context, trace, path, render,
+                                      errors, label)
         return {k: resolve_tree(v, runtime, device, context, trace,
-                                f"{path}.{k}" if path else k, render) for k, v in tree.items()}
+                                f"{path}/{escape(str(k))}", render, errors, label)
+                for k, v in tree.items()}
     if isinstance(tree, list):
         return [resolve_tree(item, runtime, device, context, trace,
-                             f"{path}.{i}" if path else str(i), render) for i, item in enumerate(tree)]
-    return resolve_source(tree, runtime, device, context, trace, path, render)
+                             f"{path}/{i}", render, errors, label)
+                for i, item in enumerate(tree)]
+    return _resolve_or_report(tree, runtime, device, context, trace, path, render, errors, label)
+
+
+def _unfilled_params(value, runtime, device):
+    """Пути подстановок строки, у которых в каталоге «Параметры» есть определение,
+    но нет значения ни на одном уровне цепочки — незаполненный параметр."""
+    if not isinstance(value, str):
+        return []
+    params = getattr(runtime, "quasar_params", None)
+    if params is None:
+        return []
+    platform = ((device or {}).get("profile") or {}).get("platform") or None
+    missing = []
+    for token in set(_TOKENS.findall(value)):
+        path = token.split("|")[0].strip()
+        if not path or not params.def_get(path):
+            continue  # нет определения — это не параметр, а ошибка шаблона
+        try:
+            params.resolve(path, user_id=(device or {}).get("user_id") or None,
+                           sn=(device or {}).get("sn") if device else None,
+                           platform=platform)
+        except KeyError:
+            missing.append(path)
+    return sorted(missing)
+
+
+def source_error_text(exc, value, runtime, device):
+    """Текст ошибки источника для списка ошибок: незаполненный параметр каталога —
+    свой текст (ссылка на вкладку «Параметры»), прочее — как есть."""
+    message = str(exc) or type(exc).__name__
+    if isinstance(exc, BindingError):
+        unfilled = _unfilled_params(value, runtime, device)
+        if unfilled:  # параметр каталога без значения — не ошибка шаблона
+            return "не заполнен параметр " + ", ".join(unfilled) + " — вкладка «Параметры»"
+    return message
+
+
+def _resolve_or_report(value, runtime, device, context, trace, path, render, errors, label):
+    """resolve_source с учётом политики ошибок: собрать и продолжить — или отдать наверх."""
+    try:
+        return resolve_source(value, runtime, device, context, trace, path, render)
+    except (QuasarConfigError, BindingError) as exc:
+        if errors is None:
+            raise
+        errors.append({"layer": label, "rule": path or "(шаблон)", "path": path,
+                       "error": source_error_text(exc, value, runtime, device)})
+        return value  # значение как есть — в том же виде, что при render=False
 
 
 # --- пути и предупреждения --------------------------------------------------------
@@ -388,32 +354,6 @@ def poll_period_warnings(body):
 
 
 ACCOUNT_CONFIG_PATH = "config.account_config"
-
-
-def account_override_error(path):
-    """Текст ошибки, если путь переопределения аккаунта вне config.account_config.*, иначе None.
-    Путь хранится полным (как у устройства); сам узел account_config целиком не заменяется."""
-    if not isinstance(path, str) or not path.startswith(ACCOUNT_CONFIG_PATH + ".")             or not path[len(ACCOUNT_CONFIG_PATH) + 1:].strip("."):
-        return (f"переопределение аккаунта: путь {path!r} вне {ACCOUNT_CONFIG_PATH}.* — "
-                f"аккаунту принадлежит только account_config")
-    return None
-
-
-def validate_account_overrides(items):
-    """Переопределения пользователя: список {path, source}, пути — только config.account_config.*.
-    Возвращает копию; иначе QuasarConfigError."""
-    if not isinstance(items, list):
-        raise QuasarConfigError("quasar_overrides: список {path, source}")
-    result = []
-    for item in items:
-        if not isinstance(item, dict) or not isinstance(item.get("path"), str) or "source" not in item:
-            raise QuasarConfigError("quasar_overrides: элемент — объект {path, source}")
-        error = account_override_error(item["path"])
-        if error:
-            raise QuasarConfigError(error)
-        entry = {"path": item["path"].strip("."), "source": copy.deepcopy(item["source"])}
-        result.append(entry)
-    return result
 
 
 def count_keys(value):

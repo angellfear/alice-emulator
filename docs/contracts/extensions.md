@@ -144,7 +144,7 @@ docs/contracts/scripts-sdk.md).
 |---|---|---|
 | `scenarios/<раздел>/*.json` (+ `.py`) | сценарии JSON v2 в библиотеку (слой поверх встроенных); раздел — папка, `category` ей равна; `.py` — исполнитель `handle(ctx)` рядом с JSON | data / code |
 | `endpoints/*.json` (+ `.py`) | эндпоинты HTTP-ответов (слой поверх встроенных); `.py` — script-обработчик рядом с JSON | data / code |
-| `quasar/` | шаблоны get_config_* и переопределения платформ (+ `.py`) | data / code |
+| `quasar/rules/common.json`, `quasar/rules/platforms/*.json` | замены Quasar-конфига: общие и платформ, применяются раньше поставляемых и своих, только чтение | data |
 | `voice/packages/*.json` | пакеты-установщики речевых серверов (venv + модели) | install |
 | `voice/adapters/*.py` | адаптеры ASR/TTS/LLM | code |
 | `voice/presets/*.json` | пресеты «Голосового стека» и «Интеллект → Модель» | data |

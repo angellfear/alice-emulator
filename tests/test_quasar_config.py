@@ -8,34 +8,57 @@ from aiohttp import ClientSession
 import server_emulator
 
 from server_emulator.quasar_config import (QuasarConfigError, context_for, count_keys, device_platform,
-                                           generated_base, inline_type, merge_patch, resolve_param,
-                                           resolve_source, resolve_tree)
+                                           generated_base, merge_patch, resolve_source)
 from server_emulator.quasar_rules import RuleStore, compose_config
 from server_emulator.runtime import Runtime
 
-SELECTOR = {
-    "$name": "Подписка", "$hint": "Состояние подписки",
-    "$select": "Включена",
+SINGLE = "Значение"
+SUBSCRIPTION = {
     "Включена": {"enabled": True, "mode": "subscription", "ttl": 0,
                  "statusUrl": "https://plus.yandex.ru/module-brick?deviceId={{device_id}}"},
     "Выключена (invalid_subscription_user)": {"enabled": False, "mode": "subscription", "ttl": 0,
                                               "disabled_reason": "invalid_subscription_user"},
 }
-OPTIONS = {k: v for k, v in SELECTOR.items() if not k.startswith("$")}
 COMMON_RULES = [
-    {"name": "Имя", "path": "/config/device_config/name", "kind": "template", "value": "{{device_name}}"},
-    {"name": "Теги", "path": "/tags", "kind": "value", "value": ["base"]},
-    {"name": "Подписка", "path": "/subscription", "kind": "select", "value": "Включена", "options": OPTIONS},
-    {"name": "Alice Pro", "path": "/alice_pro_subscription", "kind": "bool", "value": True},
+    {"name": "Имя", "path": "/config/device_config/name", "kind": "select",
+     "value": "Значение", "options": {"Значение": "{{device_name}}"}},
+    {"name": "Теги", "path": "/tags", "kind": "select", "value": "Значение", "options": {"Значение": ["base"]}},
+    {"name": "Подписка", "path": "/subscription", "kind": "select", "value": "Включена", "options": SUBSCRIPTION},
+    {"name": "Alice Pro", "path": "/alice_pro_subscription", "kind": "select",
+     "value": "Вкл", "options": {"Вкл": True, "Выкл": False}},
 ]
-CHIRON_RULES = [{"name": "platform", "path": "/config/device_config/platform", "kind": "value", "value": "chiron"}]
+CHIRON_RULES = [{"name": "platform", "path": "/config/device_config/platform", "kind": "select",
+                 "value": "Значение", "options": {"Значение": "chiron"}}]
+
+
+class FakeParams:
+    """Минимальный стор «Параметров»: определения + значения по уровням цепочки."""
+
+    def __init__(self, defs=(), values=None):
+        self._defs = list(defs)
+        self._values = values or {}  # {(owner, key): value}
+
+    def defs(self):
+        return [{"key": key} for key in self._defs]
+
+    def def_get(self, key):
+        return {"key": key} if key in self._defs else None
+
+    def resolve(self, key, user_id=None, sn=None, platform=None):
+        for owner in (f"device:{sn}" if sn else None, f"user:{user_id}" if user_id else None,
+                      f"platform:{platform}" if platform else None, "server"):
+            if owner and (owner, key) in self._values:
+                return self._values[(owner, key)]
+        raise KeyError(key)
 
 
 class FakeRuntime:
-    def __init__(self, tmp_path, users=None, devices=None, sessions=None):
+    def __init__(self, tmp_path, users=None, devices=None, sessions=None, params=None,
+                 shipped_dir=None):
         self.identities = type("I", (), {"data": {"users": users or [], "devices": devices or []}})()
         self.sessions = sessions or {}
-        self.quasar_rules = RuleStore(tmp_path / "quasar")
+        self.quasar_rules = RuleStore(tmp_path / "quasar", shipped_dir=shipped_dir)
+        self.quasar_params = params
         self.directory = tmp_path  # server.json нет — локальный домен по умолчанию
 
 
@@ -50,42 +73,90 @@ def test_merge_patch_rfc7396():
     assert merge_patch(None, {"x": 1}) == {"x": 1}
 
 
-def test_inline_node_types_and_validation():
-    assert inline_type(SELECTOR) == "$select"
-    assert inline_type({"$bool": True}) == "$bool"
-    assert inline_type({"просто": "данные"}) is None
-    with pytest.raises(QuasarConfigError, match="один \\$-ключ"):
-        inline_type({"$bool": True, "$select": "x"})
-    with pytest.raises(QuasarConfigError, match="лишние"):
-        inline_type({"$bool": True, "чужой": 1})  # не селектор: рядом только $name/$hint
-    assert inline_type({"$select": "x", "Вариант": 1, "$name": "Имя"}) == "$select"  # варианты рядом ок
+def test_context_nested_roots_and_params(tmp_path):
+    """Корни подстановок: время, реестр (device/user — вложенные), каталог «Параметры»
+    (занятые реестром пути не перезаписываются)."""
+    runtime = FakeRuntime(
+        tmp_path, users=[{"id": "u1", "name": "Аня", "location": {"latitude": 55.7}, "fields": {}}],
+        params=FakeParams(defs=("user.wifi_hash", "device.glagol_cert", "device.glagol_key",
+                                "user.location.latitude", "device.name"),
+                          values={("user:u1", "user.wifi_hash"): "abc123",
+                                  ("device:SN-1", "device.glagol_cert"): "CERT",
+                                  ("user:u1", "user.location.latitude"): 1.0,
+                                  ("device:SN-1", "device.name"): "Из каталога"}))
+    context = context_for(runtime, device_fixture())
+    assert context["device_id"] == "id-1" and context["device_name"] == "Кухня"
+    assert context["device"]["name"] == "Кухня" and context["device"]["sn"] == "SN-1"  # реестр сильнее каталога
+    assert context["device"]["room"] == "Кухня" and context["device"]["fields"] == {}
+    assert context["user_id"] == "u1" and context["user"]["name"] == "Аня"
+    assert context["user"]["location"]["latitude"] == 55.7  # реестр сильнее каталога
+    assert context["user"]["wifi_hash"] == "abc123"        # {{user.wifi_hash}} живых правил
+    assert context["device"]["glagol_cert"] == "CERT"      # {{device.glagol_cert}} живых правил
+    assert "glagol_key" not in context["device"]           # значения нет ни на одном уровне
+    assert "name" not in context["user"]["location"]       # чужие пути не появляются
 
 
-def test_inline_resolution_selector_bool_list_param(tmp_path):
-    runtime = FakeRuntime(tmp_path, users=[{"id": "u1", "name": "Аня"}],
-                          sessions={"c1": {"device_sn": "SN-1"}})
-    device = device_fixture()
-    context = context_for(runtime, device)
-    body = resolve_tree({"subscription": SELECTOR}, runtime, device, context)
-    assert body["subscription"]["enabled"] is True
-    assert body["subscription"]["statusUrl"].endswith("deviceId=id-1")  # {{device_id}} в варианте
-    assert resolve_tree({"$bool": False}, runtime, device, context) is False
-    assert resolve_tree({"$string": "Владелец: {{user.name}}"}, runtime, device, context) == "Владелец: Аня"
-    assert resolve_tree({"$list": ["a"]}, runtime, device, context) == ["a"]
-    assert resolve_param("device.sn", runtime, device, context) == "SN-1"
-    assert resolve_param("session.sn", runtime, device, context) == "SN-1"
-    assert resolve_param("user.name", runtime, device, context) == "Аня"
-    runtime2 = FakeRuntime(tmp_path, users=[{"id": "u1", "name": "Аня",
-                                             "location": {"latitude": 55.7, "longitude": 37.6},
-                                             "fields": {"wifi_hash": "abc123"}}])
-    assert resolve_param("user.fields.wifi_hash", runtime2, device, context) == "abc123"
-    assert resolve_param("user.location.latitude", runtime2, device, context) == 55.7
-    with pytest.raises(QuasarConfigError, match="не найден"):
-        resolve_param("future.thing", runtime, device, context)
-    nested = {"$select": "on", "on": {"owner": {"$param": "user.name"}}}
-    assert resolve_tree(nested, runtime, device, context) == {"owner": "Аня"}
-    with pytest.raises(QuasarConfigError, match="вариант"):
-        resolve_tree({"$select": "нетТакого", "есть": {}}, runtime, device, context)
+def test_substitutions_typed_whole_text_and_errors(tmp_path):
+    """Строка из одной подстановки — значение как есть (число), внутри текста — текст;
+    неразрешённая подстановка — правило пропущено (нижний слой), ошибка в errors."""
+    runtime = FakeRuntime(tmp_path, users=[{"id": "u1", "name": "Аня", "location": {"latitude": 55.7}}])
+    runtime.quasar_rules.save("common", [
+        {"name": "lat", "path": "/lat", "kind": "select", "value": SINGLE,
+         "options": {SINGLE: "{{user.location.latitude}}"}},
+        {"name": "txt", "path": "/txt", "kind": "select", "value": SINGLE,
+         "options": {SINGLE: "Имя: {{device.name}}, владелец {{user.name}}"}},
+        {"name": "bad", "path": "/bad", "kind": "select", "value": SINGLE,
+         "options": {SINGLE: "{{no.such.param}}"}},
+        {"name": "after", "path": "/after", "kind": "select", "value": SINGLE, "options": {SINGLE: 7}}])
+    errors = []
+    body = compose_config(runtime, "", device_fixture(), errors=errors)
+    assert body["lat"] == 55.7 and body["txt"] == "Имя: Кухня, владелец Аня"
+    assert body["after"] == 7
+    assert "bad" not in body  # колонка получает конфиг без этой замены
+    assert [e["rule"] for e in errors] == ["bad"] and "неизвестный корень 'no'" in errors[0]["error"]
+    assert errors[0]["layer"] == "общие замены" and errors[0]["path"] == "/bad"
+
+
+def test_unfilled_param_error_text(tmp_path):
+    """Параметр каталога без значения — «не заполнен параметр …»; неизвестный путь —
+    обычная ошибка шаблона."""
+    runtime = FakeRuntime(tmp_path, params=FakeParams(defs=("user.wifi_hash",), values={}))
+    runtime.quasar_rules.save("common", [
+        {"name": "hash", "path": "/hash", "kind": "select", "value": SINGLE,
+         "options": {SINGLE: "{{user.wifi_hash}}"}},
+        {"name": "bad", "path": "/bad", "kind": "select", "value": SINGLE,
+         "options": {SINGLE: "{{no.such.thing}}"}}])
+    errors = []
+    compose_config(runtime, "", device_fixture(), errors=errors)
+    texts = {e["rule"]: e["error"] for e in errors}
+    assert texts["hash"] == "не заполнен параметр user.wifi_hash — вкладка «Параметры»"
+    assert "неизвестный корень" in texts["bad"]
+
+
+def test_shipped_layer_compose_and_errors(tmp_path):
+    """Поставляемый набор действует как слой «общие замены»; правка state сильнее,
+    снятое правило не применяется."""
+    pkg = tmp_path / "pkg"
+    (pkg / "platforms").mkdir(parents=True)
+    (pkg / "common.json").write_text(json.dumps({"rules": [
+        {"id": "s1", "name": "Шаблон", "path": "/spotter", "kind": "select",
+         "value": "Значение", "options": {"Значение": "alisa"}},
+        {"id": "s2", "name": "Снят", "path": "/gone", "kind": "select",
+         "value": "Значение", "options": {"Значение": "x"}}]}), encoding="utf-8")
+    runtime = FakeRuntime(tmp_path, shipped_dir=pkg)
+    runtime.quasar_rules.save("common", [
+        {"id": "s1", "name": "Шаблон", "path": "/spotter", "kind": "select",
+         "value": "Значение", "options": {"Значение": "alisa"}},
+        {"id": "s2", "name": "Снят", "path": "/gone", "kind": "delete"},
+        {"name": "Своя", "path": "/own", "kind": "select", "value": SINGLE, "options": {SINGLE: 5}}])
+    body = compose_config(runtime, "", device_fixture())
+    assert body["spotter"] == "alisa"  # поставляемое применяется
+    assert "gone" not in body          # снятое — delete-маркер, к конфигу не применяется
+    assert body["own"] == 5            # новое правило state — после поставляемых
+    effective, view = runtime.quasar_rules.layer_rules("common")
+    assert [r["name"] for r in effective] == ["Шаблон", "Своя"]
+    assert [(r.get("shipped", False), r.get("modified", False), r.get("removed", False))
+            for r in view] == [(True, False, False), (True, True, True), (False, False, False)]
 
 
 def test_run_whitelist_json_and_env(tmp_path):
@@ -108,10 +179,12 @@ def test_compose_rules_and_selector_switch(tmp_path):
     runtime = FakeRuntime(tmp_path, users=[{"id": "u1", "name": "U"}])
     runtime.quasar_rules.save("common", COMMON_RULES)
     runtime.quasar_rules.save("chiron", CHIRON_RULES + [
-        {"name": "Теги", "path": "/tags", "kind": "value", "value": ["chiron-tag"]}])
+        {"name": "Теги", "path": "/tags", "kind": "select", "value": "Значение",
+         "options": {"Значение": ["chiron-tag"]}},{"name": "gone", "path": "/subscription", "kind": "delete"}])
     body = compose_config(runtime, "chiron", device_fixture(), device_rules=[
-        {"path": "subscription", "source": {"$select": "Выключена (invalid_subscription_user)"}},  # прежний формат
-        {"name": "Лампа", "path": "/extra/lamp", "kind": "value", "value": 42},
+        {"name": "Подписка", "path": "/subscription", "kind": "select",
+         "value": "Выключена (invalid_subscription_user)", "options": SUBSCRIPTION},
+        {"name": "Лампа", "path": "/extra/lamp", "kind": "select", "value": "Значение", "options": {"Значение": 42}},
         {"name": "Pro", "path": "/alice_pro_subscription", "kind": "delete"},
     ])
     assert body["config"]["device_config"]["platform"] == "chiron"
@@ -127,9 +200,10 @@ def test_compose_rules_and_selector_switch(tmp_path):
 def test_compose_disabled_rule_and_dotted_key(tmp_path):
     runtime = FakeRuntime(tmp_path)
     runtime.quasar_rules.save("common", [
-        {"name": "off", "path": "/config/system_config/commandSpottersMode", "kind": "value",
-         "value": "выкл", "enabled": False},
-        {"name": "sdk", "path": "/config/system_config/com.yandex.io.sdk/flag", "kind": "bool", "value": True}])
+        {"name": "off", "path": "/config/system_config/commandSpottersMode", "kind": "select",
+         "value": "Значение", "options": {"Значение": "выкл"}, "enabled": False},
+        {"name": "sdk", "path": "/config/system_config/com.yandex.io.sdk/flag", "kind": "select",
+         "value": "Вкл", "options": {"Вкл": True, "Выкл": False}}])
     body = compose_config(runtime, "yandexstation", None, render=False)
     assert body["config"]["system_config"]["commandSpottersMode"] != "выкл"  # отключённая не применяется
     assert body["config"]["system_config"]["com.yandex.io.sdk"]["flag"] is True  # ключ с точкой
@@ -142,29 +216,35 @@ def test_compose_trace_origins(tmp_path):
         {"name": "gone", "path": "/subscription", "kind": "delete"}])
     trace = {}
     compose_config(runtime, "chiron", device_fixture(), trace=trace,
-                   device_rules=[{"name": "Лампа", "path": "/extra/lamp", "kind": "value", "value": 42}])
-    assert trace["config.device_config.platform"] == "замены chiron: platform"
-    assert trace["subscription"] == "замены chiron: gone (удалено)"
-    assert trace["extra.lamp"] == "устройство: Лампа"
-    assert trace["tags"] == "общие замены: Теги"
-    assert trace["config.device_config.name"].startswith("динамика {{device_name}}")
+                   device_rules=[{"name": "Лампа", "path": "/extra/lamp", "kind": "select",
+                                  "value": "Значение", "options": {"Значение": 42}}])
+    assert trace["/config/device_config/platform"] == "замены chiron: platform"
+    assert trace["/subscription"] == "замены chiron: gone (удалено)"
+    assert trace["/extra/lamp"] == "устройство: Лампа"
+    assert trace["/tags"] == "общие замены: Теги"
+    assert trace["/config/device_config/name"].startswith("динамика {{device_name}}")
 
 
 def test_compose_account_and_device_order(tmp_path):
     """Устройство сильнее аккаунта, аккаунт сильнее платформы; аккаунт — только account_config."""
-    account = [{"path": "config.account_config.spotter", "source": "аккаунт"}]
+    account = [{"name": "s", "path": "/config/account_config/spotter", "kind": "select",
+                "value": "Значение", "options": {"Значение": "аккаунт"}}]
     runtime = FakeRuntime(tmp_path, users=[{"id": "u1", "name": "U", "quasar_overrides": account}])
     runtime.quasar_rules.save("chiron", [{"name": "s", "path": "/config/account_config/spotter",
-                                          "kind": "value", "value": "платформа"}])
+                                          "kind": "select", "value": "Значение",
+                                          "options": {"Значение": "платформа"}}])
     device = device_fixture()
-    rule = {"name": "s", "path": "/config/account_config/spotter", "kind": "value", "value": "устройство"}
+    rule = {"name": "s", "path": "/config/account_config/spotter", "kind": "select",
+            "value": "Значение", "options": {"Значение": "устройство"}}
     assert compose_config(runtime, "chiron", device, device_rules=[rule])["config"]["account_config"]["spotter"] == "устройство"
     assert compose_config(runtime, "chiron", device)["config"]["account_config"]["spotter"] == "аккаунт"
     runtime.identities.data["users"][0]["quasar_overrides"] = []
     assert compose_config(runtime, "chiron", device)["config"]["account_config"]["spotter"] == "платформа"
     runtime.quasar_rules.save("chiron", [])
     assert compose_config(runtime, "chiron", device)["config"]["account_config"]["spotter"] == "alisa"  # шаблон
-    runtime.identities.data["users"][0]["quasar_overrides"] = [{"path": "config.device_config.x", "source": 1}]
+    runtime.identities.data["users"][0]["quasar_overrides"] = [
+        {"name": "x", "path": "/config/device_config/x", "kind": "select",
+         "value": "Значение", "options": {"Значение": 1}}]
     with pytest.raises(QuasarConfigError, match="account_config"):
         compose_config(runtime, "chiron", device)
 
@@ -173,18 +253,21 @@ def test_compose_render_false_keeps_params_and_markers(tmp_path):
     """Итог без устройства: параметр — {{ключ}} (не ошибка «не найден»), db/run — маркеры."""
     runtime = FakeRuntime(tmp_path)
     runtime.quasar_rules.save("common", [
-        {"name": "hash", "path": "/config/account_config/user_wifi_config/wifi_hash", "kind": "param",
-         "value": "user.wifi_hash"},
-        {"name": "loc", "path": "/location", "kind": "db", "value": "user.location"},
-        {"name": "Подписка", "path": "/subscription", "kind": "select", "value": "Включена", "options": OPTIONS}])
+        {"name": "hash", "path": "/config/account_config/user_wifi_config/wifi_hash", "kind": "select",
+         "value": "Значение", "options": {"Значение": "{{user.wifi_hash}}"}},
+        {"name": "loc", "path": "/location", "kind": "select", "value": "Значение",
+         "options": {"Значение": {"db": "user.location"}}},
+        {"name": "Подписка", "path": "/subscription", "kind": "select", "value": "Включена", "options": SUBSCRIPTION}])
     trace = {}
     body = compose_config(runtime, "", None, trace=trace, render=False)
     assert body["config"]["account_config"]["user_wifi_config"]["wifi_hash"] == "{{user.wifi_hash}}"
     assert body["location"] == {"db": "user.location"}
     assert body["subscription"]["statusUrl"].endswith("{{device_id}}")  # токен внутри варианта не тронут
-    assert trace["subscription"] == "общие замены: Подписка"
-    with pytest.raises(QuasarConfigError, match="не найден"):  # с устройством параметр обязателен
-        compose_config(runtime, "", device_fixture())
+    assert trace["/subscription"] == "общие замены: Подписка"
+    errors = []  # с устройством привязка обязательна: правила пропущены, ошибки видны
+    compose_config(runtime, "", device_fixture(), errors=errors)
+    by_rule = {e["rule"]: e["error"] for e in errors}
+    assert "user.wifi_hash" in by_rule["hash"] and "db: путь" in by_rule["loc"]
 
 
 @pytest.mark.asyncio
@@ -211,17 +294,30 @@ async def test_get_sync_info_rules_end_to_end(tmp_path):
                 assert body["config"]["device_config"]["platform"] == "chiron"
             state = dict(runtime.identities.resolve('id-1')['state'])
             state['quasar_overrides'] = [{"name": "Подписка", "path": "/subscription", "kind": "select",
-                                          "value": "Выключена (invalid_subscription_user)", "options": OPTIONS}]
+                                          "value": "Выключена (invalid_subscription_user)", "options": SUBSCRIPTION}]
             runtime.identities.mutate({'operation': 'state', 'sn': 'SN-1', 'state': state})
             async with client.get(url + "/get_sync_info?device_id=id-1",
                                   headers={"Host": "quasar.yandex.net"}) as response:
                 assert (await response.json())["subscription"]["enabled"] is False
-            runtime.quasar_rules.save("common", [{"name": "bad", "path": "/x", "kind": "param",
-                                                  "value": "no.such.param"}])
+            runtime.quasar_rules.save("common", [{"name": "bad", "path": "/x", "kind": "select",
+                                                  "value": "Значение",
+                                                  "options": {"Значение": "{{no.such.param}}"}}])
             async with client.get(url + "/get_sync_info?device_id=id-1",
                                   headers={"Host": "quasar.yandex.net"}) as response:
-                assert response.status == 409  # сборка не удалась — понятная ошибка, не 500
-                assert (await response.json())["error"] == "quasar_config_source"
+                assert response.status == 200  # сборка не падает: правило пропущено, ошибка видна в UI
+                assert "x" not in (await response.json())
+            recorded = runtime.quasar_errors["SN-1"]  # состояние для уведомления (api/live)
+            assert recorded and recorded[0]["rule"] == "bad"
+            async with client.get(url + "/emulator/api/live") as response:
+                live = await response.json()
+            assert live["quasar_errors"] and live["quasar_errors"][0]["sn"] == "SN-1"
+            runtime.quasar_rules.save("common", [])
+            async with client.get(url + "/get_sync_info?device_id=id-1",
+                                  headers={"Host": "quasar.yandex.net"}) as response:
+                assert response.status == 200
+            assert runtime.quasar_errors == {}  # следующая сборка без ошибки снимает состояние
+            async with client.get(url + "/emulator/api/live") as response:
+                assert (await response.json())["quasar_errors"] == []
     finally:
         await runner.cleanup()
         await runtime.close()
@@ -363,8 +459,9 @@ async def test_get_sync_info_common_and_platform_rules(tmp_path):
     runtime.identities.mutate({'operation': 'user', 'id': 'u1', 'name': 'U'})
     runtime.identities.mutate({'operation': 'device', 'sn': 'SN-1', 'user_id': 'u1',
                                'device_ids': ['id-1'], 'profile': {'platform': 'yandexstation'}})
-    rule = {"name": "mode", "path": "/config/system_config/commandSpottersMode", "kind": "value"}
-    runtime.quasar_rules.save("common", [{**rule, "value": "из-общих"}])
+    rule = {"name": "mode", "path": "/config/system_config/commandSpottersMode", "kind": "select",
+            "value": "Значение", "options": {"Значение": ""}}
+    runtime.quasar_rules.save("common", [{**rule, "options": {"Значение": "из-общих"}}])
     runner, url = await listen(create_app(runtime=runtime))
 
     async def mode_of(client):
@@ -377,7 +474,7 @@ async def test_get_sync_info_common_and_platform_rules(tmp_path):
     try:
         async with ClientSession() as client:
             assert await mode_of(client) == "из-общих"
-            runtime.quasar_rules.save("yandexstation", [{**rule, "value": "из-платформы"}])
+            runtime.quasar_rules.save("yandexstation", [{**rule, "options": {"Значение": "из-платформы"}}])
             assert await mode_of(client) == "из-платформы"
             runtime.quasar_rules.remove_platform("yandexstation")
             assert await mode_of(client) == "из-общих"
@@ -387,22 +484,18 @@ async def test_get_sync_info_common_and_platform_rules(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_get_sync_info_custom_and_legacy_unchanged(tmp_path):
-    """custom/legacy: свой ответ как есть, legacy-конфиг state.quasar — пока нет ни одной замены."""
+async def test_get_sync_info_custom_unchanged(tmp_path):
+    """«Свой» источник: сохранённый ответ как есть — без слоёв, glagol.security и группы."""
     from server_emulator.server import create_app
     from tests.conftest import listen
 
     runtime = Runtime(directory=tmp_path)
     runtime.identities.mutate({'operation': 'user', 'id': 'u1', 'name': 'U'})
-    for sn in ("SN-1", "SN-2"):
-        runtime.identities.mutate({'operation': 'device', 'sn': sn, 'user_id': 'u1',
-                                   'device_ids': [sn], 'profile': {'platform': 'yandexstation'}})
+    runtime.identities.mutate({'operation': 'device', 'sn': 'SN-1', 'user_id': 'u1',
+                               'device_ids': ['SN-1'], 'profile': {'platform': 'yandexstation'}})
     runtime.identities.mutate({'operation': 'state', 'sn': 'SN-1', 'state': {
         'quasar_source': 'custom',
         'quasar_custom': {'status': 'ok', 'config': {'a': 1}, 'tags': ['t']}}})
-    runtime.identities.mutate({'operation': 'state', 'sn': 'SN-2', 'state': {
-        'quasar': {'config': {'device_config': {'name': 'legacy'}}, 'tags': ['x'],
-                   'subscription': {'mode': 'legacy'}}}})
     runner, url = await listen(create_app(runtime=runtime))
     try:
         async with ClientSession() as client:
@@ -410,14 +503,6 @@ async def test_get_sync_info_custom_and_legacy_unchanged(tmp_path):
                                   headers={"Host": "quasar.yandex.net"}) as response:
                 assert response.status == 200
                 assert await response.json() == {'status': 'ok', 'config': {'a': 1}, 'tags': ['t']}
-            async with client.get(url + "/get_sync_info?device_id=SN-2",
-                                  headers={"Host": "quasar.yandex.net"}) as response:
-                assert response.status == 200
-                body = await response.json()
-                assert body["config"] == {'device_config': {'name': 'legacy'}}
-                assert body["tags"] == ['x'] and body["subscription"] == {'mode': 'legacy'}
-                security = body["glagol"]["security"]
-                assert security["server_certificate"].startswith("-----BEGIN CERTIFICATE-----")
     finally:
         await runner.cleanup()
         await runtime.close()
@@ -434,8 +519,9 @@ async def test_get_sync_info_stereo_group_over_rules(tmp_path):
     for sn in ("SN-1", "SN-2"):
         runtime.identities.mutate({'operation': 'device', 'sn': sn, 'user_id': 'u1',
                                    'device_ids': [sn], 'profile': {'platform': 'yandexstation'}})
-    runtime.quasar_rules.save("common", [{"name": "group", "path": "/group", "kind": "value",
-                                          "value": {"name": "шаблон", "from": "common"}}])
+    runtime.quasar_rules.save("common", [{"name": "group", "path": "/group", "kind": "select",
+                                          "value": "Значение",
+                                          "options": {"Значение": {"name": "шаблон", "from": "common"}}}])
     runtime.identities.mutate({'operation': 'group', 'name': 'Пара', 'secret': 'sec',
                                'devices': [{"sn": "SN-1", "role": "leader"},
                                            {"sn": "SN-2", "role": "follower"}]})

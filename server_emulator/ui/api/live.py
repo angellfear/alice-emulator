@@ -91,10 +91,16 @@ async def live(request, runtime, app):
     state = activity.get("state") or "idle"
     if state != "idle" and time.time() - float(activity.get("ts") or 0) > 120:
         state = "idle"  # ход завис без терминального события (обрыв колонки, сбой процесса)
+    quasar = []
+    for device in runtime.identities.data["devices"]:
+        items = runtime.quasar_errors.get(device.get("sn"))
+        if items:  # ошибки последней сборки конфига колонки — нескрываемое уведомление UI
+            quasar.append({"sn": device.get("sn"), "name": device.get("name", ""), "errors": items})
     return web.json_response({
         "intelligence": runtime.settings.get("intelligence") or "agent",
         "services": services,
         "agent": {"state": state,
                   "tool": activity.get("tool") if state == "tool" else None,
                   "error": activity.get("error") if state == "error" else None},
+        "quasar_errors": quasar,
     })

@@ -23,7 +23,7 @@ from .device_images import DeviceImages, images_dir
 from .state_store import StateStore
 from .endpoints import EndpointCatalog
 from .params import ParamStore
-from .quasar_rules import RuleStore
+from .quasar_rules import QUASAR_RULES_DIR, RuleStore
 from . import aapi_handlers
 from . import providers as providers_registry
 from .aapi_handlers import has_handler as aapi_has_handler
@@ -157,6 +157,9 @@ class Runtime:
         # с корнем и пишут in-place, как в speech_log/tool_log.
         self.agent_activity = {"state": "idle", "tool": None, "error": None, "ts": 0.0}
         self.voice_errors = {}  # asr | tts | llm → {"error", "ts"} — красный значок в шапке
+        # SN → ошибки последней сборки конфига колонки (quasar_rules._record_errors):
+        # нескрываемое уведомление UI, снимается следующей сборкой без ошибок
+        self.quasar_errors = {}
         self.settings_rev = time.time()  # ревизия настроек: сервер отвергает устаревшую копию формы 
         import itertools
         self.sequence = itertools.count(1)  # SequenceNumber ответов (реальный счётчик сервера)
@@ -200,8 +203,12 @@ class Runtime:
         self.endpoint_scripts = ScriptRunner()  # обработчики <id>.py (режим script)
         from .voice_stack import VoiceStack
         self.voice_stack = VoiceStack(self)  # варианты ASR/TTS/LLM + локальные речевые серверы
-        self.quasar_rules = RuleStore(self.directory / "quasar",  # замены sync-конфига: общие и по платформам
-                                      extension_dirs=lambda: self._extension_layers("quasar"))
+        # замены sync-конфига: общие и по платформам; поставляемый набор — из пакета,
+        # ALICA_QUASAR_RULES_DIR подменяет каталог набора (тесты, по образцу ALICA_SCHEMAS_DIR)
+        shipped_rules = os.environ.get("ALICA_QUASAR_RULES_DIR") or QUASAR_RULES_DIR
+        self.quasar_rules = RuleStore(self.directory / "quasar",
+                                      extension_dirs=lambda: self._extension_layers("quasar"),
+                                      shipped_dir=shipped_rules)
         self.device_images = DeviceImages()  # картинки с веб-версии умного дома — только по согласию (api/setup/images)
         self.auth = AuthStore(self.directory)  # Принципалы/сессии панели (нет файла — открытый режим)
         # менеджер расширений; включённые загружаются сразу (без сети и хуков),

@@ -266,14 +266,15 @@ class IdentityRegistry:
                 user['quasar_overrides'] = old['quasar_overrides']  # слой аккаунта не теряется при правке имени
             value['users'] = [u for u in value['users'] if u['id'] != identifier] + [user]
         elif operation == 'user_quasar_overrides':
-            # Слой аккаунта Quasar-конфига: {id, quasar_overrides: [{path, source}]};
+            # Слой аккаунта Quasar-конфига: {id, quasar_overrides: [правила]};
             # пути — только config.account_config.*; пустой список очищает слой.
-            from .quasar_config import QuasarConfigError, validate_account_overrides
+            from .quasar_config import QuasarConfigError
+            from .quasar_rules import validate_account_rules
             user = next((u for u in value['users'] if u['id'] == request.get('id')), None)
             if user is None:
                 raise ValueError('Пользователь не найден')
             try:
-                items = validate_account_overrides(request.get('quasar_overrides', []))
+                items = validate_account_rules(request.get('quasar_overrides', []))
             except QuasarConfigError as exc:
                 raise ValueError(str(exc))
             if items:

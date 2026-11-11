@@ -207,7 +207,8 @@
         accountItems.forEach((item, i) => {
           const row = node('div'); row.className = 'tree-leaf';
           row.append(node('span', item.path.slice(ACCOUNT_PREFIX.length)));
-          const summary = node('code', JSON.stringify(item.source).slice(0, 80)); summary.style.flex = '1'; row.append(summary);
+          const summary = node('code', item.kind === 'delete' ? 'удалить'
+            : JSON.stringify(item.options[item.value]).slice(0, 80)); summary.style.flex = '1'; row.append(summary);
           const edit = node('button', 'Править'); edit.type = 'button'; edit.className = 'secondary';
           edit.onclick = () => accountOverrideDialog(item, saved => { accountItems[i] = saved; renderList(); markDirty(); });
           const drop = node('button', '✕'); drop.type = 'button'; drop.className = 'icon-btn';
@@ -254,30 +255,29 @@
   }
   // Диалог одного переопределения аккаунта: путь внутри account_config + источник значения.
   // Формат как у устройства: {path, source}; путь хранится полным (config.account_config.<путь>).
-  const ACCOUNT_PREFIX = 'config.account_config.';
+  const ACCOUNT_PREFIX = '/config/account_config/';
   function accountOverrideDialog(item, onSave) {
     const { dialog, form } = dialogFrame(item ? 'Значение аккаунта' : 'Новое значение аккаунта');
     const pathLabel = node('label', 'Путь внутри account_config');
-    const path = node('input'); path.required = true; path.placeholder = 'spotter';
+    const path = node('input'); path.required = true; path.placeholder = 'spotter или jingle/volume';
     path.value = item ? item.path.slice(ACCOUNT_PREFIX.length) : '';
     pathLabel.append(path);
-    const typeLabel = node('label', 'Источник');
+    const typeLabel = node('label', 'Значение');
     const type = node('select');
-    for (const [value, title] of Object.entries({ literal: 'своё значение (JSON)', expr: 'шаблон {{токены}}',
-      db: 'из БД эмулятора (user./device.)', run: 'запуск скрипта (белый список)',
-      select: 'переключить селектор (вариант $select)', delete: 'удалить ключ' })) type.append(new Option(title, value));
+    for (const [value, title] of Object.entries({ literal: 'своё значение (JSON)',
+      template: 'шаблон {{токены}}', db: 'из БД эмулятора (user./device.)',
+      run: 'запуск скрипта (белый список)', delete: 'удалить ключ' })) type.append(new Option(title, value));
     typeLabel.append(type);
     const valueLabel = node('label', 'Значение');
     const text = node('input'); const json = node('textarea'); json.rows = 4;
     valueLabel.append(text, json);
-    const source = item && item.source;
-    const fields = source && typeof source === 'object' && !Array.isArray(source) ? source : {};
+    const state = item && item.kind === 'select' ? item.options[item.value] : item && item.kind === 'delete' ? { delete: true } : null;
+    const fields = state && typeof state === 'object' && !Array.isArray(state) ? state : {};
     if ('delete' in fields) type.value = 'delete';
-    else if ('$select' in fields) { type.value = 'select'; text.value = fields.$select; }
-    else if ('expr' in fields) { type.value = 'expr'; text.value = fields.expr; }
     else if ('db' in fields) { type.value = 'db'; text.value = fields.db; }
     else if ('run' in fields) { type.value = 'run'; text.value = fields.run; }
-    else { type.value = 'literal'; json.value = item ? JSON.stringify(item.source, null, 2) : '"alisa"'; }
+    else if (typeof state === 'string' && state.includes('{{')) { type.value = 'template'; text.value = state; }
+    else { type.value = 'literal'; json.value = state != null ? JSON.stringify(state, null, 2) : '"alisa"'; }
     const syncView = () => { json.hidden = type.value !== 'literal'; text.hidden = type.value === 'literal' || type.value === 'delete'; };
     type.onchange = syncView; syncView();
     form.append(pathLabel, typeLabel, valueLabel);
@@ -289,14 +289,21 @@
     form.onsubmit = e => {
       e.preventDefault(); errLine.hidden = true;
       try {
-        const relative = path.value.trim().replace(/^\.+|\.+$/g, '').replace(/^config\.account_config\./, '');
+        const relative = path.value.trim().replace(/^\.+|\.+$/g, '').replace(/^config\.account_config\./, '')
+          .replace(/\./g, '/');
         if (!relative) throw Error('Укажите путь');
-        let value;
-        if (type.value === 'delete') value = { delete: true };
-        else if (type.value === 'literal') { try { value = JSON.parse(json.value || 'null'); } catch { throw Error('Значение: корректный JSON'); } }
-        else if (!text.value.trim()) throw Error('Укажите значение');
-        else value = { [type.value === 'select' ? '$select' : type.value]: text.value.trim() };
-        onSave({ path: ACCOUNT_PREFIX + relative, source: value });
+        const name = relative.split('/').pop();
+        let rule;
+        if (type.value === 'delete') rule = { name, path: ACCOUNT_PREFIX + relative, kind: 'delete', value: null };
+        else {
+          let value;
+          if (type.value === 'literal') { try { value = JSON.parse(json.value || 'null'); } catch { throw Error('Значение: корректный JSON'); } }
+          else if (type.value === 'template') value = text.value.trim();
+          else value = { [type.value]: text.value.trim() };
+          rule = { name, path: ACCOUNT_PREFIX + relative, kind: 'select', enabled: true,
+                   options: { Значение: value }, value: 'Значение' };
+        }
+        onSave(rule);
         dialog.close(); dialog.remove();
       } catch (err) { errLine.hidden = false; errLine.textContent = err.message; }
     };

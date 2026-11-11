@@ -150,6 +150,14 @@ def isolated_speech_dir(tmp_path_factory, monkeypatch):
     monkeypatch.setattr(voice_stack, "SPEECH_DIR", tmp_path_factory.mktemp("speech"))
 
 
+@pytest.fixture(autouse=True)
+def isolated_quasar_rules(tmp_path_factory, monkeypatch):
+    """Поставляемый набор замен Quasar — во временной пустой папке: пакетные файлы
+    (quasar_defaults/rules) не влияют на тесты; тесты поставляемого слоя подкладывают
+    свои файлы с явным каталогом."""
+    monkeypatch.setenv("ALICA_QUASAR_RULES_DIR", str(tmp_path_factory.mktemp("quasar-rules")))
+
+
 def is_rsa_key(pem):
     """PEM приватного RSA-ключа (сгенерированного в тесте) загружается и имеет 2048 бит —
     проверка формы без литерала PEM-маркера в исходниках тестов."""

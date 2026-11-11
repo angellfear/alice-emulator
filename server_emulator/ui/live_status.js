@@ -37,11 +37,32 @@
     chip.hidden = data.intelligence !== 'agent';   // микросостояние показываем только в режиме «AI агент»
     host.replaceChildren(...parts, chip);
   }
+  // Ошибки сборки конфига колонок: закреплённое уведомление на колонку (notify.pin —
+  // без крестика и автоскрытия), снимается следующей сборкой без ошибок (unpin).
+  // Полный список — вкладка «Quasar», панель устройства.
+  const quasarPinned = new Set();
+  function quasarNotify(data) {
+    const active = new Set();
+    for (const item of (data.quasar_errors || [])) {
+      const first = (item.errors || [])[0];
+      if (!first) continue;
+      active.add(item.sn);
+      const count = (item.errors || []).length;
+      window.notify.pin('quasar:' + item.sn,
+        'Конфиг колонки · ' + (item.name || item.sn) + ' — ошибок: ' + count + ' · «'
+        + first.rule + '»: ' + String(first.error).slice(0, 160)
+        + (count > 1 ? ' · полный список — вкладка «Quasar»' : ''),
+        { error: true });
+    }
+    for (const sn of [...quasarPinned])
+      if (!active.has(sn)) { window.notify.unpin('quasar:' + sn); quasarPinned.delete(sn); }
+    for (const sn of active) quasarPinned.add(sn);
+  }
   async function tick() {
     if (document.hidden) return;   // опрос только пока вкладка видима
     try {
       const r = await fetch('api/live', { headers: { 'X-Emulator': '1' } });
-      if (r.ok) render(await r.json());
+      if (r.ok) { const data = await r.json(); render(data); quasarNotify(data); }
     } catch (e) { /* сервер перезапускается — следующей опрос подхватит */ }
   }
   setInterval(tick, 1500);

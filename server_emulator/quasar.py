@@ -83,16 +83,19 @@ class QuasarBackend:
         /get_sync_info и /glagol/device_list): параметры пользователя (device.glagol_cert /
         device.glagol_key) сильнее автогена (state.glagol_security). Не задан ни один —
         автоген; задан ровно один или параметр пуст — пара неполна, поля нет."""
-        from .quasar_config import QuasarConfigError, context_for, resolve_param
-        context = context_for(self.runtime, device)
+        from .quasar_config import device_platform
+        params = getattr(self.runtime, "quasar_params", None)
         values = {}
         unset = False
         for field, param in (('server_certificate','device.glagol_cert'),('server_private_key','device.glagol_key')):
-            try:
-                value = resolve_param(param, self.runtime, device, context)
-            except QuasarConfigError:
-                unset = True  # параметр не задан — не блокирует автоген
-                continue
+            value = None
+            if params is not None:
+                try:
+                    value = params.resolve(param, user_id=(device or {}).get('user_id'),
+                                           sn=(device or {}).get('sn'),
+                                           platform=device_platform(device) or None)
+                except KeyError:
+                    pass  # параметр не задан — не блокирует автоген
             if isinstance(value, str) and value:
                 values[field] = value
             else:
@@ -140,7 +143,7 @@ class QuasarBackend:
             item = {'id':next(iter(other['device_ids']),other['sn']),'name':other['name'],'platform':own_state.get('platform','unknown'),
                     'activation_code':own_state.get('activation_code',''),'activation_region':own_state.get('activation_region',''),
                     'promocode_activated':bool(own_state.get('promocode_activated',False)),
-                    'networkInfo':own_state.get('networkInfo',{}),'config':own_state.get('quasar',{}).get('config',{}).get('device_config',{}),'tags':[]}
+                    'networkInfo':own_state.get('networkInfo',{}),'config':{},'tags':[]}
             security = self.glagol_security_with_autogen(other)
             if security:
                 item['glagol'] = {'security':security}
@@ -223,8 +226,8 @@ class QuasarBackend:
                 state['reported_platform'] = reported
                 self.runtime.identities.mutate({'operation':'state','sn':device['sn'],'state':copy.deepcopy(state)})
                 device = self.runtime.identities.resolve(device_id) or device  # свежая запись
-            # «Свой» источник: сохранённый ответ как есть — без слоёв,
-            # инлайн-узлов и подстановки стереопары.
+            # «Свой» источник: сохранённый ответ как есть — без слоёв, glagol.security
+            # и группы стереопары.
             if state.get('quasar_source')=='custom':
                 custom=state.get('quasar_custom')
                 if not isinstance(custom,dict) or not isinstance(custom.get('config'),dict):
@@ -234,36 +237,22 @@ class QuasarBackend:
             # автоген (лениво запоминается в state.glagol_security).
             security = self.glagol_security_with_autogen(device)
             # Встроенный шаблон платформы → общие замены → замены платформы → аккаунт →
-            # устройство → динамика (quasar_rules). Legacy — полный конфиг в state.quasar
-            # без единого слоя замен.
-            quasar = state.get('quasar',{})
-            if not (isinstance(quasar.get('config'),dict) and self.runtime.quasar_rules.is_empty()):
-                from .quasar_config import device_platform
-                from .quasar_rules import compose_config
-                try:
-                    body = compose_config(self.runtime, device_platform(device), device,
-                                          device_rules=state.get('quasar_overrides'))
-                except Exception as exc:  # битый источник: колонке нужен внятный ответ
-                    return 409, {'error':'quasar_config_source','hint':str(exc)[:200]}
-                if not isinstance(body, dict) or not isinstance(body.get('config'), dict):
-                    return 409, {'error':'quasar_config_no_config','hint':'В конфиге нет sync.config'}
-                result = {'status':'ok', **body}
-                if security:
-                    result['glagol'] = {'security':security}
-                group = self.group_payload(device)
-                if group:
-                    result['group'] = group  # реестр стереопар главнее узла шаблона
-                return 200, result
-            # Legacy-путь (до миграции на платформы): полный конфиг в state.quasar
-            result = {'status':'ok','config':quasar['config'],'tags':quasar.get('tags',[])}
-            for key in ('glagol','subscription','alice_pro_subscription'):
-                if key in quasar:
-                    result[key] = quasar[key]
-            if 'glagol' not in result and security:
+            # устройство → динамика (quasar_rules).
+            from .quasar_config import device_platform
+            from .quasar_rules import compose_config
+            try:
+                body = compose_config(self.runtime, device_platform(device), device,
+                                      device_rules=state.get('quasar_overrides'))
+            except Exception as exc:  # битый источник: колонке нужен внятный ответ
+                return 409, {'error':'quasar_config_source','hint':str(exc)[:200]}
+            if not isinstance(body, dict) or not isinstance(body.get('config'), dict):
+                return 409, {'error':'quasar_config_no_config','hint':'В конфиге нет sync.config'}
+            result = {'status':'ok', **body}
+            if security:
                 result['glagol'] = {'security':security}
             group = self.group_payload(device)
             if group:
-                result['group'] = group
+                result['group'] = group  # реестр стереопар главнее узла шаблона
             return 200, result
         if path=='/glagol/device_list':
             return 200, {'status':'ok','devices':self.device_list(device['user_id'])}

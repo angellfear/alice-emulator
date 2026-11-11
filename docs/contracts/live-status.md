@@ -1,7 +1,7 @@
 ---
 title: "Режим «Интеллект»: переключение и строка состояния"
 status: stable
-date: "2026-11-07"
+date: "2026-11-11"
 module: "server_emulator/ui/live_status.js"
 ---
 
@@ -32,3 +32,9 @@ module: "server_emulator/ui/live_status.js"
 `pipeline_error` — добавленные события), «вызывает инструмент» пишут `agent/tools.py` и
 legacy-цикл (`Runtime.note_tool_call`). Журнал ошибок сервисов — `Runtime.voice_errors`
 (снятие по `asr_final`/`tts_done`/`model_done`), зависший ход гаснет в `api/live` за таймаут.
+
+Тот же опрос несёт `quasar_errors` — колонки с ошибками последней сборки Quasar-конфига
+(`Runtime.quasar_errors`). На каждую колонку — закреплённое уведомление `notify.pin('quasar:<SN>', …)`
+(`ui/toast.js`: без крестика и автоскрытия, над обычными уведомлениями и вне их лимита);
+колонка без ошибок в ответе — `notify.unpin`. Текст и правила — [quasar-config](quasar-config.md),
+«Динамика».

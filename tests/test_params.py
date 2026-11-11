@@ -74,12 +74,12 @@ def test_seed_idempotent(tmp_path):
     device = {"sn": "SN1", "device_ids": ["SN1"], "name": "N", "user_id": "u1",
               "profile": {}, "fields": {}}
     body = compose_config(runtime, "", device, device_rules=[
-        {"name": "wifi", "path": "/wifi", "kind": "param", "value": "user.wifi_hash"}])
+        {"name": "wifi", "path": "/wifi", "kind": "select", "value": "Значение",
+         "options": {"Значение": "{{user.wifi_hash}}"}}])
     assert body["wifi"] == "abc"
     runtime.store.close()
 
 
-@pytest.mark.asyncio
 def test_resolve_view_sources_and_secret(store):
     """Итог цепочки с уровнем-источником по каждому ключу; секрет — маской."""
     store.def_upsert({"key": "server.timezone", "scope": "server", "type": "string",

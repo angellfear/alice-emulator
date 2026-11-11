@@ -1,0 +1,411 @@
+{
+  "rules": [
+    {
+      "id": "e6d3be7d27",
+      "name": "aliceProactivity",
+      "path": "/config/account_config/aliceProactivity",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "9e7fdd6635",
+      "name": "crossfadeEnabled",
+      "path": "/config/account_config/audio_player/crossfadeEnabled",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "3db73bbe3d",
+      "name": "childContentAccess",
+      "path": "/config/account_config/childContentAccess",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "children"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "b4d935791d",
+      "name": "contentAccess",
+      "path": "/config/account_config/contentAccess",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "medium"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "aadd4d31c0",
+      "name": "doNotUseUserLogs",
+      "path": "/config/account_config/doNotUseUserLogs",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "db3fdcf0b4",
+      "name": "answer",
+      "path": "/config/account_config/enabledCommandSpotters/call/answer",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Выкл"
+    },
+    {
+      "id": "da8ebe3f86",
+      "name": "bluetooth",
+      "path": "/config/account_config/enabledCommandSpotters/music/bluetooth",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Выкл"
+    },
+    {
+      "id": "1904badbbb",
+      "name": "feedback",
+      "path": "/config/account_config/enabledCommandSpotters/music/feedback",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Выкл"
+    },
+    {
+      "id": "8500e50136",
+      "name": "jingle",
+      "path": "/config/account_config/jingle",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "9f6d0abe6a",
+      "name": "Wi-Fi hash",
+      "path": "/config/account_config/user_wifi_config/wifi_hash",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "{{user.wifi_hash}}"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "b5fb15d939",
+      "name": "intonationSpotting",
+      "path": "/config/device_config/intonationSpotting",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "enableIntonationInterruption": true,
+          "enabled": true
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "4d371c7c45",
+      "name": "Широта",
+      "path": "/config/device_config/location/latitude",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "{{user.location.latitude}}"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "bd22842c5a",
+      "name": "Долгота",
+      "path": "/config/device_config/location/longitude",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "{{user.location.longitude}}"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "697f4ffb29",
+      "name": "Имя устройства",
+      "path": "/config/device_config/name",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "{{device.name}}"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "88c33ad044",
+      "name": "palm_gesture",
+      "path": "/config/device_config/palm_gesture",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    },
+    {
+      "id": "cba13b39f5",
+      "name": "deepStandbyTimeoutMinutes",
+      "path": "/config/device_config/standby/deepStandbyTimeoutMinutes",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": 30
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "5f2eb9204a",
+      "name": "quasmodrom_subgroup",
+      "path": "/config/system_config/appmetrikaReportEnvironment/quasmodrom_subgroup",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "percent_test_v2"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "f9fae7a1c1",
+      "name": "test_buckets",
+      "path": "/config/system_config/appmetrikaReportEnvironment/test_buckets",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "1710193,0,90;1705880,0,16;1669619,0,49;1723830,0,92;1699017,0,41;1618607,0,81;1217762,0,92;945524,0,17;950035,0,81;956122,0,8;1288685,0,58;1599003,0,87;1669758,0,28;1493488,0,77"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "7db49a6754",
+      "name": "testids",
+      "path": "/config/system_config/appmetrikaReportEnvironment/testids",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "1058670_1058695_1058696_1058739_1058743_1058746_1074585_1118599_1155918_1156392_1209862_1221933_1256365_1272893_1283837_1288103_1294733_1336531_1364771_1395542_1431608_1432181_1452927_1453831_1454721_1457247_1457514_1458555_1470450_1471404_1493488_1510925_1540985_1552294_1576431_1608520_1617525_1646339_1650637_1666209_1669619_1699017_1703790_1705880_1710274_1723830_1723947"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "ce8be1cb5b",
+      "name": "quasmodrom_subgroup",
+      "path": "/config/system_config/env/quasmodrom_subgroup",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "percent_test_v2"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "a78ebfaa6b",
+      "name": "test_buckets",
+      "path": "/config/system_config/env/test_buckets",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "1710193,0,90;1705880,0,16;1669619,0,49;1723830,0,92;1699017,0,41;1618607,0,81;1217762,0,92;945524,0,17;950035,0,81;956122,0,8;1288685,0,58;1599003,0,87;1669758,0,28;1493488,0,77"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "0573ec6261",
+      "name": "testids",
+      "path": "/config/system_config/env/testids",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "1058670_1058695_1058696_1058739_1058743_1058746_1074585_1118599_1155918_1156392_1209862_1221933_1256365_1272893_1283837_1288103_1294733_1336531_1364771_1395542_1431608_1432181_1452927_1453831_1454721_1457247_1457514_1458555_1470450_1471404_1493488_1510925_1540985_1552294_1576431_1608520_1617525_1646339_1650637_1666209_1669619_1699017_1703790_1705880_1710274_1723830_1723947"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "0fc7886238",
+      "name": "samplingRatio",
+      "path": "/config/system_config/fluent-bit/samplingRatio",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": 1
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "7ba4dbccad",
+      "name": "supported_frames",
+      "path": "/config/system_config/hybrid_request_factory/hybrid/scenarios/fast_command_scenario/supported_frames",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": {
+          "personal_assistant.scenarios.bluetooth_off": [],
+          "personal_assistant.scenarios.bluetooth_on": [],
+          "personal_assistant.scenarios.player.continue": [],
+          "personal_assistant.scenarios.player.next_track": [],
+          "personal_assistant.scenarios.player.pause": [],
+          "personal_assistant.scenarios.player.previous_track": [],
+          "personal_assistant.scenarios.quasar.go_back": [
+            "main",
+            "centaur_default_screen",
+            "music_player",
+            "video_player"
+          ],
+          "personal_assistant.scenarios.quasar.go_down": [
+            "main",
+            "centaur_default_screen"
+          ],
+          "personal_assistant.scenarios.quasar.go_forward": [
+            "main",
+            "centaur_default_screen"
+          ],
+          "personal_assistant.scenarios.quasar.go_home": [],
+          "personal_assistant.scenarios.quasar.go_left": [
+            "main",
+            "centaur_default_screen"
+          ],
+          "personal_assistant.scenarios.quasar.go_up": [
+            "main",
+            "centaur_default_screen"
+          ],
+          "personal_assistant.scenarios.sound.louder": [],
+          "personal_assistant.scenarios.sound.quiter": []
+        }
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "8c8475a738",
+      "name": "disableOnNoSpeechDetected",
+      "path": "/config/system_config/intonationSpotting/disableOnNoSpeechDetected",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Выкл"
+    },
+    {
+      "id": "3d66c5cdc3",
+      "name": "quasmodrom_subgroup",
+      "path": "/config/system_config/quasmodrom_subgroup",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": "percent_test_v2"
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "559ed3efc1",
+      "name": "pollPeriodSec",
+      "path": "/config/system_config/syncd/pollPeriodSec",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": 1200
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "084f783c48",
+      "name": "clientEventsWhitelist",
+      "path": "/config/system_config/voiceDialogSettings/protoAliceApi/clientEventsWhitelist",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "VoiceInput",
+          "TextInput",
+          "MusicInput",
+          "SynchronizeStateRequest",
+          "StreamControl"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "ab66cd2bdf",
+      "name": "serverEventsWhitelist",
+      "path": "/config/system_config/voiceDialogSettings/protoAliceApi/serverEventsWhitelist",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Значение": [
+          "AliceResponse",
+          "DeferredAliceResponse",
+          "StreamControl"
+        ]
+      },
+      "value": "Значение"
+    },
+    {
+      "id": "5fe1b528dd",
+      "name": "Подписка",
+      "path": "/subscription",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Включена": {
+          "enabled": true,
+          "mode": "transaction",
+          "ttl": 0
+        },
+        "Выключена (invalid_subscription_user)": {
+          "enabled": false,
+          "mode": "subscription",
+          "ttl": 0,
+          "disabled_reason": "invalid_subscription_user",
+          "statusUrl": "https://plus.yandex.ru/module-brick?deviceId={{device_id}}&screen=unknown-uid"
+        }
+      },
+      "value": "Включена"
+    },
+    {
+      "id": "b9059301ca",
+      "name": "Alice Pro",
+      "path": "/alice_pro_subscription",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Вкл": true,
+        "Выкл": false
+      },
+      "value": "Вкл"
+    }
+  ]
+}
