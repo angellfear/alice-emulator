@@ -32,6 +32,8 @@ dependencies = [
   "jsonpointer>=3,<4",
   "yandex-music>=3.2,<4",
   "requests>=2.28,<3",
+  "alembic>=1.13,<2",
+  "sqlalchemy>=2,<3",
 ]
 
 [project.optional-dependencies]

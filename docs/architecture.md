@@ -204,6 +204,7 @@ agent: ответ готов → TTS заранее → async_reply.keep()
 | hassil | Шаблоны фраз сценариев |
 | jinja2 | Песочница шаблонов сценариев |
 | pydantic | Типизированные модели настроек |
+| alembic, sqlalchemy | Миграции схем SQLite при старте (`server_emulator/migrations/`, по ветке на базу). Накладные расходы: ~24 МБ установки (SQLAlchemy ~20 МБ, alembic ~2,5 МБ, Mako ~0,8 МБ), ~0,07–0,09 с на проверку «все базы на head» при старте (замер: 3 запуска, медиана старта сервера 7,3 с — вклад миграций незаметен) |
 | aiodns | DNS прохода наверх и туннеля |
 | dulwich, packaging | Версия и самообновление без git CLI (чистый Python, без нативных бинарников под платформы) |
 | ddgs, trafilatura, httpx | web_search / web_fetch |

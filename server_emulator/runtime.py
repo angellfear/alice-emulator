@@ -135,6 +135,14 @@ class Runtime:
         self.directory.mkdir(parents=True, exist_ok=True)
         from . import proto_schemas
         proto_schemas.DIRECTORY = self.directory / "proto"  # схемы, импортированные из libquasar_daemons.so
+        # Миграции схем SQLite до открытия соединений хранилищ. Ветка журнала сервера
+        # первой: его соединение открывается сразу после — причина сбоя миграций
+        # попадает в журнал, сервер не стартует.
+        from .migrations import upgrade_all, upgrade_database
+        upgrade_database(self.directory / "server_log.sqlite3", "server_log")
+        from .server_log import ServerLog, install_logging  # журнал «Дополнительно → Лог»
+        self.server_log = install_logging(ServerLog(self.directory / "server_log.sqlite3"))
+        upgrade_all(self.directory, skip="server_log", log=self.server_log.log)
         # Единое SQLite-хранилище; legacy JSON мигрируется один раз с backup.
         self.store = StateStore(self.directory / "emulator.sqlite3")
         self.store.on_scenario_data = self._scenario_data_changed  # справочник фраз: lists_from
@@ -144,8 +152,6 @@ class Runtime:
         # в settings_service.SettingsService; runtime держит текущий dict и оркестрацию.
         self.settings_service = SettingsService(self.store, self.directory)
         self.settings = self.settings_service.load()
-        from .server_log import ServerLog, install_logging  # журнал «Дополнительно → Лог»
-        self.server_log = install_logging(ServerLog(self.directory / "server_log.sqlite3"))
         self.scenario_dir = self.settings_service.scenario_dir  # один JSON-файл на сценарий
         self.provider_manager = ProviderManager(self)  # (DEBT-01): ASR/TTS/LLM-резолвинг и legacy-цикл
         self.recent = []
