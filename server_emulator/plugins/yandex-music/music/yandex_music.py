@@ -21,8 +21,10 @@
 
 neighbor(ctx, track_id, context, step): очередь — память модуля по владельцу (как у
 встроенного Spotify): «включи музыку» и колбэк «дальше» — разные запросы; step ±1 по
-сохранённому списку, 0 — текущий трек (продолжение с паузы). rate — None (лайки Яндекса
-через захват колбэков колонки здесь не поддержаны).
+сохранённому списку, 0 — текущий трек (продолжение с паузы).
+
+rate(ctx, track_id, like): «Мне нравится» или дизлайк в аккаунте — uid из
+`Client.account_status()`, затем `users_likes_tracks_add` / `users_dislikes_tracks_add`.
 
 Вызовы библиотеки синхронные — в потоке (asyncio.to_thread). BASE_URL — константа модуля:
 тесты подменяют её локальным подменным HTTP, настоящий Яндекс из автотестов не вызывается.
@@ -192,5 +194,22 @@ def _neighbor_sync(ctx, track_id, step):
 
 
 async def rate(ctx, track_id, like):
-    """Лайки Яндекса через захват колбэков колонки — здесь не поддержаны (честно None)."""
-    return None
+    """Оценка трека в аккаунте (интерфейс ядра): like — «Мне нравится», иначе дизлайк.
+    True — Яндекс подтвердил; нет токена, трека или сбой API — None."""
+    return await asyncio.to_thread(_rate_sync, ctx, str(track_id or ""), bool(like))
+
+
+def _rate_sync(ctx, track_id, like):
+    token = _captured_token(ctx)
+    if not token or not track_id:
+        return None
+    client = _client(ctx, token)
+    try:
+        status = client.account_status()
+        uid = status.account.uid if status and status.account else None
+        if uid is None:
+            return None
+        add = client.users_likes_tracks_add if like else client.users_dislikes_tracks_add
+        return True if add(track_id, user_id=uid) else None
+    except Exception:  # сеть/API библиотеки — оценка не подтверждена
+        return None

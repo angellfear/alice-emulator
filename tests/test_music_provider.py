@@ -115,6 +115,7 @@ MUSIC_PHRASES = {"entries": [
      "handler": "core:media.music"},
     {"id": "continue", "sentences": ["(продолжи|продолжить|продолжай) [(музыку|играть)]"],
      "handler": "core:media.music"},
+    {"id": "like", "sentences": ["лайк", "(поставь|ставлю) лайк"], "handler": "core:media.music"},
     {"id": "search", "sentences": ["(включи|запусти|поставь|послушай) {query}"],
      "handler": "core:media.music", "search": True}]}
 
@@ -954,6 +955,38 @@ async def test_next_prev_continue_phrases_use_provider_queue(tmp_path):
         assert report["scenario"] == "media.music", report
         calls = json.loads(marker.read_text(encoding="utf-8"))
         assert [call[3] for call in calls if call[0] == "neighbor"] == [1, -1, 0]
+    finally:
+        await runtime.close()
+
+
+async def test_like_phrase_rates_current_track(tmp_path):
+    """«лайк» при треке в плеере: rate(текущий, True) поставщика → стек образца
+    (анимация player_like, состояние и мета очереди с LIKE_STATUS_LIKE, tts_play_placeholder
+    последним, без audio_play), речь «Рада что вы оценили.»; отказ rate — отказ словами."""
+    runtime = Runtime(tmp_path)
+    marker = tmp_path / "marker.json"
+    module = _provider_module(marker).replace("return NEXT if step > 0 else None", "return NEXT")
+    make_music_extension(runtime, files={"music/fake.py": module}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
+    station = {"player": {"state": "playing", "playing": True, "title": "Трек 9"}}
+    try:
+        report = await say(runtime, "лайк", station=station, deliver=False)
+        assert report["scenario"] == "media.music" and report["speech"] == "Рада что вы оценили.", report
+        [message] = report["messages"]
+        assert _reply_names(message) == ["draw_animation_directive", "set_audio_player_sequence_state_directive",
+                                         "apply_player_playback_queue_directive", "tts_play_placeholder"]
+        assert message.Event.AliceResponse.Response.Cards[0].Text == "Рада, что вы оценили."
+        state = _decoded(message, "set_audio_player_sequence_state_directive",
+                         "NAlice.TAudioPlayerCapability.TSetSequenceStateDirective")
+        track_id = NEXT_TRACK["id"]
+        assert state["SequenceState"]["CurrentItem"]["Track"] == {
+            "Id": track_id, "Uuid": track_id, "LikeStatus": "LIKE_STATUS_LIKE"}
+        queue = _decoded(message, "apply_player_playback_queue_directive",
+                         "NAlice.TMusicPlatformQueueCapability.TApplyMusicPlatformQueueDirective")
+        records = queue["MusicPlatformQueue"]["MusicPlatformMetaStorage"]["ProviderMeta"]
+        assert [r["TrackMetaRecords"][track_id]["LikeStatus"] for r in records.values()] == ["LIKE_STATUS_LIKE"]
+        calls = json.loads(marker.read_text(encoding="utf-8"))
+        assert ["rate", track_id, True] in calls
     finally:
         await runtime.close()
 

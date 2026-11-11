@@ -44,6 +44,15 @@
    "handler": "core:media.music"
   },
   {
+   "id": "like",
+   "sentences": [
+    "лайк",
+    "(поставь|ставлю) лайк",
+    "мне нравится [(этот|эта|эту)] [(трек|песня|песню)]"
+   ],
+   "handler": "core:media.music"
+  },
+  {
    "id": "search",
    "sentences": [
     "(включи|запусти|поставь|послушай) {query}"

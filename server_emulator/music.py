@@ -67,6 +67,9 @@ QUEUE_PROTO = "NAlice.TMusicPlatformQueueCapability.TApplyMusicPlatformQueueDire
 SEQSTATE_PROTO = "NAlice.TAudioPlayerCapability.TSetSequenceStateDirective"
 S3_BUCKET = "https://quasar.s3.yandex.net"
 PLAYER_PLAY_ANIMATION = "animations/player_play"  # образец «включи музыку» (захват 2026-11-02)
+PLAYER_LIKE_ANIMATION = "animations/player_like"  # образец «лайк» (захват 2026-11-02)
+LIKE_TEXT = "Рада, что вы оценили."  # образец «лайк»: карточка с запятой, речь без
+LIKE_SPEECH = "Рада что вы оценили."
 
 YANDEX_PROVIDER_ID = "yandex-music"
 # имена из enum Alice.Music.MusicProvider для карт меты и поля Entities.MusicProvider:
@@ -313,11 +316,14 @@ def tts_placeholder():
 def draw_player_play():
     """draw_animation_directive — анимация старта плеера (образец «включи музыку»:
     S3Directory animations/player_play)."""
+    return _draw_animation(PLAYER_PLAY_ANIMATION)
+
+
+def _draw_animation(path):
     return {"name": "draw_animation_directive", "type": "client_action", "is_led_silent": True,
             "analytics_type": "draw_animation_directive", "proto": ANIMATION_PROTO,
             "fields": {"Name": "draw_animation_directive",
-                       "Animations": [{"S3Directory": {"Bucket": S3_BUCKET,
-                                                       "Path": PLAYER_PLAY_ANIMATION}}]}}
+                       "Animations": [{"S3Directory": {"Bucket": S3_BUCKET, "Path": path}}]}}
 
 
 def show_player_screen(track):
@@ -367,7 +373,7 @@ def queue_directive(tracks, index, provider):
             "is_led_silent": True, "proto": QUEUE_PROTO, "fields": fields}
 
 
-def sequence_state_directive(current, tracks, provider):
+def sequence_state_directive(current, tracks, provider, like_status=None):
     """set_audio_player_sequence_state_directive (TSetSequenceStateDirective):
     CurrentItem — играющий трек, MetaStorage — меты треков/артистов/альбомов очереди
     (карты ProviderTrackMeta/ProviderArtistMeta/ProviderAlbumMeta по образцу)."""
@@ -392,11 +398,12 @@ def sequence_state_directive(current, tracks, provider):
             albums[album] = record
     if albums:
         meta["ProviderAlbumMeta"] = {key: {"AlbumMeta": albums}}
+    item = {"Id": str(current["id"]), "Uuid": str(current["id"])}
+    if like_status:  # оценка играющего трека (образец «лайк»: LikeStatus текущего)
+        item["LikeStatus"] = like_status
     return {"name": "set_audio_player_sequence_state_directive", "type": "client_action",
             "is_led_silent": True, "proto": SEQSTATE_PROTO,
-            "fields": {"SequenceState": {
-                "CurrentItem": {"Track": {"Id": str(current["id"]), "Uuid": str(current["id"])}},
-                "MetaStorage": meta}}}
+            "fields": {"SequenceState": {"CurrentItem": {"Track": item}, "MetaStorage": meta}}}
 
 
 def audio_play_directive(track, offset_ms=0, commit_token=None):
@@ -455,6 +462,23 @@ def step_reply(track, provider, text="", offset_ms=0, commit_token=None):
         queue_directive(tracks, 0, provider),
         sequence_state_directive(track, tracks, provider),
         audio_play_directive(track, offset_ms, commit_token)]}
+
+
+def like_reply(track, provider):
+    """Ответ на «лайк» (образец захвата 2026-11-02): анимация player_like, состояние
+    очереди и мета очереди с LikeStatus играющего трека, tts_play_placeholder последним;
+    audio_play нет — трек играет дальше. divui_patch_view/set_div_variables образца
+    правят div-карточку плеера облака (CardId music_scenario_player_key_<трек>_key),
+    которой эмулятор не показывает, — в ответ не входят."""
+    key = provider_key(provider)
+    queue = {"name": "apply_player_playback_queue_directive", "type": "client_action",
+             "is_led_silent": True, "proto": QUEUE_PROTO,
+             "fields": {"MusicPlatformQueue": {"MusicPlatformMetaStorage": {"ProviderMeta": {key: {
+                 "TrackMetaRecords": {str(track["id"]): {"TrackMeta": {}, "LikeStatus": "LIKE_STATUS_LIKE"}}}}}}}}
+    return {"text": LIKE_TEXT, "speech": LIKE_SPEECH, "directives": [
+        _draw_animation(PLAYER_LIKE_ANIMATION),
+        sequence_state_directive(track, [track], provider, "LIKE_STATUS_LIKE"),
+        queue, tts_placeholder()]}
 
 
 # --- recoverCommit: подтверждённый переход трека -----------------------------------

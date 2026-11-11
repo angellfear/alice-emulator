@@ -58,6 +58,7 @@ class FakeMusic:
         self.infos = []  # [track_id]
         self.search_payload = {"result": {"tracks": {"results": ITEMS}}}
         self.info_payload = None  # собирается фикстурой: ссылка на XML подменного сервера
+        self.rated = []  # [(kind, uid, track-ids)]
 
     async def search(self, request):
         self.searches.append(dict(request.query))
@@ -66,6 +67,14 @@ class FakeMusic:
     async def info(self, request):
         self.infos.append(request.match_info["tid"])
         return web.json_response(self.info_payload)
+
+    async def status(self, request):
+        return web.json_response({"result": {"account": {"uid": 42, "login": "test"}}})
+
+    async def rate(self, request):
+        form = await request.post()
+        self.rated.append((request.match_info["kind"], request.match_info["uid"], form.get("track-ids")))
+        return web.json_response({"result": {"revision": 7}})
 
     async def xml(self, request):
         return web.Response(text=INFO_XML, content_type="text/xml")
@@ -86,6 +95,8 @@ async def fake(provider, monkeypatch):
     app.router.add_get("/search", fm.search)
     app.router.add_get("/tracks/{tid}/download-info", fm.info)
     app.router.add_get("/file-download-info/x", fm.xml)
+    app.router.add_get("/account/status", fm.status)
+    app.router.add_post("/users/{uid}/{kind}/tracks/add-multiple", fm.rate)
     app.router.add_get("/preview", fm.xml)  # библиотека добирает ссылки всех вариантов
     runner = web.AppRunner(app)
     await runner.setup()
@@ -172,9 +183,13 @@ async def test_neighbor_steps_through_queue_and_fetches_links(provider, fake):
     assert await provider.neighbor(Ctx(sn="SN-другой"), "", None, 1) is None  # без очереди
 
 
-async def test_rate_is_not_supported(provider):
-    """Лайки не поддержаны — честно None."""
-    assert await provider.rate(Ctx(), "101", True) is None
+async def test_rate_likes_and_dislikes_in_account(provider, fake):
+    """Лайк/дизлайк — uid из account/status, затем likes|dislikes add-multiple."""
+    assert await provider.rate(Ctx(), "101", True) is True
+    assert await provider.rate(Ctx(), "102", False) is True
+    assert fake.rated == [("likes", "42", "101"), ("dislikes", "42", "102")]
+    assert await provider.rate(Ctx(oauth=""), "101", True) is None  # токена нет — к Яндексу не ходим
+    assert len(fake.rated) == 2
 
 
 async def test_final_link_follows_permanent_redirect(provider):
