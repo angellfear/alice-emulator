@@ -43,6 +43,18 @@ def strip_wake(text):
     return " ".join(words)
 
 
+def strip_wake_prefix(text):
+    """Слово-активация в начале сырой ASR-реплики снимается, остальной текст без изменений:
+    «Алиса, включи музыку» → «включи музыку». Кадры аудио идут непрерывно с VoiceInput
+    и до SpotterEnd тоже, поэтому будильное слово доходит до ASR — распознанный текст
+    облако показывает без него."""
+    words = (text or "").split(" ")
+    start = 0
+    while start < len(words) and clean(words[start]) in WAKE_WORDS:
+        start += 1
+    return " ".join(words[start:]) if start else text
+
+
 def _segments(token, lexicon):
     """Разбивка токена на слова лексикона.
 

@@ -48,7 +48,8 @@ module: "server_emulator/voice.py"
 | MatchedUser | биометрия говорящего: классификация голоса (`Request.Event.BiometryClassification`: Scores ClassName/Confidence/Tag, Simple) → `conversation.speaker` и `sessions[<соединение>]['speaker']`; в контексте сценариев — `speaker`, агенту — kwargs `speaker`. Облако не отвечает — эмулятор тоже | voice-clock (MatchedUser) | test_aapi_handlers |
 | CapabilityUpdateState | состояние возможностей колонки: `CapabilityType` (enum, напр. AccessibilityVoiceControlType) + `AnyCapability.RawCapability` → последнее состояние каждого типа в `sessions[…]['capabilities']` (память, без БД) и `conversation.capabilities`; в контексте сценариев — `device.capabilities` (preview читаемых строк дампа). Облако не отвечает | voice-clock (CapabilityUpdateState) | test_aapi_handlers |
 | ContinueRequest | колонка просит продолжить ответ (`RequestMessageId`). Поведение облака не разобрано (образца нет): ответа нет, событие — в журнал сервера (source ws, предупреждение склеивается); полное поведение — БЛОКЕР | — | test_aapi_handlers |
-| SpotterEnd / Ping | наблюдаются, обработчиков нет — игнорируются без ошибки | voice-clock | replay-тест держит соединение |
+| SpotterEnd | валидация слова-активации: ответ `SpotterValidation` (Result=1) при `VoiceInput.EnableSpotterValidation`; на подачу аудио не влияет — кадры канала идут непрерывно с VoiceInput и до SpotterEnd тоже (в образце voice-clock первые 46 кадров, ~3,8 КБ, приходят раньше него) и всё доходят до ASR; слово-активация снимается из распознанного текста (`scenario_engine.normalize.strip_wake_prefix`) — как у облака | voice-clock | test_online_voice (спотер) |
+| Ping | наблюдаются, обработчиков нет — игнорируются без ошибки | voice-clock | replay-тест держит соединение |
 | MusicInput, AsrRecognize, TtsGenerate, DeferredTtsGenerate, DataProxyInput, FileUploadRequest, TtsUpdateState, RecordInput, ClientSubscriptionState, TranslateInput, AudioTranscriptionInputRequest, FinishRequest | не наблюдались в captures; обработчиков нет | — | — |
 | SyncPushResponse | ответ на НАШ SyncPush{GetDeviceState} — ожидающему `runtime.fetch_state` по сессии (ветка oneof `Response` == GetDeviceStateResponse; квитанции ExecuteDirective* ожидающего не будят); событие обработано всегда — не промах; в «Вместе» наверх не релеится | — | test_fetch_state, test_ws_hybrid |
 
@@ -67,7 +68,7 @@ module: "server_emulator/voice.py"
 | SynchronizeStateResponse / RequestStatAck | ответы на запросы | sync-basic, cancel-request | да (legacy_replay.control_response) |
 | SyncPush | опрос состояния колонки (fetch_state): `SyncRequest{GetDeviceState}` — см. uniproxy.md §9 | — | да (runtime.sync_push_message → runtime.fetch_state) |
 | LogAck | подтверждение LogSpotter | logspotter-ack | да (runtime.py) |
-| SpotterValidation | валидация фразы активации | screen-divui (наблюдение) | нет |
+| SpotterValidation | валидация фразы активации | screen-divui (наблюдение) | да (voice.py, при EnableSpotterValidation) |
 | EventException, InvalidAuth, ServerRequestReady, Ping, AsrMusicResult, DataProxyRequest, FileUploadResponse, SpeechControl, ServerSubscriptionState, AudioTranscriptionInputResponse, ChunkAck | не наблюдались/не генерируются | — | — |
 
 ## 5. Ключевые структуры (поля из descriptor)

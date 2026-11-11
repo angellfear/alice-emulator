@@ -25,6 +25,8 @@ from .audio_buffer import (AudioBuffer, InputLimit, MAX_INPUT_BYTES, MAX_INPUT_S
                             write_frames)
 from .spoken import OPEN_TTS_WAIT_S, speakable, voice_output
 
+from .scenario_engine.normalize import strip_wake_prefix
+
 from . import voice_response
 
 from .voice_response import failure_phrases, failure_speech, failure_text
@@ -435,11 +437,9 @@ class Conversation:
 
             return
 
-        if state.get('await_spotter'):
-
-            # Wake-word audio is a separate logical Opus stream; ASR starts after SpotterEnd.
-
-            return
+        # Аудио канала — непрерывный поток с VoiceInput, включая кадры до SpotterEnd
+        # (в реальном обмене первые ~46 кадров приходят раньше): всё доходит до ASR,
+        # слово-активация снимается из распознанного текста (strip_wake_prefix).
 
         trace = state.get('trace')
 
@@ -669,9 +669,7 @@ class Conversation:
 
         state = self.audio.open(channel)
 
-        state.update(incoming=incoming, trace=trace,
-
-                     await_spotter=bool(incoming.Event.VoiceInput.EnableSpotterValidation))
+        state.update(incoming=incoming, trace=trace)
 
         if trace:
 
@@ -692,6 +690,8 @@ class Conversation:
             state['queue'] = queue
 
             async def partial(text, request=incoming):
+
+                text = strip_wake_prefix(text)  # будильное слово тоже дошло до ASR
 
                 if trace:
 
@@ -757,8 +757,6 @@ class Conversation:
                 reply.Event.SpotterValidation.CanceledCauseOfMultiactivation = False
 
                 await self.message(reply)
-
-            state['await_spotter'] = False
 
             if state.get('trace'):
 
@@ -1272,7 +1270,7 @@ class Conversation:
                     recognized = json.loads(raw)
 
 
-                text = recognized.get('text', '').strip()
+                text = strip_wake_prefix(recognized.get('text', '').strip())
 
                 if not text:
 
