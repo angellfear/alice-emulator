@@ -1,13 +1,11 @@
-"""Ручной список установленных приложений колонки: карточка «Устройства →
-Приложения» пишет device.state.apps через API device_apps (остальные ключи state
-сохраняются); сценарий device.app.open находит приложение по имени, промпт агента и
+"""Приложения колонки — внутренний список runtime.installed_apps (тесты
+подставляют его): сценарий device.app.open находит приложение по имени, промпт агента и
 режима «модель» получают компактные имена (intelligence.apps_context). «Какие
 приложения установлены?» — ответ формулировкой записи .85; «открой ютуб» — тихий запуск
 webview-картой по образцу записи (прочие приложения — честное «запуск не поддержан»).
-Пустой список — прежний честный ответ «не найдено»."""
+Пустой список — честный ответ «не найдено»."""
 import json
 from pathlib import Path
-import json
 
 import pytest
 
@@ -17,58 +15,22 @@ from tests.conftest import types as message_types
 
 
 def apps_state(runtime, apps):
-    """Список приложений на устройстве конфтест-сессии (SN-T/dev-t)."""
+    """Устройство конфтест-сессии (SN-T/dev-t) и список приложений."""
     runtime.identities.mutate({'operation': 'user', 'id': 'owner', 'name': 'O'})
     runtime.identities.mutate({'operation': 'device', 'sn': 'SN-T', 'user_id': 'owner',
                                'device_ids': ['dev-t'], 'name': 'Гостиная'})
-    device = next(d for d in runtime.identities.data['devices'] if d['sn'] == 'SN-T')
-    runtime.identities.mutate({'operation': 'state', 'sn': 'SN-T',
-                               'state': dict(device['state'], apps=apps)})
+    runtime.installed_apps = list(apps)
 
 
-def registry(runtime, sn="SN-A", apps=None):
+def registry(runtime, apps, sn="SN-A"):
     runtime.identities.mutate({'operation': 'user', 'id': 'owner', 'name': 'O'})
     runtime.identities.mutate({'operation': 'device', 'sn': sn, 'user_id': 'owner',
                                'device_ids': ['a1'], 'name': 'Гостиная'})
-    state = dict(next(d for d in runtime.identities.data['devices'] if d['sn'] == sn)['state'])
-    state['fetch_state_last'] = {'ts': 123.0}  # чужой ключ состояния — должен пережить правку списка
-    runtime.identities.mutate({'operation': 'state', 'sn': sn, 'state': state})
-    if apps is not None:
-        runtime.identities.mutate({'operation': 'state', 'sn': sn, 'state': dict(state, apps=apps)})
-
-
-async def test_device_apps_api_persists_and_preserves_state(tmp_path):
-    from server_emulator.server import create_app
-    from aiohttp import ClientSession
-    from tests.conftest import _open_session, listen
-    runtime = Runtime(tmp_path)
-    registry(runtime, apps=["YouTube"])
-    runner, url = await listen(create_app(runtime=runtime))
-    EMU = {"X-Emulator": "1"}
-    try:
-        async with ClientSession() as client:
-            async with client.put(url + "/emulator/api/device_apps",
-                                  json={"sn": "SN-A", "apps": ["YouTube", "Спотифай"]}, headers=EMU) as r:
-                assert r.status == 200
-                assert (await r.json())["apps"] == ["YouTube", "Спотифай"]
-        device = next(d for d in runtime.identities.data['devices'] if d['sn'] == 'SN-A')
-        assert device['state']['apps'] == ["YouTube", "Спотифай"]
-        assert device['state']['fetch_state_last'] == {'ts': 123.0}  # остальные ключи на месте
-        # строки хранятся как есть; неверная форма — 400
-        async with ClientSession() as client:
-            async with client.put(url + "/emulator/api/device_apps",
-                                  json={"sn": "SN-A", "apps": ["", {"name": "x"}]}, headers=EMU) as r:
-                assert r.status == 400
-            async with client.put(url + "/emulator/api/device_apps",
-                                  json={"sn": "SN-НЕТ", "apps": ["x"]}, headers=EMU) as r:
-                assert r.status == 400
-    finally:
-        await runner.cleanup()
-        await runtime.close()
+    runtime.installed_apps = list(apps)
 
 
 async def test_app_open_finds_string_names(tmp_path):
-    """Сценарий работает со строками (форма карточки) и {name}-словарями (старый вид)."""
+    """Сценарий работает со строками и {name, package}-словарями."""
     import importlib.util
     spec = importlib.util.spec_from_file_location(
         "app_open", "server_emulator/scenarios/device/app.open.py")
@@ -76,7 +38,7 @@ async def test_app_open_finds_string_names(tmp_path):
     spec.loader.exec_module(app_open)
     from server_emulator.sdk import ScenarioContext
     runtime = Runtime(tmp_path)
-    registry(runtime, apps=["Спотифай", {"name": "YouTube", "package": "com.google.android.youtube"}])
+    registry(runtime, ["Спотифай", {"name": "YouTube", "package": "com.google.android.youtube"}])
     ctx = {"input": {"text": "открой спотифай", "sn": "SN-A", "message_id": "m", "request_id": "r",
                      "dialog_id": "d"},
            "clock": {"now": __import__('datetime').datetime.now()},
@@ -91,11 +53,11 @@ async def test_app_open_finds_string_names(tmp_path):
 async def test_apps_context_names_and_empty():
     runtime = Runtime(__import__('pathlib').Path(__import__('tempfile').mkdtemp()))
     try:
-        registry(runtime, apps=["YouTube", "Спотифай"])
+        registry(runtime, ["YouTube", "Спотифай"])
         text = intelligence.apps_context(runtime, "SN-A")
         assert text and "YouTube" in text and "Спотифай" in text
         assert intelligence.apps_context(runtime, "SN-НЕТ") is None  # нет устройства
-        registry(runtime, apps=[])
+        registry(runtime, [])
         assert intelligence.apps_context(runtime, "SN-A") is None  # пустой список
     finally:
         runtime.store.close()
@@ -105,7 +67,7 @@ async def test_agent_prompt_carries_apps(tmp_path):
     runtime = Runtime(tmp_path)
     if runtime.agent is None:
         pytest.skip("LangChain не установлен")
-    registry(runtime, apps=["YouTube", "Спотифай"])
+    registry(runtime, ["YouTube", "Спотифай"])
     try:
         prompt = runtime.agent.system_prompt(runtime, {"sn": "SN-A"})
         assert "YouTube" in prompt and "Спотифай" in prompt
@@ -117,7 +79,7 @@ async def test_agent_prompt_carries_apps(tmp_path):
 async def test_legacy_model_prompt_carries_apps(tmp_path):
     """Режим «модель»: system-сообщение запроса содержит список приложений."""
     runtime = Runtime(tmp_path)
-    registry(runtime, apps=["YouTube"])
+    registry(runtime, ["YouTube"])
     runtime.settings["model"]["stub_text"] = ""
     captured = []
 
@@ -137,7 +99,7 @@ async def test_legacy_model_prompt_carries_apps(tmp_path):
 
 
 async def test_apps_list_answer_from_state(tmp_path):
-    """«какие приложения установлены?» — формулировка записи (126116-118) из ручного списка."""
+    """«какие приложения установлены?» — формулировка записи (126116-118) из списка."""
     from tests.test_time_scenarios import _ask
     runtime = Runtime(tmp_path)
     apps_state(runtime, ["Ютуб", "Спотифай", "Кинопоиск"])
@@ -161,7 +123,7 @@ async def test_apps_list_answer_from_state(tmp_path):
 
 
 async def test_apps_list_empty_is_honest(tmp_path):
-    """Пустой ручной список — честный ответ о состоянии, промаха нет."""
+    """Пустой список — честный ответ о состоянии, промаха нет."""
     from tests.test_time_scenarios import _ask
     runtime = Runtime(tmp_path)
     apps_state(runtime, [])
@@ -178,7 +140,7 @@ async def test_apps_list_empty_is_honest(tmp_path):
         reply, _, ws = await _open_session(runtime, url, "какие приложения установлены?")
         await ws.close()
         text = reply.Event.AliceResponse.VoiceResponse.OutputSpeech.Text
-        assert text == "Список приложений колонки пока не заполнен."
+        assert text == "Список приложений колонки пока не получен."
         assert runtime.phrase_misses.public() == []  # фраза обслужена, не промах
     finally:
         await runner.cleanup()

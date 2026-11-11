@@ -522,10 +522,6 @@
       poll.title = 'Состояние колонки: будильники, таймеры, громкость, плеер';
       poll.onclick = () => stateDialog(device);
       actions.append(poll);
-      const appsBtn = node('button', 'Приложения'); appsBtn.type = 'button'; appsBtn.className = 'secondary';
-      appsBtn.title = 'Установленные приложения колонки: сценарий «открой …» и подсказки модели';
-      appsBtn.onclick = () => appsDialog(device);
-      actions.append(appsBtn);
       const del = node('button', 'Удалить'); del.type = 'button'; del.className = 'secondary danger';
       del.title = 'Убрать из списка (с отвязкой); при следующем представлении устройства (WS или /get_sync_info) оно вернётся — непривязанным';
       del.onclick = () => work(async () => {
@@ -565,26 +561,6 @@
   async function afterChange() { await fetchRegistry(); fingerprint = ''; refreshDevices(); }
 
   // ── Диалоги ────────────────────────────────────────────────────────
-  // Список установленных приложений: ручные данные пользователя в device.state.apps —
-  // их читает сценарий «открой …» (device.app.open) и промпт модели/агента.
-  function appsDialog(device) {
-    const { dialog, form } = dialogFrame('Приложения · ' + (device.name || device.sn));
-    const area = node('textarea'); area.rows = 6; area.placeholder = 'По одному приложению в строке: YouTube, Спотифай…';
-    const current = ((device.state || {}).apps || []).map(a => typeof a === 'string' ? a : (a && a.name) || '').filter(Boolean);
-    area.value = current.join('\n');
-    form.append(node('label', 'Приложения (по одному в строке)'), area);
-    form.append(node('p', 'Список — данные пользователя, не протокол: колонка сама его не сообщает. По нему колонка отвечает «найдено» на «открой …», и модели видно, что установлено.', 'hint'));
-    const save = node('button', 'Сохранить'); save.type = 'submit'; form.append(save);
-    const errLine = errorLine(form);
-    submitForm(form, errLine, async () => {
-      const apps = area.value.split('\n').map(s => s.trim()).filter(Boolean);
-      await api('device_apps', 'PUT', { sn: device.sn, apps });
-      dialog.close(); dialog.remove();
-      await afterChange(); message('Список приложений сохранён.');
-    });
-    openDialog(dialog);
-  }
-
   function dialogFrame(title) {
     const dialog = node('dialog'); dialog.className = 'catalog-dialog';
     const form = node('form');

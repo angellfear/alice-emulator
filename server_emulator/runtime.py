@@ -171,6 +171,9 @@ class Runtime:
         self.sequence = itertools.count(1)  # SequenceNumber ответов (реальный счётчик сервера)
         self.lock = asyncio.Lock()
         self.identities = IdentityRegistry(self.directory, self.store)
+        # установленные приложения колонки (ctx.device["apps"]: имена или {name, package}):
+        # колонка их не сообщает, автоматического получения пока нет — список пуст
+        self.installed_apps = []
         self.quasar_params = ParamStore(self.store.db,  # params/ расширений поверх БД
                                         extension_dirs=lambda: self._extension_layers("params"))
         self.quasar_params.seed()  # каталог параметров по умолчанию, идемпотентно
@@ -431,7 +434,7 @@ class Runtime:
                                "model": (device or {}).get("model") or "",
                                "display": display_of((device or {}).get("model")),
                                "light": copy.deepcopy(light), "lights": sorted(light),
-                               "apps": copy.deepcopy(state.get("apps") if isinstance(state.get("apps"), list) else []),
+                               "apps": copy.deepcopy(self.installed_apps) if device else [],
                                "platform": platform,
                                "fields": copy.deepcopy((device or {}).get("fields") or {}),
                                "capabilities": {name: (entry or {}).get("preview") or ""

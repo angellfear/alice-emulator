@@ -151,10 +151,8 @@ async def test_app_open_found_and_not_found(tmp_path):
     runtime.extensions.load_enabled()
     runtime.identities.mutate({'operation': 'user', 'id': 'owner', 'name': 'O'})
     runtime.identities.mutate({'operation': 'device', 'sn': 'SN-A', 'user_id': 'owner', 'device_ids': []})
-    device = next(d for d in runtime.identities.data['devices'] if d['sn'] == 'SN-A')
-    runtime.identities.mutate({'operation': 'state', 'sn': 'SN-A', 'state': dict(
-        device['state'], apps=[{"name": "YouTube", "package": "com.google.android.youtube"},
-                               {"name": "Кинопоиск", "package": "ru.kinopoisk"}])})
+    runtime.installed_apps = [{"name": "YouTube", "package": "com.google.android.youtube"},
+                              {"name": "Кинопоиск", "package": "ru.kinopoisk"}]
     try:
         # приложение с образцом запуска (ютуб) — тихий webview-ответ, карточек нет
         report, sent, _ = await _say(runtime, "открой youtube", sn="SN-A")

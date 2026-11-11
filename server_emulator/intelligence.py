@@ -116,8 +116,8 @@ def ext_fallback(runtime, mode_id, reason):
 
 def apps_context(runtime, sn):
     """Компактный список установленных приложений колонки для промпта модели/агента:
-    имена из device.state.apps (ручной список вкладки «Устройства», сценарий app.open
-    читает тот же список). Нет устройства/списка — None (в промпт ничего не добавляется)."""
+    имена из ctx.device["apps"] (внутренний список runtime.installed_apps, его же читает сценарий
+    app.open). Нет устройства/списка — None (в промпт ничего не добавляется)."""
     build = getattr(runtime, "_scenario_context", None)
     if build is None or not sn:
         return None
