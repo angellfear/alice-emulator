@@ -26,38 +26,10 @@ from pathlib import Path
 
 import zstandard
 
+from ..migrations import upgrade_database
+
 log = logging.getLogger(__name__)
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS exchanges(
-  id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL NOT NULL, kind TEXT NOT NULL,
-  direction TEXT, event TEXT, host TEXT, method TEXT, path TEXT, status INTEGER,
-  device_sn TEXT, device_id TEXT, request_size INTEGER, response_size INTEGER,
-  duration_ms REAL, source TEXT, error TEXT, close_code INTEGER,
-  request_headers TEXT, response_headers TEXT,
-  request_body BLOB, response_body BLOB, body_truncated INTEGER NOT NULL DEFAULT 0,
-  session TEXT, frames_truncated INTEGER NOT NULL DEFAULT 0,
-  key TEXT, unhandled INTEGER NOT NULL DEFAULT 0, message_id TEXT, ref_message_id TEXT,
-  audio_in_frames INTEGER NOT NULL DEFAULT 0, audio_in_bytes INTEGER NOT NULL DEFAULT 0,
-  audio_out_frames INTEGER NOT NULL DEFAULT 0, audio_out_bytes INTEGER NOT NULL DEFAULT 0);
-CREATE INDEX IF NOT EXISTS exchanges_ts ON exchanges(ts);
-CREATE INDEX IF NOT EXISTS exchanges_host ON exchanges(host);
-CREATE INDEX IF NOT EXISTS exchanges_sn ON exchanges(device_sn);
-CREATE TABLE IF NOT EXISTS ws_frames(
-  exchange_id INTEGER NOT NULL REFERENCES exchanges(id) ON DELETE CASCADE,
-  sequence INTEGER NOT NULL, ts REAL NOT NULL, direction TEXT NOT NULL,
-  binary INTEGER NOT NULL, size INTEGER NOT NULL, data BLOB);
-CREATE INDEX IF NOT EXISTS ws_frames_exchange ON ws_frames(exchange_id, sequence);
-CREATE TABLE IF NOT EXISTS journal_groups(
-  device_sn TEXT NOT NULL, key TEXT NOT NULL, count INTEGER NOT NULL,
-  first_ts REAL NOT NULL, last_ts REAL NOT NULL, PRIMARY KEY(device_sn, key));
-"""
-# колонки старые журналы получают их ALTER'ом (до создания индекса по ним)
-GROUP_COLUMNS = (("key", "TEXT"), ("unhandled", "INTEGER NOT NULL DEFAULT 0"), ("message_id", "TEXT"),
-                 ("ref_message_id", "TEXT"), ("audio_in_frames", "INTEGER NOT NULL DEFAULT 0"),
-                 ("audio_in_bytes", "INTEGER NOT NULL DEFAULT 0"), ("audio_out_frames", "INTEGER NOT NULL DEFAULT 0"),
-                 ("audio_out_bytes", "INTEGER NOT NULL DEFAULT 0"))
-GROUP_INDEX = "CREATE INDEX IF NOT EXISTS exchanges_group ON exchanges(device_sn, key, id)"
 GROUP_LIMIT = 10  # записей на пару (устройство, ключ события)
 
 COLUMNS = ("ts", "kind", "direction", "event", "host", "method", "path", "status", "device_sn",
@@ -108,16 +80,10 @@ class TrafficJournal:
         self.path = Path(path)
         self.config = config or {}  # dict или callable → settings["upstream"]["journal"]
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        upgrade_database(self.path, "traffic")  # схема — базовая ревизия ветки traffic
         self.db = sqlite3.connect(self.path, timeout=10)
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA foreign_keys=ON")
-        with self.db:
-            self.db.executescript(SCHEMA)
-            columns = {row[1] for row in self.db.execute("PRAGMA table_info(exchanges)")}
-            for name, definition in GROUP_COLUMNS:
-                if name not in columns:
-                    self.db.execute(f"ALTER TABLE exchanges ADD COLUMN {name} {definition}")
-            self.db.execute(GROUP_INDEX)
         self._scrub()
         self._regroup()
         self._queue = None

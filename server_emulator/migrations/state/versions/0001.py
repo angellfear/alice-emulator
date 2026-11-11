@@ -1,6 +1,5 @@
-"""Базовая ревизия хранилища состояния: текущая схема (state_store.py, SCHEMA +
-SCHEMA_VERSION в meta пишет код). Удалённые разделы (handlers/ignored/timers) —
-DROP для баз, доживших с ними."""
+"""Базовая ревизия хранилища состояния: текущая схема (state_store.py). Удалённые
+разделы (handlers/ignored/timers) — DROP для баз, доживших с ними."""
 from alembic import op
 
 revision = "0001"

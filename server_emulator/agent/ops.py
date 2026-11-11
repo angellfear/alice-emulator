@@ -14,6 +14,8 @@ import sqlite3
 import time
 from pathlib import Path
 
+from ..migrations import upgrade_database
+
 DEFAULTS = {"daily_model_calls": 0, "budgets": {}, "pii": ["credit_card", "secret"],
             "suggest_cron": "30 4 * * *", "suggest_min_count": 3, "suggest_days": 7, "webhook_token": ""}
 BUDGET_TEXT = "Дневной лимит запросов к модели исчерпан. Продолжим завтра."
@@ -21,12 +23,6 @@ BUDGET_TEXT = "Дневной лимит запросов к модели исч
 SECRET = (r"(?i)\b(?:sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|xox[abpr]-[A-Za-z0-9-]{10,}"
           r"|bearer\s+[A-Za-z0-9._~+/-]{16,}=*"
           r"|(?:api[_-]?key|token|secret|password|пароль|токен|ключ)\s*[:=]\s*\S{6,})")
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS runs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, day TEXT, thread TEXT, kind TEXT, user_id TEXT, sn TEXT,
-    text TEXT, answer TEXT, tools TEXT, model_calls INTEGER, tokens INTEGER, ms INTEGER, status TEXT);
-CREATE INDEX IF NOT EXISTS runs_day ON runs (day, user_id);
-"""
 KEEP_DAYS = 30
 
 
@@ -59,8 +55,8 @@ def middleware(runtime):
 class Ops:
     def __init__(self, directory):
         self.path = str(Path(directory) / "agent_ops.sqlite3")
+        upgrade_database(self.path, "agent_ops")  # схема — базовая ревизия ветки agent_ops
         with self._db() as db:
-            db.executescript(SCHEMA)
             db.execute("DELETE FROM runs WHERE ts < ?", (time.time() - KEEP_DAYS * 86400,))
 
     def _db(self):

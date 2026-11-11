@@ -460,9 +460,9 @@ async def start_upstream_app(app):
     return runner, int(url.rsplit(":", 1)[1])
 
 
-# --- журнал: миграция старых записей ------------------------------------------------------
+# --- журнал: перегруппировка старых записей (user_version) --------------------------------
 
-OLD_SCHEMA = """
+JOURNAL_SCHEMA = """
 CREATE TABLE exchanges(
   id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL NOT NULL, kind TEXT NOT NULL,
   direction TEXT, event TEXT, host TEXT, method TEXT, path TEXT, status INTEGER,
@@ -470,7 +470,10 @@ CREATE TABLE exchanges(
   duration_ms REAL, source TEXT, error TEXT, close_code INTEGER,
   request_headers TEXT, response_headers TEXT,
   request_body BLOB, response_body BLOB, body_truncated INTEGER NOT NULL DEFAULT 0,
-  session TEXT, frames_truncated INTEGER NOT NULL DEFAULT 0);
+  session TEXT, frames_truncated INTEGER NOT NULL DEFAULT 0,
+  key TEXT, unhandled INTEGER NOT NULL DEFAULT 0, message_id TEXT, ref_message_id TEXT,
+  audio_in_frames INTEGER NOT NULL DEFAULT 0, audio_in_bytes INTEGER NOT NULL DEFAULT 0,
+  audio_out_frames INTEGER NOT NULL DEFAULT 0, audio_out_bytes INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE ws_frames(
   exchange_id INTEGER NOT NULL REFERENCES exchanges(id) ON DELETE CASCADE,
   sequence INTEGER NOT NULL, ts REAL NOT NULL, direction TEXT NOT NULL,
@@ -479,10 +482,12 @@ CREATE TABLE ws_frames(
 
 
 async def test_journal_migration_keys_groups_and_audio(tmp_path):
+    """Старые записи без ключа события (user_version=1): при открытии — ключи,
+    группы с прежним числом случаев, звук старых WS-кадров — в счётчиках."""
     import zstandard
     path = Path(tmp_path) / "traffic.sqlite3"
     db = sqlite3.connect(path)
-    db.executescript(OLD_SCHEMA)
+    db.executescript(JOURNAL_SCHEMA)
     db.execute("PRAGMA user_version=1")  # журнал маскирование уже было, групп нет
     for index in range(14):  # 14 одинаковых событий одного устройства + 1 другое + без устройства
         db.execute("INSERT INTO exchanges(ts,kind,host,method,path,status,device_sn,source) "

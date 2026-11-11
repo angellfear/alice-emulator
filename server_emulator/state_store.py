@@ -18,7 +18,8 @@ Writers таблиц (инвариант: каждую таблицу пишет
                                       migrate_legacy;
 - executions                        → Executor._persist/_forget (scenario_engine);
 - param_defs / param_values         → ParamStore (params.py);
-- meta                              → set_meta (schema_version).
+- meta                              → set_meta (группы и overrides Quasar из identity,
+                                      перехват OAuth из music).
 """
 from __future__ import annotations
 
@@ -28,48 +29,9 @@ import sqlite3
 import time
 from pathlib import Path
 
+from .migrations import upgrade_database
+
 log = logging.getLogger(__name__)
-
-SCHEMA_VERSION = 1
-
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS settings(revision INTEGER PRIMARY KEY AUTOINCREMENT,
-                                    payload TEXT NOT NULL, ts REAL NOT NULL);
-DROP TABLE IF EXISTS handlers; -- раздел «Обработчики» удалён: хранилище обработчиков больше не нужно
-CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY, name TEXT NOT NULL, profile TEXT NOT NULL,
-                                 location TEXT NOT NULL DEFAULT '{}', fields TEXT NOT NULL DEFAULT '{}');
-CREATE TABLE IF NOT EXISTS devices(sn TEXT PRIMARY KEY,
-                                   user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
-                                   name TEXT NOT NULL, profile TEXT NOT NULL, state TEXT NOT NULL,
-                                   room TEXT NOT NULL DEFAULT '', model TEXT NOT NULL DEFAULT '',
-                                   fields TEXT NOT NULL DEFAULT '{}', route_mode TEXT, record TEXT);
-CREATE TABLE IF NOT EXISTS aliases(device_id TEXT PRIMARY KEY,
-                                   sn TEXT NOT NULL REFERENCES devices(sn) ON DELETE CASCADE);
-CREATE TABLE IF NOT EXISTS unassigned(device_id TEXT PRIMARY KEY,
-                                      first_seen REAL NOT NULL, last_seen REAL NOT NULL,
-                                      source TEXT, ip TEXT);
-DROP TABLE IF EXISTS ignored; -- шаг назад: удаление устройства больше не игнорирует его get_sync
-CREATE TABLE IF NOT EXISTS executions(dialog_id TEXT PRIMARY KEY, payload TEXT NOT NULL, ts REAL NOT NULL);
-CREATE TABLE IF NOT EXISTS param_defs(key TEXT PRIMARY KEY, scope TEXT NOT NULL,
-                                    category TEXT NOT NULL DEFAULT 'user',
-                                    user_editable INTEGER NOT NULL DEFAULT 0,
-                                    type TEXT NOT NULL, title TEXT NOT NULL DEFAULT '',
-                                    hint TEXT NOT NULL DEFAULT '', options TEXT,
-                                    default_value TEXT);
-CREATE INDEX IF NOT EXISTS param_defs_scope ON param_defs(scope, category);
-CREATE TABLE IF NOT EXISTS param_values(owner TEXT NOT NULL, key TEXT NOT NULL,
-                                     value TEXT NOT NULL, updated_ts REAL NOT NULL,
-                                     PRIMARY KEY(owner, key));
-DROP TABLE IF EXISTS timers; -- таймеры/будильники живут у колонки (её
---                                        состояние в запросе), серверного расписания больше нет
-CREATE TABLE IF NOT EXISTS scenario_data(scenario_id TEXT NOT NULL, scope TEXT NOT NULL,
-                                         owner TEXT NOT NULL, key TEXT NOT NULL,
-                                         value TEXT NOT NULL, updated_ts REAL NOT NULL,
-                                         PRIMARY KEY(scenario_id, scope, owner, key));
-CREATE INDEX IF NOT EXISTS devices_owner ON devices(user_id);
-CREATE INDEX IF NOT EXISTS settings_ts ON settings(ts);
-"""
 
 
 class MigrationConflict(ValueError):
@@ -82,35 +44,11 @@ class StateStore:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._closed = False
         self.on_scenario_data = None  # fn(scenario_id, key) после записи scenario_data (runtime)
+        upgrade_database(self.path, "state")  # схема — базовая ревизия ветки state
         self.db = sqlite3.connect(self.path, timeout=10)
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA foreign_keys=ON")
-        with self.db:
-            self.db.executescript(SCHEMA)
-            # Аддитивные колонки unassigned (старые БД получают ALTER'ом)
-            columns = {row[1] for row in self.db.execute("PRAGMA table_info(unassigned)")}
-            for column in ("source", "ip"):
-                if column not in columns:
-                    self.db.execute(f"ALTER TABLE unassigned ADD COLUMN {column} TEXT")
-            # Доп. поля пользователя/устройства для сценариев (гео, комната, произвольные)
-            user_columns = {row[1] for row in self.db.execute("PRAGMA table_info(users)")}
-            for column in ("location", "fields"):
-                if column not in user_columns:
-                    self.db.execute(f"ALTER TABLE users ADD COLUMN {column} TEXT NOT NULL DEFAULT '{{}}'")
-            device_columns = {row[1] for row in self.db.execute("PRAGMA table_info(devices)")}
-            for column, default in (("room", "''"), ("model", "''"), ("fields", "'{}'")):
-                if column not in device_columns:
-                    self.db.execute(f"ALTER TABLE devices ADD COLUMN {column} TEXT NOT NULL DEFAULT {default}")
-            if "route_mode" not in device_columns:  # режим маршрута устройства
-                self.db.execute("ALTER TABLE devices ADD COLUMN route_mode TEXT")
-            if "record" not in device_columns:  # опция записи устройства (off | on | misses)
-                self.db.execute("ALTER TABLE devices ADD COLUMN record TEXT")
-            row = self.db.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()
-            if row is None:
-                self.db.execute("INSERT INTO meta(key,value) VALUES('schema_version',?)", (str(SCHEMA_VERSION),))
-            elif int(row[0]) > SCHEMA_VERSION:
-                raise ValueError("БД состояния создана более новой версией кода")
 
     def _live(self):
         if self._closed:

@@ -1,5 +1,6 @@
-"""Базовая ревизия журнала трафика: текущая схема (upstream/journal.py, SCHEMA);
-PRAGMA user_version ветки не задаётся — маскирование и группы живут в коде журнала."""
+"""Базовая ревизия журнала трафика: текущая схема (upstream/journal.py);
+PRAGMA user_version ветки не задаётся — маскирование и перегруппировка старых
+записей живут в коде журнала."""
 from alembic import op
 
 revision = "0001"
@@ -21,6 +22,7 @@ def upgrade():
     op.execute("CREATE INDEX IF NOT EXISTS exchanges_ts ON exchanges(ts)")
     op.execute("CREATE INDEX IF NOT EXISTS exchanges_host ON exchanges(host)")
     op.execute("CREATE INDEX IF NOT EXISTS exchanges_sn ON exchanges(device_sn)")
+    op.execute("CREATE INDEX IF NOT EXISTS exchanges_group ON exchanges(device_sn, key, id)")
     op.execute("""CREATE TABLE IF NOT EXISTS ws_frames(
       exchange_id INTEGER NOT NULL REFERENCES exchanges(id) ON DELETE CASCADE,
       sequence INTEGER NOT NULL, ts REAL NOT NULL, direction TEXT NOT NULL,

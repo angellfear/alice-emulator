@@ -28,6 +28,8 @@ import time
 import traceback
 from pathlib import Path
 
+from .migrations import upgrade_database
+
 log = logging.getLogger(__name__)
 
 LEVELS = ("info", "warning", "error")
@@ -38,14 +40,6 @@ MAX_ROWS = 100_000
 GLUE_WINDOW = 3600  # секунды: повторы с тем же ключом склеиваются
 MESSAGE_LIMIT = 500
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS entries(
-  id INTEGER PRIMARY KEY AUTOINCREMENT, dedup TEXT NOT NULL,
-  ts REAL NOT NULL, last_ts REAL NOT NULL, level TEXT NOT NULL, source TEXT NOT NULL,
-  message TEXT NOT NULL, device_sn TEXT, detail TEXT, count INTEGER NOT NULL DEFAULT 1);
-CREATE INDEX IF NOT EXISTS entries_last_ts ON entries(last_ts);
-CREATE INDEX IF NOT EXISTS entries_dedup ON entries(dedup, last_ts);
-"""
 LIST_COLUMNS = ("id", "ts", "last_ts", "level", "source", "message", "device_sn", "detail", "count")
 
 # Журнал не должен расти сам: logging-обработчик ловит только WARNING+ (устанавливает
@@ -82,10 +76,9 @@ class ServerLog:
         self.path = Path(path)
         self.max_rows = int(max_rows or MAX_ROWS)
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        upgrade_database(self.path, "server_log")  # схема — базовая ревизия ветки server_log
         self.db = sqlite3.connect(self.path, timeout=10, check_same_thread=False)
         self.db.execute("PRAGMA journal_mode=WAL")
-        with self.db:
-            self.db.executescript(SCHEMA)
         self._queue = None
         self._worker = None
         self._loop = None

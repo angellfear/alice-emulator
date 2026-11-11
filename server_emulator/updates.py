@@ -20,6 +20,8 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from aiohttp import ClientSession, ClientTimeout, ClientError
 
+from .migrations import upgrade_database
+
 log = logging.getLogger(__name__)
 
 
@@ -67,20 +69,8 @@ class Updates:
         self.path = directory/'updates.sqlite3'
         self.extension_dirs = extension_dirs  # callable → [(origin, Path)] — слои updates/,
         self._poll_task = None
+        upgrade_database(self.path, "updates")  # схема — базовая ревизия ветки updates
         with self.connect() as db:
-            db.executescript('''
-                CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY, value TEXT NOT NULL);
-                CREATE TABLE IF NOT EXISTS attempts (id TEXT PRIMARY KEY, ts REAL, endpoint TEXT, device_sn TEXT, user_id TEXT, device_id TEXT, policy TEXT, status INTEGER, error TEXT);
-                CREATE TABLE IF NOT EXISTS urls (url TEXT PRIMARY KEY, first_seen REAL, last_seen REAL, hits INTEGER, metadata TEXT);
-                CREATE TABLE IF NOT EXISTS sightings (attempt_id TEXT, url TEXT, PRIMARY KEY(attempt_id,url));
-                CREATE INDEX IF NOT EXISTS attempts_ts ON attempts(ts);
-                CREATE TABLE IF NOT EXISTS last_requests (endpoint TEXT, device_sn TEXT, method TEXT, target TEXT,
-                    headers TEXT, body BLOB, ts REAL, PRIMARY KEY(endpoint, device_sn));
-            ''')
-            try:  # миграция: IP устройства в попытках (для старых баз колонки нет)
-                db.execute('ALTER TABLE attempts ADD COLUMN ip TEXT')
-            except sqlite3.OperationalError:
-                pass
             if not db.execute('SELECT 1 FROM settings').fetchone():
                 db.execute('INSERT INTO settings VALUES (1,?)',(json.dumps({'policy':'deny','devices':{},'custom':{'updates':[]},'endpoints':DEFAULT_ENDPOINTS}),))
 

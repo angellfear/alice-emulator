@@ -31,21 +31,14 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
+from ..migrations import upgrade_database
+
 KINDS = ("agent", "scenario")
 SCHEDULES = ("cron", "interval", "once")
 DELIVERY = ("speak", "inbox", "silent")
 MISSED_GRACE_S = 120
 NAMES = {"routine_list", "routine_create", "routine_update", "routine_delete"}
 RISKS = {"routine_list": "read", "routine_create": "config", "routine_update": "config", "routine_delete": "destructive"}
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS routines (id TEXT PRIMARY KEY, owner TEXT NOT NULL, data TEXT NOT NULL,
-    created REAL NOT NULL, last_run REAL);
-CREATE TABLE IF NOT EXISTS routine_runs (id INTEGER PRIMARY KEY AUTOINCREMENT, routine_id TEXT NOT NULL,
-    ts REAL NOT NULL, status TEXT NOT NULL, text TEXT, error TEXT, delivered TEXT);
-CREATE INDEX IF NOT EXISTS routine_runs_by_routine ON routine_runs (routine_id, ts);
-CREATE TABLE IF NOT EXISTS inbox (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, sn TEXT,
-    routine_id TEXT, title TEXT, text TEXT NOT NULL, ts REAL NOT NULL, delivered REAL);
-"""
 
 
 def _hhmm(value):
@@ -125,8 +118,7 @@ class Routines:
     def __init__(self, runtime, path):
         self.runtime, self.path = runtime, str(path)
         self.scheduler = None
-        with self._db() as db:
-            db.executescript(SCHEMA)
+        upgrade_database(self.path, "routines")  # схема — базовая ревизия ветки routines
 
     def _db(self):
         db = sqlite3.connect(self.path, timeout=10)

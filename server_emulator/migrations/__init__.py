@@ -1,12 +1,11 @@
 """Миграции схем SQLite-баз на Alembic: по ветке на файл базы.
 
 Каждая база — свой каталог ревизий `migrations/<ветка>/versions/` (метка ветки — имя
-базы) и свой Alembic Config с sqlalchemy.url на этот файл. Базовая ревизия равна
-текущей схеме кода: CREATE IF NOT EXISTS в модулях баз остаются идемпотентной
-страховкой (модульные тесты открывают хранилища без runtime). Старая база без
-alembic_version определяется по sqlite_master и получает stamp на head. Перед
-изменяющим обновлением — резервная копия файла рядом (sqlite backup API, дата в
-имени); сбой миграции: копия восстанавливается, причина — в журнале сервера, и
+базы) и свой Alembic Config с sqlalchemy.url на этот файл. Схема одна — в базовой
+ревизии: хранилище вызывает upgrade_database своей ветки при открытии файла, поэтому
+CREATE в модулях не нужен и модульный тест открывает хранилище без runtime.
+Перед изменяющим обновлением — резервная копия файла рядом (sqlite backup API, дата
+в имени); сбой миграции: копия восстанавливается, причина — в журнале сервера, и
 исключение уходит наверх — сервер не стартует. render_as_batch=True — будущие
 ALTER на SQLite идут batch-миграциями.
 
@@ -17,10 +16,12 @@ ALTER на SQLite идут batch-миграциями.
 import datetime
 import os
 import sqlite3
+from functools import lru_cache
 from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 
 PACKAGE_DIR = Path(__file__).parent
 # ветка → файл базы в state/; server_log первым: журнал сервера нужен для записи
@@ -40,31 +41,32 @@ def _config(db_path, branch):
     cfg.set_main_option("script_location", str(PACKAGE_DIR))
     cfg.set_main_option("version_locations", str(PACKAGE_DIR / branch / "versions"))
     cfg.set_main_option("sqlalchemy.url", "sqlite:///" + str(db_path).replace("\\", "/"))
+    cfg.set_main_option("path_separator", "os")
     cfg.attributes["render_as_batch"] = True
     return cfg
 
 
-def _tables(path):
-    """Имена таблиц (mode=ro — файл не создаётся и не меняется); битый файл — ошибка."""
+@lru_cache(maxsize=None)
+def _head(branch):
+    """Head ветки: каталог ревизий читается один раз на процесс."""
+    cfg = Config()
+    cfg.set_main_option("script_location", str(PACKAGE_DIR))
+    cfg.set_main_option("version_locations", str(PACKAGE_DIR / branch / "versions"))
+    cfg.set_main_option("path_separator", "os")
+    return ScriptDirectory.from_config(cfg).get_current_head()
+
+
+def _revision(path):
+    """Текущая ревизия базы по alembic_version (mode=ro — файл не создаётся и не
+    меняется); таблицы версий или пустой/битый файл — None."""
     db = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
     try:
-        return {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        row = db.execute("SELECT version_num FROM alembic_version").fetchone()
+        return row[0] if row else None
+    except sqlite3.Error:
+        return None
     finally:
         db.close()
-
-
-def _at_head(cfg, path):
-    from alembic.runtime.migration import MigrationContext
-    from alembic.script import ScriptDirectory
-    import sqlalchemy
-    url = "sqlite:///" + str(path).replace("\\", "/")
-    engine = sqlalchemy.create_engine(url)
-    try:
-        with engine.connect() as conn:
-            current = MigrationContext.configure(conn).get_current_revision()
-    finally:
-        engine.dispose()
-    return current == ScriptDirectory.from_config(cfg).get_current_head()
 
 
 def _backup(path):
@@ -84,24 +86,18 @@ def _backup(path):
 def upgrade_database(path, branch, log=None):
     """Миграции одной базы до head её ветки.
 
-    path — файл базы в state/ (нет файла — создаётся ревизией). Старая база (таблицы
-    есть, alembic_version нет) получает stamp. Если файл изменится (stamp/upgrade) —
-    сначала резервная копия. Сбой: копия восстановлена, причина — в журнал (если
-    передан) и в MigrationFailed — сервер не стартует.
+    path — файл базы в state/ (нет файла — создаётся ревизией). База на head — быстрая
+    проверка alembic_version без прогона миграций. Если файл изменится — сначала
+    резервная копия. Сбой: копия восстановлена, причина — в журнал (если передан) и в
+    MigrationFailed — сервер не стартует.
     """
     path = Path(path)
-    cfg = _config(path, branch)
     backup = None
     try:
-        needs_stamp = False
-        if path.exists():
-            tables = _tables(path)
-            needs_stamp = bool(tables) and "alembic_version" not in tables
-            if needs_stamp or not _at_head(cfg, path):
+        if not (path.exists() and _revision(path) == _head(branch)):
+            if path.exists():
                 backup = _backup(path)
-        if needs_stamp:
-            command.stamp(cfg, "head")
-        command.upgrade(cfg, "head")
+            command.upgrade(_config(path, branch), "head")
     except Exception as exc:
         if backup is not None and backup.exists():
             os.replace(backup, path)  # файл из копии — база как до обновления

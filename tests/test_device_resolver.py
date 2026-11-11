@@ -1,5 +1,5 @@
 """Единый resolver устройств — collect_device_id, pending с source/ip,
-header/sync mismatch → закрытие соединения, миграция колонок unassigned."""
+header/sync mismatch → закрытие соединения."""
 import asyncio
 import json
 
@@ -101,30 +101,6 @@ def test_alias_hijack_to_other_sn_rejected(tmp_path):
                            "device_ids": ["dev-d", "dev-a"], "name": "X"})
 
 
-# --- store: аддитивная миграция колонок unassigned ---------------------------
-
-
-def test_old_db_without_source_ip_columns_migrated(tmp_path):
-    db_path = tmp_path / "emulator.sqlite3"
-    store = StateStore(db_path)
-    store.close()
-    # откатываем к старой схеме без source/ip, как в БД 
-    import sqlite3
-    db = sqlite3.connect(db_path)
-    db.execute("CREATE TABLE unassigned_old(device_id TEXT PRIMARY KEY, first_seen REAL, last_seen REAL)")
-    db.execute("DROP TABLE unassigned")
-    db.execute("ALTER TABLE unassigned_old RENAME TO unassigned")
-    db.execute("INSERT INTO unassigned VALUES('dev-legacy', 1.0, 2.0)")
-    db.commit()
-    db.close()
-    store = StateStore(db_path)  # повторное открытие добавляет колонки
-    data = store.load_identity_data()
-    entry = next(d for d in data["unassigned"] if d["device_id"] == "dev-legacy")
-    assert entry["source"] is None and entry["ip"] is None
-    assert entry["first_seen"] == 1.0
-    store.save_identity_data(data)  # roundtrip с новыми полями
-    assert store.load_identity_data()["unassigned"][0]["device_id"] == "dev-legacy"
-    store.close()
 
 
 # --- runtime: HTTP mismatch журналируется, WS mismatch закрывает --------------
