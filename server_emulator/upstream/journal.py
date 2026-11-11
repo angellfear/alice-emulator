@@ -9,8 +9,8 @@
 WS — направление и имя сообщения): на пару хранятся последние GROUP_LIMIT записей, счётчик
 всех случаев — в таблице journal_groups. Ротация по размеру файла и сроку —
 настройки upstream.journal. Значения секретных заголовков (Authorization, Cookie, токены,
-тикеты) маскируются до записи — журнал и экспорт не содержат учётных данных колонки; записи,
-сделанные до маскирования, вычищаются при открытии. Запись асинхронная, через очередь: обмен кладёт запись
+тикеты) маскируются до записи — журнал и экспорт не содержат учётных данных колонки.
+Запись асинхронная, через очередь: обмен кладёт запись
 и не ждёт диска, воркер батчит и пишет в SQLite; flush() дожидается записи
 (остановка, тесты).
 """
@@ -48,9 +48,6 @@ BLOB_COLUMNS = ("request_body", "response_body")
 DEFAULTS = {"max_body_kb": 256, "max_size_mb": 100, "max_age_days": 14}
 AGE_ROTATE_EVERY_S = 3600
 SECRET_HEADER = re.compile(r"authorization|cookie|token|ticket|secret|password|api[-_]?key|session[-_]?id", re.I)
-MASK_VERSION = 1  # PRAGMA user_version: записи старше — с открытыми значениями, вычищаются
-GROUP_VERSION = 2  # PRAGMA user_version: записи старше — без ключа события, группы строятся при открытии
-AAPI_PREFIX = b"AAPI"
 
 
 def event_key(method, host, path):
@@ -84,62 +81,11 @@ class TrafficJournal:
         self.db = sqlite3.connect(self.path, timeout=10)
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA foreign_keys=ON")
-        self._scrub()
-        self._regroup()
         self._queue = None
         self._worker = None
         self._closed = False
         self._writes = 0
         self._last_age_rotation = time.monotonic()
-
-    def _scrub(self):
-        """Однократно маскирует заголовки записей, сделанных до маскирования."""
-        if self.db.execute("PRAGMA user_version").fetchone()[0] >= MASK_VERSION:
-            return
-        with self.db:
-            for row_id, *values in self.db.execute(
-                    "SELECT id, request_headers, response_headers FROM exchanges").fetchall():
-                masked = []
-                for value in values:
-                    try:
-                        pairs = json.loads(value) if value else None
-                    except ValueError:
-                        pairs = None
-                    masked.append(json.dumps(mask_headers(pairs), ensure_ascii=False)
-                                  if isinstance(pairs, (list, dict)) else value)
-                self.db.execute("UPDATE exchanges SET request_headers=?, response_headers=? WHERE id=?",
-                                (*masked, row_id))
-            self.db.execute(f"PRAGMA user_version={MASK_VERSION}")
-
-    def _regroup(self):
-        """Однократно: старым записям — ключ события, из них — таблица групп с
-        прежним числом случаев, на пару остаются последние GROUP_LIMIT. Звуковые кадры старых
-        WS-сессий (бинарные без AAPI) удаляются, их число и размер — в счётчиках записи open."""
-        if self.db.execute("PRAGMA user_version").fetchone()[0] >= GROUP_VERSION:
-            return
-        with self.db:
-            for row_id, kind, event, host, method, path in self.db.execute(
-                    "SELECT id, kind, event, host, method, path FROM exchanges WHERE key IS NULL").fetchall():
-                key = f"ws {event or 'unknown'}" if kind == "ws" else event_key(method, host, path)
-                self.db.execute("UPDATE exchanges SET key=? WHERE id=?", (key, row_id))
-            self.db.execute("DELETE FROM journal_groups")
-            self.db.execute(
-                "INSERT INTO journal_groups(device_sn, key, count, first_ts, last_ts) "
-                "SELECT COALESCE(device_sn, ''), key, COUNT(*), MIN(ts), MAX(ts) FROM exchanges "
-                "WHERE key IS NOT NULL GROUP BY COALESCE(device_sn, ''), key")
-            for exchange_id, sequence, direction, size, data in self.db.execute(
-                    "SELECT exchange_id, sequence, direction, size, data FROM ws_frames WHERE binary=1").fetchall():
-                if (self._decompress(data) or b"")[:4] == AAPI_PREFIX:
-                    continue
-                column = "audio_in" if direction == "client_to_server" else "audio_out"
-                self.db.execute(f"UPDATE exchanges SET {column}_frames={column}_frames+1, "
-                                f"{column}_bytes={column}_bytes+? WHERE id=?", (size, exchange_id))
-                self.db.execute("DELETE FROM ws_frames WHERE exchange_id=? AND sequence=?",
-                                (exchange_id, sequence))
-            for device_sn, key in self.db.execute(
-                    "SELECT device_sn, key FROM journal_groups").fetchall():
-                self._trim(device_sn or None, key)
-            self.db.execute(f"PRAGMA user_version={GROUP_VERSION}")
 
     # --- запись ---------------------------------------------------------------
     def settings(self):

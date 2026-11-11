@@ -7,6 +7,8 @@ import pytest
 
 from server_emulator.migrations import MigrationFailed, upgrade_all, upgrade_database
 
+pytestmark = pytest.mark.no_state_template  # базы здесь собирает сам тест — ревизией
+
 
 def schema_of(path):
     """Форма схемы: нормализованные строки sqlite_master (таблицы и индексы),
@@ -122,7 +124,7 @@ def test_database_newer_than_code_fails(tmp_path):
     path = tmp_path / "updates.sqlite3"
     upgrade_database(path, "updates")
     db = sqlite3.connect(path)
-    db.execute("UPDATE alembic_version SET version_num='0002'")
+    db.execute("UPDATE alembic_version SET version_num='9999'")
     db.commit()
     db.close()
     with pytest.raises(MigrationFailed):

@@ -1,5 +1,4 @@
-"""Базовая ревизия хранилища состояния: текущая схема (state_store.py). Удалённые
-разделы (handlers/ignored/timers) — DROP для баз, доживших с ними."""
+"""Базовая ревизия хранилища состояния: текущая схема (state_store.py)."""
 from alembic import op
 
 revision = "0001"
@@ -7,9 +6,6 @@ down_revision = None
 
 
 def upgrade():
-    op.execute("DROP TABLE IF EXISTS handlers")
-    op.execute("DROP TABLE IF EXISTS ignored")
-    op.execute("DROP TABLE IF EXISTS timers")
     op.execute("CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT NOT NULL)")
     op.execute("""CREATE TABLE IF NOT EXISTS settings(revision INTEGER PRIMARY KEY AUTOINCREMENT,
                                     payload TEXT NOT NULL, ts REAL NOT NULL)""")

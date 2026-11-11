@@ -231,24 +231,6 @@ async def test_journal_body_truncation(tmp_path):
         await journal.close()
 
 
-async def test_journal_scrubs_headers_written_before_masking(tmp_path):
-    import sqlite3
-    path = Path(tmp_path) / "traffic.sqlite3"
-    TrafficJournal(path).db.close()
-    db = sqlite3.connect(path)
-    with db:
-        db.execute("PRAGMA user_version=0")  # журнал прежней версии — с открытыми значениями
-        db.execute("INSERT INTO exchanges(ts, kind, host, request_headers) VALUES(1, 'http', 'old.test', ?)",
-                   (json.dumps([["Authorization", "OAuth old-secret"], ["X-Device", "1"]]),))
-    db.close()
-    journal = TrafficJournal(path)
-    try:
-        record = journal.item(journal.list()["items"][0]["id"])
-        assert [list(h) for h in record["request_headers"]] == [["Authorization", "OAuth ***"], ["X-Device", "1"]]
-    finally:
-        await journal.close()
-
-
 async def test_journal_rotation_by_age_and_size(tmp_path):
     age = TrafficJournal(Path(tmp_path) / "age.sqlite3", config={"max_age_days": 14})
     size = TrafficJournal(Path(tmp_path) / "size.sqlite3", config={"max_size_mb": 0.3, "max_age_days": 0})

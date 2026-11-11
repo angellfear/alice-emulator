@@ -9,7 +9,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from server_emulator.version import current
+
+pytestmark = pytest.mark.no_state_template  # git-репозитории создаются в каталоге теста:
+# посторонние файлы сделали бы проверку dirty ложной
 
 
 def git(*args, cwd):

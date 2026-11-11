@@ -9,6 +9,7 @@
 import asyncio
 import datetime
 import os
+import shutil
 import struct
 from pathlib import Path
 
@@ -156,6 +157,33 @@ def isolated_quasar_rules(tmp_path_factory, monkeypatch):
     (quasar_defaults/rules) не влияют на тесты; тесты поставляемого слоя подкладывают
     свои файлы с явным каталогом."""
     monkeypatch.setenv("ALICA_QUASAR_RULES_DIR", str(tmp_path_factory.mktemp("quasar-rules")))
+
+
+@pytest.fixture(scope="session")
+def _state_template(tmp_path_factory):
+    """Каталог state на head — один на xdist-воркер, собранный настоящим кодом миграций;
+    state_template_files копирует его файлы в каталог теста, чтобы хранилища не
+    прогоняли ревизию на каждой свежей базе."""
+    from server_emulator.migrations import upgrade_all
+    directory = tmp_path_factory.mktemp("state_template")
+    upgrade_all(directory)
+    return directory
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "no_state_template: тест сам готовит каталог — файлы шаблона не копируются")
+
+
+@pytest.fixture(autouse=True)
+def state_template_files(request, tmp_path, _state_template):
+    """Копия файлов шаблона в tmp_path — только те, которых ещё нет: то, что тест
+    подготовил сам, не затирается. Тестам сборки баз ревизией — маркер no_state_template."""
+    if request.node.get_closest_marker("no_state_template") is None:
+        for source in _state_template.glob("*.sqlite3"):
+            target = tmp_path / source.name
+            if not target.exists():
+                shutil.copy2(source, target)
 
 
 def is_rsa_key(pem):

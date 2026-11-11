@@ -166,6 +166,7 @@ def test_refuses_to_stop_foreign_server(controller):
     assert controller.fake.stops == 0 and controller.state_text == "На порту другой сервер"
 
 
+@pytest.mark.no_state_template
 def test_log_rotation(tmp_path):
     log = tmp_path / "server.log"
     for round_ in range(4):

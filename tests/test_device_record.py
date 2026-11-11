@@ -4,7 +4,6 @@
 """
 import asyncio
 import json
-import sqlite3
 import uuid
 from pathlib import Path
 
@@ -13,7 +12,6 @@ from aiohttp import ClientSession, WSMsgType, web
 from server_emulator.runtime import Runtime
 from server_emulator.schema import load_type
 from server_emulator.server import create_app
-from server_emulator.upstream.journal import TrafficJournal
 from tests.conftest import listen
 from tests.test_device_route_modes import alias_upstream, registry, start_upstream
 
@@ -458,72 +456,4 @@ async def test_ws_bridge_records_by_option(tmp_path):
 async def start_upstream_app(app):
     runner, url = await listen(app)
     return runner, int(url.rsplit(":", 1)[1])
-
-
-# --- журнал: перегруппировка старых записей (user_version) --------------------------------
-
-JOURNAL_SCHEMA = """
-CREATE TABLE exchanges(
-  id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL NOT NULL, kind TEXT NOT NULL,
-  direction TEXT, event TEXT, host TEXT, method TEXT, path TEXT, status INTEGER,
-  device_sn TEXT, device_id TEXT, request_size INTEGER, response_size INTEGER,
-  duration_ms REAL, source TEXT, error TEXT, close_code INTEGER,
-  request_headers TEXT, response_headers TEXT,
-  request_body BLOB, response_body BLOB, body_truncated INTEGER NOT NULL DEFAULT 0,
-  session TEXT, frames_truncated INTEGER NOT NULL DEFAULT 0,
-  key TEXT, unhandled INTEGER NOT NULL DEFAULT 0, message_id TEXT, ref_message_id TEXT,
-  audio_in_frames INTEGER NOT NULL DEFAULT 0, audio_in_bytes INTEGER NOT NULL DEFAULT 0,
-  audio_out_frames INTEGER NOT NULL DEFAULT 0, audio_out_bytes INTEGER NOT NULL DEFAULT 0);
-CREATE TABLE ws_frames(
-  exchange_id INTEGER NOT NULL REFERENCES exchanges(id) ON DELETE CASCADE,
-  sequence INTEGER NOT NULL, ts REAL NOT NULL, direction TEXT NOT NULL,
-  binary INTEGER NOT NULL, size INTEGER NOT NULL, data BLOB);
-"""
-
-
-async def test_journal_migration_keys_groups_and_audio(tmp_path):
-    """Старые записи без ключа события (user_version=1): при открытии — ключи,
-    группы с прежним числом случаев, звук старых WS-кадров — в счётчиках."""
-    import zstandard
-    path = Path(tmp_path) / "traffic.sqlite3"
-    db = sqlite3.connect(path)
-    db.executescript(JOURNAL_SCHEMA)
-    db.execute("PRAGMA user_version=1")  # журнал маскирование уже было, групп нет
-    for index in range(14):  # 14 одинаковых событий одного устройства + 1 другое + без устройства
-        db.execute("INSERT INTO exchanges(ts,kind,host,method,path,status,device_sn,source) "
-                   "VALUES(?,?,?,?,?,?,?,?)", (100 + index, "http", "q.test", "GET", f"/same?i={index}", 200, "SN-1", "upstream"))
-    db.execute("INSERT INTO exchanges(ts,kind,host,method,path,status,device_sn,source) "
-               "VALUES(200,'http','q.test','POST','/other',200,'SN-1','upstream')")
-    db.execute("INSERT INTO exchanges(ts,kind,host,method,path,status,source) "
-               "VALUES(201,'http','q.test','GET','/anon',200,'upstream')")
-    db.execute("INSERT INTO exchanges(ts,kind,direction,event,host,path,device_sn,session,source) "
-               "VALUES(300,'ws','lifecycle','open','u.test','/uni.ws','SN-1','s1','upstream')")
-    session_id = db.execute("SELECT id FROM exchanges WHERE kind='ws'").fetchone()[0]
-    for sequence, (direction, binary, data) in enumerate([
-            ("client_to_server", 1, b"\x00\x00\x00\x01audio"), ("server_to_client", 1, b"\x00\x00\x00\x01more-audio"),
-            ("client_to_server", 1, b"AAPI\x0a\x00"), ("client_to_server", 0, b"text-frame")]):
-        db.execute("INSERT INTO ws_frames VALUES(?,?,?,?,?,?,?)",
-                   (session_id, sequence, 300.0, direction, binary, len(data), zstandard.compress(data)))
-    db.commit()
-    db.close()
-
-    journal = TrafficJournal(path)
-    try:
-        groups = {(e["device_sn"], g["key"]): g for e in journal.groups() for g in e["groups"]}
-        same = groups[("SN-1", "GET q.test /same")]
-        assert same["count"] == 14  # прежнее число случаев сохранено
-        assert len(journal.group_items("SN-1", "GET q.test /same")) == 10  # записей — не больше 10
-        assert (None, "GET q.test /anon") in groups and ("SN-1", "ws open") in groups
-        assert journal.list(device="SN-1")["total"] == 10 + 1 + 1
-        card = journal.item(session_id)
-        assert (card["audio_in_frames"], card["audio_out_frames"]) == (1, 1)  # звук старых кадров — только счётчики
-        assert card["audio_in_bytes"] == len(b"\x00\x00\x00\x01audio")
-        assert [f["data"] for f in card["frames"]] == [b"AAPI\x0a\x00", b"text-frame"]  # AAPI и текст остались
-    finally:
-        await journal.close()
-    reopened = TrafficJournal(path)  # однократно: повторное открытие ничего не меняет
-    try:
-        assert reopened.list()["total"] == 13
-    finally:
-        await reopened.close()
 

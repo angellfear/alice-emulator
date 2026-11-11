@@ -5,6 +5,8 @@ import sqlite3
 import tempfile
 import time
 
+import pytest
+
 from google.protobuf import json_format
 
 from server_emulator.dispatcher import Dispatcher
@@ -70,6 +72,7 @@ def make_journal(tmp_path):
     return path
 
 
+@pytest.mark.no_state_template  # журнал тест собирает сам: пустая база под его схемой
 def test_report_sections_and_masking(tmp_path):
     """Отчёт: разделы HTTP/AAPI/фразы; секреты и query маскированы; обработчики размечены."""
     from tools.journal_gaps import build_report
