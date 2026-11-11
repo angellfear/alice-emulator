@@ -143,9 +143,14 @@
 без `audio_play`; карточка «Рада, что вы оценили.», речь «Рада что вы оценили.».
 `divui_patch_view` и `set_div_variables` образца правят div-карточку плеера облака
 (`CardId music_scenario_player_key_<трек>_key`), которую эмулятор не показывает, — в ответ
-не входят. Поставщик не подтвердил — отказ словами. Дизлайк — по образцу при записи.
-Яндекс Музыка ставит оценку в аккаунте (`account_status` → `users_likes_tracks_add`),
-Spotify оценок не поддерживает.
+не входят. Поставщик не подтвердил — отказ словами.
+«Дизлайк» — запись `dislike`: `rate(текущий, False)`, затем `neighbor(+1)`; ответ образца
+(`music.dislike_reply`) — `draw_animation_directive` (`animations/player_dislike`) и стек «дальше»
+на следующий трек (очередь, состояние, `tts_play_placeholder`, `audio_play` с токеном
+recoverCommit), речь «Нет проблем, поставила дизлайк.» без карточки; следующего нет — только
+анимация и речь. `set_div_variables` образца (div-карточка облака) не входит.
+Яндекс Музыка ставит оценку в аккаунте (`account_status` → `users_likes_tracks_add` /
+`users_dislikes_tracks_add`), Spotify оценок не поддерживает.
 
 ## Поставщик контента
 

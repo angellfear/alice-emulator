@@ -53,6 +53,15 @@
    "handler": "core:media.music"
   },
   {
+   "id": "dislike",
+   "sentences": [
+    "дизлайк",
+    "(поставь|ставлю) дизлайк",
+    "мне не нравится [(этот|эта|эту)] [(трек|песня|песню)]"
+   ],
+   "handler": "core:media.music"
+  },
+  {
    "id": "search",
    "sentences": [
     "(включи|запусти|поставь|послушай) {query}"

@@ -30,6 +30,8 @@ sequence_state + audio_play). Своей очереди у ядра нет — �
   иначе текущий трек поставщика сначала.
 - Фраза «лайк» — запись like справочника фраз поставщика: rate(like) текущего трека
   очереди поставщика; подтвердил — стек «лайка» (music.like_reply), иначе отказ словами.
+- Фраза «дизлайк» — запись dislike: rate(dislike) текущего трека, затем neighbor(+1) —
+  стек «дизлайка» (music.dislike_reply): анимация и переход к следующему треку.
 - Кнопки виджета музыки (provide music.touch, TMusicTouchTypedCallback): Continue,
   NextTrack, PrevTrack — те же ответы, что фразы «продолжи», «дальше», «предыдущий»,
   без речи (колбэк просит disable_output_speech); соседа нет — тихий отказ.
@@ -44,9 +46,10 @@ from server_emulator.sdk import ask, say
 
 NOT_FOUND = "Не нашла подходящего. Попробуйте назвать исполнителя или песню."
 STEPS = {"next": 1, "prev": -1}
-PLAYER_INTENTS = ("next", "prev", "continue", "like")  # только при треке в плеере колонки  # записи справочника фраз поставщика → шаг очереди
+PLAYER_INTENTS = ("next", "prev", "continue", "like", "dislike")  # только при треке в плеере колонки
 NOTHING = {"next": "Дальше ничего нет.", "prev": "Это первый трек."}
-NO_RATE = "Не получилось поставить лайк в этом источнике музыки."
+NO_RATE = {True: "Не получилось поставить лайк в этом источнике музыки.",
+           False: "Не получилось поставить дизлайк в этом источнике музыки."}
 RESUMABLE = ("paused", "stopped")  # плеер колонки: «включи музыку» продолжает трек
 # ссылка/URI трека Spotify: шаблонный слот режет URL — сырую реплику разбираем сами
 LINK = re.compile(r"(?:open\.spotify\.com/(?:intl-[a-z]{2,5}/)?(?:embed/)?track/|spotify:track:)"
@@ -139,6 +142,8 @@ async def handle(ctx):
         return _with_commit(ctx, provider, track) if track is not None else say(NOTHING[intent])
     if intent == "like":  # «лайк»: оценка играющего трека в аккаунте поставщика
         return await _like(ctx, provider)
+    if intent == "dislike":  # «дизлайк»: оценка в аккаунте и переход к следующему треку
+        return await _dislike(ctx, provider)
     if intent == "continue":  # «продолжи»: с места паузы, иначе текущий трек сначала
         resumed = await _resume(ctx, provider)
         if resumed is not None:
@@ -187,8 +192,21 @@ async def _like(ctx, provider):
     if track is None:
         return say(NOT_FOUND)
     if not await music.rate(ctx, provider, track["id"], True):
-        return say(NO_RATE)
+        return say(NO_RATE[True])
     return music.like_reply(track, provider)
+
+
+async def _dislike(ctx, provider):
+    """Текущий трек → rate(dislike); подтвердил — стек «дизлайка» со следующим треком
+    поставщика (neighbor(+1), токен recoverCommit как у «дальше»), иначе отказ."""
+    track = await music.neighbor(ctx, provider, None, None, 0)
+    if track is None:
+        return say(NOT_FOUND)
+    if not await music.rate(ctx, provider, track["id"], False):
+        return say(NO_RATE[False])
+    following = await music.neighbor(ctx, provider, None, None, 1)
+    token = music.keep_commit(following) if following is not None else None
+    return music.dislike_reply(following, provider, token)
 
 
 async def _resume(ctx, provider):

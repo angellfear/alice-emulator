@@ -116,6 +116,7 @@ MUSIC_PHRASES = {"entries": [
     {"id": "continue", "sentences": ["(продолжи|продолжить|продолжай) [(музыку|играть)]"],
      "handler": "core:media.music"},
     {"id": "like", "sentences": ["лайк", "(поставь|ставлю) лайк"], "handler": "core:media.music"},
+    {"id": "dislike", "sentences": ["дизлайк", "(поставь|ставлю) дизлайк"], "handler": "core:media.music"},
     {"id": "search", "sentences": ["(включи|запусти|поставь|послушай) {query}"],
      "handler": "core:media.music", "search": True}]}
 
@@ -987,6 +988,32 @@ async def test_like_phrase_rates_current_track(tmp_path):
         assert [r["TrackMetaRecords"][track_id]["LikeStatus"] for r in records.values()] == ["LIKE_STATUS_LIKE"]
         calls = json.loads(marker.read_text(encoding="utf-8"))
         assert ["rate", track_id, True] in calls
+    finally:
+        await runtime.close()
+
+
+async def test_dislike_phrase_rates_and_plays_next(tmp_path):
+    """«дизлайк»: rate(текущий, False), затем neighbor(+1) → стек образца (анимация
+    player_dislike, очередь, состояние, tts_play_placeholder, audio_play следующего),
+    речь «Нет проблем, поставила дизлайк.» без карточки."""
+    runtime = Runtime(tmp_path)
+    marker = tmp_path / "marker.json"
+    module = _provider_module(marker).replace("return NEXT if step > 0 else None", "return NEXT")
+    make_music_extension(runtime, files={"music/fake.py": module}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
+    station = {"player": {"state": "playing", "playing": True, "title": "Трек 9"}}
+    try:
+        report = await say(runtime, "дизлайк", station=station, deliver=False)
+        assert report["scenario"] == "media.music" and report["speech"] == "Нет проблем, поставила дизлайк.", report
+        [message] = report["messages"]
+        assert _reply_names(message) == ["draw_animation_directive", "apply_player_playback_queue_directive",
+                                         "set_audio_player_sequence_state_directive", "tts_play_placeholder",
+                                         "audio_play"]
+        assert not message.Event.AliceResponse.Response.Cards
+        calls = json.loads(marker.read_text(encoding="utf-8"))
+        track_id = NEXT_TRACK["id"]
+        assert ["rate", track_id, False] in calls
+        assert [call[3] for call in calls if call[0] == "neighbor"] == [0, 1]
     finally:
         await runtime.close()
 

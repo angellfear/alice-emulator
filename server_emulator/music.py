@@ -70,6 +70,8 @@ PLAYER_PLAY_ANIMATION = "animations/player_play"  # образец «включ�
 PLAYER_LIKE_ANIMATION = "animations/player_like"  # образец «лайк» (захват 2026-11-02)
 LIKE_TEXT = "Рада, что вы оценили."  # образец «лайк»: карточка с запятой, речь без
 LIKE_SPEECH = "Рада что вы оценили."
+PLAYER_DISLIKE_ANIMATION = "animations/player_dislike"  # образец «дизлайк» (захват 2026-11-02)
+DISLIKE_TEXT = "Нет проблем, поставила дизлайк."
 
 YANDEX_PROVIDER_ID = "yandex-music"
 # имена из enum Alice.Music.MusicProvider для карт меты и поля Entities.MusicProvider:
@@ -479,6 +481,22 @@ def like_reply(track, provider):
         _draw_animation(PLAYER_LIKE_ANIMATION),
         sequence_state_directive(track, [track], provider, "LIKE_STATUS_LIKE"),
         queue, tts_placeholder()]}
+
+
+def dislike_reply(next_track, provider, commit_token=None):
+    """Ответ на «дизлайк» (образец захвата 2026-11-02): анимация player_dislike, затем
+    стек «дальше» на следующий трек (очередь, состояние, tts_play_placeholder, audio_play)
+    с речью. Следующего нет — только анимация и речь. set_div_variables образца правит
+    div-карточку облака — в ответ не входит."""
+    directives = [_draw_animation(PLAYER_DISLIKE_ANIMATION)]
+    if next_track is not None:
+        tracks = [next_track]
+        directives += [queue_directive(tracks, 0, provider),
+                       sequence_state_directive(next_track, tracks, provider),
+                       tts_placeholder(), audio_play_directive(next_track, 0, commit_token)]
+    else:
+        directives.append(tts_placeholder())
+    return {"text": DISLIKE_TEXT, "card": False, "directives": directives}  # карточки в образце нет
 
 
 # --- recoverCommit: подтверждённый переход трека -----------------------------------
