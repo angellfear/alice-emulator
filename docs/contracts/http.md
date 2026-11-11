@@ -26,7 +26,7 @@ module: "server_emulator/quasar.py"
 
 ## 2. OTA-обновления (updates.py)
 
-Endpoint'ы (по умолчанию, расширяются списком до 100): POST quasar /tv/api/v4/updates (kind=list), GET /check_updates (check), GET /allow_update (allow), GET /confirm_update (confirm).
+Endpoint'ы — фиксированный список в коде (`updates.ENDPOINTS`, не настройка): POST quasar /tv/api/v4/updates (kind=list), GET /check_updates (check), GET /allow_update (allow), GET /confirm_update (confirm); запрос уходит на тот же путь реального сервера.
 
 Поведение на запрос: политика per-SN (allow/deny/custom, override устройств); при любом обращении к upstream запрос помечается `X-Alice-Update-Probe: 1` (защита от петли), ответ ≤8 MiB, все найденные URL прошивок пишутся в updates.sqlite3 (attempts/urls/sightings) без credentials.
 
@@ -34,6 +34,7 @@ Endpoint'ы (по умолчанию, расширяются списком до
 - custom → сохранённый список updates (URL-валидация, без credentials/fragment).
 - allow → ответ реального upstream; при недоступности `update_upstream_unavailable`.
 - Loop-защита: повторный вход probe → 508 `update_probe_loop`.
+- Каталог (вкладка «Обновления») делится по `type` записи ответа: «Прошивки» (`ota`) и «Приложения» (`app` — APK, имя пакета из имени файла, группы по сборке прошивки).
 
 Тесты: test_updates (deny всё же наблюдает URL, custom per-SN, allow сохраняет статус). Ограничение: режима `upstream_observation off` (полный запрет) ещё нет — C02.
 

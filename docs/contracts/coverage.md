@@ -33,7 +33,7 @@ Baseline тестов: `python -m pytest -q` → **61 passed**.
 
 | Endpoint | observed | source | tested | device-tested | unsupported |
 |---|---|---|---|---|---|
-| POST quasar /tv/api/v4/updates (list) | да | updates.py + динамические | test_updates | нет записи | — |
+| POST quasar /tv/api/v4/updates (list) | да | updates.py | test_updates | нет записи | — |
 | GET /check_updates (check) | да | updates.py | test_updates | нет записи | — |
 | GET /allow_update | да | updates.py | test_updates | нет записи | — |
 | GET /confirm_update | да | updates.py | test_updates | нет записи | — |

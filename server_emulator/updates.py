@@ -25,7 +25,9 @@ from .migrations import upgrade_database
 log = logging.getLogger(__name__)
 
 
-DEFAULT_ENDPOINTS = [
+# Эндпойнты проверки обновлений, которые перехватывает эмулятор (запрос уходит на
+# https://host+path реального сервера, ответ — по политике устройства)
+ENDPOINTS = [
     {'id':'ota','host':'quasar.yandex.net','path':'/tv/api/v4/updates','method':'POST','kind':'list'},
     {'id':'legacy','host':'quasar.yandex.net','path':'/check_updates','method':'GET','kind':'check'},
     {'id':'allow','host':'quasar.yandex.net','path':'/allow_update','method':'GET','kind':'allow'},
@@ -72,7 +74,7 @@ class Updates:
         upgrade_database(self.path, "updates")  # схема — базовая ревизия ветки updates
         with self.connect() as db:
             if not db.execute('SELECT 1 FROM settings').fetchone():
-                db.execute('INSERT INTO settings VALUES (1,?)',(json.dumps({'policy':'deny','devices':{},'custom':{'updates':[]},'endpoints':DEFAULT_ENDPOINTS}),))
+                db.execute('INSERT INTO settings VALUES (1,?)',(json.dumps({'policy':'deny','devices':{},'custom':{'updates':[]}}),))
 
     def connect(self):
         db = sqlite3.connect(self.path,timeout=10)
@@ -182,27 +184,14 @@ class Updates:
             for update in custom['updates']:
                 if not isinstance(update,dict):raise ValueError('Обновление должно быть объектом')
                 self.validate_url(update.get('url',''))
-        endpoints=value.get('endpoints')
-        if not isinstance(endpoints,list) or len(endpoints)>100:
-            raise ValueError('Нужен список до 100 эндпойнтов')
-        keys=set()
-        for e in endpoints:
-            e.setdefault('id',uuid.uuid4().hex)
-            if not e.get('host') or e.get('method') not in ('GET','POST') or e.get('kind') not in ('list','check','allow','confirm'):
-                raise ValueError('Эндпойнт: host, method GET/POST, kind list/check/allow/confirm')
-            if not e.get('path','').startswith('/') or '?' in e['path'] or '#' in e['path']:
-                raise ValueError('path должен начинаться с / и не содержать query/fragment')
-            self.validate_url(e.get('upstream') or 'https://'+e['host'])
-            key=(e['host'].lower(),e['path'],e['method'])
-            if key in keys:raise ValueError('Повторяющийся эндпойнт')
-            keys.add(key)
-            e['host']=e['host'].lower()
+        unknown=sorted(set(value)-{'policy','devices','platforms','custom','custom_devices','custom_platforms'})
+        if unknown:raise ValueError(f'Неизвестные поля настроек обновлений: {unknown}')
         with self.connect() as db:
             db.execute('UPDATE settings SET value=? WHERE id=1',(json.dumps(value,ensure_ascii=False),))
         return self.settings()
 
     def match(self,host,path,method):
-        return next((copy.deepcopy(e) for e in self.settings()['endpoints'] if e.get('enabled',True) and e['host']==host.lower() and e['path']==path and e['method']==method),None)
+        return next((copy.deepcopy(e) for e in ENDPOINTS if e['host']==host.lower() and e['path']==path and e['method']==method),None)
 
     @staticmethod
     async def fetch(url,method,headers,body):
@@ -242,7 +231,7 @@ class Updates:
             self._poll_task=asyncio.create_task(self.poll_loop())
         settings=self.with_extension_rules(self.settings())  # + правила updates/ расширений
         policy,custom=self.effective(settings,device)
-        target=(endpoint.get('upstream') or 'https://'+endpoint['host']).rstrip('/')+endpoint['path']+('?' + query if query else '')
+        target='https://'+endpoint['host']+endpoint['path']+('?' + query if query else '')
         # Forward the real request, including its authentication, but never persist credentials.
         excluded={'host','connection','content-length','transfer-encoding','accept-encoding','x-forwarded-for','x-real-ip','forwarded','x-alice-update-probe'}
         real_headers={k:v for k,v in headers.items() if k.lower() not in excluded}

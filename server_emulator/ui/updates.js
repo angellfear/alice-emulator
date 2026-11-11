@@ -1,21 +1,20 @@
 (() => {
   // Обновления · OTA: политика на трёх уровнях — общая → платформа → устройство (SN).
   // Сверху полосы карточек платформ/устройств и панель политики. Ниже секция
-  // «Каталог прошивок»: слева платформы (только захваченные в каталоге, вертикально),
-  // в центре — список прошивок (заголовок = version_code, свежие сверху; клик —
-  // существующее окно), справа — журнал: последние 10 проверок, свежие сверху,
+  // «Каталог»: вкладки «Прошивки» (type ota) и «Приложения» (type app — APK из того же
+  // ответа сервера); слева платформы (только захваченные в выбранной вкладке), в центре —
+  // список (свежие сверху; клик — окно), справа — журнал: последние 10 проверок, свежие сверху,
   // сгруппированы по устройству (IP, версия от Яндекса, версия на устройстве).
   // Каталог пополняется из реальных ответов Яндекса при любой политике, а если
   // устройство не стучится более суток — суточным опросом (updates.py, last_requests).
   const root=document.getElementById('updates');
-  let inventory,registry,draft,scope={kind:'all'};
+  let inventory,registry,draft,scope={kind:'all'},catKind='ota';
   const POLICY_TITLES={allow:'Разрешить · реальный ответ',deny:'Запретить · обновлений нет',custom:'Свой апдейт'};
   const POLICY_BADGES={allow:{text:'allow',tone:'ok'},deny:{text:'deny',tone:'danger'},custom:{text:'custom',tone:'accent'}};
   const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined&&text!==null)n.textContent=text;if(cls)n.className=cls;return n};
   async function api(action,value){const r=await fetch('api/'+action,{method:value?'POST':'GET',headers:{'X-Emulator':'1','Content-Type':'application/json'},body:value?JSON.stringify(value):undefined});const v=await r.json();if(!r.ok)throw Error(v.error||r.statusText);return v}
   const notice=(text,error)=>{notify(text,{error})};
   async function work(fn){try{await fn()}catch(e){notice(e.message,true)}}
-  function field(parent,title,value){const label=el('label',title),input=el('input');input.value=value||'';label.append(input);parent.append(label);return input}
   function choice(parent,title,options,value){const label=el('label',title),s=el('select');s.setAttribute('aria-label',title);for(const [v,t] of options){const o=el('option',t);o.value=v;s.append(o)}s.value=value;label.append(s);parent.append(label);return s}
 
   const query=()=>scope.kind==='device'?'?sn='+encodeURIComponent(scope.sn):scope.kind==='platform'?'?platform='+encodeURIComponent(scope.platform):'';
@@ -77,17 +76,12 @@
       panel.scrollIntoView({behavior:'smooth',block:'start'});custom.focus({preventScroll:true});notice('Свой апдейт подставлен — проверьте и нажмите «Сохранить»')}};
   }
 
-  function endpointsBlock(){
-    const details=el('details'),summary=el('summary','Эндпойнты проверки · '+draft.endpoints.length);details.append(summary);const table=el('div');details.append(table);
-    function routes(){table.replaceChildren();for(const e of draft.endpoints){const row=el('div');row.className='fields';const enabled=el('input');enabled.type='checkbox';enabled.checked=e.enabled!==false;const l=el('label','Включён');l.prepend(enabled);row.append(l);enabled.onchange=()=>e.enabled=enabled.checked;const host=field(row,'Домен',e.host),path=field(row,'Путь',e.path);host.oninput=()=>e.host=host.value;path.oninput=()=>e.path=path.value;const method=choice(row,'Метод',[['GET','GET'],['POST','POST']],e.method),kind=choice(row,'Тип ответа',[['list','Список updates'],['check','Проверка hasUpdate'],['allow','Разрешение allow'],['confirm','Подтверждение']],e.kind);method.onchange=()=>e.method=method.value;kind.onchange=()=>e.kind=kind.value;const upstream=field(row,'Реальный сервер (необязательно)',e.upstream||'');upstream.oninput=()=>{if(upstream.value)e.upstream=upstream.value;else delete e.upstream};const remove=el('button','Удалить эндпойнт');remove.onclick=()=>{draft.endpoints=draft.endpoints.filter(x=>x!==e);routes()};row.append(remove);table.append(row)}}routes();
-    const add=el('button','Добавить эндпойнт');add.onclick=()=>{draft.endpoints.push({host:'quasar.yandex.net',path:'/new_updates',method:'GET',kind:'list'});routes()};
-    const saveEndpoints=el('button','Сохранить эндпойнты');saveEndpoints.onclick=()=>work(async()=>{await api('updates',draft);notice('Эндпойнты сохранены');await load()});
-    details.append(add,saveEndpoints,el('p','Список общий для всех областей. Добавьте маршрут домена в прокси, если его ещё нет.','hint'));
-    return details;
-  }
-
-  // ── Каталог прошивок: реальные ответы серверов копятся в базе; список — version_code,
-  // полная версия, дата сборки, размер; клик — окно (ссылка, md5, выдача своим апдейтом)
+  // ── Каталог: реальные ответы серверов копятся в базе. Прошивка — version_code, версия,
+  // дата сборки, размер; приложение — пакет (из имени APK), version_code, размер, группы по
+  // сборке прошивки. Клик — окно (ссылка, md5, выдача своим апдейтом)
+  const isApp=item=>item.metadata.type==='app';
+  const ofKind=item=>isApp(item)===(catKind==='app');
+  const packageOf=item=>{const name=decodeURIComponent(String(item.url).split('?')[0].split('/').pop()||'');return name.replace(/-\d+\.apk$/i,'').replace(/\.apk$/i,'')||'—'};
   const versionOf=m=>{const parts=String(m.version_name||'').split('.');return parts.length>=4?parts.slice(0,4).join('.'):''};
   const buildDate=m=>{const d=String(m.version_name||'').split('.').find(x=>/^20\d{6}$/.test(x));return d?d.slice(6,8)+'.'+d.slice(4,6)+'.'+d.slice(0,4):''};
   const sizeOf=bytes=>!bytes?'':bytes>=1e9?(bytes/1e9).toFixed(2)+' ГБ':(bytes/1e6).toFixed(1)+' МБ';
@@ -95,10 +89,11 @@
 
   function firmwareDialog(item,useUrl){
     const dialog=el('dialog',null,'upd-firmware'),m=item.metadata;
-    const head=el('header');head.append(el('h3',DeviceKit.platformInfo(item.platforms[0]||'').name+' · '+(m.version_code||versionOf(m))));
+    const head=el('header');head.append(el('h3',isApp(item)?packageOf(item)+' · '+(m.version_code||''):DeviceKit.platformInfo(item.platforms[0]||'').name+' · '+(m.version_code||versionOf(m))));
     const close=el('button','✕','icon-btn');close.type='button';close.setAttribute('aria-label','Закрыть');close.onclick=()=>dialog.close();head.append(close);
     const facts=el('dl');
     const fact=(k,v)=>{if(v===undefined||v===null||v==='')return;facts.append(el('dt',k),el('dd',String(v)))};
+    if(isApp(item))fact('Пакет',packageOf(item));
     fact('version_code',m.version_code);fact('Версия',m.version_name);fact('Размер',sizeOf(m.size));fact('Тип',m.type);fact('Приоритет',m.priority);
     fact('update_id',m.update_id);fact('MD5',m.md5_hash);fact('Платформы',item.platforms.join(', ')||'не определены');
     fact('Устройства',item.sns.map(sn=>{const d=registry.devices.find(x=>x.sn===sn);return d?d.name+' ('+sn+')':sn}).join(', '));
@@ -114,35 +109,67 @@
     dialog.addEventListener('close',()=>dialog.remove());dialog.showModal();
   }
 
+  function kindTabs(){
+    const all=inventory.catalog||[];
+    const count=kind=>all.filter(i=>isApp(i)===(kind==='app')).length;
+    const bar=el('div',null,'segmented upd-kind');bar.setAttribute('role','tablist');bar.setAttribute('aria-label','Вид каталога');
+    const tabs=[['ota','Прошивки'],['app','Приложения']].map(([kind,title])=>{
+      const b=el('button',null,catKind===kind?'active':'');b.type='button';b.setAttribute('role','tab');
+      b.setAttribute('aria-selected',String(catKind===kind));b.tabIndex=catKind===kind?0:-1;
+      b.append(el('span',title),el('span',String(count(kind)),'c'));
+      b.onclick=()=>{if(catKind!==kind){catKind=kind;render()}};
+      return b});
+    bar.onkeydown=e=>{if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight')return;e.preventDefault();
+      catKind=catKind==='ota'?'app':'ota';render();root.querySelector('.upd-kind [aria-selected=true]')?.focus()};
+    bar.append(...tabs);return bar;
+  }
+
   function catalogBlock(useUrl){
-    const box=el('div',null,'upd-catalog');
+    const box=el('div',null,'upd-catalog');box.setAttribute('role','tabpanel');
     const selected=scope.kind==='platform'?scope.platform:scope.kind==='device'?platformOf(scope.sn):null;
-    const items=inventory.catalog.filter(i=>selected===null||i.platforms.includes(selected));
+    const items=inventory.catalog.filter(i=>ofKind(i)&&(selected===null||i.platforms.includes(selected)));
     const head=el('div',null,'sc-toolbar');
-    head.append(el('h3','Каталог прошивок'+(selected!==null?' · '+DeviceKit.platformInfo(selected).name:'')),el('span',items.length+' версий','hint'));
+    head.append(el('h3','Каталог'+(selected!==null?' · '+DeviceKit.platformInfo(selected).name:'')),kindTabs());
     box.append(head);
-    if(!items.length){box.append(el('p','Прошивки ещё не найдены: каталог пополняется из реальных ответов сервера при проверке обновлений устройством (или суточным опросом эмулятора).','hint'));return box}
-    const row=item=>{
+    if(!items.length){box.append(el('p',catKind==='app'
+      ?'Приложений пока нет: APK приходят в ответе сервера вместе с прошивкой.'
+      :'Прошивки ещё не найдены: каталог пополняется из реальных ответов сервера при проверке обновлений устройством (или суточным опросом эмулятора).','hint'));return box}
+    const tags=(r,item)=>{
+      if(item.metadata.priority==='FORCED')r.append(el('span','FORCED','tag'));
+      if(issued(item.url))r.append(el('span','выдаётся','tag iss'))};
+    const firmwareRow=item=>{
       const r=el('button',null,'upd-cat-row');r.type='button';r.title=item.url;
       r.append(el('span',String(item.metadata.version_code||'—'),'vc'),
         el('span',versionOf(item.metadata),'vn'),
         el('span',buildDate(item.metadata),'d'),
         el('span',sizeOf(item.metadata.size),'s'));
-      if(item.metadata.priority==='FORCED')r.append(el('span','FORCED','tag'));
-      if(issued(item.url))r.append(el('span','выдаётся','tag iss'));
-      r.onclick=()=>firmwareDialog(item,useUrl);
+      tags(r,item);r.onclick=()=>firmwareDialog(item,useUrl);
       return r};
+    const appRow=item=>{
+      const r=el('button',null,'upd-cat-row app');r.type='button';r.title=item.url;
+      r.append(el('span',packageOf(item),'pk'),
+        el('span',String(item.metadata.version_code||'—'),'vc'),
+        el('span',sizeOf(item.metadata.size),'s'));
+      tags(r,item);r.onclick=()=>firmwareDialog(item,useUrl);
+      return r};
+    const byCode=(a,b)=>(b.metadata.version_code||0)-(a.metadata.version_code||0);
     const list=el('div',null,'upd-cat-list');
-    if(selected!==null){
-      [...items].sort((a,b)=>(b.metadata.version_code||0)-(a.metadata.version_code||0)).forEach(item=>list.append(row(item)));
-    }else{
+    const grouped=(keyOf,titleOf,order,row,sort)=>{
       const groups=new Map();
-      for(const item of items)for(const p of (item.platforms.length?item.platforms:[''])){
-        if(!groups.has(p))groups.set(p,[]);groups.get(p).push(item)}
-      for(const [platform,glist] of [...groups].sort((a,b)=>DeviceKit.platformInfo(a[0]).name.localeCompare(DeviceKit.platformInfo(b[0]).name,'ru'))){
-        list.append(el('h4',DeviceKit.platformInfo(platform).name,'upd-group'));
-        [...glist].sort((a,b)=>(b.metadata.version_code||0)-(a.metadata.version_code||0)).forEach(item=>list.append(row(item)));
-      }
+      for(const item of items)for(const key of keyOf(item)){if(!groups.has(key))groups.set(key,[]);groups.get(key).push(item)}
+      for(const [key,glist] of [...groups].sort(order)){
+        list.append(el('h4',titleOf(key),'upd-group'));
+        [...glist].sort(sort).forEach(item=>list.append(row(item)));
+      }};
+    if(catKind==='app'){
+      // группы — сборка прошивки, с которой пришли APK (свежая сверху); внутри — по имени пакета
+      grouped(i=>[String(i.metadata.version_name||'')],k=>k?'Сборка '+k:'Сборка не указана',
+        (a,b)=>b[0].localeCompare(a[0],'ru',{numeric:true}),appRow,(a,b)=>packageOf(a).localeCompare(packageOf(b)));
+    }else if(selected!==null){
+      [...items].sort(byCode).forEach(item=>list.append(firmwareRow(item)));
+    }else{
+      grouped(i=>i.platforms.length?i.platforms:[''],k=>DeviceKit.platformInfo(k).name,
+        (a,b)=>DeviceKit.platformInfo(a[0]).name.localeCompare(DeviceKit.platformInfo(b[0]).name,'ru'),firmwareRow,byCode);
     }
     box.append(list);
     return box;
@@ -188,7 +215,7 @@
     return box;
   }
 
-  // ── Секция «Каталог прошивок»: платформы (только захваченные, вертикально) —
+  // ── Секция «Каталог»: платформы (только захваченные в выбранной вкладке, вертикально) —
   // каталог-список — журнал
   function catPlatformsBlock(){
     const box=el('div',null,'upd-platforms');
@@ -199,9 +226,10 @@
       if(count)b.append(el('span',count,'c'));
       b.onclick=onClick;return b};
     const counts={};
-    for(const item of (inventory.catalog||[]))for(const p of item.platforms)counts[p]=(counts[p]||0)+1;
+    const shown=(inventory.catalog||[]).filter(ofKind);
+    for(const item of shown)for(const p of item.platforms)counts[p]=(counts[p]||0)+1;
     box.append(el('h3','Платформы'));
-    box.append(row('Все прошивки',(inventory.catalog||[]).length||'',scope.kind==='all',()=>pick({kind:'all'})));
+    box.append(row('Все платформы',shown.length||'',scope.kind==='all',()=>pick({kind:'all'})));
     for(const [p,c] of Object.entries(counts).sort((a,b)=>DeviceKit.platformInfo(a[0]).name.localeCompare(DeviceKit.platformInfo(b[0]).name,'ru')))
       box.append(row(DeviceKit.platformInfo(p).name,c,scope.kind==='platform'&&scope.platform===p,
         ()=>pick(scope.kind==='platform'&&scope.platform===p?{kind:'all'}:{kind:'platform',platform:p})));
@@ -218,7 +246,7 @@
     root.replaceChildren(el('h2','Обновления · OTA'));
     root.append(cardsBlock());
     const {panel,useUrl}=policyPanel();
-    root.append(panel,catalogSection(useUrl),endpointsBlock());
+    root.append(panel,catalogSection(useUrl));
   }
   // Пока вкладка открыта — журнал подтягивается каждые 10 с без перерисовки остального
   setInterval(()=>{if(location.hash!=='#updates'||document.hidden||!inventory)return;

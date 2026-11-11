@@ -1,4 +1,5 @@
 import json
+import pytest
 from aiohttp import ClientSession, web
 from server_emulator.runtime import Runtime
 from server_emulator.server import create_app
@@ -32,19 +33,18 @@ async def test_deny_still_fetches_real_urls_and_persists_each_attempt(tmp_path):
     finally:await runner.cleanup()
 
 
-async def test_custom_by_sn_failure_logged_and_dynamic_endpoint(tmp_path):
+async def test_custom_by_sn_failure_logged(tmp_path):
     runtime=Runtime(tmp_path)
     runtime.identities.mutate({'operation':'user','id':'u','name':'U'})
     runtime.identities.mutate({'operation':'device','sn':'SN1','user_id':'u','device_ids':['id1']})
     config=runtime.updates.settings();config['policy']='deny';config['devices']={'SN1':'custom'};config['custom_devices']={'SN1':{'updates':[{'url':'https://mine.example/ota.zip','version_code':99}]}}
-    config['endpoints'].append({'host':'custom.example','path':'/updates2','method':'POST','kind':'list'})
     runtime.updates.save(config)
     async def fail(*args):raise OSError('credential must not be recorded')
     runtime.update_fetch=fail
     runner,url=await listen(create_app(runtime=runtime))
     try:
         async with ClientSession() as client:
-            async with client.post(url+'/updates2',headers={'Host':'custom.example','X-YaQuasarDeviceId':'id1'}) as response:
+            async with client.post(url+'/tv/api/v4/updates',headers={'Host':'quasar.yandex.net','X-YaQuasarDeviceId':'id1'}) as response:
                 assert (await response.json())['updates'][0]['version_code']==99
             inventory=runtime.updates.inventory('SN1')
             assert inventory['attempts'][0]['error']=='OSError'
@@ -107,3 +107,28 @@ def test_catalog_platform_by_device_or_cdn_path():
     assert url_platforms('https://cdn.example/x/ota.zip',['X00T10001MP7PK'],[])==['yandexstation_2']  # по SN вне реестра
     assert url_platforms('https://cdn.example/chiron/ota/user/u/1.zip',[],[])==['chiron']  # по пути CDN
     assert url_platforms('https://cdn.example/ota.zip',[],[])==[]
+
+
+@pytest.mark.no_state_template  # база собирается ревизией 0001 в самом тесте
+def test_check_endpoints_are_code_constant_and_dropped_from_settings(tmp_path):
+    import sqlite3
+    from alembic import command
+    from alembic.config import Config
+    from server_emulator.migrations import PACKAGE_DIR, upgrade_database
+    path = tmp_path / 'updates.sqlite3'
+    cfg = Config()
+    cfg.set_main_option('script_location', str(PACKAGE_DIR))
+    cfg.set_main_option('version_locations', str(PACKAGE_DIR / 'updates' / 'versions'))
+    cfg.set_main_option('sqlalchemy.url', 'sqlite:///' + path.as_posix())
+    cfg.set_main_option('path_separator', 'os')
+    command.upgrade(cfg, '0001')
+    with sqlite3.connect(path) as db:
+        db.execute('INSERT INTO settings VALUES (1,?)', (json.dumps(
+            {'policy': 'deny', 'devices': {}, 'custom': {'updates': []}, 'endpoints': [{'host': 'x'}]}),))
+    db.close()
+    upgrade_database(path, 'updates')
+    updates = Updates(tmp_path)
+    assert 'endpoints' not in updates.settings()
+    assert updates.match('QUASAR.yandex.net', '/tv/api/v4/updates', 'POST')['kind'] == 'list'
+    with pytest.raises(ValueError):
+        updates.save({**updates.settings(), 'endpoints': []})

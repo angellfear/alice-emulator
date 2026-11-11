@@ -6,6 +6,7 @@ HTTP-промахи хранит EndpointCatalog, остальное — жур�
 from aiohttp import web
 
 from ...endpoints import system_entries
+from ...updates import ENDPOINTS as UPDATE_ENDPOINTS
 from . import route
 
 
@@ -13,7 +14,7 @@ from . import route
 async def misses(request, runtime, app):
     if request.method == 'GET':
         runtime.endpoints.reload()
-        system = system_entries(runtime.quasar.ROUTES, runtime.updates.settings()['endpoints'])
+        system = system_entries(runtime.quasar.ROUTES, UPDATE_ENDPOINTS)
         return web.json_response({'http': runtime.endpoints.public(system)['misses'],
                                   'phrases': runtime.phrase_misses.public(),
                                   'callbacks': runtime.callback_misses.public(),

@@ -9,6 +9,7 @@ legacy_api (server_emulator/runtime.py, mount_ui); guard и маппинг ош�
 from aiohttp import web
 
 from ...endpoints import system_entries
+from ...updates import ENDPOINTS as UPDATE_ENDPOINTS
 from . import route
 
 
@@ -23,14 +24,14 @@ async def endpoints(request, runtime, app):
     if request.method == 'GET':
         runtime.endpoints.reload()  # файлы могли написать утилитой в живой сервер
         return web.json_response(runtime.endpoints.public(
-            system_entries(runtime.quasar.ROUTES, runtime.updates.settings()['endpoints'])))
+            system_entries(runtime.quasar.ROUTES, UPDATE_ENDPOINTS)))
     value = await request.json() if request.method == 'PUT' else None
     async with runtime.lock:
         if request.method == 'PUT' and set(value or {}) == {'id', 'enabled'}:
             return web.json_response(runtime.endpoints.toggle(value['id'], value['enabled']))
         if request.method == 'PUT':
             return web.json_response({'saved': runtime.endpoints.upsert(value.get('endpoint') or value, system_entries(
-                runtime.quasar.ROUTES, runtime.updates.settings()['endpoints']), value.get('script'))['id']})
+                runtime.quasar.ROUTES, UPDATE_ENDPOINTS), value.get('script'))['id']})
         if request.method == 'DELETE' and 'miss' in request.query:  # убрать зафиксированный промах ('*' — все)
             key = request.query['miss']
             runtime.endpoints.forget_miss(None if key == '*' else key)
