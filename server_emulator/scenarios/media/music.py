@@ -32,6 +32,12 @@ sequence_state + audio_play). Своей очереди у ядра нет — �
   очереди поставщика; подтвердил — стек «лайка» (music.like_reply), иначе отказ словами.
 - Фраза «дизлайк» — запись dislike: rate(dislike) текущего трека, затем neighbor(+1) —
   стек «дизлайка» (music.dislike_reply): анимация и переход к следующему треку.
+- Фраза «поставь на повтор» — запись repeat: sequence_state играющего трека с
+  RepeatType REPEAT_TYPE_TRACK, речь «Хорошо, буду повторять.» (запись .85 2026-11-12
+  13:57:05); облачные set_glagol_metadata (мета волны) и divui-карта в ответ не входят.
+- Фраза «что играет» — запись what_playing: «Это <исполнитель>, <альбом>, песня
+  "<название>".» из текущего трека очереди поставщика, иначе из сообщений колонки о
+  плеере (запись .85 2026-11-12 13:57:18; divui-карта облака — не входит).
 - Кнопки виджета музыки (provide music.touch, TMusicTouchTypedCallback): Continue,
   NextTrack, PrevTrack — те же ответы, что фразы «продолжи», «дальше», «предыдущий»,
   без речи (колбэк просит disable_output_speech); соседа нет — тихий отказ.
@@ -46,7 +52,7 @@ from server_emulator.sdk import ask, say
 
 NOT_FOUND = "Не нашла подходящего. Попробуйте назвать исполнителя или песню."
 STEPS = {"next": 1, "prev": -1}
-PLAYER_INTENTS = ("next", "prev", "continue", "like", "dislike")  # только при треке в плеере колонки
+PLAYER_INTENTS = ("next", "prev", "continue", "like", "dislike", "repeat", "what_playing")  # только при треке в плеере колонки
 NOTHING = {"next": "Дальше ничего нет.", "prev": "Это первый трек."}
 NO_RATE = {True: "Не получилось поставить лайк в этом источнике музыки.",
            False: "Не получилось поставить дизлайк в этом источнике музыки."}
@@ -144,6 +150,10 @@ async def handle(ctx):
         return await _like(ctx, provider)
     if intent == "dislike":  # «дизлайк»: оценка в аккаунте и переход к следующему треку
         return await _dislike(ctx, provider)
+    if intent == "repeat":  # «поставь на повтор»: повтор играющего трека
+        return await _repeat(ctx, provider)
+    if intent == "what_playing":  # «что играет»: исполнитель, альбом и название трека
+        return await _what_playing(ctx, provider)
     if intent == "continue":  # «продолжи»: с места паузы, иначе текущий трек сначала
         resumed = await _resume(ctx, provider)
         if resumed is not None:
@@ -207,6 +217,38 @@ async def _dislike(ctx, provider):
     following = await music.neighbor(ctx, provider, None, None, 1)
     token = music.keep_commit(following) if following is not None else None
     return music.dislike_reply(following, provider, token)
+
+
+async def _repeat(ctx, provider):
+    """«поставь на повтор» (запись .85 2026-11-12 13:57:05): set_audio_player_sequence_state
+    с RepeatType REPEAT_TYPE_TRACK у играющего трека, речь «Хорошо, буду повторять.».
+    set_glagol_metadata (мета волны onyourwave) и облачная divui-карта в ответ не входят."""
+    track = await music.neighbor(ctx, provider, None, None, 0)
+    if track is None:
+        return say(NOT_FOUND)
+    spec = say("Хорошо, буду повторять.")
+    spec["directives"] = [music.sequence_state_directive(track, [track], provider,
+                                                         repeat_type="REPEAT_TYPE_TRACK")]
+    return spec
+
+
+async def _what_playing(ctx, provider):
+    """«что играет» (запись .85 2026-11-12 13:57:18): «Это <исполнитель>, <альбом>, песня
+    "<название>".» — из текущего трека очереди поставщика; нет очереди — из сообщений
+    колонки о плеере (title/subtitle). Директив, кроме каркаса, в образце нет."""
+    track = await music.neighbor(ctx, provider, None, None, 0)
+    if track is not None:
+        artist = str(track.get("artist") or "").strip()
+        album = str(track.get("album") or "").strip()
+        title = str(track.get("title") or "").strip()
+    else:
+        artist = str(ctx.player.get("subtitle") or "").strip()
+        album = ""
+        title = str(ctx.player.get("title") or "").strip()
+    if not title:
+        return say(NOT_FOUND)
+    who = ", ".join(part for part in (artist, album) if part)
+    return say(f'Это {who}, песня "{title}".' if who else f'Это песня "{title}".')
 
 
 async def _resume(ctx, provider):

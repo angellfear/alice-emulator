@@ -76,3 +76,25 @@ def launch_items(name):
     if app_card_resource(name) is None:
         return None
     return [tts_placeholder(), youtube_launch_directive()]
+
+
+# Системные экраны колонки: имя в реплике → директива открытия. Образцы записи
+# .85 2026-11-12 13:56:15 («открой Браузер» → open_browser_directive) и 13:56:21
+# («открой Настройки» → open_android_settings): client_action, IsLedSilent, payload
+# пустой (PayloadRaw — ноль байт).
+SYSTEM_APPS = {
+    "браузер": "open_browser_directive",
+    "яндекс браузер": "open_browser_directive",
+    "настройки": "open_android_settings",
+}
+
+
+def action_items(name):
+    """Стек ответа на «открой <системный экран>»: tts_play_placeholder + директива без
+    payload (в образце tts_play_placeholder первой). None — образца нет."""
+    key = str(name or "").strip().lower().replace("ё", "е")
+    directive = SYSTEM_APPS.get(key)
+    if directive is None:
+        return None
+    return [tts_placeholder(),
+            {"name": directive, "type": "client_action", "is_led_silent": True}]

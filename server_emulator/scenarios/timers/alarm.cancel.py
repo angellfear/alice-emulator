@@ -4,7 +4,9 @@
 Звонящий (CurrentlyPlaying) — не кандидат: его останавливает timers.ringing.stop.
 Один кандидат — отменяем (alarm_cancel_directive, TAlarmCancelDirective по protos);
 несколько — уточняющий вопрос с продолжением on_pick (номер или время), нет — честный
-отказ. Своего хранилища нет: будильник живёт у колонки.
+отказ. «отмени/удали все будильники» — отменяем всё сразу: по alarm_cancel_directive на
+каждый будильник состояния, без экрана списка (запись .85 2026-11-12 13:58:48). Своего
+хранилища нет: будильник живёт у колонки.
 """
 from server_emulator import clock_directives
 from server_emulator.sdk import ask, format_hhmm, say
@@ -65,6 +67,8 @@ async def handle(ctx):
     ordinal = ctx.slots.get("ordinal")
     if not alarms:
         return say("Будильников нет.")
+    if _all_requested(ctx):
+        return _cancel_all(alarms)
     candidates = _matches(alarms, time_value, ordinal)
     if not candidates:
         if time_value:
@@ -100,6 +104,24 @@ def _picked(ctx, answer):
             if alarm_time.get("hours") == hours and alarm_time.get("minutes") == minutes:
                 return ids[position]
     return None
+
+
+def _all_requested(ctx):
+    """«все» в реплике («удали все будильники»)."""
+    return "все" in ctx.text.lower().replace("ё", "е")
+
+
+def _cancel_all(alarms):
+    """Массовая отмена по записи .85 2026-11-12 13:58:48: по alarm_cancel_directive на
+    каждый будильник, без экрана списка; речь «Хорошо, удалила все будильники.»."""
+    spec = say("Хорошо, удалила все будильники.")
+    spec["directives"] = [
+        {"name": "alarm_cancel_directive", "type": "client_action", "is_led_silent": True,
+         "proto": CANCEL_PROTO,
+         "fields": {"Name": "cancel_alarm_capability_directive", "AlarmId": alarm["alarm_id"]}}
+        for alarm in alarms
+    ]
+    return spec
 
 
 async def _cancel(ctx, alarm):

@@ -1,16 +1,15 @@
-"""Перемотка плеера («перемотай на минуту вперёд»): audio_player_rewind.
+"""Перемотка плеера («перемотай на минуту вперёд», «перемотай на 30 секунд»): audio_player_rewind.
 
 Payload — Struct {amount_ms, type: Forward|Backward} (справочник directives.md:
 protos-сообщения нет, решение владельца 2026-11-07). Длительность — слоты шаблона
 или разбор фразы; нет длительности — уточняющий вопрос (своё значение по умолчанию
-эмулятор не выдумывает). Речи в ответе нет: tts_play_placeholder + директива,
-как у штатных ответов плеера без речи (media-pause).
+эмулятор не выдумывает). Нет слова о направлении — Forward: так отвечает настоящий
+сервер на «перемотай на 30 секунд» (запись .85 2026-11-12 13:57:00). Речи в ответе
+нет: директива первой, tts_play_placeholder — в конце каркаса ответа, как в записи.
 """
 from server_emulator.sdk import ask, say
 
 QUESTION = "На сколько перемотать?"
-PLACEHOLDER = {"name": "tts_play_placeholder", "type": "client_action", "is_led_silent": True,
-               "analytics_type": "tts_play_placeholder", "payload": {"channel": "Dialog"}}
 
 
 def _slots_seconds(slots):
@@ -30,7 +29,8 @@ def _slots_seconds(slots):
 
 def _direction(ctx):
     """Forward|Backward: сущность шаблона {rewind_direction}, иначе из реплики
-    (phrase-триггеры слотов не дают): «назад»/«обратно» — назад, иначе вперёд."""
+    (phrase-триггеры слотов не дают): «назад»/«обратно» — назад, «вперед»/«наперед» —
+    вперёд. Слов о направлении нет — None: длительность есть — Forward (запись .85)."""
     direction = ctx.slots.get("rewind_direction")
     if direction in ("Forward", "Backward"):
         return direction
@@ -43,16 +43,16 @@ def _direction(ctx):
 
 
 async def handle(ctx):
-    direction = _direction(ctx)
     seconds = _slots_seconds(ctx.slots)
     if seconds is None:
         seconds = ctx.parse_duration()
     if seconds is None:
+        direction = _direction(ctx)
         if direction is None:
             raise ValueError("Не удалось понять направление перемотки")
         ctx.state["rewind_direction"] = direction  # слоты в продолжение не переходят
         return ask(QUESTION, then="on_amount", expect="duration")
-    return _rewind(direction, seconds)
+    return _rewind(_direction(ctx) or "Forward", seconds)
 
 
 async def on_amount(ctx, answer):
@@ -66,11 +66,10 @@ async def on_amount(ctx, answer):
 
 
 def _rewind(direction, seconds):
-    """Директива перемотки: тип — Forward|Backward из фразы, amount_ms — длительность."""
+    """Директива перемотки: тип — Forward|Backward, amount_ms — длительность."""
     spec = say("")
     spec["card"] = False
     spec["directives"] = [
-        PLACEHOLDER,
         {"name": "audio_player_rewind", "type": "client_action", "is_led_silent": True,
          "payload": {"amount_ms": int(seconds) * 1000, "type": direction}},
     ]

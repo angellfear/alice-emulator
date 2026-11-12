@@ -3670,6 +3670,92 @@
               "text": "удали будильник"
             }
           ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "отмени все будильники"
+          },
+          "name": "timers.alarm.cancel-trigger0-2",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Будильников нет.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Будильников нет."
+                }
+              ],
+              "reason": "template",
+              "scenario": "timers.alarm.cancel",
+              "speech": "Будильников нет.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "отмени все будильники"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "удали все будильники"
+          },
+          "name": "timers.alarm.cancel-trigger0-3",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "Будильников нет.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Будильников нет."
+                }
+              ],
+              "reason": "template",
+              "scenario": "timers.alarm.cancel",
+              "speech": "Будильников нет.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "удали все будильники"
+            }
+          ]
         }
       ],
       "id": "timers.alarm.cancel"

@@ -21,6 +21,7 @@ from tests.test_time_scenarios import (
 ALARM_B = "22222222-33333333-44444444-55555555"
 
 ALARM_CANCEL = "NAlice.TAlarmCapability.TAlarmCancelDirective"
+TIMER_CANCEL = "NAlice.TAlarmCapability.TTimerCancelDirective"
 TIMER_PAUSE = "NAlice.TAlarmCapability.TTimerPauseDirective"
 TIMER_RESUME = "NAlice.TAlarmCapability.TTimerResumeDirective"
 AUDIO_FILE_PLAY = "NAlice.TAudioFilePlayerCapability.TLocalAudioFilePlayDirective"
@@ -47,6 +48,18 @@ def _payload(reply, name, proto):
     message = _station(proto)()
     message.ParseFromString(bytes(_directive(reply, name).PayloadRaw))
     return json_format.MessageToDict(message, preserving_proto_field_name=True)
+
+
+def _payloads(reply, name, proto):
+    """Все директивы с этим именем, payload по protos — порядок на проводе."""
+    payloads = []
+    for directive in reply.Event.AliceResponse.Response.Directives:
+        if directive.Name != name:
+            continue
+        message = _station(proto)()
+        message.ParseFromString(bytes(directive.PayloadRaw))
+        payloads.append(json_format.MessageToDict(message, preserving_proto_field_name=True))
+    return payloads
 
 
 def _payload_struct(reply, name):
@@ -212,12 +225,46 @@ async def test_alarm_cancel_ringing_alarm_is_not_candidate(tmp_path):
     assert _speech(reply) == "Будильников нет."
 
 
+async def test_alarm_cancel_all(tmp_path):
+    """«удали все будильники» (запись .85 2026-11-12 13:58:48): по alarm_cancel_directive
+    на каждый будильник состояния, без экрана списка; речь «Хорошо, удалила все будильники.»."""
+    raw = _state_raw(alarms=[{"alarm_id": ALARM_A, "hours": 7, "minutes": 30},
+                             {"alarm_id": ALARM_B, "hours": 9, "minutes": 0}])
+    reply, _ = await _ask(tmp_path, "удали все будильники", env_state=raw)
+    assert _names(reply) == ["alarm_cancel_directive", "alarm_cancel_directive", "tts_play_placeholder"]
+    assert _payloads(reply, "alarm_cancel_directive", ALARM_CANCEL) == [
+        {"Name": "cancel_alarm_capability_directive", "AlarmId": ALARM_A},
+        {"Name": "cancel_alarm_capability_directive", "AlarmId": ALARM_B}]
+    assert _speech(reply) == "Хорошо, удалила все будильники."
+
+
+async def test_timer_cancel_all(tmp_path):
+    """«отмени все таймеры» (запись .85 2026-11-12 13:59:11): экран списка один раз и по
+    timer_cancel_directive на каждый активный таймер; речь «Хорошо, удалила все таймеры.»."""
+    raw = _state_raw(timers=[{"timer_id": TIMER_A, "start_ts": _now() - 60, "duration": 600},
+                             {"timer_id": TIMER_B, "start_ts": _now() - 30, "duration": 300}])
+    reply, _ = await _ask(tmp_path, "отмени все таймеры", env_state=raw)
+    assert _names(reply) == ["open_screen_timer_list_directive", "timer_cancel_directive",
+                             "timer_cancel_directive", "tts_play_placeholder"]
+    assert _payloads(reply, "timer_cancel_directive", TIMER_CANCEL) == [
+        {"Name": "cancel_timer_capability_directive", "TimerId": TIMER_B},  # порядок — по остатку
+        {"Name": "cancel_timer_capability_directive", "TimerId": TIMER_A}]
+    assert _speech(reply) == "Хорошо, удалила все таймеры."
+
+
 # --- перемотка плеера ----------------------------------------------------------------
 
 async def test_rewind_with_duration(tmp_path):
     reply, _ = await _ask(tmp_path, "перемотай на минуту вперед")
-    assert _names(reply) == ["tts_play_placeholder", "audio_player_rewind"]
+    assert _names(reply) == ["audio_player_rewind", "tts_play_placeholder"]
     assert _payload_struct(reply, REWIND) == {"amount_ms": 60000, "type": "Forward"}
+
+
+async def test_rewind_without_direction_defaults_forward(tmp_path):
+    """«перемотай на 30 секунд» без слова о направлении — Forward (запись .85 2026-11-12)."""
+    reply, _ = await _ask(tmp_path, "перемотай на 30 секунд")
+    assert _names(reply) == ["audio_player_rewind", "tts_play_placeholder"]
+    assert _payload_struct(reply, REWIND) == {"amount_ms": 30000, "type": "Forward"}
 
 
 async def test_rewind_back_asks_and_continues(tmp_path):

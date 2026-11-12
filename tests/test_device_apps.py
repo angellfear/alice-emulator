@@ -326,6 +326,61 @@ async def test_app_open_not_in_list(tmp_path):
         await runtime.close()
 
 
+async def test_app_open_browser_and_settings_named_directives(tmp_path):
+    """«открой Браузер»/«открой Настройки» (запись .85 2026-11-12 13:56:15/13:56:21):
+    tts_play_placeholder + client_action open_browser_directive/open_android_settings
+    с пустым payload и IsLedSilent, речи нет."""
+    runtime = Runtime(tmp_path)
+    apps_state(runtime, list(EP_APPS))
+    runtime.settings.update(aapi_model=True, builtin_scenarios=True)
+
+    async def chat(*args, **kwargs):
+        raise AssertionError("модель не должна вызываться")
+
+    runtime.chat = chat
+    from server_emulator.server import create_app
+    from tests.conftest import _open_session, listen
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        for phrase, directive in (("открой браузер", "open_browser_directive"),
+                                  ("открой настройки", "open_android_settings")):
+            reply, _, ws = await _open_session(runtime, url, phrase, env_state=env_state(EP_APPS))
+            await ws.close()
+            directives = reply.Event.AliceResponse.Response.Directives
+            assert [d.Name for d in directives] == ["tts_play_placeholder", directive], phrase
+            action = directives[1]
+            assert action.Type == "client_action" and action.IsLedSilent, phrase
+            assert not action.PayloadRaw and len(action.Payload.fields) == 0, phrase
+        assert reply.Event.AliceResponse.VoiceResponse.OutputSpeech.Text == ""  # тихое открытие
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
+async def test_app_open_system_screen_without_list(tmp_path):
+    """Список приложений не получен — системный экран всё равно открывается:
+    директива по образцу записи, про список не гадаем."""
+    runtime = Runtime(tmp_path)
+    apps_state(runtime, [])
+    runtime.settings.update(aapi_model=True, builtin_scenarios=True)
+
+    async def chat(*args, **kwargs):
+        raise AssertionError("модель не должна вызываться")
+
+    runtime.chat = chat
+    from server_emulator.server import create_app
+    from tests.conftest import _open_session, listen
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        reply, _, ws = await _open_session(runtime, url, "открой настройки")
+        await ws.close()
+        assert [d.Name for d in reply.Event.AliceResponse.Response.Directives] == \
+            ["tts_play_placeholder", "open_android_settings"]
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
 async def test_app_open_without_list_is_honest(tmp_path):
     """Список не получен — про запуск не гадаем, честный ответ о состоянии."""
     runtime = Runtime(tmp_path)

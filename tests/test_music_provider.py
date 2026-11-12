@@ -121,6 +121,11 @@ MUSIC_PHRASES = {"entries": [
      "handler": "core:media.music"},
     {"id": "like", "sentences": ["лайк", "(поставь|ставлю) лайк"], "handler": "core:media.music"},
     {"id": "dislike", "sentences": ["дизлайк", "(поставь|ставлю) дизлайк"], "handler": "core:media.music"},
+    {"id": "repeat", "sentences": ["(поставь|включи) [трек ]на повтор",
+                                   "(поставь|включи) (трек|песню|музыку) на повтор"],
+     "handler": "core:media.music"},
+    {"id": "what_playing", "sentences": ["что [сейчас ](играет|звучит)", "что за (песня|трек)"],
+     "handler": "core:media.music"},
     {"id": "search", "sentences": ["(включи|запусти|поставь|послушай) {query}"],
      "handler": "core:media.music", "search": True}]}
 
@@ -1026,7 +1031,63 @@ async def test_dislike_phrase_rates_and_plays_next(tmp_path):
         await runtime.close()
 
 
-# --- кнопки виджета музыки (TMusicTouchTypedCallback) -----------------------------------
+async def test_repeat_phrase_sets_sequence_state(tmp_path):
+    """«поставь на повтор» при треке в плеере: set_audio_player_sequence_state играющего
+    трека с RepeatType REPEAT_TYPE_TRACK + tts_play_placeholder (запись .85 2026-11-12
+    13:57:05), речь «Хорошо, буду повторять.»; плеер пуст — фразы не музыке."""
+    runtime = Runtime(tmp_path)
+    marker = tmp_path / "marker.json"
+    module = _provider_module(marker).replace("return NEXT if step > 0 else None", "return NEXT")
+    make_music_extension(runtime, files={"music/fake.py": module}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
+    station = {"player": {"state": "playing", "playing": True, "title": "Трек 9"}}
+    try:
+        assert not (await say(runtime, "поставь на повтор", deliver=False))["handled"]
+        report = await say(runtime, "поставь на повтор", station=station, deliver=False)
+        assert report["scenario"] == "media.music" and report["speech"] == "Хорошо, буду повторять.", report
+        [message] = report["messages"]
+        assert _reply_names(message) == ["set_audio_player_sequence_state_directive", "tts_play_placeholder"]
+        state = _decoded(message, "set_audio_player_sequence_state_directive", SEQSTATE_PROTO)
+        track_id = NEXT_TRACK["id"]
+        assert state["SequenceState"]["CurrentItem"]["Track"] == {
+            "Id": track_id, "Uuid": track_id, "RepeatType": "REPEAT_TYPE_TRACK"}
+        calls = json.loads(marker.read_text(encoding="utf-8"))
+        assert [call[3] for call in calls if call[0] == "neighbor"] == [0]
+    finally:
+        await runtime.close()
+
+
+async def test_what_playing_names_the_track(tmp_path):
+    """«что играет» (запись .85 2026-11-12 13:57:18): «Это <исполнитель>, <альбом>, песня
+    "<название>".» — из текущего трека очереди поставщика; нет трека в очереди — из
+    сообщений колонки о плеере (title/subtitle); директив, кроме каркаса, нет."""
+    runtime = Runtime(tmp_path)
+    marker = tmp_path / "marker.json"
+    module = _provider_module(marker).replace("return NEXT if step > 0 else None", "return NEXT")
+    make_music_extension(runtime, files={"music/fake.py": module}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
+    station = {"player": {"state": "playing", "playing": True, "title": "Трек 9"}}
+    try:
+        assert not (await say(runtime, "что играет", deliver=False))["handled"]  # плеер пуст
+        report = await say(runtime, "что за песня", station=station, deliver=False)
+        assert report["scenario"] == "media.music", report
+        assert report["speech"] == 'Это Тестовый Артист, песня "Следующий трек".', report
+        [message] = report["messages"]
+        assert _reply_names(message) in (["tts_play_placeholder"], [])
+    finally:
+        await runtime.close()
+    runtime = Runtime(tmp_path)
+    make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)},
+                         phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
+    try:
+        station = {"player": {"state": "playing", "playing": True, "title": "Трек 9",
+                              "subtitle": "Артист с колонки"}}
+        report = await say(runtime, "что сейчас играет", station=station, deliver=False)
+        assert report["scenario"] == "media.music" and report["speech"] == \
+            'Это Артист с колонки, песня "Трек 9".', report
+    finally:
+        await runtime.close()
 
 # «плей» в виджете .202: Any(NAlice.TMusicTouchTypedCallback{Command{Continue{}}})
 WIDGET_PLAY = "CjN0eXBlLmdvb2dsZWFwaXMuY29tL05BbGljZS5UTXVzaWNUb3VjaFR5cGVkQ2FsbGJhY2sSBBICcgA="

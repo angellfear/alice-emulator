@@ -386,10 +386,12 @@ def queue_directive(tracks, index, provider):
             "is_led_silent": True, "proto": QUEUE_PROTO, "fields": fields}
 
 
-def sequence_state_directive(current, tracks, provider, like_status=None):
+def sequence_state_directive(current, tracks, provider, like_status=None, repeat_type=None):
     """set_audio_player_sequence_state_directive (TSetSequenceStateDirective):
     CurrentItem — играющий трек, MetaStorage — меты треков/артистов/альбомов очереди
-    (карты ProviderTrackMeta/ProviderArtistMeta/ProviderAlbumMeta по образцу)."""
+    (карты ProviderTrackMeta/ProviderArtistMeta/ProviderAlbumMeta по образцу).
+    repeat_type — повтор трека (запись .85 2026-11-12 13:57:05: RepeatType=
+    REPEAT_TYPE_TRACK у CurrentItem.Track)."""
     key = provider_key(provider)
     # ProviderTrackMeta — карта провайдер → TrackMeta → track_id (map в proto; провайдер →
     # ключ из enum Alice.Music.MusicProvider, у не-Яндекса MUSIC_PROVIDER_UNSPECIFIED)
@@ -414,6 +416,8 @@ def sequence_state_directive(current, tracks, provider, like_status=None):
     item = {"Id": str(current["id"]), "Uuid": str(current["id"])}
     if like_status:  # оценка играющего трека (образец «лайк»: LikeStatus текущего)
         item["LikeStatus"] = like_status
+    if repeat_type:  # повтор играющего трека (образец «поставь на повтор»: RepeatType)
+        item["RepeatType"] = repeat_type
     return {"name": "set_audio_player_sequence_state_directive", "type": "client_action",
             "is_led_silent": True, "proto": SEQSTATE_PROTO,
             "fields": {"SequenceState": {"CurrentItem": {"Track": item}, "MetaStorage": meta}}}

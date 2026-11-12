@@ -8,7 +8,7 @@
   "en": "Open app"
  },
  "description": {
-  "ru": "«открой ютуб», «запусти …» → поиск в приложениях колонки из состояния запроса (TAppLaunchCapability.InstalledAppsList, cap 39); запуск — после восстановления wire"
+  "ru": "«открой ютуб», «запусти …» → поиск в приложениях колонки из состояния запроса (TAppLaunchCapability.InstalledAppsList, cap 39); системные экраны (Браузер, Настройки) — именованные директивы открытия; запуск прочих — после восстановления wire"
  },
  "priority": 200,
  "triggers": [
@@ -40,8 +40,9 @@
   ]
  },
  "provenance": {
+  "source": "«открой Браузер» → tts_play_placeholder + open_browser_directive (запись .85 2026-11-12 13:56:15), «открой Настройки» → open_android_settings (13:56:21): client_action, IsLedSilent, payload пустой",
   "unsupported": [
-   "TSendAndroidAppIntentDirective не восстановлена — запуск не выполняется"
+   "TSendAndroidAppIntentDirective не восстановлена — запуск произвольных приложений не выполняется"
   ],
   "changed": [
    "триггер «включи» убран: перехватывал «включи музыку»"

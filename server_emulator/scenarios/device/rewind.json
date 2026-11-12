@@ -8,7 +8,7 @@
   "en": "Player rewind"
  },
  "description": {
-  "ru": "«перемотай на минуту вперёд», «перемотай назад»: audio_player_rewind {amount_ms, type} — Struct-payload (protos-сообщения нет); нет длительности — уточняющий вопрос"
+  "ru": "«перемотай на минуту вперёд», «перемотай на 30 секунд», «перемотай назад»: audio_player_rewind {amount_ms, type} — Struct-payload (protos-сообщения нет); нет длительности — уточняющий вопрос, нет слова о направлении — Forward"
  },
  "priority": 100,
  "triggers": [
@@ -19,9 +19,9 @@
   {
    "kind": "template",
    "sentences": [
-    "(перемотай|промотай|переведи) [на] {duration_fixed} {rewind_direction}",
-    "(перемотай|промотай|переведи) [на] {duration_number} {duration_unit} {rewind_direction}",
-    "(перемотай|промотай|переведи) [на] {duration_number} {duration_unit} {duration_number2} {duration_unit2} {rewind_direction}",
+    "(перемотай|промотай|переведи) [на] {duration_fixed} [{rewind_direction}]",
+    "(перемотай|промотай|переведи) [на] {duration_number} {duration_unit} [{rewind_direction}]",
+    "(перемотай|промотай|переведи) [на] {duration_number} {duration_unit} {duration_number2} {duration_unit2} [{rewind_direction}]",
     "(перемотай|промотай|переведи) {rewind_direction} [на] {duration_fixed}",
     "(перемотай|промотай|переведи) {rewind_direction} [на] {duration_number} {duration_unit}",
     "(перемотай|промотай|переведи) {rewind_direction}"
@@ -32,7 +32,7 @@
   "kind": "script"
  },
  "provenance": {
-  "source": "решение владельца 2026-11-07: audio_player_rewind {amount_ms, type: Forward|Backward} — protos-сообщения нет (справочник directives.md), Struct-payload; формы фраз — по шаблону system.unavailable («перемотай на 2 минуты вперед»)",
-  "data": "amount_ms — длительность фразы × 1000; направление — сущность rewind_direction"
+  "source": "решение владельца 2026-11-07: audio_player_rewind {amount_ms, type: Forward|Backward} — protos-сообщения нет (справочник directives.md), Struct-payload; запись .85 2026-11-12 13:57:00: форма без направления («перемотай на 30 секунд») и порядок (перемотка до tts_play_placeholder)",
+  "data": "amount_ms — длительность фразы × 1000; направление — сущность rewind_direction, без слова о направлении — Forward"
  }
 }
