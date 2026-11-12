@@ -216,10 +216,12 @@ class ExtensionsSettings(_Strict):
 class VoiceStackSettings(_Strict):
     """Режимы вывода ответа (карточка «Синтез (TTS)»): озвучка выключена делает
     карточку принудительно включённой — ответа совсем без текста нет.
+    speak_words — знаки и числа произносить словами (только в тракте TTS).
     asr/tts/llm — выбранный источник (пакет или пресет «p:<id>»)."""
 
     speak: bool = True
     card: bool = True
+    speak_words: bool = False
     asr: str = ""
     tts: str = ""
     llm: str = ""

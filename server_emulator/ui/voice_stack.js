@@ -464,11 +464,14 @@
     };
     syncCard();
     cardLabel.append(cardBox, make('span', null, 'Карточка с текстом'));
-    row.append(speakLabel, cardLabel);
+    const wordsLabel = make('label', 'vs-flag'), wordsBox = make('input');
+    wordsBox.type = 'checkbox'; wordsBox.checked = stack.speak_words === true;
+    wordsLabel.append(wordsBox, make('span', null, 'Знаки и числа словами'));
+    row.append(speakLabel, cardLabel, wordsLabel);
     const save = () => work(async () => {
       for (let tries = 0;; tries++) {
         const next = structuredClone(cfg);
-        next.voice_stack = { ...(next.voice_stack || {}), speak: speakBox.checked, card: cardBox.checked };
+        next.voice_stack = { ...(next.voice_stack || {}), speak: speakBox.checked, card: cardBox.checked, speak_words: wordsBox.checked };
         next._rev = cfg._rev;
         const r = await fetch('api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Emulator': '1' }, body: JSON.stringify(next) });
         const v = await r.json().catch(() => ({}));
@@ -480,7 +483,8 @@
     });
     speakBox.onchange = () => { syncCard(); save(); };
     cardBox.onchange = () => save();
-    box.append(row, make('small', 'vs-help', 'Без озвучки синтез не вызывается — ответ приходит карточкой, как беззвучные ответы настоящего сервера.'));
+    wordsBox.onchange = () => save();
+    box.append(row, make('small', 'vs-help', 'Без озвучки синтез не вызывается — ответ приходит карточкой, как беззвучные ответы настоящего сервера. «Знаки и числа словами» меняет только звучание: цифры и знаки прочитываются словами (3,5 — «три целых пять десятых», −5° — «минус пять градусов»), карточка и журнал показывают оригинал.'));
     return box;
   };
 

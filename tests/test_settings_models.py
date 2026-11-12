@@ -57,7 +57,8 @@ def test_section_models_field_errors():
     agent = checked_section({}, AgentSettings, "agent")
     assert agent["daily_model_calls"] == 0 and agent["pii"] == ["credit_card", "secret"]
     assert checked_section({"speak": False, "card": False}, VoiceStackSettings, "voice_stack") == {
-        "speak": False, "card": True, "asr": "", "tts": "", "llm": ""}  # без озвучки карточка включена
+        "speak": False, "card": True, "speak_words": False, "asr": "", "tts": "",
+        "llm": ""}  # без озвучки карточка включена
     with pytest.raises(ValueError, match="voice_stack.speak"):
         checked_section({"speak": "да"}, VoiceStackSettings, "voice_stack")
 

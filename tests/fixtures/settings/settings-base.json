@@ -167,6 +167,7 @@
   "voice_stack": {
     "speak": true,
     "card": false,
+    "speak_words": false,
     "asr": "p:test-asr",
     "tts": "",
     "llm": "p:test-llm"

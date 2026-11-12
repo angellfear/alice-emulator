@@ -178,9 +178,10 @@ async def synthesize(runtime, text, wait=None):
     """Синтез реплики → (первые ogg-страницы, поток хвоста | None) по настройкам
     runtime.settings['tts'] (потоковый движок или batch + ogg_pages).
     Первый звук — не дольше wait (по умолчанию tts_wait, TimeoutError): колонка ждёт ответ ~17 с."""
-    from .spoken import tts_wait
+    from .spoken import tts_text, tts_wait
     cfg = runtime.settings['tts']
     wait = wait or tts_wait(runtime)
+    text = tts_text(runtime, text)  # знаки и числа словами — единое место для обоих движков
     if runtime.tts_streaming():
         speech = runtime.speech_stream(text)
         try:
@@ -198,10 +199,13 @@ async def synthesize_cached(runtime, parts, wait=None):
     """Озвучка реплики всегда одной фразой (склейка кусков звучит плохо). Фраза целиком
     из сценария/стандартного ответа (без переменных) — из файлового кеша (tts_cache);
     без PCM-движка — из пакета озвучки (кеш любого движка), иначе обычный синтез;
-    с подставленными значениями — обычный синтез целиком, мимо кеша."""
-    from .spoken import tts_wait
+    с подставленными значениями — обычный синтез целиком, мимо кеша.
+    «Знаки и числа словами» применяется до вычисления ключа кеша — включение галочки
+    не отдаёт старое озвучивание."""
+    from .spoken import tts_text, tts_wait
     tts = runtime.get_tts()
     cache = getattr(runtime, 'tts_cache', None)
+    parts = [tts_text(runtime, p) for p in parts]
     text = ' '.join(' '.join(re.sub(r'<[^>]+>', '', p).split()) for p in parts if p).strip()
     if not text:
         return [], None
