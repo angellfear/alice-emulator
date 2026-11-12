@@ -19,7 +19,7 @@ module: "server_emulator/sdk.py"
 
 ## Версия
 
-`SDK_VERSION = "2.6.0"` — semver. **Ломающие изменения API — только со сменой major**
+`SDK_VERSION = "2.7.0"` — semver. **Ломающие изменения API — только со сменой major**
 (удаление/переименование/смена сигнатур, смена формы построенных dict'ов). Добавление
 полей и новых функций — minor, исправления поведения — patch. Расширение объявляет, с
 какой версией SDK оно совместимо (поле `requires.sdk`).
@@ -382,6 +382,16 @@ Minor: только добавления, форма построенных dict
 - Функции поставщика — через `server_emulator.providers.invoke(ctx, provider, fn, *args)`:
   ядро ставит коду поставщика его настройки (`ctx.extension`). Вид и требования к функциям —
   docs/contracts/providers.md.
+
+## 2.7.0 — умный дом: `sdk.smart_home_*`
+
+- `sdk.smart_home_add_device / _update_device / _remove_device` — свои устройства реестра
+  умного дома (id с префиксом расширения); `smart_home_set_rooms({id: name})` — комнаты
+  источника; `smart_home_devices()` — весь реестр (устройства с итоговым `online` и комнаты).
+- `sdk.smart_home_on_device_action(async cb(device, action) -> {capability: значение} | None)` —
+  действия колонки (кнопка карточки, голос) приходят только владельцу устройства.
+- Реестр и директивы колонке — docs/contracts/smart-home.md; для расширений —
+  docs/contracts/extensions.md, раздел «Умный дом».
 
 ## 2.0.0 — медиа на штатном плеере колонки, состояние из запроса
 

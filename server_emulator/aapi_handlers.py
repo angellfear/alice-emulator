@@ -242,6 +242,29 @@ def register_extension(trigger, handler, enabled, ext_id, name="", description="
     table.setdefault(str(trigger), []).append((call, enabled, meta))
 
 
+def ensure_builtin(trigger, handler, name="", description=""):
+    """Встроенный обработчик, регистрируемый фичей в момент начала её использования
+    (например, когда в реестре появился первый обработчик действий): идемпотентно по имени,
+    встаёт перед уже объявленными обработчиками того же события — фича выбирает первой,
+    а вернув False, отдаёт обычный путь. Пока фичу никто не использует, события с её
+    триггера подчиняются прежним условиям (has_handler, «Нет обработчиков»)."""
+    handler_name = name or handler.__name__.lstrip("_")
+    for _h, _enabled, meta in _HANDLERS.get(str(trigger), ()):
+        if meta["source"] == "builtin" and meta["name"] == handler_name:
+            return
+    _HANDLERS.setdefault(str(trigger), []).insert(
+        0, (handler, None, {"source": "builtin", "name": handler_name, "description": description}))
+
+
+def drop_builtin(name):
+    """Убрать встроенный обработчик фичи по имени (когда фича перестала использоваться)."""
+    for trigger in list(_HANDLERS):
+        _HANDLERS[trigger] = [item for item in _HANDLERS[trigger]
+                              if not (item[-1]["source"] == "builtin" and item[-1]["name"] == name)]
+        if not _HANDLERS[trigger]:
+            del _HANDLERS[trigger]
+
+
 def observers(trigger):
     """Наблюдатели события (sdk.on_event): вызываются для каждого события, в выборе
     обработчика не участвуют."""

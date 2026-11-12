@@ -27,6 +27,7 @@ from .quasar_rules import QUASAR_RULES_DIR, RuleStore
 from . import aapi_handlers
 from . import providers as providers_registry
 from .aapi_handlers import has_handler as aapi_has_handler
+from . import smart_home  # noqa: F401  (реестр умного дома и обработчик TextInput-действия)
 from .voice import Conversation
 from .identity import IdentityRegistry, collect_device_id
 from .quasar import QuasarBackend
@@ -230,6 +231,10 @@ class Runtime:
         from .scenarios.informers import news as _news_consumer  # noqa: F401
         from .sdk import bind_runtime  # sdk.send_push/send_directive без ctx
         bind_runtime(self)
+        # реестр умного дома: устройства/комнаты расширений + директивы колонке
+        from . import smart_home
+        self.smart_home = smart_home.SmartHomeRegistry(self)
+        self.smart_home.subscribe(lambda: self._smart_home_push())
         # check_template (validate.py про runtime не знает) разрешает {ссылки}
         # сценариев на списки включённых расширений — как при матчинге шаблонов.
         from .scenario_engine import templates as scenario_templates
@@ -924,6 +929,29 @@ class Runtime:
                 self.execute_waiters.pop(sn, None)
         return item
 
+    def _smart_home_push(self, sn=None):
+        """Реестр умного дома изменился: set_iot_user_info живым сессиям (smart_home.py);
+        sn — только этой колонке (сразу после опознания — ей нужен текущий список).
+        Вызывается из записи реестра — сбой сборки/отправки не должен ломать запись."""
+        from . import smart_home
+        sn_set = {str(sn)} if sn else {s.get("device_sn") for s in self.sessions.values()
+                                       if s.get("send") and s.get("device_sn")}
+        if not sn_set:
+            return
+        if sn and not (self.smart_home.devices() or self.smart_home.rooms()):
+            return  # новой колонке показывать нечего; при изменении реестра пустой
+                    # список уходит — карточки должны сниматься
+        try:
+            raw = smart_home.user_info_raw(self.smart_home)
+            server_type = load_type(ROOT / "schemas", "alice-api.pb",
+                                    "NAlice.NAliceApi.TServerMessage")
+        except Exception as exc:  # noqa: BLE001 — без схем/реестра пуша нет
+            log.warning("Пуш умного дома не собран: %s", exc)
+            return
+        for sn in sn_set:
+            message = smart_home.iot_push(server_type, sn, "set_iot_user_info", raw)
+            self.lifecycle.spawn(self.send_message(sn, message))
+
     async def send_message(self, sn, message):
         """Отправить готовое сообщение живой WS-сессии устройства по SN — sdk.send_directive.
         True — отправлено; False — сессии нет или сокет упал."""
@@ -1279,6 +1307,9 @@ class Runtime:
             trace_context.update(sn=context.device_sn, device_id=device_id)  # трасса видит актуальную идентичность
             scoped_runtime.settings = self.identities.settings_for(self.settings, observed)
             tap.identify(context.device_sn, device_id)
+            # список умного дома — сразу после опознания колонки (set_iot_user_info из реестра)
+            if getattr(self, 'smart_home', None) is not None and context.device_sn:
+                self._smart_home_push(context.device_sn)
 
         if header_device_id:
             # Заголовок WS-хендшейка — представление устройства: неизвестный
@@ -1358,7 +1389,7 @@ def mount_ui(app, runtime, prefix="/emulator"):
 
     # Каталог картинок устройств (модель по SN): только существующие
     # PNG/WebP из каталога картинок (device_images.images_dir) — путь проверяется на выход за пределы папки.
-    ASSETS = ("index.html", "toast.js", "ws.js", "app.js", "style.css", "users.js", "backend.js", "updates.js", "catalog.js", "replies.js", "animations.js", "endpoints.js", "misses.js", "endpoints.css", "devices_common.js", "device_cards.js", "mcp.js", "agent.js", "memory.js", "routines.js", "scenario_drafts.js", "params.js", "voice_stack.js", "live_status.js", "sound_cache.js", "extensions.js", "setup.js", "server_config.js", "server_log.js", "traffic.js", "providers.js", "configurator.js")
+    ASSETS = ("index.html", "toast.js", "ws.js", "app.js", "style.css", "users.js", "backend.js", "updates.js", "catalog.js", "replies.js", "animations.js", "endpoints.js", "misses.js", "endpoints.css", "devices_common.js", "device_cards.js", "mcp.js", "agent.js", "memory.js", "routines.js", "scenario_drafts.js", "params.js", "voice_stack.js", "live_status.js", "sound_cache.js", "extensions.js", "setup.js", "server_config.js", "server_log.js", "smart_home.js", "traffic.js", "providers.js", "configurator.js")
     GENERIC_IMAGES = ROOT / "ui" / "img" / "generic"
     VENDOR = ROOT / "ui" / "vendor"
 

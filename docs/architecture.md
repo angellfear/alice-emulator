@@ -184,6 +184,7 @@ agent: ответ готов → TTS заранее → async_reply.keep()
 | Журнал сервера | [server-log](contracts/server-log.md) |
 | Версия, релизы, обновление | [self-update](contracts/self-update.md) |
 | Каталог приложений | [catalog](contracts/catalog.md) |
+| Умный дом: реестр устройств | [smart-home](contracts/smart-home.md) |
 | Кабинет пользователя | [cabinet](contracts/cabinet.md) |
 | Настройки эмулятора | [settings](contracts/settings.md) |
 

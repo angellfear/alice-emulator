@@ -37,7 +37,7 @@ from .extensions.context import (ExtensionContext, action_context,  # ExtensionC
 from .scenario_engine import bindings as _bindings
 from .scenario_engine import parsers as _parsers
 
-SDK_VERSION = "2.6.0"  # 2.6.0: ctx.provider(kind); 2.5.0: dataset_context(name) — настройки для кода datasets/*.py; 2.4.0: ctx.music; 2.3.0: ctx.route_mode, ctx.player_owner; 2.2.0: ctx.intelligence, no_data_source; 2.1.0: ctx.data
+SDK_VERSION = "2.7.0"  # 2.7.0: smart_home_* — реестр устройств умного дома; 2.6.0: ctx.provider(kind); 2.5.0: dataset_context(name) — настройки для кода datasets/*.py; 2.4.0: ctx.music; 2.3.0: ctx.route_mode, ctx.player_owner; 2.2.0: ctx.intelligence, no_data_source; 2.1.0: ctx.data
 DATASET_REFRESH_TIMEOUT_S = 10.0  # как у шага refresh без timeout
 
 
@@ -255,6 +255,67 @@ async def send_directive(sn, name, payload=None):
                                                 "NAlice.NAliceApi.TServerMessage"), name, payload)
     if not await _RUNTIME.send_message(str(sn), message):
         raise SDKError(f"устройство {sn} не в сети — директива не отправлена")
+
+
+# --- умный дом: реестр устройств расширений (docs/contracts/smart-home.md) -------------------
+#
+# Устройство {id, name, room, type, capabilities, properties, online} — origin это
+# расширение: id реестра получает префикс «<origin>:», править/удалять можно только
+# своё. Источник origin — расширение, чей код выполняется сейчас (импорт aapi-модуля
+# или явный extension=ExtensionContext). Изменения реестра колонке уходит Push
+# set_iot_user_info сама; действия с колонки (кнопка карточки, голос) приходят
+# callback'у, поставленному smart_home_on_device_action, — только владельцу.
+
+
+def _smart_home():
+    if _RUNTIME is None or getattr(_RUNTIME, "smart_home", None) is None:
+        raise SDKError("SDK не привязан к runtime с реестром умного дома")
+    return _RUNTIME.smart_home
+
+
+def _origin(extension):
+    if extension is not None:
+        return str(getattr(extension, "id", "") or "")
+    if _LOADING is not None:
+        return str(_LOADING)
+    raise SDKError("источник устройства не определён: вызовите из модуля расширения "
+                   "или передайте extension")
+
+
+def smart_home_add_device(device, extension=None):
+    """Добавить своё устройство умного дома (smart-home.md): {id, name, room?, type?,
+    capabilities?, properties?, online?} — id получит префикс расширения."""
+    return _smart_home().add_device(device, _origin(extension))
+
+
+def smart_home_update_device(device_id, patch, extension=None):
+    """Обновить свои поля устройства (name/room/type/capabilities/properties/online)."""
+    return _smart_home().update_device(device_id, patch, _origin(extension))
+
+
+def smart_home_remove_device(device_id, extension=None):
+    """Удалить своё устройство реестра."""
+    _smart_home().remove_device(device_id, _origin(extension))
+
+
+def smart_home_devices():
+    """Весь реестр умного дома (копия): устройства с итоговым online и комнаты."""
+    registry = _smart_home()
+    return {"devices": registry.devices(), "rooms": registry.rooms()}
+
+
+def smart_home_set_rooms(rooms, extension=None):
+    """Комнаты источника {id: name} — заменяют его предыдущие."""
+    _smart_home().set_rooms(rooms, _origin(extension))
+
+
+def smart_home_on_device_action(callback):
+    """Действие с колонки по своим устройствам — только владельцу: async (device, action),
+    action {capability, value, instance}; вернуть изменения состояния {capability: value}
+    или None. Регистрация — на импорте модуля расширения."""
+    if _LOADING is None:
+        raise SDKError("smart_home_on_device_action — только в модуле расширения")
+    _smart_home().on_device_action(_LOADING, callback)
 
 
 # --- построители ответа: return-значение handle() -------------------------------

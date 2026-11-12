@@ -329,7 +329,7 @@ def ctx_of(text="", executor=None, **inner):
 
 
 def test_sdk_version():
-    assert SDK_VERSION == "2.6.0"
+    assert SDK_VERSION == "2.7.0"
 
 
 def test_ctx_provider_prefers_phrase_entry_owner_then_selected(monkeypatch):

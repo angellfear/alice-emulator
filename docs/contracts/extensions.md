@@ -475,6 +475,37 @@ async def watch(event, ctx): ...            # в выборе обработчи
   actions.py) и `sdk.send_directive(sn, name, payload)`; у сценария — то же методами
   `ctx.send_push(...)` / `ctx.send_directive(...)`. Устройство не в сети — `SDKError`.
 
+## Умный дом: свои устройства (SDK)
+
+Модуль расширения (на импорте) добавляет устройства в реестр умного дома — колонка показывает
+их в шторке, действия карточек приходят владельцу:
+
+```python
+from server_emulator import sdk
+
+sdk.smart_home_set_rooms({"room-1": "Кухня"})
+sdk.smart_home_add_device({"id": "light-1", "name": "Свет", "room": "room-1",
+                           "type": "LightDeviceType",
+                           "capabilities": [{"type": "on_off", "value": False}]})
+
+async def device_action(device, action):            # {instance, capability, value}
+    return {"on_off": action["instance"] != "off"}  # изменения возможностей
+
+sdk.smart_home_on_device_action(device_action)
+```
+
+- id устройства получает префикс расширения (`lights:light-1`): обновлять, удалять и получать
+  действия можно только по своим; комнаты — тоже по origin.
+- `type` — имя enum `EUserDeviceType` схемы станции (например `LightDeviceType`); возможности —
+  `{type, value}` с короткими именами `on_off`/`level`/`color`/`battery`.
+- `smart_home_devices()` — весь реестр: устройства (с итоговым `online`) и комнаты.
+- Устройства переживают перезапуск (`state/smart_home.json`); «в сети» они, пока расширение
+  включено. Свой `online: false` устройство может сообщить и само.
+- С первым `smart_home_on_device_action` ядро включает встроенный обработчик действий
+  (`TextInput`, перед обработчиками реплик); без обработчиков события идут обычным путём.
+- Как реестр доходит до колонки (директивы `set_iot_user_info`, `set_div_variables`,
+  `sync_iot_user_info`) и как устроено действие карточки — docs/contracts/smart-home.md.
+
 ## Не реализовано
 
 - `sounds/<голос>/` — предусмотрено контрактом, не реализовано.

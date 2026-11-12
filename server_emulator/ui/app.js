@@ -39,7 +39,7 @@ const extMode=()=>levelValue().startsWith('ext:')?extModes.find(m=>'ext:'+m.id==
 let providerKinds=[];
 const providerTabs=()=>[...providerKinds.map(k=>['providers-'+k.kind,k.title||k.kind]),['providers-order','Порядок']];
 const GROUPS=[
-  {title:'Устройства',tabs:[['devices','Устройства'],['accounts','Пользователи'],['updates','Обновления']]},
+  {title:'Устройства',tabs:[['devices','Устройства'],['accounts','Пользователи'],['updates','Обновления'],['smart-home','Умный дом']]},
   {title:'Эмулятор',tabs:[['scenarios','Сценарии'],['endpoints','HTTP'],['ws','WS'],['quasar-http','Quasar'],['params','Параметры'],['app-catalog','Каталог приложений'],['traffic','Журнал']]},
   {title:'Поставщики данных',tabs:[]},
   {title:'Голос',tabs:[['voice-stack','Голосовой стек'],['replies','Звуковой кеш'],['animations','Анимации']]},
