@@ -3,16 +3,14 @@
 Запуск ютуба на станции с экраном — webview-карта: настоящий сервер на «открой ютуб»
 (.85 «Прозрачно», запись 2026-11-10) отвечает тихим ответом с tts_play_placeholder +
 divui_show_view (TDivUIShowViewDirective, Div2Card YouTubeWebviewData: webview
-m.youtube.com с youtube_inject). Карта — константы формы в app_cards/youtube.json;
-<uuid> в ней заменяется свежим request_id при сборке. Прочие приложения из списка
-колонки запускаются директивой launch_app по пакету (образец «запусти телемост»),
-для приложений вне списка образца запуска нет.
+m.youtube.com с youtube_inject). Карта — встроенный шаблон реестра
+(screen_templates, app_cards/youtube.json); <uuid> в ней заменяется свежим
+request_id при сборке. Прочие приложения из списка колонки запускаются директивой
+launch_app по пакету (образец «запусти телемост»), для приложений вне списка
+образца запуска нет.
 """
 from __future__ import annotations
 
-import json
-import random
-import uuid
 from pathlib import Path
 
 from .media_directives import tts_placeholder
@@ -49,26 +47,10 @@ def app_card_resource(name):
 
 
 def youtube_launch_directive():
-    """divui_show_view с картой запуска ютуба: константы формы + свежий request_id
-    (в образце log_id карты и request_id webview — один uuid)."""
-    resource = json.loads((CARDS_DIR / "youtube.json").read_text(encoding="utf-8"))
-    spec = dict(resource["directive"])
-    card = json.loads(json.dumps(spec["Div2Card"], ensure_ascii=False))
-    body = card["StringBody"]
-    # в записи — uuid с дефисами (log_id == request_id webview); из seeded random —
-    # детерминированность эталонов: случай сценария сидируется на каждый кейс
-    request_id = str(uuid.UUID(int=random.getrandbits(128), version=4))
-    body["card"]["log_id"] = request_id
-    for state in body["card"]["states"]:
-        for item in state["div"].get("items", []):
-            for sub in item.get("items", []):
-                if sub.get("custom_props", {}).get("request_id") == "<uuid>":
-                    sub["custom_props"]["request_id"] = request_id
-    card["StringBody"] = json.dumps(body, ensure_ascii=False, separators=(",", ":"))
-    spec["Div2Card"] = card
-    return {"name": "divui_show_view", "type": "client_action", "is_led_silent": True,
-            "analytics_type": "divui_show_view", "proto": "NAlice.TLayeredDivUICapability.TDivUIShowViewDirective",
-            "fields": spec}
+    """divui_show_view с картой запуска ютуба: шаблон из реестра (образец) +
+    свежий request_id (в образце log_id карты и request_id webview — один uuid)."""
+    from . import screen_templates
+    return screen_templates.registry().build("youtube")
 
 
 def launch_items(name):
@@ -131,9 +113,6 @@ NOT_HERE_TEXT = "Я не могу открывать сайты и прилож�
 
 
 def not_here_directive():
-    """divui_show_view с картой отказа по константам образца."""
-    resource = json.loads((CARDS_DIR / "clock_refusal.json").read_text(encoding="utf-8"))
-    return {"name": "divui_show_view", "type": "client_action", "is_led_silent": True,
-            "analytics_type": resource["analytics_type"],
-            "proto": "NAlice.TLayeredDivUICapability.TDivUIShowViewDirective",
-            "fields": resource["directive"]}
+    """divui_show_view с картой отказа: шаблон из реестра (образец)."""
+    from . import screen_templates
+    return screen_templates.registry().build("clock_refusal")

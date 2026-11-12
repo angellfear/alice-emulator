@@ -305,6 +305,10 @@ body.embedded section{border-radius:10px;background:transparent;border:none;padd
 .sc-edit-dialog .sc-err{color:var(--danger);font-size:13px;overflow-wrap:anywhere}
 .sc-edit-dialog textarea,.sc-edit-dialog input{width:100%}
 .sc-edit-dialog #scenario-script-box{margin-bottom:0;min-width:0}
+/* Предпросмотр шаблона (DivKit web): рамка как у карточек, полоса прокрутки внутри рамки */
+.preview-dialog{width:min(900px,calc(100vw - 40px));max-width:calc(100vw - 40px);max-height:92vh}
+.preview-dialog h3{margin:0 0 10px}
+.template-preview{width:100%;height:560px;border:1px solid var(--border);border-radius:var(--radius-s);background:var(--code-bg)}
 .sc-edit-dialog .sc-discard{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--danger-border);border-radius:var(--radius-s);background:var(--danger-bg)}
 .sc-edit-dialog .sc-discard span{flex:1 1 220px}
 body:has(.sc-edit-dialog[open]){overflow:hidden}

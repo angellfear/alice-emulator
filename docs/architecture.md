@@ -79,6 +79,7 @@
 | MCP-серверы | `state/mcp.json` | [mcp](contracts/mcp.md) |
 | Сценарии | `state/scenarios/` | [scenarios](contracts/scenarios.md), [JSON v2](contracts/scenario-json-v2.md) |
 | Замены Quasar-конфига | поставляемые — `server_emulator/quasar_defaults/rules/`, правки — `state/quasar/rules/` | [quasar-config](contracts/quasar-config.md) |
+| Шаблоны экранных директив | встроенные — `server_emulator/app_cards/`, правки — `state/screen_templates/` | [templates](contracts/templates.md) |
 
 Приоритет при совпадении имён: **пользовательское > расширение > встроенное**. Расширение с кодом исполняется в процессе сервера без песочницы и ставится только с подтверждением.
 

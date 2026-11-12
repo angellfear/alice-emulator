@@ -16,10 +16,6 @@ from __future__ import annotations
 ANIMATION_PROTO = "NAlice.TAnimationCapability.TDrawAnimationDirective"
 HIDE_VIEW_PROTO = "NAlice.TLayeredDivUICapability.TDivUIHideViewDirective"
 
-# каталог S3 со штатными анимациями колонки (образец payload draw_animation_directive)
-S3_BUCKET = "https://quasar.s3.yandex.net"
-PLAYER_PAUSE_ANIMATION = "animations/player_pause"
-
 
 def tts_placeholder():
     """tts_play_placeholder — каркас диалогового ответа (образцы: первой директивой,
@@ -30,12 +26,9 @@ def tts_placeholder():
 
 def draw_player_pause():
     """draw_animation_directive — анимация паузы с колонки (образцы 2026-10-21 20:35:28,
-    2026-10-25 01:00:30: TDrawAnimationDirective{Animations[{S3Directory}]})."""
-    return {"name": "draw_animation_directive", "type": "client_action", "is_led_silent": True,
-            "analytics_type": "draw_animation_directive", "proto": ANIMATION_PROTO,
-            "fields": {"Name": "draw_animation_directive",
-                       "Animations": [{"S3Directory": {"Bucket": S3_BUCKET,
-                                                       "Path": PLAYER_PAUSE_ANIMATION}}]}}
+    2026-10-25 01:00:30): шаблон реестра player_pause_animation."""
+    from . import screen_templates
+    return screen_templates.registry().build("player_pause_animation")
 
 
 def pause_items():

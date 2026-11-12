@@ -16,7 +16,6 @@ from google.protobuf import json_format
 
 from server_emulator import station_state
 from server_emulator.aapi_handlers import route as callback_route
-from server_emulator.media_directives import PLAYER_PAUSE_ANIMATION, S3_BUCKET
 from server_emulator.runtime import Runtime
 from server_emulator.schema import load_type, schemas_dir, station_file
 from server_emulator.server import create_app
@@ -234,5 +233,8 @@ async def test_player_callbacks_match_silent_sample(tmp_path, name, provide):
 
 def test_pause_animation_constants_match_sample():
     """Константы формы из расшифрованного payload_raw образца (20:35:28)."""
-    assert S3_BUCKET == "https://quasar.s3.yandex.net"
-    assert PLAYER_PAUSE_ANIMATION == "animations/player_pause"
+    from server_emulator.screen_templates import registry
+    fields = registry().build("player_pause_animation")["fields"]
+    directory = fields["Animations"][0]["S3Directory"]
+    assert directory["Bucket"] == "https://quasar.s3.yandex.net"
+    assert directory["Path"] == "animations/player_pause"
