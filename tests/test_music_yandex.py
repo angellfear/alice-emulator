@@ -238,27 +238,35 @@ async def test_neighbor_link_fetch_is_bounded(provider, fake):
 
 
 async def test_restart_restores_queue_position_and_links(provider, fake):
-    """Перезапуск сервера: очередь и позиция живут в ctx.data (state/, по владельцу) —
-    «плей» продолжает последний трек, «дальше/назад» идут от него без новой голосовой
-    команды. Подписанных ссылок потока в хранилище нет (живут ограниченное время) —
-    первый шаг после рестарта добирает их у Яндекса."""
+    """Перезапуск сервера: очередь, позиция и ссылки (со временем получения) живут
+    в ctx.data (state/, по владельцу) — «плей» продолжает последний трек, «дальше/
+    назад» идут от него без новой голосовой команды. Свежая ссылка (TTL) работает
+    сразу, протухшая добирается у Яндекса заново — один раз, не на каждую кнопку."""
     shared = Data()
     await provider.search(Ctx(shared_data=shared), "ветер", "music")
     await provider.prefetch_wait()
     assert await provider.commit(Ctx(shared_data=shared), "102") is True  # играет второй
     record = shared.rows[provider.PERSIST_KEY]
     assert record["current"] == 1 and len(record["queue"]) == 3
-    assert all("stream" not in t for t in record["queue"])  # подписанных ссылок в хранилище нет
+    assert all("stream" not in t for t in record["queue"])  # ссылка не в треке, а в links
+    assert set(record["links"]) == {"101", "102", "103"}
+    assert all(rec.get("ts") for rec in record["links"].values())  # со временем получения
 
     provider.STATE.clear()  # рестарт: память поставщика умирает с процессом
     provider.LINKS.clear()
     infos_before_restart = list(fake.infos)
     current = await provider.neighbor(Ctx(shared_data=shared), None, None, 0)  # «плей»
     assert current["id"] == "102"
-    assert current["stream"]["url"] == EXPECTED_URL  # ссылка добрана заново
-    assert fake.infos == infos_before_restart + ["102"]  # один добор — дальше из кеша
+    assert current["stream"]["url"] == EXPECTED_URL  # ссылка из хранилища — без добора
+    assert fake.infos == infos_before_restart  # свежие ссылки после рестарта — 0 HTTP
     following = await provider.neighbor(Ctx(shared_data=shared), None, None, 1)  # «дальше»
     assert following["id"] == "103"
+    assert fake.infos == infos_before_restart
+
+    provider.LINKS["SN-T"]["103"]["ts"] -= provider.LINK_TTL_S + 1  # ссылка протухла
+    stale = await provider.neighbor(Ctx(shared_data=shared), "102", None, 1)
+    assert stale["id"] == "103" and stale["stream"]["url"] == EXPECTED_URL
+    assert fake.infos == infos_before_restart + ["103"]  # протухшая добрана — один раз
     assert await provider.commit(Ctx(shared_data=shared), "103") is True
     back = await provider.neighbor(Ctx(shared_data=shared), None, None, -1)  # «назад»
     assert back["id"] == "102"
