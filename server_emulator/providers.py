@@ -66,6 +66,10 @@ def collect_declaration(ext_id, decl, base_dir, runner):
     for name in optional:
         function = getattr(module, name, None)
         record[name] = function if callable(function) else None
+    login = {name: getattr(module, name, None)
+             for name in ("login_start", "login_callback", "login_status")}
+    if all(callable(function) for function in login.values()):
+        record["login"] = login  # кнопка входа в UI появляется только у объявивших
     if any(item["id"] == pid for item in _COLLECTED.setdefault(kind, [])):
         raise ValueError(f"Имя поставщика {pid!r} уже занято другим расширением")
     _COLLECTED.setdefault(kind, []).append(record)

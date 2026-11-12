@@ -29,6 +29,15 @@ DRM); плеер колонки играет такие прямые ссылк�
 
 rate — None: лайков без Premium API нет (честно, интерфейс ядра).
 
+Вход аккаунта (login_start/login_callback/login_status — точки login поставщика,
+кнопка «Войти в Spotify» в UI): Authorization Code + PKCE через authlib
+(OAuth2Session), redirect — loopback `http://127.0.0.1:<порт>` (Spotify разрешает
+любой порт; владелец регистрирует `http://127.0.0.1` в Dashboard без порта; кнопка
+работает при входе в UI по 127.0.0.1). Токены (access/refresh/expires_at) возвращает
+вызывающему (API-домен providers) для персистентности в state/ (meta) — в браузер и
+журнал не идут, наружу только статус. refresh-токен обновляется сам: login_status
+обновляет истёкший access через refresh_token.
+
 Сеть — стандартная библиотека (urllib.request в asyncio.to_thread, json):
 python_packages плагина пуст. URL сервисов — константы модуля
 (ACCOUNTS_URL/SEARCH_URL/TRACK_URL/EMBED_URL): тесты подменяют их на локальный
@@ -51,6 +60,9 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+
+from authlib.common.security import generate_token
+from authlib.integrations.requests_client import OAuth2Session
 
 PROVIDER = {"id": "builtin.spotify", "title": "Spotify"}
 
@@ -374,3 +386,127 @@ async def commit(ctx, track_id):
 async def rate(ctx, track_id, like):
     """Лайк — не поддерживается: API оценок без Premium нет (честно None)."""
     return None
+
+
+# --- вход аккаунта: Authorization Code + PKCE (authlib) ---------------------------------
+
+AUTHORIZE_URL = "https://accounts.spotify.com/authorize"
+LOGIN_SCOPE = "user-read-private user-library-read"
+LOGIN_TTL_S = 600  # владелец должен успеть войти; Spotify гасит code за ~10 минут
+
+PENDING = {}  # state → {"client_id", "redirect_uri", "verifier", "ts"} — старт → колбэк
+
+NOTE_LOGIN_NO_CLIENT = ("Для кнопки входа задайте Client ID в настройках плагина «Spotify» "
+                        "(developer.spotify.com, Dashboard; redirect http://127.0.0.1 — "
+                        "без порта).")
+NOTE_LOGIN_EXPIRED = "Время на вход истекло — нажмите кнопку ещё раз."
+NOTE_LOGIN_NO_CODE = "Spotify не вернул код входа."
+
+
+def _login_client_id(ctx):
+    """Client ID для точек login: вход получает ExtensionContext (настройки в get/settings),
+    у сценарного ctx.extension — вложение. Оба вида контекста читаются одинаково."""
+    ext = getattr(ctx, "extension", None)
+    source = ctx if ext is None else ext
+    return str((source or {}).get("client_id") or "").strip()
+
+
+def _login_session(client_id, redirect_uri=None):
+    """authlib-сессия для OAuth-потока (PKCE): S256-челлендж считается при старте."""
+    return OAuth2Session(client_id, redirect_uri=redirect_uri, code_challenge_method="S256")
+
+
+def _tokens_of(token):
+    """OAuth2Token authlib → словарь токенов для персистентности (в state/, наружу нет)."""
+    return {"access_token": str(token.get("access_token") or ""),
+            "refresh_token": str(token.get("refresh_token") or ""),
+            "token_type": str(token.get("token_type") or "Bearer"),
+            "expires_at": time.time() + int(token.get("expires_in") or 3600)}
+
+
+async def login_start(ctx, redirect_uri):
+    """URL страницы входа Spotify (точка login): Authorization Code + PKCE.
+    Заявка (state → client_id/redirect_uri/verifier) хранится в памяти модуля до колбэка.
+    Без client_id — SpotifyError с готовым текстом (API отдаёт 400 с ним)."""
+    client_id = _login_client_id(ctx)
+    if not client_id:
+        raise SpotifyError(NOTE_LOGIN_NO_CLIENT)
+    session = _login_session(client_id, redirect_uri)
+    verifier = generate_token(48)
+    url, state = session.create_authorization_url(AUTHORIZE_URL, code_verifier=verifier,
+                                                  scope=LOGIN_SCOPE)
+    now = time.time()
+    for key in [key for key, item in PENDING.items() if now - item["ts"] > LOGIN_TTL_S]:
+        PENDING.pop(key, None)
+    PENDING[state] = {"client_id": client_id, "redirect_uri": redirect_uri,
+                      "verifier": verifier, "ts": now}
+    return {"url": url, "state": state}
+
+
+async def login_callback(ctx, params):
+    """Обмен кода на токены (точка login): params — query-параметры колбэка. Заявку ищет
+    по state (authlib дополнительно валидирует state против authorization_response).
+    Токены — в результате вызывающему (API пишет в state/); браузеру их не видно.
+    Отказ Spotify (error=...) или потерянная заявка — authorized: False с текстом."""
+    state = str(params.get("state") or "")
+    pending = PENDING.pop(state, None)
+    if not pending or time.time() - pending["ts"] > LOGIN_TTL_S:
+        return {"authorized": False, "error": NOTE_LOGIN_EXPIRED}
+    error = str(params.get("error") or "").strip()
+    if error:
+        return {"authorized": False, "error": f"Spotify отклонил вход ({error})."}
+    if not str(params.get("code") or "").strip():
+        return {"authorized": False, "error": NOTE_LOGIN_NO_CODE}
+
+    session = _login_session(pending["client_id"], pending["redirect_uri"])
+    response_url = pending["redirect_uri"] + "?" + urllib.parse.urlencode(params)
+
+    def exchange():
+        # authlib сам проверяет state против authorization_response и кладёт
+        # code_verifier в тело запроса (PKCE); POST идёт через requests
+        return session.fetch_token(ACCOUNTS_URL, state=state,
+                                   authorization_response=response_url,
+                                   code_verifier=pending["verifier"])
+
+    try:
+        token = await asyncio.to_thread(exchange)
+    except SpotifyError:
+        raise
+    except Exception as exc:  # noqa: BLE001 — наружу готовый текст
+        raise SpotifyError(f"Не удалось обменять код входа на токен "
+                           f"({type(exc).__name__}: {str(exc)[:120]}).") from exc
+    tokens = _tokens_of(token)
+    if not tokens["access_token"]:
+        return {"authorized": False, "error": "Spotify вернул пустой токен входа."}
+    return {"authorized": True, "tokens": tokens}
+
+
+async def login_status(ctx, tokens):
+    """Статус входа (точка login): tokens — сохранённое из state/ (None — не входил).
+    Истёкший access при живом refresh_token обновляется сам (authlib refresh_token);
+    новый набор — в результате result['tokens'], вызывающий перезаписывает state/."""
+    if not isinstance(tokens, dict) or not tokens.get("refresh_token"):
+        return {"authorized": False}
+    remaining = float(tokens.get("expires_at") or 0) - time.time()
+    if remaining > 60:
+        return {"authorized": True, "expires_in": int(remaining)}
+    client_id = _login_client_id(ctx)
+    if not client_id:
+        return {"authorized": False, "error": NOTE_LOGIN_NO_CLIENT}
+
+    def refresh():
+        session = OAuth2Session(client_id)
+        return session.refresh_token(ACCOUNTS_URL, refresh_token=str(tokens["refresh_token"]))
+
+    try:
+        token = await asyncio.to_thread(refresh)
+    except SpotifyError:
+        raise
+    except Exception as exc:  # noqa: BLE001 — наружу готовый текст
+        raise SpotifyError(f"Не удалось обновить токен входа Spotify "
+                           f"({type(exc).__name__}: {str(exc)[:120]}).") from exc
+    fresh = _tokens_of(token)
+    if not fresh["access_token"]:
+        return {"authorized": False, "error": "Spotify вернул пустой токен входа."}
+    return {"authorized": True, "expires_in": int(fresh["expires_at"] - time.time()),
+            "tokens": fresh}

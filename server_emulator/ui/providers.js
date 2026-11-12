@@ -104,6 +104,33 @@
       form.append(radio(p.id, (p.title || p.id) + extra, info.selected === p.id));
     }
     box.append(form);
+    // вход аккаунта: появляется только у поставщиков, объявивших точки login (старт/колбэк/статус)
+    for (const p of info.providers) {
+      if (!p.login) continue;
+      const authorized = !!(p.status && p.status.login_authorized);
+      const row = make('div', 'provider-login');
+      const btn = make('button', authorized ? 'secondary' : null,
+                       'Войти в ' + (p.title || p.id) + (authorized ? ' (перевойти)' : ''));
+      btn.type = 'button';
+      btn.onclick = async () => {
+        btn.disabled = true;
+        try {
+          const r = await fetch('api/providers_login', { method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Emulator': '1' },
+            body: JSON.stringify({ kind, id: p.id, action: 'start' }) });
+          const v = await r.json().catch(() => ({}));
+          if (!r.ok || !v.url) throw Error(v.error || r.statusText);
+          window.location.assign(v.url);  // страница входа Spotify → redirect обратно на колбэк
+        } catch (e) { say('Вход не удался: ' + e.message, true); btn.disabled = false; }
+      };
+      row.append(btn, make('span', 'hint', authorized ? 'вход выполнен' : 'вход ещё не выполнен'));
+      box.append(row);
+    }
+    if (info.providers.some(p => p.login)) {
+      box.append(make('p', 'hint', 'Вход аккаунта: кнопка работает при открытии панели по http://127.0.0.1:<порт> — '
+        + 'redirect регистрируется в Spotify Dashboard без порта; у владельца приложения Premium, '
+        + 'один Client ID и до 5 пользователей (Development Mode).'));
+    }
     // порядок ответов вида: перетаскивание плагинов (равная точность — выше в списке)
     const orderList = make('ul', 'order-list');
     const plugins = order.plugins && Array.isArray(order.plugins[kind]) ? order.plugins[kind] : [];

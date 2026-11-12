@@ -53,7 +53,8 @@ async def test_builtin_providers_listed_on_fresh_runtime(tmp_path):
             assert music_kind["selected"] == ""  # авто
             # запись реестра держит модуль поставщика (_module) — наружу идут только
             # объявленные поля, поэтому payload сериализуется как есть
-            assert all(set(p) == {"id", "title", "extension", "origin", "enabled", "status"}
+            assert all(set(p) == {"id", "title", "extension", "origin", "enabled",
+                                  "login", "status"}
                        for p in music_kind["providers"])
             yandex = music_kind["providers"][1]
             assert yandex["status"]["oauth_captured"] is False
@@ -154,7 +155,7 @@ async def test_yandex_builtin_status_shows_token_capture(tmp_path):
             assert "y0_" not in json.dumps(data)  # сам токен наружу не идёт
             spotify = next(p for p in data["kinds"]["music"]["providers"]
                            if p["id"] == "builtin.spotify")
-            assert spotify["status"] == {}  # статус — только у Яндекс.Музыки
+            assert spotify["status"] == {"login_authorized": False}  # статус входа Spotify
     finally:
         await runner.cleanup()
         await runtime.close()
