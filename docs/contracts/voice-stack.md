@@ -152,7 +152,7 @@ async def complete(runtime, config, payload):
 |---|---|---|---|---|---|
 | `openai` | llm / asr / tts | любой сервер с OpenAI API; в «Заполнить как» — OpenAI (Online), Groq (Online Free), DeepSeek (Online), OpenRouter (Online Free / Online), Gemini OpenAI-совместимый (Online Free), Ollama, vLLM, speaches | URL*, API-ключ, модель*, у asr — язык, у tts — голос* | температура, уровень рассуждений (llm), формат аудио (tts) | `preset` (tts) |
 | `anthropic` | llm | (Online) | API-ключ*, модель | температура, макс. токенов, URL | — |
-| `stream` | asr | — | URL, модель, язык | — | — |
+| `stream` | asr | — | URL, модель, язык | нормализация громкости (`normalize`, по умолчанию включена: `audio_gain.AutoGain` поднимает тихий микрофон колонки до ровного уровня перед ASR — усиление следует за пиковой огибающей, потолок +50 dB, тишина не раздувается) | — |
 | `stub` | llm | — | текст ответа | — | — |
 | `google` | llm | Gemini (Online Free) | API-ключ*, модель | температура, уровень рассуждений, URL | — |
 | `google` | asr | Gemini (Online Free) | API-ключ*, модель, язык | словарь, подсказка, URL | — |

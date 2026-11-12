@@ -68,6 +68,7 @@ async def test_spotter_audio_before_spotter_end_reaches_asr_and_server_endpoint_
     runner=web.AppRunner(app);await runner.setup();site=web.TCPSite(runner,'127.0.0.1',0);await site.start()
     r=Runtime(tmp_path);r.settings.update(aapi_voice=True,aapi_tts=False)
     r.settings['stt']['url']=f'http://127.0.0.1:{runner.addresses[0][1]}/asr/stream'
+    r.settings['stt']['normalize']='no'  # тест сверяет уровень сэмплов как есть
     async def chat(*args,**kwargs):return {'text':'Здравствуйте','tool_calls':[]}
     r.chat=chat
     root=Path(__file__).resolve().parents[1]/'server_emulator/schemas'
