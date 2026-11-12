@@ -100,3 +100,20 @@ async def test_reasoning_effort_is_sent_only_when_set():
         await runner.cleanup()
     assert seen[0]["reasoning_effort"] == "none" and "reasoning_effort" not in seen[1] and seen[2]["reasoning_effort"] == "high"
     assert "reasoning_effort" not in payload  # исходный запрос не меняется
+
+
+def llm_urls():
+    spec = openai.SERVICES["llm"]
+    yield spec["defaults"]["url"]
+    yield from (e["url"] for e in spec["examples"].values())
+
+
+def test_llm_preset_urls_keep_their_wire_address():
+    """Поле URL — полный адрес запроса: адаптер отрезает /chat/completions для litellm,
+    итоговый адрес на проводе не меняется ни для одного пресета."""
+    suffix = "/chat/completions"
+    for url in llm_urls():
+        assert url.endswith(suffix), url
+        base = url[:-len(suffix)]
+        assert base + suffix == url  # api_base + суффикс litellm — тот же адрес
+    assert "127.0.0.1:11434" in openai.SERVICES["llm"]["examples"]["Ollama"]["url"]  # локальные примеры на месте

@@ -1007,6 +1007,28 @@ class Conversation:
 
 
 
+    async def _prefetch_speech(self, spoken):
+
+        """Синтез первой фразы стримингового ответа фоном: _model_reply возьмёт
+
+        готовые страницы (провод станции прежний, аудио реплики — целиком)."""
+
+        try:
+
+            pages, speech = await synthesize(self.runtime, spoken)
+
+            if speech:  # потоковый движок: сливаем фразу целиком в страницы
+
+                async for page in speech:
+
+                    pages.append(page)
+
+            return pages
+
+        except Exception:
+
+            return None
+
     async def _synthesize_speech(self, text, wait=None):
         return await synthesize(self.runtime, text, wait)
 
@@ -1597,7 +1619,20 @@ class Conversation:
 
             stage = 'model'
 
+            self.pending_speech = None
+
+            def first_sentence(spoken):
+
+                # первая законченная фраза стримингового ответа: синтез фоном —
+                # _model_reply возьмёт готовые страницы (провод станции прежний)
+                if self.pending_speech is None and spoken:
+
+                    self.pending_speech = {'prefix': spoken,
+                                           'task': asyncio.create_task(self._prefetch_speech(spoken))}
+
             chat = self.runtime.chat(text, history=self.history, thread=self.thread,
+
+                                                 first_sentence=first_sentence,
 
                                                  sn=self.trace_context.get('sn') or '',
 
@@ -1655,6 +1690,12 @@ class Conversation:
                 pass
 
         finally:
+
+            pending = getattr(self, 'pending_speech', None)
+
+            if pending and not pending.get('used') and not pending['task'].done():
+
+                pending['task'].cancel()  # ход оборвался/ответ отложен — висящих задач нет
 
             if asr_task and not asr_task.done():
 

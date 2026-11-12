@@ -86,20 +86,44 @@ async def test_openai_http_error_and_missing_url():
         await runner.cleanup()
 
 
+async def test_openai_provider_error_is_immediate():
+    """Ответ провайдера с ошибкой → ValueError сразу, без ретраев (litellm num_retries=0)."""
+    hits = []
+
+    async def fail(request):
+        hits.append(1)
+        return web.json_response({"error": {"message": "gone"}}, status=404)
+
+    runner, base = await serve({"/v1/chat/completions": fail})
+    try:
+        async with ClientSession() as session:
+            with pytest.raises(ValueError, match="HTTP 404"):
+                await openai.complete(Runtime(session), {"url": base + "/v1/chat/completions", "api_key": "k"},
+                                      {"messages": [{"role": "user", "content": "x"}]})
+        assert len(hits) == 1  # ретраев нет — провайдер опрошен ровно один раз
+    finally:
+        await runner.cleanup()
+
+
 async def test_anthropic_complete_over_messages_api():
     seen = []
 
     async def messages(request):
         seen.append((dict(request.headers), await request.json()))
         return web.json_response({
+            "id": "msg_1", "type": "message", "role": "assistant", "model": "claude-haiku-5-5",
             "content": [{"type": "text", "text": "Включаю"},
                         {"type": "tool_use", "id": "toolu_1", "name": "lamp", "input": {"on": True}}],
+            "stop_reason": "tool_use", "stop_sequence": None,
             "usage": {"input_tokens": 11, "output_tokens": 4}})
 
     runner, base = await serve({"/v1/messages": messages})
     config = {"url": base + "/v1/messages", "api_key": "test-token", "model": "claude-haiku-5-5", "max_tokens": 64}
     payload = {"model": "x", "tools": TOOLS, "tool_choice": "required", "messages": [
-        {"role": "system", "content": "Ты колонка"}, {"role": "user", "content": "включи свет"}]}
+        {"role": "system", "content": "Ты колонка"}, {"role": "user", "content": "включи свет"},
+        {"role": "assistant", "content": "", "tool_calls": [
+            {"id": "t1", "type": "function", "function": {"name": "lamp", "arguments": "{\"on\": true}"}}]},
+        {"role": "tool", "tool_call_id": "t1", "content": "ok"}, {"role": "user", "content": "ещё"}]}
     try:
         async with ClientSession() as session:
             result = await anthropic.complete(Runtime(session), config, payload)
@@ -107,9 +131,15 @@ async def test_anthropic_complete_over_messages_api():
         await runner.cleanup()
     headers, body = seen[0]
     assert headers["x-api-key"] == "test-token" and headers["anthropic-version"] == anthropic.VERSION
-    assert body["system"] == "Ты колонка" and body["messages"] == [{"role": "user", "content": "включи свет"}]
+    # litellm (транспорт) шлёт system и content блоками, историю инструментов
+    # переводит в tool_use/tool_result — обе формы валидны для Messages API
+    assert body["system"] == [{"type": "text", "text": "Ты колонка"}]
+    assert body["messages"][0] == {"role": "user", "content": [{"type": "text", "text": "включи свет"}]}
+    assert body["messages"][1]["content"][0] == {"type": "tool_use", "id": "t1", "name": "lamp", "input": {"on": True}}
+    assert body["messages"][2]["content"][0]["type"] == "tool_result" and body["messages"][2]["content"][0]["tool_use_id"] == "t1"
     assert body["model"] == "claude-haiku-5-5" and body["max_tokens"] == 64
-    assert body["tools"][0]["name"] == "lamp" and body["tool_choice"] == {"type": "any"}
+    assert body["tools"][0]["name"] == "lamp" and body["tools"][0]["input_schema"] == {"type": "object", "properties": {"on": {"type": "boolean"}}, "required": ["on"]}
+    assert body["tool_choice"] == {"type": "any"}
     message = result["choices"][0]["message"]
     assert message["content"] == "Включаю"
     assert message["tool_calls"][0]["id"] == "toolu_1"

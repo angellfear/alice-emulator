@@ -58,24 +58,27 @@ async def test_spawned_tasks_cancelled_on_close():
 
 
 async def test_provider_uses_shared_client_and_closes_it(tmp_path):
+    """Общий aiohttp-клиент lifecycle — у ASR/TTS-адаптеров (LLM ходит через litellm
+    со своими клиентами); клиент закрывается вместе с runtime."""
     async def handler(request):
-        return web.json_response({"ok": True})
+        await request.post()
+        return web.json_response({"text": "распознано"})
 
     app = web.Application()
-    app.router.add_post("/v1/chat", handler)
+    app.router.add_post("/v1/audio/transcriptions", handler)
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, "127.0.0.1", 0)
     await site.start()
-    url = f"http://127.0.0.1:{runner.addresses[0][1]}/v1/chat"
+    url = f"http://127.0.0.1:{runner.addresses[0][1]}/v1/audio/transcriptions"
     runtime = Runtime(tmp_path)
-    runtime.settings["model"].update(url=url, model="x")
+    runtime.settings["stt"].update(url=url, model="whisper-1")
     try:
-        raw, content_type = await runtime.provider("model", {"q": 1})
-        assert json.loads(raw) == {"ok": True}
+        data, content_type = await runtime.provider("stt", audio=b"audio")
+        assert json.loads(data) == {"text": "распознано"}
         client = runtime.lifecycle.client
         assert client is not None and not client.closed
-        raw, _ = await runtime.provider("model", {"q": 2})
+        data, _ = await runtime.provider("stt", audio=b"audio")
         assert runtime.lifecycle.client is client  # один клиент на оба вызова
     finally:
         await runtime.close()

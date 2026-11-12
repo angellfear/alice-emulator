@@ -77,9 +77,11 @@ class ProviderManager:
 
     # --- движок ответа модели (legacy) -----------------------------------------
 
-    async def chat(self, runtime, text, history=None, thread=None, **context):
+    async def chat(self, runtime, text, history=None, thread=None, first_sentence=None, **context):
         """Ответ модели. graph: thread — тред агента (история в checkpoint, history не нужна),
         context — sn/device_id/dialog_id/request_id запроса; legacy: history вызывающего.
+        first_sentence — колбэк первой законченной фразы стримингового ответа (предпрогрев
+        озвучки; graph-движок его не поддерживает — передаётся только в legacy-цикл).
         Режим расширения (intelligence = "ext:<id>") — ответ его answer; расширение
         выключено/удалено/сбой — откат на scenarios с записью в recent (intelligence.py)."""
         from . import agent, intelligence
@@ -100,10 +102,12 @@ class ProviderManager:
             return {'text': stub, 'tool_calls': [], 'usage': {}, 'source': 'stub'}
         if agent.engine(runtime) == "graph":
             return await runtime.agent.chat(runtime, text, thread=thread, **context)
-        return await self._chat_legacy(runtime, text, history, mcp=current == "agent")
+        return await self._chat_legacy(runtime, text, history, mcp=current == "agent",
+                                        first_sentence=first_sentence)
 
-    async def _chat_legacy(self, runtime, text, history=None, mcp=True):
-        """mcp=False — режим «модель»: один ответ без MCP-инструментов (model_actions допустимы)."""
+    async def _chat_legacy(self, runtime, text, history=None, mcp=True, first_sentence=None):
+        """mcp=False — режим «модель»: один ответ без MCP-инструментов (model_actions допустимы).
+        first_sentence — колбэк первой фразы стримингового ответа (см. chat)."""
         cfg = runtime.settings["model"]
         from . import mcp_hub
         tools = mcp_hub.model_tools(runtime) if mcp else []
@@ -130,8 +134,7 @@ class ProviderManager:
             payload = {"model": cfg["model"], "temperature": cfg.get("temperature", 0.3), "messages": messages}
             if tools:
                 payload["tools"] = tools
-            raw, _ = await runtime.provider("model", payload)  # заглушки тестов подменяют runtime.provider
-            result = json.loads(raw)
+            result = await self._model_round(runtime, payload, first_sentence)
             usage = result.get("usage", usage)
             message = result["choices"][0]["message"]
             calls = message.get("tool_calls") or []
@@ -147,6 +150,36 @@ class ProviderManager:
                 runs.append(run)
                 messages.append({"role": "tool", "tool_call_id": call.get("id", ""), "content": run["result"]})
         return {"text": "Не получилось завершить действие: слишком много шагов.", "tool_calls": [], "usage": usage, "tool_runs": runs}
+
+
+    def model_streaming(self, runtime):
+        """Адаптер LLM умеет complete_stream (поток дельт для предпрогрева озвучки)."""
+        try:
+            return hasattr(self.adapter(runtime, "model"), "complete_stream")
+        except ValueError:
+            return False
+
+    async def _model_round(self, runtime, payload, first_sentence=None):
+        """Один круг обращения к модели: стрим дельт (колбэк первой фразы) или прежний
+        вызов через runtime.provider — оба возвращают словарь ответа OpenAI-формата."""
+        cfg = copy.deepcopy(runtime.settings["model"])
+        if not (first_sentence and cfg.get("url") and self.model_streaming(runtime)):
+            raw, _ = await runtime.provider("model", payload)  # заглушки тестов подменяют runtime.provider
+            return json.loads(raw)
+        from .voice_stack import call_adapter
+        from .spoken import first_sentence_end, speakable
+        adapter = self.adapter(runtime, "model")
+        spoken_len, buffer, result = 0, "", None
+        async for item in call_adapter(adapter.complete_stream, runtime, cfg, payload):
+            if "delta" in item:
+                buffer += item["delta"]
+                end = first_sentence_end(buffer, spoken_len) if buffer else None
+                if end is not None:
+                    first_sentence(speakable(buffer[:end]))  # фраза целиком, без разметки
+                    spoken_len = end
+            else:
+                result = item["result"]
+        return result
 
     async def _run_tool(self, runtime, call, context):
         """Исполнить вызов модели через mcp_hub; ошибка — текстом для модели, не исключением."""

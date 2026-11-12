@@ -1194,9 +1194,11 @@ class Runtime:
     def speech_stream(self, text):
         return self.provider_manager.speech_stream(self, text)
 
-    async def chat(self, text, history=None, thread=None, **context):
-        """Ответ модели: stub → заглушка, graph → LangGraph-агент, иначе legacy-цикл (provider_manager)."""
-        return await self.provider_manager.chat(self, text, history, thread=thread, **context)
+    async def chat(self, text, history=None, thread=None, first_sentence=None, **context):
+        """Ответ модели: stub → заглушка, graph → LangGraph-агент, иначе legacy-цикл (provider_manager).
+        first_sentence — колбэк первой фразы стримингового ответа (предпрогрев озвучки)."""
+        return await self.provider_manager.chat(self, text, history, thread=thread,
+                                                first_sentence=first_sentence, **context)
 
     async def _chat_legacy(self, text, history=None):
         return await self.provider_manager._chat_legacy(self, text, history)

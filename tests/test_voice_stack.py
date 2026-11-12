@@ -129,26 +129,6 @@ def test_active_ignores_dangling_refs(stack):
     assert [stack.active(s) for s in ("llm", "tts", "asr")] == ["", "", ""]
 
 
-def test_anthropic_conversion_roundtrip():
-    payload = {"model": "m", "temperature": 0.2, "messages": [
-        {"role": "system", "content": "sys"}, {"role": "user", "content": "привет"},
-        {"role": "assistant", "content": "", "tool_calls": [{"id": "t1", "type": "function",
-                                                             "function": {"name": "light", "arguments": '{"on": true}'}}]},
-        {"role": "tool", "tool_call_id": "t1", "content": "ok"}, {"role": "user", "content": "ещё"}],
-        "tools": [{"type": "function", "function": {"name": "light", "description": "d", "parameters": {"type": "object"}}}]}
-    body = anthropic.to_anthropic(payload, {"model": "claude-haiku-5-5", "max_tokens": 100})
-    assert body["system"] == "sys" and body["model"] == "claude-haiku-5-5" and body["max_tokens"] == 100
-    assert body["messages"][1]["content"][0] == {"type": "tool_use", "id": "t1", "name": "light", "input": {"on": True}}
-    assert body["messages"][2]["content"][0]["type"] == "tool_result"
-    assert body["tools"][0]["input_schema"] == {"type": "object"}
-    reply = anthropic.from_anthropic({"content": [{"type": "text", "text": "Готово"},
-                                                  {"type": "tool_use", "id": "t2", "name": "light", "input": {"on": False}}],
-                                      "usage": {"input_tokens": 5, "output_tokens": 3}})
-    message = reply["choices"][0]["message"]
-    assert message["content"] == "Готово" and json.loads(message["tool_calls"][0]["function"]["arguments"]) == {"on": False}
-    assert reply["usage"] == {"prompt_tokens": 5, "completion_tokens": 3}
-
-
 def test_runtime_chat_goes_through_adapter(tmp_path):
     from server_emulator.runtime import Runtime
     runtime = Runtime(tmp_path)

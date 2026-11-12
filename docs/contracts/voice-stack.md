@@ -65,6 +65,16 @@ async def unbake_voice(runtime, config, voice_id) -> None                      #
 ```
 `runtime.lifecycle.client_session()` — общий `aiohttp` клиент; `config` — копия настроек с полями пресета; `api_key` как есть (`env:VAR` раскрывает `auth.secret`).
 
+**Транспорт LLM встроенных адаптеров** — LiteLLM (`litellm.acompletion`, телеметрия выключена —
+панель локальный сервис): `openai.py` — провайдер `openai`, произвольный OpenAI-совместимый URL
+из поля (база для litellm — адрес без `/chat/completions`; если адрес суффикса не имеет, он
+передаётся как база целиком и litellm добавляет суффикс сам — итоговый адрес отличается, поле
+должно быть полным адресом запроса из пресетов); `anthropic.py` — провайдер `anthropic`
+(база — адрес без `/v1/messages`), конвертацию форматов делает litellm, счётчики usage адаптер
+сводит к `{"prompt_tokens", "completion_tokens"}`. ASR/TTS и пользовательские адаптеры ходят
+через общий `aiohttp`-клиент `runtime.lifecycle`; у LLM-адаптеров клиенты собственные у litellm
+(официальные SDK под ним). Диапазон версий и исключения — в `pyproject.toml`.
+
 **Пример кастомного LLM адаптера** (`server_emulator/state/voice_stack/adapters/myllm.py`):
 ```python
 TITLE = "My LLM"

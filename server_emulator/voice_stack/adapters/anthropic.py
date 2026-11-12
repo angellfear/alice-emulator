@@ -1,8 +1,5 @@
-"""Anthropic Messages API (Claude): OpenAI-запрос конвейера ↔ /v1/messages, инструменты в обе стороны."""
-import json
-
-from aiohttp import ClientTimeout
-
+"""Anthropic Messages API (Claude) через LiteLLM: OpenAI-запрос конвейера → ответ модели,
+инструменты в обе стороны (конвертацию форматов делает litellm)."""
 from ...auth import secret
 
 TITLE = "Anthropic (Claude) (Online)"
@@ -31,75 +28,86 @@ SERVICES = {
 MATCH = {"llm": r"api\.anthropic\.com"}
 VERSION = "2023-06-01"
 
-
-def to_anthropic(payload, config):
-    """OpenAI chat payload → Messages API: system отдельно, tool_calls/tool → tool_use/tool_result."""
-    system, messages = [], []
-    for message in payload.get("messages", []):
-        role, content = message.get("role"), message.get("content") or ""
-        if role == "system":
-            system.append(content)
-        elif role == "tool":
-            messages.append({"role": "user", "content": [
-                {"type": "tool_result", "tool_use_id": message.get("tool_call_id", ""), "content": str(content)}]})
-        elif role == "assistant" and message.get("tool_calls"):
-            blocks = [{"type": "text", "text": content}] if content else []
-            for call in message["tool_calls"]:
-                function = call.get("function", {})
-                arguments = function.get("arguments") or "{}"
-                blocks.append({"type": "tool_use", "id": call.get("id", ""), "name": function.get("name", ""),
-                               "input": json.loads(arguments) if isinstance(arguments, str) else arguments})
-            messages.append({"role": "assistant", "content": blocks})
-        elif role in ("user", "assistant") and content:
-            if messages and messages[-1]["role"] == role and isinstance(messages[-1]["content"], str):
-                messages[-1]["content"] += "\n" + content  # Messages API: роли чередуются
-            else:
-                messages.append({"role": role, "content": content})
-    body = {"model": config.get("model") or payload.get("model"), "messages": messages,
-            "max_tokens": int(config.get("max_tokens") or 512),
-            "temperature": float(payload.get("temperature", config.get("temperature", 0.3)))}
-    if system:
-        body["system"] = "\n\n".join(system)
-    if payload.get("tools"):
-        body["tools"] = [{"name": t["function"]["name"], "description": t["function"].get("description", ""),
-                          "input_schema": t["function"].get("parameters") or {"type": "object", "properties": {}}}
-                         for t in payload["tools"] if t.get("type") == "function"]
-        choice = payload.get("tool_choice")
-        if choice == "required":
-            body["tool_choice"] = {"type": "any"}
-        elif isinstance(choice, dict) and (choice.get("function") or {}).get("name"):
-            body["tool_choice"] = {"type": "tool", "name": choice["function"]["name"]}
-    return body
+# Каталог litellm считает эти модели не принимающими temperature — поле адаптера
+# должно доходить до провайдера, как раньше (см. _litellm.sampling_models)
+SAMPLING_MODELS = ("claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5")
 
 
-def from_anthropic(result):
-    """Messages API ответ → OpenAI {"choices": [{"message"}], "usage"}."""
-    text, calls = [], []
-    for block in result.get("content", []):
-        if block.get("type") == "text":
-            text.append(block.get("text", ""))
-        elif block.get("type") == "tool_use":
-            calls.append({"id": block.get("id", ""), "type": "function",
-                          "function": {"name": block.get("name", ""),
-                                       "arguments": json.dumps(block.get("input", {}), ensure_ascii=False)}})
-    message = {"role": "assistant", "content": "".join(text)}
-    if calls:
-        message["tool_calls"] = calls
-    usage = result.get("usage", {})
-    return {"choices": [{"message": message}],
-            "usage": {"prompt_tokens": usage.get("input_tokens", 0), "completion_tokens": usage.get("output_tokens", 0)}}
-
-
-async def complete(runtime, config, payload):
+async def complete_stream(runtime, config, payload):
+    """Поток ответа Claude (необязательно): те же дельты и собранный ответ, что у openai.py."""
+    from . import _litellm
     key = secret(config.get("api_key"))
     if not key:
         raise ValueError("Anthropic: нужен API-ключ")
-    headers = {"x-api-key": key, "anthropic-version": VERSION, "content-type": "application/json"}
-    async with runtime.lifecycle.client_session().post(
-            config.get("url") or SERVICES["llm"]["defaults"]["url"], json=to_anthropic(payload, config),
-            headers=headers, timeout=ClientTimeout(total=90)) as response:
-        body = await response.json(content_type=None)
-        if response.status >= 400:
-            detail = (body or {}).get("error", {}).get("message", "") if isinstance(body, dict) else ""
-            raise ValueError(f"model: HTTP {response.status} от Anthropic {detail}".strip())
-    return from_anthropic(body)
+    _litellm.prepare()
+    _litellm.sampling_models(SAMPLING_MODELS)
+    import litellm
+    params = {"model": "anthropic/" + (config.get("model") or payload.get("model") or ""),
+              "messages": payload.get("messages") or [],
+              "api_base": _litellm.api_base(config.get("url") or SERVICES["llm"]["defaults"]["url"], "/v1/messages"),
+              "api_key": key,
+              "max_tokens": int(config.get("max_tokens") or 512),
+              "temperature": float(payload.get("temperature", config.get("temperature", 0.3))),
+              "timeout": 90, "num_retries": 0, "stream": True,
+              "stream_options": {"include_usage": True}}
+    if payload.get("tools"):
+        params["tools"] = payload["tools"]
+        if payload.get("tool_choice"):
+            params["tool_choice"] = payload["tool_choice"]
+    try:
+        chunks = []
+        async for chunk in await litellm.acompletion(**params):
+            chunks.append(chunk)
+            delta = (chunk.choices[0].delta.content or "") if chunk.choices else ""
+            if delta:
+                yield {"delta": delta}
+        data = _litellm.openai_response(litellm.stream_chunk_builder(chunks, messages=params["messages"]))
+        usage = data.get("usage") or {}
+        data["usage"] = {"prompt_tokens": int(usage.get("prompt_tokens") or 0),
+                         "completion_tokens": int(usage.get("completion_tokens") or 0)}
+        yield {"result": data}
+    except Exception as exc:  # noqa: BLE001 — любая ошибка litellm → ValueError конвейера
+        import re
+        status = getattr(exc, "status_code", None)
+        found = re.search(r"'message':\s*'([^']+)'", str(exc)) or re.search(r'"message":\s*"([^"]+)"', str(exc))
+        detail = found.group(1) if found else ""
+        if status:
+            raise ValueError(f"model: HTTP {status} от Anthropic {detail}".strip()) from exc
+        raise ValueError(f"model: {str(exc)[:160]}") from exc
+
+
+async def complete(runtime, config, payload):
+    from . import _litellm
+    key = secret(config.get("api_key"))
+    if not key:
+        raise ValueError("Anthropic: нужен API-ключ")
+    _litellm.prepare()
+    _litellm.sampling_models(SAMPLING_MODELS)
+    import litellm
+    params = {"model": "anthropic/" + (config.get("model") or payload.get("model") or ""),
+              "messages": payload.get("messages") or [],
+              "api_base": _litellm.api_base(config.get("url") or SERVICES["llm"]["defaults"]["url"], "/v1/messages"),
+              "api_key": key,
+              "max_tokens": int(config.get("max_tokens") or 512),
+              "temperature": float(payload.get("temperature", config.get("temperature", 0.3))),
+              "timeout": 90, "num_retries": 0}  # прежний адаптер не ретраил — ошибка провайдера сразу
+    if payload.get("tools"):
+        params["tools"] = payload["tools"]
+        if payload.get("tool_choice"):
+            params["tool_choice"] = payload["tool_choice"]
+    try:
+        response = await litellm.acompletion(**params)
+    except Exception as exc:  # noqa: BLE001 — любая ошибка litellm → ValueError конвейера
+        import re
+        status = getattr(exc, "status_code", None)
+        found = re.search(r"'message':\s*'([^']+)'", str(exc)) or re.search(r'"message":\s*"([^"]+)"', str(exc))
+        detail = found.group(1) if found else ""
+        if status:
+            raise ValueError(f"model: HTTP {status} от Anthropic {detail}".strip()) from exc
+        raise ValueError(f"model: {str(exc)[:160]}") from exc
+    data = _litellm.openai_response(response)
+    usage = data.get("usage") or {}
+    # счётчики в форме конвейера: вход/выход (у litellm словарь с деталями)
+    data["usage"] = {"prompt_tokens": int(usage.get("prompt_tokens") or 0),
+                     "completion_tokens": int(usage.get("completion_tokens") or 0)}
+    return data

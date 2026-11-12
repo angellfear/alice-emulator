@@ -89,6 +89,7 @@ def _headers(config):
 
 
 async def _post(runtime, config, kind, **kwargs):
+    """Аудио-методы (ASR/TTS) — прямой POST: у них свой провод, вне LLM-транспорта."""
     if not config.get("url"):
         raise ValueError(f"Настройте endpoint {kind}")
     response = await runtime.lifecycle.client_session().post(
@@ -105,11 +106,65 @@ async def _post(runtime, config, kind, **kwargs):
 
 
 async def complete(runtime, config, payload):
-    import json
+    """LLM через LiteLLM (провайдер openai): произвольный OpenAI-совместимый URL из поля,
+    ключ и модель — как настроены; ответ — словарь OpenAI, как раньше на проводе."""
+    if not config.get("url"):
+        raise ValueError("Настройте endpoint model")
     if config.get("reasoning_effort") and "reasoning_effort" not in payload:
         payload = {**payload, "reasoning_effort": config["reasoning_effort"]}
-    raw, _ = await _post(runtime, config, "model", json=payload)
-    return json.loads(raw)
+    from . import _litellm
+    _litellm.prepare()
+    import litellm
+    params = {"model": "openai/" + (payload.get("model") or config.get("model") or ""),
+              "messages": payload.get("messages") or [],
+              "api_base": _litellm.api_base(config["url"], "/chat/completions"),
+              # у локальных серверов ключа нет — litellm требует непустой
+              "api_key": secret(config.get("api_key")) or "no-key",
+              "timeout": 90, "num_retries": 0}  # прежний адаптер не ретраил — ошибка провайдера сразу
+    if payload.get("temperature") is not None:
+        params["temperature"] = payload["temperature"]
+    for key in ("tools", "tool_choice", "reasoning_effort"):
+        if payload.get(key):
+            params[key] = payload[key]
+    try:
+        response = await litellm.acompletion(**params)
+    except Exception as exc:  # noqa: BLE001 — любая ошибка litellm → ValueError конвейера
+        _litellm.provider_error("model", exc)
+    return _litellm.openai_response(response)
+
+
+async def complete_stream(runtime, config, payload):
+    """Поток ответа модели (необязательно): дельты текста {"delta": str}, в конце
+    собранный полный ответ {"result": dict} — тот же, что вернул бы complete.
+    Ход без стрима не меняется: адаптеры и заглушки без complete_stream работают как раньше."""
+    if not config.get("url"):
+        raise ValueError("Настройте endpoint model")
+    if config.get("reasoning_effort") and "reasoning_effort" not in payload:
+        payload = {**payload, "reasoning_effort": config["reasoning_effort"]}
+    from . import _litellm
+    _litellm.prepare()
+    import litellm
+    params = {"model": "openai/" + (payload.get("model") or config.get("model") or ""),
+              "messages": payload.get("messages") or [],
+              "api_base": _litellm.api_base(config["url"], "/chat/completions"),
+              "api_key": secret(config.get("api_key")) or "no-key",
+              "timeout": 90, "num_retries": 0, "stream": True,
+              "stream_options": {"include_usage": True}}
+    if payload.get("temperature") is not None:
+        params["temperature"] = payload["temperature"]
+    for key in ("tools", "tool_choice", "reasoning_effort"):
+        if payload.get(key):
+            params[key] = payload[key]
+    try:
+        chunks = []
+        async for chunk in await litellm.acompletion(**params):
+            chunks.append(chunk)
+            delta = (chunk.choices[0].delta.content or "") if chunk.choices else ""
+            if delta:
+                yield {"delta": delta}
+        yield {"result": _litellm.openai_response(litellm.stream_chunk_builder(chunks, messages=params["messages"]))}
+    except Exception as exc:  # noqa: BLE001 — любая ошибка litellm → ValueError конвейера
+        _litellm.provider_error("model", exc)
 
 
 async def transcribe(runtime, config, audio, filename):

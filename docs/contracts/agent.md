@@ -28,6 +28,12 @@ module: "server_emulator/agent/service.py"
 
 Модель вызывается через `Runtime.provider("model", payload)` в формате OpenAI Chat
 Completions — те же адаптеры `voice_stack`, пресеты и профили устройств, что и раньше.
+Чат-модель — своя `RuntimeChatModel` (`model.py`, LangChain `BaseChatModel`), а не готовая
+интеграция LiteLLM (`ChatLiteLLM`): интеграция вызывает `litellm.acompletion` напрямую и
+обходит конвейер поставщиков эмулятора — пресеты, профили устройств и пользовательские
+адаптеры `state/voice_stack/adapters/` перестали бы действовать. Транспорт LiteLLM лежит
+под встроенными адаптерами (`voice_stack/adapters/openai.py`, `anthropic.py`); счётчики
+вызовов и токенов прогона (`counter` — журнал и дневной бюджет) считаются в модели.
 
 ## Треды
 

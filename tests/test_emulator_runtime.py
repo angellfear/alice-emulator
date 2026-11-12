@@ -73,14 +73,14 @@ async def test_model_speech_and_mcp_with_local_providers(tmp_path):
             result = {'content': [{'type': 'text', 'text': 'done'}]}
         return web.json_response({'jsonrpc': '2.0', 'id': body['id'], 'result': result})
     provider_app = web.Application()
-    provider_app.router.add_post('/chat', chat)
+    provider_app.router.add_post('/chat/completions', chat)
     provider_app.router.add_post('/stt', stt)
     provider_app.router.add_post('/tts', tts)
     provider_app.router.add_post('/mcp', mcp)
     runner, url = await listen(provider_app)
     runtime = Runtime(tmp_path)
     config = runtime.public()
-    config['model'].update(url=url+'/chat', model='test')
+    config['model'].update(url=url+'/chat/completions', model='test')
     config['stt'].update(url=url+'/stt', model='transcriber')
     config['tts'].update(url=url+'/tts')
     config['device_context'] = {'room': 'кухня'}

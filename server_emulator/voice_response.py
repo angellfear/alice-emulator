@@ -194,8 +194,23 @@ async def model_reply(conv, incoming, request, text, answer, trace=None, screen=
                 trace.event('tts_start', 'server')
 
             # режим «сценарии»: фраза из пакета озвучки (кеш), как реплики сценариев
-            pages, speech = await (conv._synthesize_cached([spoken]) if answer.get('source') == 'scenarios'
-                                   else conv._synthesize_speech(spoken))
+            pending = getattr(conv, 'pending_speech', None)
+
+            if answer.get('source') == 'scenarios':
+                pages, speech = await conv._synthesize_cached([spoken])
+            elif pending and pending.get('prefix') and spoken.startswith(pending['prefix']):
+                # стриминговый ход: первая фраза уже синтезирована фоном —
+                # реплика идёт двумя единицами (фраза + остаток), провод прежний
+                first_pages = await pending['task']
+                pending['used'] = True
+                rest = spoken[len(pending['prefix']):].strip()
+                if first_pages and rest:
+                    tail_pages, speech = await conv._synthesize_speech(rest)
+                    pages = (first_pages or []) + (tail_pages or [])
+                else:
+                    pages, speech = (first_pages or []), None
+            else:
+                pages, speech = await conv._synthesize_speech(spoken)
 
             if trace:
 
