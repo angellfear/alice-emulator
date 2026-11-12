@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import time
+import traceback
 import uuid
 from pathlib import Path
 
@@ -230,6 +231,7 @@ class Runtime:
         # требования потребителей видов (providers.require) — при старте ядра:
         # потребитель импортируется лениво, записи реестра дообогащаются его функциями
         from .scenarios.informers import news as _news_consumer  # noqa: F401
+        from .scenarios.media import video as _video_consumer  # noqa: F401
         from .sdk import bind_runtime  # sdk.send_push/send_directive без ctx
         bind_runtime(self)
         # реестр умного дома: устройства/комнаты расширений + директивы колонке
@@ -1375,6 +1377,9 @@ class Runtime:
                                                   example=text_format.MessageToString(incoming, as_one_line=True))
                 except Exception as exc:
                     self.recent = (self.recent + [{"kind": "ws", "error": type(exc).__name__ + ": " + str(exc)[:120]}])[-30:]
+                    self.server_log.log("error", "ws", "Ошибка обработчика сообщения колонки: " + type(exc).__name__ + ": " + str(exc)[:200],
+                                        device_sn=(self.sessions.get(session_id) or {}).get("device_sn") or "",
+                                        trace="".join(traceback.format_exception(exc))[-1800:])
                     await ws.close(code=1011, message=b"Emulator handler error")
         finally:
             await conversation.shutdown()

@@ -36,6 +36,10 @@ async def packets(chunks, require_eos=False):
             if crc(raw)!=checksum:raise ValueError('Ogg CRC mismatch')
             granule,stream,number=struct.unpack_from('<QII',raw,6)
             if serial is None:serial=stream;seq=number
+            if raw[5]&2 and number==0 and not pending and seq:
+                # Колонка начинает в том же канале новый логический поток (BOS, нумерация страниц
+                # с нуля): сначала звук слова активации, затем сама реплика. Поток читается заново.
+                serial=stream;seq=number
             if stream!=serial or number!=seq:raise ValueError('Ogg stream/sequence changed')
             seq+=1
             if bool(raw[5]&1)!=bool(pending):raise ValueError('Invalid Ogg continuation')
@@ -57,6 +61,9 @@ async def decode_opus(chunks):
     decoder=None;skip=0;decoded=0;channels=0;header=False;tags=False;gain=1.0
     try:
         async for packet,granule in packets(chunks):
+            if packet[:8]==b'OpusHead' and header:  # новый логический поток: заголовки и декодер заново
+                if decoder:opus.opus_decoder_destroy(decoder)
+                decoder=None;header=False;tags=False;decoded=0
             if not header:
                 if len(packet)<19 or packet[:8]!=b'OpusHead' or packet[18]!=0 or packet[9] not in (1,2):
                     raise ValueError('Unsupported OpusHead')

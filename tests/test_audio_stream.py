@@ -76,3 +76,20 @@ async def test_wav_header_and_samples_can_cross_arbitrary_chunks():
         for pos in range(0,len(data),37):yield data[pos:pos+37]
     output=b''.join([p async for p in transcode(source(),'audio/wav','f32_8000')])
     assert len(output)==8000*4
+
+async def test_new_logical_stream_in_one_channel_is_decoded_in_sequence():
+    """Колонка начинает в канале новый Ogg-поток (звук слова активации, затем реплика): оба декодируются."""
+    import numpy as np
+    import struct
+    from server_emulator.native_audio import crc
+    async def source():yield np.zeros(16000,dtype='<i2').tobytes()
+    chained=[]
+    for _ in range(2):
+        pages=[p async for p in transcode(source(),'audio/x-pcm;bit=16;rate=16000;channels=1','opus')]
+        tail=bytearray(pages[-1]);tail[5]&=~4;tail[22:26]=b'\0'*4
+        struct.pack_into('<I',tail,22,crc(tail));pages[-1]=bytes(tail)
+        chained+=pages
+    async def encoded():
+        for page in chained:yield page
+    output=b''.join([p async for p in transcode(encoded(),'audio/opus','f32_8000')])
+    assert 16000<=len(output)//4<17000
