@@ -18,8 +18,10 @@
 ```
 
 Образцы настоящего сервера (`app_cards/*.json`) несут тот же payload в ключе `"directive"`
-и метаданные рядом (`"proves"` — источник-запись, `"name"` — директива конверта,
-`"analytics_type"`); реестр нормализует обе формы к `{id, title, name, analytics_type, body}`.
+и метаданные рядом (`"title"` — короткое название для вкладки, `"proves"` — запись-источник
+образца, `"name"` — директива конверта, `"analytics_type"`); реестр нормализует обе формы
+к `{id, title, name, analytics_type, body}` — `proves` остаётся в файле образца и в
+интерфейсе не показывается.
 
 - **Имя конверта** (`name`) — директива ответа: `divui_show_view` →
   `NAlice.TLayeredDivUICapability.TDivUIShowViewDirective`, `draw_animation_directive` →
@@ -37,13 +39,14 @@
 **Переопределение > встроенный** (тот же id в `state/screen_templates`); «сбросить»
 удаляет переопределение и возвращает образец. Новый id — пользовательский шаблон,
 «сбросить» удаляет его целиком. Встроенные: `youtube` (запуск ютуба), `clock_refusal`
-(карта отказа «открой часы»), `player_pause_animation` (анимация паузы плеера).
+(карта отказа «открой часы»), `player_pause_animation` (анимация паузы плеера),
+`weather` (карточка погоды weather_day).
 
 Применение: `app_directives.youtube_launch_directive()`/`not_here_directive()` и
 `media_directives.draw_player_pause()` собирают директивы через реестр — правка шаблона
 в UI меняет ответ сценария `device.app.open` и `device.player.pause`.
 
-## API «Шаблоны» (`ui/api/templates.py`, вкладка «Эмулятор → Шаблоны»)
+## API «Шаблоны» (`ui/api/templates.py`, вкладка «Эмулятор → Шаблоны divui»)
 
 - `GET api/templates` — список `{templates: [{id, name, title, analytics_type, body?…, source, variables}]}`.
 - `GET api/templates?id=<id>` — шаблон целиком.
@@ -56,15 +59,26 @@
   сессию SN (`actions.push_directive`, `runtime.send_message`): проверка шаблона на реальной
   станции; ответ `{delivery: "sent"|"no_session"}`.
 
-UI (`ui/templates.js`): список (шаблон/директива/переменные/источник), редактор JSON
-(CodeMirror), значения переменных, «Предпросмотр» и «Отправить на колонку».
+UI (`ui/templates.js`): список — шаблон (id и короткое название), директива, переменные,
+источник и кнопка «Изменить» у каждой строки. Редактор — один диалог за раз (повторное
+открытие заменяет его, закрытие удаляет из DOM): JSON шаблона (CodeMirror) рядом с
+живым предпросмотром DivKit — правка кода или значений переменных перерисовывает
+карточку; переменные, выбор колонки, ошибки и кнопки («Сохранить», «Сбросить» у
+переопределения, «Отправить на колонку») — в закреплённом низу диалога.
 
 ## Предпросмотр (DivKit web)
 
-Готовый рендерер **DivKit web — `@divkitframework/divkit` 33.11.0**, браузерный бандл
-`dist/client.min.js` (461 323 байта, sha256 `98c444b1ba62c48082246ca9b31d0c94a5bbf74052fcc78e7531d7a8f3370fd0`),
+Готовый рендерер **DivKit web — `@divkitframework/divkit` 33.11.0**, браузерная сборка
+`dist/browser/client.js` (471 822 байта, sha256 `b79ff49bdf1d6e16b1fbe6947bcc4721a92a7fa925309a50f7f44fdd76a6b3e6`),
 лицензия **Apache-2.0**; файл — `ui/vendor/divkit.min.js`, подключается в предпросмотре
-через `<script>` (CommonJS-глобал: `window.exports` shim) без сборки, версия и контрольная
-сумма зафиксированы в этом разделе. Предпросмотр рендерит `{templates, card}` из
-`StringBody` в sandbox-iframe (`allow-scripts`); ограничения: `div-action://` и
-`centaur://` колбэки станции в вебе не исполняются — предпросмотр показывает визуал.
+через `<script>` без сборки, глобал — `window.Ya.DivKit` (метод `render({id, target, json})`,
+`json` — конверт `{templates, card}`; сборка `dist/client.js` — CommonJS для сборщиков,
+в браузере не работает). Версия и контрольная сумма зафиксированы в этом разделе.
+Предпросмотр рендерит `{templates, card}` из `StringBody` (глобальные шаблоны иконок
+`GlobalTemplates` подмешиваются в `templates`) в sandbox-iframe (`allow-scripts`);
+скрипты — в конце `body` (в `head` `document.body` ещё нет — target получал undefined),
+без `dist/client.css` (он схлопывает корень рендера до 1px); первый рендер — после
+раскладки диалога (DivKit измеряет target при старте). Канва превью — экран станции
+720×1280, масштабируется в панель. Ограничения: `div-action://` и `centaur://` колбэки
+станции в вебе не исполняются, webview-карты (ютуб) в sandbox-iframe не рисуются —
+предпросмотр показывает визуал карточки.

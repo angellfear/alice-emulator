@@ -40,7 +40,7 @@ let providerKinds=[];
 const providerTabs=()=>[...providerKinds.map(k=>['providers-'+k.kind,k.title||k.kind]),['providers-order','Порядок']];
 const GROUPS=[
   {title:'Устройства',tabs:[['devices','Устройства'],['accounts','Пользователи'],['updates','Обновления'],['smart-home','Умный дом']]},
-  {title:'Эмулятор',tabs:[['scenarios','Сценарии'],['endpoints','HTTP'],['ws','WS'],['quasar-http','Quasar'],['params','Параметры'],['app-catalog','Каталог приложений'],['templates','Шаблоны'],['traffic','Журнал']]},
+  {title:'Эмулятор',tabs:[['scenarios','Сценарии'],['endpoints','HTTP'],['ws','WS'],['quasar-http','Quasar'],['params','Параметры'],['app-catalog','Каталог приложений'],['templates','Шаблоны divui'],['traffic','Журнал']]},
   {title:'Поставщики данных',tabs:[]},
   {title:'Голос',tabs:[['voice-stack','Голосовой стек'],['replies','Звуковой кеш'],['animations','Анимации']]},
   {title:'Интеллект',tabs:[['intelligence','Режим',null,'hidden'],['llm','Модель','model'],['agent','Агент','agent'],['mcp','MCP','agent'],['memory','Память','agent'],['routines','Задания','agent']]},

@@ -1,4 +1,5 @@
 {
+ "title": "Погода — карточка weather_day",
  "proves": "Ответ настоящего сервера на «Какая погода?» (upstream, колонка C00JN, запись 2026-11-12 20:05, обмен 182600): draw_animation_directive (animations/weather/cloudy/evening) + divui_show_view (CardName WeatherDayHoursData, CardId weather_day_key_static_key, Layer Dialog, карточка weather_day: иконка-глобальный-шаблон, постер и прозрачное видео погоды, «Сейчас в <город>», температура, «Ощущается как …», галерея 24 часов, кнопка закрытия) + tts_play_placeholder. Данные — подстановки {{…}}; глобальные шаблоны иконок и галерею часов собирает сценарий informers/weather.py.",
  "name": "divui_show_view",
  "analytics_type": "divui_show_view",

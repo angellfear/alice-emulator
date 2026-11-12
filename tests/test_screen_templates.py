@@ -130,20 +130,20 @@ def test_vendored_divkit_matches_contract():
     """Vendor-бандл DivKit: версия и sha256 зафиксированы в контракте."""
     path = Path(__file__).resolve().parent.parent / "server_emulator" / "ui" / "vendor" / "divkit.min.js"
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    assert digest == "98c444b1ba62c48082246ca9b31d0c94a5bbf74052fcc78e7531d7a8f3370fd0"
+    assert digest == "b79ff49bdf1d6e16b1fbe6947bcc4721a92a7fa925309a50f7f44fdd76a6b3e6"
     contract = (Path(__file__).resolve().parent.parent / "docs" / "contracts" / "templates.md").read_text(encoding="utf-8")
     assert "33.11.0" in contract and digest in contract and "Apache-2.0" in contract
 
 
 def test_templates_tab_wired():
-    """Вкладка «Шаблоны»: секция и скрипт в index.html, файл в ASSETS, вкладка в GROUPS."""
+    """Вкладка «Шаблоны divui»: секция и скрипт в index.html, файл в ASSETS, вкладка в GROUPS."""
     root = Path(__file__).resolve().parent.parent
     index = (root / "server_emulator" / "ui" / "index.html").read_text(encoding="utf-8")
     assert 'id="templates"' in index and 'templates.js' in index
     runtime_src = (root / "server_emulator" / "runtime.py").read_text(encoding="utf-8")
     assert '"templates.js"' in runtime_src  # ASSETS
     app_js = (root / "server_emulator" / "ui" / "app.js").read_text(encoding="utf-8")
-    assert "['templates','Шаблоны']" in app_js
+    assert "['templates','Шаблоны divui']" in app_js
 
 
 async def test_templates_api(tmp_path):

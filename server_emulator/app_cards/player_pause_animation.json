@@ -1,11 +1,17 @@
 {
- "title": "Анимация паузы плеера (draw_animation_directive): образец настоящего сервера — «стоп»/«подожди», записи 2026-10-21 20:35:28, 2026-10-25 01:00:30 (TDrawAnimationDirective{Animations[{S3Directory}]}).",
+ "title": "Анимация паузы плеера",
+ "proves": "Анимация паузы плеера (draw_animation_directive): образец настоящего сервера — «стоп»/«подожди», записи 2026-10-21 20:35:28, 2026-10-25 01:00:30 (TDrawAnimationDirective{Animations[{S3Directory}]}).",
  "name": "draw_animation_directive",
  "analytics_type": "draw_animation_directive",
  "body": {
   "Name": "draw_animation_directive",
   "Animations": [
-   {"S3Directory": {"Bucket": "https://quasar.s3.yandex.net", "Path": "animations/player_pause"}}
+   {
+    "S3Directory": {
+     "Bucket": "https://quasar.s3.yandex.net",
+     "Path": "animations/player_pause"
+    }
+   }
   ]
  }
 }

@@ -1,4 +1,5 @@
 {
+ "title": "Отказ «открой часы» (карта conversation)",
  "proves": "Ответ настоящего сервера «открой часы» (.85 «Прозрачно», запись 2026-11-12 14:28:04): divui_show_view (AnalyticsType default_div_text_card, TDivUIShowViewDirective) с текстом отказа поверх лотти-фона речи + simple_text-карточка и та же реплика речью; директивы [divui_show_view, tts_play_placeholder]. Карточка «conversation» — статичные константы образца.",
  "name": "divui_show_view",
  "analytics_type": "default_div_text_card",

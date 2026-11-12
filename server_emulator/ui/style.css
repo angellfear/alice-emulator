@@ -305,10 +305,27 @@ body.embedded section{border-radius:10px;background:transparent;border:none;padd
 .sc-edit-dialog .sc-err{color:var(--danger);font-size:13px;overflow-wrap:anywhere}
 .sc-edit-dialog textarea,.sc-edit-dialog input{width:100%}
 .sc-edit-dialog #scenario-script-box{margin-bottom:0;min-width:0}
-/* Предпросмотр шаблона (DivKit web): рамка как у карточек, полоса прокрутки внутри рамки */
-.preview-dialog{width:min(900px,calc(100vw - 40px));max-width:calc(100vw - 40px);max-height:92vh}
-.preview-dialog h3{margin:0 0 10px}
-.template-preview{width:100%;height:560px;border:1px solid var(--border);border-radius:var(--radius-s);background:var(--code-bg)}
+/* Редактор шаблона divui: код слева, живой предпросмотр DivKit справа, низ с
+   переменными и кнопками всегда на виду */
+.catalog-dialog.tpl-dialog{width:min(1120px,calc(100vw - 40px));display:flex}
+.tpl-dialog form{display:flex;flex-direction:column;width:100%;min-height:0}
+.tpl-dialog .tpl-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0 12px;font-size:12.5px;color:var(--faint)}
+.tpl-dialog .tpl-meta code{font-size:12px}
+.tpl-dialog .tpl-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:12px;flex:1 1 auto;min-height:520px}
+.tpl-code{min-width:0;min-height:0;border:1px solid var(--border);border-radius:var(--radius-s);overflow:hidden;background:var(--code-bg)}
+.tpl-code .CodeMirror{height:100%}
+.tpl-code textarea{height:100%;resize:none}
+.tpl-preview-pane{display:flex;flex-direction:column;min-width:0;min-height:0;gap:6px}
+.tpl-preview-head{font-size:11.5px;color:var(--faint)}
+.tpl-preview-err{font-size:12px;color:var(--danger);overflow-wrap:anywhere}
+.tpl-preview-frame{flex:1 1 auto;width:100%;min-height:0;position:relative;overflow:hidden;border:1px solid var(--border);border-radius:var(--radius-s);background:var(--code-bg)}
+.tpl-preview-frame .template-preview{position:absolute;top:0;left:0;width:720px;height:1280px;border:0;transform-origin:0 0;background:var(--code-bg)}
+.tpl-foot{flex:0 0 auto;display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.tpl-vars-row{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:end}
+.tpl-vars-row label{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--faint)}
+.tpl-vars-row label input{width:150px}
+.tpl-vars-row label.tpl-station select{min-width:170px}
+@media (max-width:900px){.tpl-dialog .tpl-grid{grid-template-columns:1fr;min-height:0}.tpl-code{min-height:220px}.tpl-preview-pane .template-preview{min-height:260px}}
 .sc-edit-dialog .sc-discard{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--danger-border);border-radius:var(--radius-s);background:var(--danger-bg)}
 .sc-edit-dialog .sc-discard span{flex:1 1 220px}
 body:has(.sc-edit-dialog[open]){overflow:hidden}

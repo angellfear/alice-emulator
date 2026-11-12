@@ -1,4 +1,5 @@
 {
+ "title": "Запуск YouTube (webview-карта)",
  "proves": "Ответ настоящего сервера «открой ютуб» (.85 «Прозрачно», запись 2026-11-10, обмен 126042): тихий ответ — tts_play_placeholder + divui_show_view с webview-картой приложения; запуск ютуба на станции с экраном — webview m.youtube.com, не Android-intent.",
  "name": "divui_show_view",
  "directive": {

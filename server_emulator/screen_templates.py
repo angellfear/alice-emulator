@@ -58,11 +58,13 @@ class Registry:
 
     @staticmethod
     def _normalize(id_, doc):
-        """Образец настоящего сервера ({"proves", "name"?, "analytics_type"?,
-        "directive"}) или файл нового формата ({"title", "name", "body"})."""
+        """Образец настоящего сервера ({"proves", "title"?, "name"?,
+        "analytics_type"?, "directive"}) или файл нового формата
+        ({"title", "name", "body"}): title — короткое название для вкладки,
+        proves — запись-источник образца (в UI не показывается)."""
         if "directive" in doc:
             body = doc["directive"]
-            return {"id": id_, "title": doc.get("proves", ""),
+            return {"id": id_, "title": doc.get("title") or doc.get("proves", ""),
                     "name": doc.get("name") or body["Name"],
                     "analytics_type": doc.get("analytics_type") or body["Name"],
                     "body": body}
