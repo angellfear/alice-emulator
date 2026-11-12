@@ -48,11 +48,14 @@
       if (!first) continue;
       active.add(item.sn);
       const count = (item.errors || []).length;
+      const unfilled = String(first.error || '').includes('не заполнен параметр');
       window.notify.pin('quasar:' + item.sn,
         'Конфиг колонки · ' + (item.name || item.sn) + ' — ошибок: ' + count + ' · «'
         + first.rule + '»: ' + String(first.error).slice(0, 160)
         + (count > 1 ? ' · полный список — вкладка «Quasar»' : ''),
-        { error: true });
+        { error: true,
+          // незаполненный обязательный параметр — клик открывает первичный конфигуратор
+          onclick: unfilled && window.configuratorOpen ? window.configuratorOpen : undefined });
     }
     for (const sn of [...quasarPinned])
       if (!active.has(sn)) { window.notify.unpin('quasar:' + sn); quasarPinned.delete(sn); }

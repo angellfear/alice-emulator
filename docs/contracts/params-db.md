@@ -99,6 +99,44 @@ device.name/room (editable); server.* — стартовые серверные 
 
 Публичный режим (auth.json нет) — как сейчас: всё доступно («админ без входа»).
 
+### Подтянуть из аккаунта (первичный конфигуратор)
+
+`server_emulator/account.py` + домены `ui/api/account.py`. Два источника значений:
+
+- **get_sync_info** (работает без входа): ответы настоящего облака из журнала трафика
+  (source=upstream, новейшие по колонке) — `/config/account_config/user_wifi_config/wifi_hash`,
+  `/config/device_config/location/latitude|longitude`, `/config/device_config/name`,
+  `/glagol/security/server_certificate|server_private_key`. wifi_hash и координаты
+  пишутся владельцу-пользователю колонки (`user:<id>` из реестра), имя и glagol-ключи —
+  колонке (`device:<sn>`); определения `device.glagol_cert`/`device.glagol_key` (secret)
+  импорт создаёт, если их нет.
+- **iot-API аккаунта** (нужен вход): комнаты и имена колонок (`/m/v3/user/devices`:
+  households[].all[] — name, room, quasar_info.device_id), координаты из конфигурации
+  колонки (`/m/v2/user/devices/<id>/configuration` → quasar_config.device_config.location).
+  Города и таймзоны в наблюдаемых ответах iot нет — заполняются вручную.
+
+Авторизация — по образцу YandexStation (MIT; происхождение и лицензия —
+[LICENSE-NOTICE.md](../LICENSE-NOTICE.md)): вход по x_token, по cookies (строка
+или JSON Copy-Cookies) и QR-вход (ссылка подтверждается в приложении Яндекса,
+клиент опрашивает статус до 2 минут). x_token живёт в `state/account/session.json`;
+наружу API отдаёт только статус (`login`, `login_name`), в отчётах импорта значений
+секретов нет — только ключи и статусы.
+
+API (X-Emulator, как весь админ-API):
+- `GET /api/account` — статус входа;
+- `POST /api/account {op: login_token | login_cookies | qr_start | qr_poll | logout, token?, cookies?}`;
+- `GET /api/params_required` — обязательные параметры без значения на всех уровнях
+  цепочки каждого устройства (ключ, подпись, владельцы для записи). Обязательные —
+  `account.REQUIRED_KEYS`: `user.wifi_hash`, `user.location.latitude`,
+  `user.location.longitude` (поставляемые замены без них пропускаются —
+  [quasar-config.md](quasar-config.md), «Новая установка»);
+- `POST /api/params_import {source: get_sync_info | iot}` — записать значения в
+  каталог; ответ — `{items: [{key, owner, source, secret, status}], answers|devices}`.
+
+Закреплённые уведомления о незаполненном параметре снимаются сами при следующей
+сборке конфига колонки без ошибок (quasar-config.md); заполнение через импорт или
+вручную — без разницы.
+
 ## UI
 
 Админ-панель, «Эмулятор → Параметры» — две подвкладки (сегменты в шапке раздела):

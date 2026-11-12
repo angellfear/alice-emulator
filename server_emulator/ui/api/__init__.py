@@ -74,7 +74,7 @@ def guarded(handler):
     return wrapped
 
 
-from . import (actions, agent_ops, animations, catalog, endpoints, extensions, identities,  # noqa: E402,F401  (регистрация доменов)
+from . import (account, actions, agent_ops, animations, catalog, endpoints, extensions, identities,  # noqa: E402,F401  (регистрация доменов)
                live, me, misses, mcp, memory, params_api, providers, quasar_config_api, routines, scenario_drafts,
                scenarios, self_update, server_config, server_log, settings, setup, sound_cache, speech,
                status, traffic, updates, voice_stack, voice_test, ws_handlers)

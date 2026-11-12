@@ -76,7 +76,7 @@ keywords = ["wifi", "ssid", "password"]
   [[rules.allowlists]]
   description = "Тестовые значения в тестах и примерах (не данные пользователя)"
   paths = ['''^tests/''', '''^docs/''']
-  regexes = ['''^(?i:pw-\d+|abc\d*|new-hash|service|changeme|secret|test-token|password|wrong|top-secret|x+)$''']
+  regexes = ['''^(?i:pw-\d+|abc\d*|new-hash|service|changeme|secret|test-token|password|wrong|top-secret|x+|test-wifi-hash)$''']
   [[rules.allowlists]]
   description = "Карта «ключ параметра → категория» (LEGACY_KEY_CATEGORIES): значение service — имя категории, не пароль"
   paths = ['''^server_emulator/params\.py$''']
@@ -117,7 +117,10 @@ regex = '''\b(-?\d{1,2}\.\d{4,})\s*,\s*(-?\d{1,3}\.\d{4,})\b|(?i)\b(?:lat|latitu
 description = "Глобальные исключения"
 # Заведомо поддельный ключ из теста маскирования секретов агента (tests/test_agent_ops.py) —
 # значение нужно тесту целиком, к реальным сервисам отношения не имеет.
-regexes = ['''sk-abcdefghijklmnopqrstuv1234''']
+regexes = ['''sk-abcdefghijklmnopqrstuv1234''',
+  # Публичные client_id/client_secret клиента Яндекса из исходника YandexStation (MIT,
+  # LICENSE-NOTICE.md) — одинаковы у всех установок интеграции, секретом аккаунта не являются.
+  '''c0ebe342af7d48fbbbfcf2d2eedb8f9e''', '''ad0a908f0aa341a182a37ecd75bc319e''']
 paths = [
   '^server_emulator/ui/img/',
   '^server_emulator/schemas/',

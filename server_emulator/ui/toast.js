@@ -26,10 +26,14 @@
     return root;
   }
 
-  function create(text, error, ms, pin) {
+  function create(text, error, ms, pin, onclick) {
     const el = document.createElement('div');
     el.className = 'toast' + (error ? ' error' : '');
     if (error) el.setAttribute('role', 'alert');
+    if (onclick) {
+      el.classList.add('toast-action');
+      el.addEventListener('click', onclick);
+    }
     const label = document.createElement('span');
     label.className = 'toast-text';
     label.textContent = text;
@@ -90,10 +94,10 @@
     }
     create(key, error, ms);
   };
-  window.notify.pin = (id, text, { error = true } = {}) => {
+  window.notify.pin = (id, text, { error = true, onclick } = {}) => {
     const seen = pinned.get(id);
     if (seen) { seen.label.textContent = String(text); return; }
-    create(String(text), error, null, id);
+    create(String(text), error, null, id, onclick);
   };
   window.notify.unpin = id => { const seen = pinned.get(id); if (seen) seen.remove(); };
 })();

@@ -929,3 +929,5 @@ label.srv-check input{flex:none;width:auto;height:auto;margin:0}
 .order-row:active{cursor:grabbing}
 .order-row::before{content:"⋮⋮";color:var(--faint);letter-spacing:-2px;flex-shrink:0}
 .order-row[draggable="true"]{user-select:none}
+/* Первичный конфигуратор обязательных параметров — 400px без горизонтальной прокрутки */
+.configurator-dialog{width:min(400px,calc(100vw - 40px))}
