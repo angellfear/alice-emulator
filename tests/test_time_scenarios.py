@@ -156,7 +156,7 @@ def test_station_state_ringing():
     fresh = {"timer_id": TIMER_B, "start_ts": now, "duration": 300}
     assert station_state.ringing({"timers": [fresh], "alarms": []}, now) is None
     assert station_state.parse(b"not-a-protobuf-bytes") == {"timers": [], "alarms": [], "screens": {},
-                                                            "player": {}, "volume": {}}
+                                                            "player": {}, "volume": {}, "apps": []}
 
 
 def test_station_state_screens():

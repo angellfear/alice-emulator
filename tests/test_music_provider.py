@@ -857,7 +857,9 @@ async def test_no_provider_bare_template_yields_to_next_candidate(tmp_path):
         message = report["messages"][0]
         speech = _reply_speech(message)
         assert speech != "Для этого нет источника данных."
-        assert "не найдено" in speech.lower(), speech
+        # устройства без присланного списка — device.app.open честно говорит о состоянии,
+        # фраза остаётся обслуженной сценарием
+        assert "не получен" in speech.lower(), speech
     finally:
         await runtime.close()
 

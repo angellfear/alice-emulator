@@ -64,8 +64,8 @@ module: "server_emulator/scenario_engine/"
 | device.player.pause | «пауза», «останови музыку» | директивы настоящего сервера | test_builtin_templates |
 | device.bluetooth.on/off | «включи/выключи блютуз» | директивы по образцу | test_simple_commands |
 | device.led.emotion | «подмигни», «покажи глазки» | LED-директива | test_led_emotion |
-| device.apps.list | «какие приложения установлены?» | перечень из внутреннего списка `runtime.installed_apps` формулировкой записи .85 (текст + карточка); пустой список — честно о состоянии эмулятора | test_device_apps |
-| device.app.open | «открой/запусти X» | резолв по внутреннему списку `runtime.installed_apps` (пока пуст — автоматического получения нет); запуск ютуба — тихий ответ с divui_show_view и webview-картой (app_cards/youtube.json, запись .85 2026-11-10), прочие приложения — честная карточка «запуск не поддержан» (образцов запуска нет) | test_device_apps |
+| device.apps.list | «какие приложения установлены?» | перечень из состояния запроса колонки — `TAppLaunchCapability.InstalledAppsList` (cap 39), по серийнику; системные пакеты скрыты (`station_state.user_apps`), формулировка записи .85 (текст + карточка); списка нет — честный ответ «пока не получен» | test_device_apps |
+| device.app.open | «открой/запусти X» | резолв по списку приложений из состояния запроса (cap 39, по серийнику; поиск по `AppName` и человеческому имени, `app_directives.human_name`); запуск ютуба — тихий ответ с divui_show_view и webview-картой (app_cards/youtube.json, запись .85 2026-11-10), прочие приложения — честная карточка «запуск не поддержан» (образцов запуска нет), приложения нет в списке — «нет среди установленных», списка нет — «пока не получен» | test_device_apps |
 | system.* | служебные события, «забудь всё», «функция недоступна» | timesync, callbacks.ack, dialog.reset, agent_say, unavailable | test_builtin_templates |
 
 Таймеры и будильники ведёт колонка: сервер не хранит и не считает их (своего планировщика

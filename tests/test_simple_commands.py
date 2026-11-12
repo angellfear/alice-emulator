@@ -151,8 +151,8 @@ async def test_app_open_found_and_not_found(tmp_path):
     runtime.extensions.load_enabled()
     runtime.identities.mutate({'operation': 'user', 'id': 'owner', 'name': 'O'})
     runtime.identities.mutate({'operation': 'device', 'sn': 'SN-A', 'user_id': 'owner', 'device_ids': []})
-    runtime.installed_apps = [{"name": "YouTube", "package": "com.google.android.youtube"},
-                              {"name": "Кинопоиск", "package": "ru.kinopoisk"}]
+    runtime.device_apps["SN-A"] = [{"name": "YouTube", "package": "com.example.youtube"},
+                                   {"name": "Кинопоиск", "package": "com.example.kinopoisk"}]
     try:
         # приложение с образцом запуска (ютуб) — тихий webview-ответ, карточек нет
         report, sent, _ = await _say(runtime, "открой youtube", sn="SN-A")
@@ -162,7 +162,7 @@ async def test_app_open_found_and_not_found(tmp_path):
         report, sent, _ = await _say(runtime, "открой кинопоиск", sn="SN-A")
         assert "«Кинопоиск» найдено" in _card(sent)
         report, sent, _ = await _say(runtime, "запусти спотифай", sn="SN-A")
-        assert _card(sent) == "Приложение «спотифай» не найдено."
+        assert _card(sent) == "Приложения «спотифай» нет среди установленных на этой колонке."
     finally:
         await runtime.close()
 

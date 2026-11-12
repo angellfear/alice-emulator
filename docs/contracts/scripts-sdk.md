@@ -70,7 +70,7 @@ module: "server_emulator/sdk.py"
 | `ctx.slots` | слоты триггера; **живой dict** исполнения — правки переживают шаги |
 | `ctx.event` | `Event(name, callback, purpose, frame)` — имя служебного события и поля запроса (для event/protocol_event-триггеров), иначе пустое |
 | `ctx.sn` | SN колонки, от которой пришёл запрос |
-| `ctx.device` | запись реестра о колонке: sn, name, room, model, display, light(s), apps, platform, fields. `apps` — установленные приложения из внутреннего списка `runtime.installed_apps` (пока пуст: колонка его не сообщает, автоматического получения нет); его читают device.apps.list и промпт модели/агента, по нему запускается ютуб (webview-карта) |
+| `ctx.device` | запись реестра о колонке: sn, name, room, model, display, light(s), apps, platform, fields. `apps` — установленные приложения колонки из состояния её запроса (`TAppLaunchCapability.InstalledAppsList`, cap 39), по серийнику, в порядке колонки; его читают device.apps.list и промпт модели/агента, по нему запускается ютуб (webview-карта) |
 | `ctx.owner` | владелец: id, name, location (гео); комната колонки — `ctx.device.room` |
 | `ctx.now` | aware datetime в таймзоне устройства (params device → user → effective → input.timezone; без имени — таймзона сервера) |
 | `ctx.params` | параметры владельца/устройства/платформы/сервера + `effective` (docs/contracts/params-db.md) |

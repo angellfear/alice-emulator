@@ -210,7 +210,8 @@ def make_runtime(workdir):
     set_ha_lights(runtime, HA_LIGHTS)  # мир по умолчанию: две лампы HA (setup кейсов меняет их)
     runtime.identities.mutate({"operation": "user", "id": OWNER, "name": "Alex"})
     runtime.identities.mutate({"operation": "device", "sn": SN, "user_id": OWNER, "name": "Станция"})
-    runtime.installed_apps = [{"name": "ютуб"}, {"name": "спотифай"}]
+    runtime.device_apps[SN] = [{"name": "ютуб", "package": "com.example.youtube"},
+                               {"name": "спотифай", "package": "com.example.spotify"}]
     runtime.identities.mutate({"operation": "device", "sn": SN_OTHER, "user_id": OWNER,
                                "name": OTHER_NAME})
     runtime.quasar_params.set_value(f"user:{OWNER}", "user.location.latitude", LAT)

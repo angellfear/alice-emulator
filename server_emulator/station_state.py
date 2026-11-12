@@ -1,4 +1,4 @@
-"""Состояние колонки из её запроса: таймеры, будильники, экраны «Часов».
+"""Состояние колонки из её запроса: таймеры, будильники, экраны «Часов», приложения.
 Тот же разбор — для ответа на SyncPush{GetDeviceState} (fetch_state_result).
 
 Колонка сообщает своё состояние в КАЖДОМ запросе — `Request.EnvironmentStateRaw`
@@ -12,7 +12,12 @@
     сейчас (cap 46 есть в каждом запросе, образец — журнал 2026-10-21…2026-10-26);
   · CapabilityType=23 (VolumeCapabilityType) — NAlice.TVolumeCapability,
     State.Level/MaxLevel/PercentLevel/IsMuted — текущая громкость колонки
-    (образцы: журнал 2026-10-24…29, cap 23 есть в каждом запросе).
+    (образцы: журнал 2026-10-24…29, cap 23 есть в каждом запросе);
+  · CapabilityType=39 (AppLaunchCapabilityType) — NAlice.TAppLaunchCapability,
+    State.InstalledAppsList[{AppName, PackageName, VersionCode}] — установленные
+    приложения колонки, единственный штатный источник списка (образец: журнал
+    2026-11-12, колонки chiron присылают его в каждом VoiceInput/TextInput;
+    у TV-устройств Station_2 возможностей в состоянии нет).
 CapabilityUpdateState колонка этими типами ничего не слала — состояние живёт
 только в запросах. Эмулятор свои таймеры и свою очередь плеера НЕ хранит
 (главное правило tasks/PLAN-station-skills.md): что колонка не сообщает — того нет.
@@ -32,12 +37,23 @@ ALARM_CAPABILITY = 21
 CLOCK_APP_CAPABILITY = 144
 PLAYER_CAPABILITY = 46
 VOLUME_CAPABILITY = 23
+APP_LAUNCH_CAPABILITY = 39
 
 _ALARM_CAP = "NAlice.TAlarmCapability"
 _CLOCK_CAP = "NAlice.TClockAppCapability"
 _PLAYER_CAP = "NAlice.TAudioPlayerCapability"
 _VOLUME_CAP = "NAlice.TVolumeCapability"
+_APPS_CAP = "NAlice.TAppLaunchCapability"
 _ENV_STATE = "NAlice.NAliceApi.TEnvironmentState"
+
+# Пакеты, которые не показываются как приложения: системная оболочка Android и
+# служебные сервисы колонки. Правило одно на весь эмулятор (ответ «какие приложения
+# установлены», запуск приложения, промпт модели): колонка присылает сырой список
+# пакетов устройства — на .85 из 87 записей осмысленных приложений около 30.
+_NOT_APPS = ("android", "com.android.", "com.droidlogic", "com.yandex.centaur.overlay.",
+             "com.yandex.io.", "com.yandex.prebuiltstub", "com.yandex.server.",
+             "com.yandex.vqe_service.", "com.yandex.devices.farm.", "com.yandex.tv.qc",
+             "com.stardust", "com.topjohnwu.")
 
 # EStateType вложенного TState (alica-*.pb): номер → имя
 _PLAYER_STATES = {0: "unknown", 1: "idle", 2: "playing", 3: "paused",
@@ -122,28 +138,87 @@ def _volume_to_dict(state):
             "percent_level": round(float(state.PercentLevel or 0.0), 1)}
 
 
-def parse(raw):
-    """EnvironmentStateRaw (байты) → {"timers": [...], "alarms": [...], "screens": {...},
-    "player": {...}, "volume": {...}}.
+def _apps_to_list(state):
+    """TAppLaunchCapability.State.InstalledAppsList → [{name, package, version_code}]."""
+    return [{"name": str(app.AppName or ""), "package": str(app.PackageName or ""),
+             "version_code": int(app.VersionCode or 0)} for app in state.InstalledAppsList]
 
-    Пустой/битый raw, отсутствие дескрипторов протокола — пустое состояние, не ошибка:
-    запрос без состояния честен («таймеров нет»), сбой разбора не должен ломать ответ.
-    """
-    state = {"timers": [], "alarms": [], "screens": {}, "player": {}, "volume": {}}
+
+def is_user_app(app):
+    """Приложение для человека, а не система/служебный пакет: пакет не из системных
+    (_NOT_APPS) и имя не повторяет имя пакета (у служебных AppName == PackageName)."""
+    package = str(app.get("package") or "").strip()
+    name = str(app.get("name") or "").strip()
+    if not package or not name:
+        return False
+    return not package.lower().startswith(_NOT_APPS) and name.lower() != package.lower()
+
+
+def user_apps(apps):
+    """Приложения для ответа и запуска: [{name, package}] без системных пакетов.
+    Названия — AppName колонки (человеческие имена она присылает сама)."""
+    return [{"name": app["name"], "package": app["package"]}
+            for app in apps or [] if is_user_app(app)]
+
+
+def _env(raw):
+    """EnvironmentStateRaw (байты) → TEnvironmentState; пусто/битые байты — None."""
     if not raw:
-        return state
+        return None
     env_type = _load_env()
     if env_type is None:
-        return state
+        return None
     env = env_type()
     try:
         env.ParseFromString(bytes(raw))
     except Exception:  # noqa: BLE001 — чужая сериализация: битый raw = состояние отсутствует
+        return None
+    return env
+
+
+def _apps_from_env(env, apps_cap):
+    """Установленные приложения из состояния: cap 39 → State.InstalledAppsList."""
+    if env is None or apps_cap is None:
+        return []
+    apps = []
+    for endpoint in env.Endpoints:
+        for holder in endpoint.AnyCapabilities:
+            if int(holder.CapabilityType) != APP_LAUNCH_CAPABILITY:
+                continue
+            raw_cap = bytes(holder.RawCapability)
+            if not raw_cap:
+                continue
+            cap = apps_cap()
+            try:
+                cap.ParseFromString(raw_cap)
+            except Exception:  # noqa: BLE001
+                continue
+            apps += _apps_to_list(cap.State)
+    return apps
+
+
+def _raw_state(request):
+    """Байты EnvironmentStateRaw из TRequest (VoiceInput/TextInput)."""
+    return getattr(getattr(request, "Request", None), "EnvironmentStateRaw", b"") or b""
+
+
+def parse(raw):
+    """EnvironmentStateRaw (байты) → {"timers": [...], "alarms": [...], "screens": {...},
+    "player": {...}, "volume": {...}, "apps": [...]}.
+
+    Пустой/битый raw, отсутствие дескрипторов протокола — пустое состояние, не ошибка:
+    запрос без состояния честен («таймеров нет», «список приложений не получен»),
+    сбой разбора не должен ломать ответ.
+    """
+    state = {"timers": [], "alarms": [], "screens": {}, "player": {}, "volume": {}, "apps": []}
+    env = _env(raw)
+    if env is None:
         return state
     alarm_cap = _load(_ALARM_CAP)
     clock_cap = _load(_CLOCK_CAP)
     player_cap = _load(_PLAYER_CAP)
     volume_cap = _load(_VOLUME_CAP)
+    state["apps"] = _apps_from_env(env, _load(_APPS_CAP))
     for endpoint in env.Endpoints:
         for holder in endpoint.AnyCapabilities:
             kind = int(holder.CapabilityType)
@@ -192,8 +267,14 @@ def _load_env():
 
 def from_request(request):
     """Состояние из запроса колонки (TTextInput/TVoiceInput): Request.EnvironmentStateRaw."""
-    raw = getattr(getattr(request, "Request", None), "EnvironmentStateRaw", b"") or b""
-    return parse(raw)
+    return parse(_raw_state(request))
+
+
+def installed_apps(request):
+    """Установленные приложения колонки из её запроса (cap 39):
+    [{name, package, version_code}] — сырой список пакетов, как прислала колонка.
+    Пусто, если состояние в запросе без возможностей (TV-устройства список не шлют)."""
+    return _apps_from_env(_env(_raw_state(request)), _load(_APPS_CAP))
 
 
 def fetch_state_result(response, assistant_name=""):

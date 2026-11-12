@@ -172,9 +172,10 @@ class Runtime:
         self.sequence = itertools.count(1)  # SequenceNumber ответов (реальный счётчик сервера)
         self.lock = asyncio.Lock()
         self.identities = IdentityRegistry(self.directory, self.store)
-        # установленные приложения колонки (ctx.device["apps"]: имена или {name, package}):
-        # колонка их не сообщает, автоматического получения пока нет — список пуст
-        self.installed_apps = []
+        # установленные приложения колонок: SN → [{name, package, version_code}] из
+        # состояния запроса (station_state, cap 39); колонка присылает список в каждом
+        # запросе, своего ввода у эмулятора нет
+        self.device_apps = {}
         self.quasar_params = ParamStore(self.store.db,  # params/ расширений поверх БД
                                         extension_dirs=lambda: self._extension_layers("params"))
         self.quasar_params.seed()  # каталог параметров по умолчанию, идемпотентно
@@ -439,7 +440,8 @@ class Runtime:
                                "model": (device or {}).get("model") or "",
                                "display": display_of((device or {}).get("model")),
                                "light": copy.deepcopy(light), "lights": sorted(light),
-                               "apps": copy.deepcopy(self.installed_apps) if device else [],
+                               "apps": copy.deepcopy(self.device_apps.get((device or {}).get("sn")) or [])
+                               if device else [],
                                "platform": platform,
                                "fields": copy.deepcopy((device or {}).get("fields") or {}),
                                "capabilities": {name: (entry or {}).get("preview") or ""
@@ -1333,6 +1335,11 @@ class Runtime:
                         continue
                     incoming = client_type.FromString(data[4:])
                     trigger = incoming.Event.WhichOneof("Event") if incoming.WhichOneof("Message") == "Event" else "StreamControl"
+                    # список приложений колонки — из состояния запроса (cap 39), по серийнику;
+                    # обновляем на каждом речевом и текстовом запросе
+                    if trigger in ('VoiceInput', 'TextInput') and device:
+                        event = incoming.Event.VoiceInput if trigger == 'VoiceInput' else incoming.Event.TextInput
+                        self.device_apps[device['sn']] = station_state.installed_apps(event)
                     # «Вместе», фаза 3 : кадры голосового хода колонки — в копилку
                     # для релея ветке (VoiceInput открывает ход, аудио и StreamControl копятся)
                     hybrid.observe(trigger, data)

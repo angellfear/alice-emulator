@@ -25,6 +25,20 @@ WEBVIEW_APPS = {
     "youtube": "youtube.json",
 }
 
+# Человеческое имя по AppName колонки, когда он технический: в списке установленных .85
+# приложение YouTube называется «youtube-proxy» (ru.yandex.quasar.centaur.youtube_proxy_app),
+# а по образцу 2026-11-10 его открывает «открой ютуб». Поиск приложения идёт и по этому имени.
+_NAME_ALIASES = (("youtube", "Ютуб"),)
+
+
+def human_name(app_name):
+    """Имя приложения для поиска в фразе ("" — своего AppName достаточно)."""
+    key = str(app_name or "").strip().lower()
+    for marker, alias in _NAME_ALIASES:
+        if marker in key:
+            return alias
+    return ""
+
 
 def app_card_resource(name):
     """Ресурс карты запуска для приложения или None (образца нет — запуск не собирается)."""
