@@ -11,13 +11,21 @@ _prepared = False
 
 
 def prepare():
-    """Разовые настройки litellm: без телеметрии и стартового вывода."""
+    """Разовые настройки litellm: без телеметрии и стартового вывода; заодно прогрев
+    цепочки разбора ошибок (litellm.proxy, её litellm тянет в момент первого сбоя):
+    ошибка провайдера приходит сразу после ответа провайдера, а не на импорте модулей.
+    Цепочка необязательна (у litellm — extra mcp/proxy) — не импортировалась, разберёт
+    на месте, как раньше."""
     global _prepared
     if _prepared:
         return
     import litellm
     litellm.suppress_debug_info = True
     litellm.suppress_startup_output = True
+    try:
+        import litellm.proxy  # noqa: F401  (прогрев: модули разбора ошибок)
+    except Exception:  # noqa: BLE001 — необязательная цепочка; сбой импорта не ломает транспорт
+        pass
     _prepared = True
 
 

@@ -82,7 +82,10 @@ async def test_complete_stream_deltas_and_assembled():
 
 
 async def test_stream_provider_error_is_immediate():
-    """Ошибка провайдера в стриме → ValueError сразу (num_retries=0 и в стриме)."""
+    """Ошибка провайдера в стриме → ValueError сразу (num_retries=0 и в стриме).
+    Импорт litellm — разовый прогрев вне пути ошибки; сам путь ограничен по времени."""
+    from server_emulator.voice_stack.adapters import _litellm
+    _litellm.prepare()
     hits = []
 
     async def fail(request):
@@ -102,11 +105,13 @@ async def test_stream_provider_error_is_immediate():
             return None
 
     try:
+        started = time.monotonic()
         with pytest.raises(ValueError, match="HTTP 404"):
             async for _item in openai.complete_stream(type("R", (), {"lifecycle": L()})(),
                                                       {"url": base + "/v1/chat/completions", "api_key": "k", "model": "m"},
                                                       {"model": "m", "messages": [{"role": "user", "content": "x"}]}):
                 pass
+        assert time.monotonic() - started < 5  # ответ провайдера мгновенный — и ошибка тоже
         assert len(hits) == 1  # ретраев нет — провайдер опрошен ровно один раз
     finally:
         await runner.cleanup()
