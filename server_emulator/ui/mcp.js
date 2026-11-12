@@ -82,7 +82,6 @@
     const box = panel(server.id, (server.type === 'stdio' ? 'stdio · ' : '') + server.target, chip, tools, false, actions);
     box.classList.toggle('off', server.disabled);
     if (server.error) box.querySelector('.mcp-source-head').after(el('p', server.error, 'mcp-error'));
-    if (server.disabled) box.append(el('p', 'Выключен в mcp.json ("disabled": true): впишите настоящий URL и уберите disabled.', 'hint'));
     else if (!tools.length && !server.error) box.append(el('p', 'Инструменты ещё не получены.', 'hint'));
     return box;
   }
@@ -179,6 +178,8 @@
     search.oninput = () => { filter = search.value.trim().toLowerCase(); const pos = search.selectionStart; render(); const s = root.querySelector('input[type=search]'); s.focus(); s.setSelectionRange(pos, pos); };
     toolbar.append(edit, search);
     root.append(toolbar);
+    if (data.servers.some(s => s.disabled)) root.append(el('p',
+      'Серверы с пометкой «выключен» отключены в mcp.json ("disabled": true): впишите настоящий URL и уберите disabled в редакторе.', 'hint'));
     root.append(panel(data.builtin.title, 'встроенные · всегда у модели', String(data.builtin.tools.length), data.builtin.tools, true));
     for (const server of data.servers) root.append(serverPanel(server));
     if (!data.servers.length) root.append(el('p', 'В mcp.json нет серверов — добавьте их кнопкой «mcp.json».', 'hint'));

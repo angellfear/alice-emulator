@@ -66,7 +66,7 @@
         row.append(node('td', def.type + (def.options ? ` (${JSON.stringify(def.options).slice(0, 40)})` : '')));
         row.append(node('td', def.category));
         const editableCell = node('td');
-        if (def.user_editable) editableCell.append(node('span', '✓ правит владелец', 'chip'));
+        if (def.user_editable) { const owner = node('span', '✓', 'chip'); owner.title = 'Правит владелец'; editableCell.append(owner); }
         row.append(editableCell);
         row.append(node('td', def.title + (def.hint ? ' — ' + def.hint : '')));
         const actions = node('td');

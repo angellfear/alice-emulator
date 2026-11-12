@@ -30,7 +30,7 @@
     return v;
   };
 
-  let data = null, poll = null, busy = false;
+  let data = null, poll = null, busy = false, loadError = null;
   const chosen = {};  // service → "p:<пресет>" | "k:<пакет>"
   const adding = {};  // service → id адаптера в режиме «Добавить» (null — обычный режим)
   const drafts = {};  // ключ формы → {title, values}: введённое, но не сохранённое
@@ -41,7 +41,7 @@
   async function work(fn) {
     if (busy) return; busy = true;
     hosts().forEach(h => h.querySelectorAll('button,select,input,textarea').forEach(b => b.disabled = true));
-    try { await fn() } catch (e) { say(e.message, true) } finally { busy = false; render(true) }
+    try { await fn(); loadError = null } catch (e) { if (!data) loadError = e.message; say(e.message, true) } finally { busy = false; render(true) }
   }
   const button = (text, cls, fn) => { const b = make('button', cls, text); b.type = 'button'; b.onclick = () => work(fn); return b };
 
@@ -511,14 +511,20 @@
   }
 
   function render(force = false) {
-    if (!data) return;
+    if (!data) {  // до первого ответа и при сбое загрузки — состояние вместо пустой карточки
+      const box = make('p', 'vs-state', loadError ? 'Не удалось загрузить: ' + loadError : 'Загружаю голосовой стек…');
+      if (loadError) box.append(button('Повторить', 'secondary', load));
+      hosts().forEach(h => h.replaceChildren(box));
+      return;
+    }
     if (!force && poll && hosts().some(h => h.contains(document.activeElement))) return;  // не сбивать ввод фоновым обновлением
     host.replaceChildren(...SERVICES.filter(([s]) => s !== 'llm').map(([s, t]) => card(s, t)));
     llmHost?.replaceChildren(card('llm', 'Модель (LLM)'));
     if (busy) hosts().forEach(h => h.querySelectorAll('button,select,input,textarea').forEach(b => b.disabled = true));
   }
 
-  const sync = () => { clearTimeout(poll); poll = null; if (['#voice-stack', '#llm'].includes(location.hash)) work(load) };
+  const sync = () => { clearTimeout(poll); poll = null;
+    if (['#voice-stack', '#llm'].includes(location.hash)) { render(); work(load) } };
   window.addEventListener('hashchange', sync);
   document.addEventListener('DOMContentLoaded', sync);
   if (document.readyState !== 'loading') sync();

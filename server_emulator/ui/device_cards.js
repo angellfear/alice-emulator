@@ -34,7 +34,7 @@
 .dc-card.dimmed .dc-title,.dc-card.dimmed .dc-pic{opacity:.6}
 .dc-card .dc-corner{position:absolute;top:10px;right:10px;display:flex;align-items:center;gap:6px}
 .dc-card .dc-off{width:24px;height:24px;color:var(--dc-danger,#ff5c5c)}
-.dc-card .dc-check{width:22px;height:22px;padding:3px;border-radius:50%;color:#fff;background:var(--dc-accent,#8b6cff)}
+.dc-card .dc-check{position:absolute;bottom:10px;right:10px;width:22px;height:22px;padding:3px;border-radius:50%;color:#fff;background:var(--dc-accent,#8b6cff)}
 .dc-card .dc-badge{font-size:11.5px;line-height:1;padding:4px 8px;border-radius:999px;white-space:nowrap;
   background:var(--dc-badge-bg,#3a3b47);color:var(--dc-muted,#a3a4b0)}
 .dc-card .dc-badge.accent{background:var(--dc-accent-bg,#3b3270);color:var(--dc-accent,#8b6cff)}
@@ -76,8 +76,10 @@
       badge.textContent = spec.badge.text; corner.append(badge);
     }
     if (spec.status === 'offline') corner.insertAdjacentHTML('beforeend', ICONS.offline);
-    if (spec.selected) corner.insertAdjacentHTML('beforeend', ICONS.check);
     if (corner.childNodes.length) el.append(corner);
+    // галочка выбора — в нижнем углу: в верхнем живёт статус (бейдж политики, «не в сети»),
+    // два индикатора в одном углу читаются как два противоречивых статуса
+    if (spec.selected) el.insertAdjacentHTML('beforeend', ICONS.check);
     if (spec.onClick) el.onclick = event => spec.onClick(event);
     return el;
   }

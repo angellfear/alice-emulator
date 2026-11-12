@@ -88,7 +88,12 @@
   function render() {
     const head = el('div', null, 'agent-head'); head.append(el('h2', 'AI агент'));
     root.replaceChildren(head,
-      el('p', 'Агент ведёт диалог с памятью, подтверждает рискованные действия, выполняет задания по расписанию и правит сценарии. Лимит вызовов модели считается на пользователя за сутки, 0 — без лимита. Промахи — фразы, которые не взял ни один сценарий: по ним агент готовит черновики сценариев. Вебхук: POST api/agent-event с заголовками X-Emulator: 1 и X-Agent-Token.'));
+      (() => {
+        const note = el('details', null, 'hint');
+        note.append(el('summary', null, 'Агент ведёт диалог с памятью, выполняет задания по расписанию и правит сценарии.'));
+        note.append(el('p', 'Лимит вызовов модели считается на пользователя за сутки, 0 — без лимита. Промахи — фразы, которые не взял ни один сценарий: по ним агент готовит черновики сценариев. Вебхук: POST api/agent-event с заголовками X-Emulator: 1 и X-Agent-Token.'));
+        return note;
+      })());
     if (!data.settings.installed) root.append(el('p', 'Агент не установлен: pip install -e ".[agent]"', 'hint'));
     const body = el('fieldset', null, 'agent-body'); body.disabled = !data.settings.installed;
     body.append(settingsPanel());

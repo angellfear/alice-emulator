@@ -453,18 +453,21 @@
 
   function renderDevices() {
     devicesRoot.replaceChildren();
-    // Пояснение маршрутов: построчно, названия режимов — жирным.
-    const routeNote = node('div'); routeNote.className = 'hint route-note';
-    const routeLine = (name, text) => { routeNote.append(node('b', name), document.createTextNode(' — ' + text)); };
+    // Одно пояснение на раздел (AGENTS.md); подробности — в свёрнутом «Подробнее».
+    const routeNote = node('details'); routeNote.className = 'hint route-note';
+    const routeSummary = node('summary', null, 'Маршрут устройства: кто отвечает — эмулятор или Яндекс.');
+    const routeBody = node('div');
+    const routeLine = (name, text) => { routeBody.append(node('b', name), document.createTextNode(' — ' + text)); };
     routeLine('Эмуляция', 'всё отвечает эмулятор.');
-    routeNote.append(node('br'));
+    routeBody.append(node('br'));
     routeLine('Вместе', 'эмулятор отвечает своими сценариями, остальное — настоящий Яндекс.');
-    routeNote.append(node('br'));
+    routeBody.append(node('br'));
     routeLine('Прозрачно', 'всё в Яндекс.');
-    routeNote.append(node('br'), node('b', 'Новое устройство'), document.createTextNode(' — Эмуляция.'));
-    routeNote.append(node('br'), node('b', 'В «Эмуляции» и «Вместе» голос идёт на ws://<локальный домен> — в DNS сети настройте этот домен (Дополнительно → Сервер, по умолчанию alica.lan) на IP этого сервера.'));
-    routeNote.append(node('br'));
+    routeBody.append(node('br'), node('b', 'Новое устройство'), document.createTextNode(' — Эмуляция.'));
+    routeBody.append(node('br'), node('b', 'Голос в «Эмуляции» и «Вместе»'), document.createTextNode(' идёт на ws://<локальный домен> — в DNS сети настройте этот домен (Дополнительно → Сервер, по умолчанию alica.lan) на IP этого сервера.'));
+    routeBody.append(node('br'));
     routeLine('Запись', 'журнал трафика устройства, в любом маршруте: «Включено» — каждый обмен (ответ эмулятора или Яндекса) и AAPI-сообщения; «Нет обработчиков» — только то, чего эмулятор не умеет обработать. Звук не пишется. Смена действует сразу. Журнал — «Эмулятор → Журнал».');
+    routeNote.append(routeSummary, routeBody);
     devicesRoot.append(routeNote);
     const bound = registry.devices.filter(d => d.user_id).length;
     const toolbar = node('div'); toolbar.className = 'sc-toolbar';

@@ -4,9 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Мой дом</title><link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="stylesheet" href="/emulator/style.css">
 <style>
-:root{color-scheme:dark;--bg:#1f2029;--card:#2c2d37;--card-hover:#353642;--chip:#2c2d37;--text:#f1f1f4;--muted:#a3a4b0;
-  --accent:#8b6cff;--accent-bg:#3b3270;--danger:#ff5c5c;--ok:#55c27a;--line:#3a3b47;
+/* Токены темы — общие (style.css); здесь только имена-алиасы слоя кабинета */
+:root{--card:var(--surface-2);--card-hover:var(--surface-3);--chip:var(--surface-2);--line:var(--border);
   --dc-bg:var(--card);--dc-bg-hover:var(--card-hover);--dc-text:var(--text);--dc-muted:var(--muted);--dc-accent:var(--accent);
   --dc-accent-bg:var(--accent-bg);--dc-danger:var(--danger);--dc-min:250px;--dc-pic:60px}
 *{box-sizing:border-box}
@@ -23,7 +24,7 @@ button,input,select{font:inherit;color:inherit}
 .home-btn{background:none;border:0;padding:0;font-size:32px;font-weight:700;display:flex;align-items:center;gap:6px;cursor:pointer}
 .home-btn svg{width:22px;height:22px;transition:transform .15s}
 .home-btn[aria-expanded=true] svg{transform:rotate(180deg)}
-.menu{position:absolute;top:calc(100% + 8px);left:0;min-width:240px;background:var(--card);border-radius:14px;padding:6px;box-shadow:0 12px 32px #0008;z-index:5}
+.menu{position:absolute;top:calc(100% + 8px);left:0;min-width:240px;background:var(--card);border-radius:14px;padding:6px;box-shadow:0 12px 32px var(--overlay);z-index:5}
 .menu button{display:block;width:100%;text-align:left;background:none;border:0;padding:10px 12px;border-radius:10px;cursor:pointer}
 .menu button:hover{background:var(--card-hover)}
 .menu button.current{color:var(--accent)}
@@ -35,7 +36,7 @@ button,input,select{font:inherit;color:inherit}
 .chip b{display:block;font-size:18px;font-weight:600}
 .chip small{display:block;color:var(--muted);font-size:14px}
 .chip.active{background:var(--accent-bg);color:var(--accent)}
-.chip.active small{color:#7d6bd6}
+.chip.active small{color:var(--accent-strong)}
 .section{margin-bottom:30px}
 .section h2{font-size:24px;font-weight:700;margin:0 0 18px;display:flex;align-items:center;gap:6px}
 .section h2 button{background:none;border:0;padding:0;font-weight:inherit;font-size:inherit;display:flex;align-items:center;gap:6px;cursor:pointer}
@@ -48,17 +49,17 @@ button,input,select{font:inherit;color:inherit}
 .empty{color:var(--muted);padding:40px 0}
 .state{color:var(--muted);min-height:1.4em}
 .state.err{color:var(--danger)}
-.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--card);padding:10px 18px;border-radius:12px;box-shadow:0 8px 24px #0008;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--card);padding:10px 18px;border-radius:12px;box-shadow:0 8px 24px var(--overlay);opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}.toast.err{color:var(--danger)}
-dialog{background:var(--bg);color:var(--text);border:0;border-radius:20px;padding:0;width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 48px);box-shadow:0 20px 60px #000a}
-dialog::backdrop{background:#0009}
+dialog{background:var(--bg);color:var(--text);border:0;border-radius:20px;padding:0;width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 48px);box-shadow:0 20px 60px var(--overlay)}
+dialog::backdrop{background:var(--overlay)}
 .sheet{padding:22px}
 .sheet-head{display:flex;gap:16px;align-items:center;margin-bottom:18px}
 .sheet-head img{width:96px;height:96px;object-fit:contain}
 .sheet-head h3{margin:0 0 4px;font-size:22px}
 .sheet-head .meta{color:var(--muted);font-size:14px}
 .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle;background:var(--muted)}
-.status-dot.online{background:var(--ok)}.status-dot.seen{background:#e6b84c}.status-dot.offline{background:var(--danger)}
+.status-dot.online{background:var(--ok)}.status-dot.seen{background:var(--warning)}.status-dot.offline{background:var(--danger)}
 .close{position:absolute;top:12px;right:12px}
 .field{display:flex;flex-direction:column;gap:6px;margin:12px 0}
 .field span{color:var(--muted);font-size:13px}
@@ -67,7 +68,7 @@ dialog::backdrop{background:#0009}
 .switch{display:flex;align-items:center;justify-content:space-between;margin:12px 0}
 .switch input{width:20px;height:20px;accent-color:var(--accent)}
 .group-title{margin:22px 0 4px;font-size:15px;font-weight:600;color:var(--muted)}
-.btn{background:var(--accent);border:0;border-radius:12px;padding:11px 20px;font-weight:600;cursor:pointer;color:#fff}
+.btn{background:var(--accent);border:0;border-radius:12px;padding:11px 20px;font-weight:600;cursor:pointer;color:var(--on-accent)}
 .btn.secondary{background:var(--card);color:var(--text)}
 .actions{display:flex;gap:10px;margin-top:20px}
 .login{max-width:360px;margin:12vh auto 0;display:flex;flex-direction:column;gap:10px}

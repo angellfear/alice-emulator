@@ -200,7 +200,7 @@
     const head = node('div', null, 'sc-toolbar');
     head.append(node('h2', 'Журнал'), button('Обновить', () => work(load)), button('Очистить', requestClear));
     const note = node('p', 'Пишется по опции «Запись» устройства (Устройства → Устройства). На событие хранятся последние 10 записей, счётчик «×N» — все случаи. Звук не пишется.', 'hint');
-    const bar = node('div', null, 'sc-toolbar');
+    const bar = node('div', null, 'sc-toolbar traffic-filters');
     bar.append(deviceSelect(), sourceSelect(), unhandledToggle());
     const list = node('div', null, 'ep-misses');
     if (!shown.devices.length) list.append(node('p', 'Записей нет: включите «Запись» устройству в разделе «Устройства» или смягчите фильтры.', 'hint'));
