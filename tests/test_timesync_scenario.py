@@ -266,7 +266,7 @@ async def test_weather_informer_tap_shows_weather_card(tmp_path):
         response = SERVER.FromString(sent[0][4:]).Event.AliceResponse
         names = [d.Name for d in response.Response.Directives]
         assert 'divui_show_view' in names and 'draw_animation_directive' in names
-        assert response.Response.Cards[0].Text.startswith('Сейчас +12')
+        assert response.Response.Cards[0].Text.startswith('Сейчас <[pause none]> +12')
     finally:
         await runtime.close()
 

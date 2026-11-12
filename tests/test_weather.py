@@ -1,7 +1,9 @@
 """Погода (scenarios/informers/weather.json): данные у выбранного поставщика
 (builtin.open-meteo на подменном HTTP), датасет weather — кеш записей, свежесть из
-параметров, ожидание с таймаутом, честные ответы без фиктивных данных."""
+параметров, ожидание с таймаутом, честные ответы без фиктивных данных. Карточка —
+форма образцов настоящего сервера (запись 2026-11-12)."""
 import datetime
+import json
 
 from aiohttp import web
 
@@ -13,8 +15,12 @@ KEY = f"{LAT},{LON}"
 FORECAST = {
     "current": {"temperature_2m": 12.4, "apparent_temperature": 10.1, "weather_code": 3, "is_day": 1},
     "hourly": {"time": [f"2026-10-27T{h % 24:02d}:00" for h in range(12, 36)],
-               "temperature_2m": [10 + h % 5 for h in range(24)], "weather_code": [3] * 24, "is_day": [1] * 24},
-    "daily": {"temperature_2m_max": [14.2], "temperature_2m_min": [8.1], "precipitation_probability_max": [10]},
+               "temperature_2m": [10 + h % 5 for h in range(24)], "weather_code": [3] * 24, "is_day": [1] * 24,
+               "precipitation_probability": [0] * 24},
+    "daily": {"temperature_2m_max": [14.2, 15.0], "temperature_2m_min": [8.1, 9.0],
+              "precipitation_probability_max": [10, 20], "weather_code": [3, 67],
+              "wind_speed_10m_max": [2.0, 3.0], "wind_gusts_10m_max": [5.0, 6.0],
+              "wind_direction_10m_dominant": [0.0, 180.0]},
 }
 
 
@@ -69,15 +75,35 @@ async def _provider():
 
     async def handler(request):
         hits["n"] += 1
-        assert request.query["latitude"] == str(LAT) and "current" in request.query
+        assert "current" in request.query  # геокодированный город приходит с другими координатами
         return web.json_response(FORECAST)
+
+    async def geocode(request):
+        assert request.query["name"] and request.query["language"] == "ru"
+        return web.json_response({"results": [{"latitude": 56.01, "longitude": 92.87,
+                                               "timezone": "Asia/Krasnoyarsk", "name": "Москва"}]})
 
     app = web.Application()
     app.router.add_get("/v1/forecast", handler)
+    app.router.add_get("/v1/geocoding", geocode)
     runner = web.AppRunner(app)
     await runner.setup()
     await web.TCPSite(runner, "127.0.0.1", 0).start()
-    return runner, f"http://127.0.0.1:{runner.addresses[0][1]}/v1/forecast", hits
+    base = f"http://127.0.0.1:{runner.addresses[0][1]}"
+    return runner, base + "/v1/forecast", hits
+
+
+def _card(sent):
+    """Div2-карточка divui_show_view ответа (декод payload → поля директивы):
+    PayloadRaw собирает реестр шаблонов схемой «centaur» — тем же файлом декодируем."""
+    from server_emulator.scenario_engine.proto_build import message_class
+    from server_emulator.schema import message_dict
+    response = _response(sent)
+    directive = next(d for d in response.Response.Directives if d.Name == "divui_show_view")
+    cls = message_class("server_emulator/schemas",
+                        "NAlice.TLayeredDivUICapability.TDivUIShowViewDirective")
+    payload = message_dict(cls.FromString(bytes(directive.PayloadRaw)))
+    return payload["Div2Card"]
 
 
 async def test_weather_from_plugin_then_from_db(tmp_path):
@@ -87,14 +113,97 @@ async def test_weather_from_plugin_then_from_db(tmp_path):
         report, sent = await _say(runtime, "какая погода")
         assert report["handled"] and report["scenario"] == "informers.weather"
         response = _response(sent)
-        assert response.Response.Cards[0].Text == "Сейчас +12. Сегодня от +8 до +14. Осадки не ожидаются."
+        assert response.Response.Cards[0].Text == \
+            "Сейчас <[pause none]> +12. Сегодня от +8 до +14. Осадки не ожидаются."  # речь по образцу 182600
         names = [d.Name for d in response.Response.Directives]  # + tts_play_placeholder каркаса диалога
         assert names[:2] == ["draw_animation_directive", "divui_show_view"]
-        assert report["speech_parts"][:4] == ["Сейчас", "+12.", "Сегодня от", "+8"]  # части для кеша озвучки
+        assert report["speech_parts"] == ["Сейчас <[pause none]> +12. Сегодня от +8 до +14. "
+                                          "Осадки не ожидаются."]  # часть для кеша озвучки
         record = runtime.store.scenario_data_record("dataset:weather", "system", "", KEY)
         assert record[0]["current"]["temperature_2m"] == 12.4
         await _say(runtime, "погода на улице")  # свежая запись в БД: поставщик не дёргается
         assert hits["n"] == 1
+    finally:
+        await runtime.close()
+        await provider.cleanup()
+
+
+async def test_weather_card_matches_sample(tmp_path):
+    """Карточка — форма образца 182600 (карточка weather_day, CardId
+    weather_day_key_static_key): иконка-шаблон и видео со слагом условия, глобальные
+    шаблоны иконок (два, имена со слагом), «Сейчас в <город>», температура,
+    «Ощущается как …», галерея 24 часов с иконками по коду часа, кнопка закрытия."""
+    provider, url, hits = await _provider()
+    runtime = _runtime(tmp_path, url)
+    runtime.quasar_params.set_value("user:owner", "user.location.city_in", "Березниках")
+    try:
+        _, sent = await _say(runtime, "какая погода")
+        card = _card(sent)
+        assert card["CardName"] == "WeatherDayHoursData"
+        assert card["Id"] == {"CardName": "weather", "CardId": "weather_day_key_static_key"}
+        templates = card["GlobalTemplates"]
+        assert len(templates) == 2
+        assert any(name.startswith("icon_type_weather_icon_") for name in templates)
+        assert any(name.startswith("icon_type_part_weather_") for name in templates)
+        body = json.loads(card["StringBody"])["card"]
+        assert body["log_id"] == "weather_day"
+        left = body["states"][0]["div"]["items"][0]
+        assert left["items"][1]["text"] == "Сейчас в Березниках"  # заголовок образца
+        assert left["items"][2]["items"][0]["text"] == "+12°"
+        assert left["items"][2]["items"][1]["text"] == "Ощущается как +10°,\nпасмурно"
+        gallery = left["items"][3]
+        assert len(gallery["items"]) == 24
+        first = gallery["items"][0]
+        assert first["items"][0]["text"] == "12"  # час без секунд и минут
+        assert first["items"][1]["items"][0]["image_url"] == \
+            "https://yastatic.net/weather/i/icons/portal/png/128x128/light/ovc.png"
+        assert first["items"][1]["items"][1]["text"] == "+10°"
+        header = left["items"][0]
+        assert header["items"][0]["type"].startswith("icon_type_weather_icon_")
+        video = header["items"][2]["items"][0]
+        assert video["custom_props"]["source_uri"].startswith(
+            "https://smart-display-res.s3.yandex.net/generated/weather_video/chiron_")
+        assert header["items"][1]["image_url"].startswith(
+            "https://yastatic.net/s3/smart-display-res/generated/weather_video/preview_chiron_")
+        close_button = left["items"][4]
+        assert close_button["actions"][0]["log_id"] == "weather_close_button_element_click"
+    finally:
+        await runtime.close()
+        await provider.cleanup()
+
+
+async def test_weather_tomorrow_speech_per_sample(tmp_path):
+    """«погода на завтра» — речь образца 182705: «Завтра от …, дождь со снегом,
+    слабый южный ветер …, порывы до … м/с.» (код и ветер — дневные поля поставщика)."""
+    provider, url, hits = await _provider()
+    runtime = _runtime(tmp_path, url)
+    try:
+        report, sent = await _say(runtime, "погода на завтра")
+        assert report["handled"] and report["scenario"] == "informers.weather"
+        text = _response(sent).Response.Cards[0].Text
+        assert text == ("Завтра от +9 до +15, дождь со снегом, "
+                        "слабый южный ветер 3 м/с, порывы до 6 м/с.")
+        assert hits["n"] == 1
+    finally:
+        await runtime.close()
+        await provider.cleanup()
+
+
+async def test_weather_city_geocoded(tmp_path):
+    """«погода в Москве» — геокодирование поставщиком (отдельный ключ кеша),
+    падеж города — предложный, речь и карточка по образцу 182778."""
+    provider, url, hits = await _provider()
+    runtime = _runtime(tmp_path, url)
+    try:
+        report, sent = await _say(runtime, "погода в москве")
+        assert report["handled"] and report["scenario"] == "informers.weather"
+        card = _card(sent)
+        body = json.loads(card["StringBody"])["card"]
+        title = body["states"][0]["div"]["items"][0]["items"][1]["text"]
+        assert title == "Сейчас в Москве"
+        record = runtime.store.scenario_data_record("dataset:weather", "system", "", "city:москва")
+        assert record[0]["city"] == "Москва"  # имя от геокодера
+        assert record[0]["current"]["temperature_2m"] == 12.4
     finally:
         await runtime.close()
         await provider.cleanup()
@@ -108,7 +217,7 @@ async def test_stale_data_refreshed_when_plugin_answers(tmp_path):
     _age(runtime, 3 * 3600)  # старше порога по умолчанию (2 ч)
     try:
         _, sent = await _say(runtime, "погода")
-        assert _response(sent).Response.Cards[0].Text.startswith("Сейчас +12.") and hits["n"] == 1
+        assert _response(sent).Response.Cards[0].Text.startswith("Сейчас <[pause none]> +12.") and hits["n"] == 1
     finally:
         await runtime.close()
         await provider.cleanup()
@@ -122,8 +231,8 @@ async def test_stale_data_spoken_with_age_when_plugin_silent(tmp_path):
     try:
         report, sent = await _say(runtime, "погода")
         text = _response(sent).Response.Cards[0].Text
-        assert text.startswith("Сейчас +12.") and "Данные не актуальны: обновлены 3 часа" in text
-        assert report["speech_parts"][-1].strip().startswith("Данные не актуальны")
+        assert text.startswith("Сейчас <[pause none]> +12.") and "Данные не актуальны: обновлены 3 часа" in text
+        assert report["speech_parts"][-1].strip().endswith("Данные не актуальны: обновлены 3 часа назад.")
     finally:
         await runtime.close()
 

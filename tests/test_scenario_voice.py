@@ -115,8 +115,9 @@ async def test_weather_card_replays_capture(tmp_path):
         events, audio = await _voice_roundtrip(runtime, 'погода', _ogg())
         response = next(m for name, m in events if name == 'AliceResponse').Event.AliceResponse
         assert response.Response.Cards[0].Text == \
-            'Сейчас +12. Сегодня от +8 до +14. Осадки не ожидаются.'
-        assert response.VoiceResponse.OutputSpeech.Text.startswith('<speaker is_whisper="true"> ')
+            'Сейчас <[pause none]> +12. Сегодня от +8 до +14. Осадки не ожидаются.'
+        # речь по образцу 182600: шёпот-префикса в записи нет, есть <[pause none]>
+        assert response.VoiceResponse.OutputSpeech.Text == response.Response.Cards[0].Text
         directives = {d.Name: d for d in response.Response.Directives}
         assert 'divui_show_view' in directives and 'draw_animation_directive' in directives
         # tts_play_placeholder may also be present; we only check membership
@@ -175,7 +176,7 @@ async def test_scenario_speech_with_values_is_one_phrase_not_cached(tmp_path):
     runtime.store.scenario_data_set("dataset:weather", "system", "", "55.755826,37.617326", FORECAST)
     try:
         events, audio = await _voice_roundtrip(runtime, 'погода', _ogg())
-        assert len(first.calls) == 1 and first.calls[0].startswith("Сейчас +12.") and audio
+        assert len(first.calls) == 1 and first.calls[0].startswith("Сейчас +12.") and audio  # разметка <[pause none]> в озвучку не идёт
         assert runtime.tts_cache.stats()["files"] == 0
     finally:
         await runtime.close()

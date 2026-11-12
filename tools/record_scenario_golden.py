@@ -85,9 +85,11 @@ FORECAST = {
     "current": {"temperature_2m": 12.4, "apparent_temperature": 10.1, "weather_code": 3, "is_day": 1},
     "hourly": {"time": [f"2026-10-27T{h % 24:02d}:00" for h in range(12, 36)],
                "temperature_2m": [10 + h % 5 for h in range(24)], "weather_code": [3] * 24,
-               "is_day": [1] * 24},
-    "daily": {"temperature_2m_max": [14.2], "temperature_2m_min": [8.1],
-              "precipitation_probability_max": [10]},
+               "is_day": [1] * 24, "precipitation_probability": [0] * 24},
+    "daily": {"temperature_2m_max": [14.2, 15.0], "temperature_2m_min": [8.1, 9.0],
+              "precipitation_probability_max": [10, 20], "weather_code": [3, 67],
+              "wind_speed_10m_max": [2.0, 3.0], "wind_gusts_10m_max": [5.0, 6.0],
+              "wind_direction_10m_dominant": [0.0, 180.0]},
 }
 WEATHER_KEY = f"{LAT},{LON}"
 
@@ -480,6 +482,8 @@ CASES = {
     ],
     "informers.weather": [
         {"name": "weather-phrase", "kind": "text", "phrase": "какая погода", "setup": "weather_stub"},
+        {"name": "weather-tomorrow", "kind": "text", "phrase": "погода на завтра", "setup": "weather_stub"},
+        {"name": "weather-city", "kind": "text", "phrase": "погода в москве", "setup": "weather_stub"},
         {"name": "weather-degrees", "kind": "text", "phrase": "сколько градусов", "setup": "weather_stub"},
         {"name": "weather-tap", "kind": "callback", "event": "@@mm_semantic_frame",
          "purpose": "weather_informer_tap_action", "setup": "weather_stub"},

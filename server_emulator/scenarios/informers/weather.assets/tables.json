@@ -3,7 +3,7 @@
   "0": "ясно",
   "1": "почти ясно",
   "2": "переменная облачность",
-  "3": "облачно",
+  "3": "пасмурно",
   "45": "туман",
   "48": "туман",
   "51": "лёгкая морось",
@@ -12,8 +12,8 @@
   "61": "небольшой дождь",
   "63": "дождь",
   "65": "сильный дождь",
-  "66": "ледяной дождь",
-  "67": "ледяной дождь",
+  "66": "дождь со снегом",
+  "67": "дождь со снегом",
   "71": "небольшой снег",
   "73": "снег",
   "75": "сильный снег",
@@ -114,6 +114,96 @@
   },
   "0": {
    "*": "animations/weather/clear/night"
+  }
+ },
+ "card_templates": {
+  "cloudy": {
+   "icon_cond": "cloudy",
+   "part_cond": "overcast",
+   "icon_body": {
+    "icon_type_weather_icon_common_night_cloudy_global_template": {
+     "type": "image",
+     "appearance_animation": {
+      "type": "fade",
+      "duration": 300,
+      "interpolator": "ease_in_out"
+     },
+     "height": {
+      "type": "match_parent"
+     },
+     "high_priority_preview_show": true,
+     "image_url": "",
+     "preview": "UklGRjwDAABXRUJQVlA4WAoAAAAIAAAAYwEAxwAAVlA4IAgDAADwHgCdASpkAcgAPxGIvFm/sLQqoTM4w/AiCWlu4MiWq9KMboCsyNPgWRpgPjH6AIjSnLY503yKg3wdSSCEVQ7y3QM9BwYio0zbAVuoiSsMkgg9d1RGE402Z/wzSyCFVGI1sNKZPSr3Em2T13xYI/OZ22qabNdZfk8nZrRwcaVM9VJAdtFI0ROlVKV/HPxh1dQWvIuVh2vxzZ7tfwQfNOLl6mT9cV9SL2r9SqKOVFl9wFXG06vkNVpgaoMrYD24CjH5c1BkOKKbCFRrHVJvHA5uEOPHjrJysE24mRvKgxMv5KiGrGeXwYwrxMi3c4JcXCEdVcY5CCezp7/lu6lTS7YAAP6dlb/dnkfrOB/XGltHz0Xd8W7lFLLU8ZnD1Sn2smWC6BzM0pIOGDRdbK0QYiNJ9kwDswiAQ/nGd+F3S0qGKpQgB7Vkb0j4iu8SO32NaV2kkzgQEiCTtIlPwvlYuYOYSyV2VdPNrTkdLGHr88WVcpfJ2wV1p+nCGE+874qJHlf5Z3IRBDxQI/MfI5pR9sPIS/AFtvxIOZGdTMDvxPFfDRcV/PzPitxhVsnKqp1chHMuJGoSsffb548NXbQeT/Kx8gNZ/ktSXZ2aFEQcbda6znt9nCUuEATVD+zNZ8PmIpZ2MoKrXIPFIZ3NeoPD5Wr+Nt6bRYtdCTCb7uEBo02gK6jo98u219mbuYSbwKjF7rTryCM/xlN5BCZaPwm5Eq279KiGLmX8iCPTOZ4O1Wbi0QnC8SfF93WX88eDBkA0ISvkzAQjee7ARfaDDYa3Z0luyCXWDqfSp64xeB+5Ny9OZ53VrNs/bf9dHVzEYN1AeRAAb+ZPO1y+fwu50OymfeM0sdNwLRCuDF/YwPTwFmuGg+lQPrv3CQyrezwewzgIKWxgbNol4YE6/UYg04ONHm2UFoRP05EMsrMCPCDONZhDVKweLJq+8mUtWnMa5BO+Bo9IT6ECffvceJp6R6Phi9UZw3hP3uLZj62XUqrbjTP9vS1iu6dIG9wNnZSxlvhAgTby/pxX5QAAAEVYSUYOAAAATU0AKgAAAAgAAAAAAAA=",
+     "width": {
+      "type": "match_parent"
+     },
+     "$tint_color": "icon_type_weather_icon_common_night_cloudy_tint_color"
+    }
+   },
+   "part_body": {
+    "icon_type_part_weather_common_night_overcast_global_template": {
+     "type": "image",
+     "appearance_animation": {
+      "type": "fade",
+      "duration": 300,
+      "interpolator": "ease_in_out"
+     },
+     "height": {
+      "type": "match_parent"
+     },
+     "high_priority_preview_show": true,
+     "image_url": "",
+     "preview": "UklGRrwAAABXRUJQVlA4ILAAAAAwBgCdASpAAFAAPpFEnkslo6mhpNqpaTASCWUAxjiUAOPaSSQaofysjYPrfed/EwL/cAehxd6uchDgAP7wxzUC4f6u93/Y9j/9Cuy3TtSDCv7023wWC+UPC/klnm0uTXvjEXwHz66O9biYEVSjsRb81Wu2VAB1KcvjdnQgjQuB7qR4XL2E1PbpZaptYCLdKIyVxx3rP3CYl/tzUW3YkIjKDhgaPuC0o04Sdsl/uPQAAA==",
+     "width": {
+      "type": "match_parent"
+     },
+     "$tint_color": "icon_type_part_weather_common_night_overcast_tint_color"
+    }
+   }
+  },
+  "rain_light": {
+   "icon_cond": "rain_light",
+   "part_cond": "rain_light",
+   "icon_body": {
+    "icon_type_weather_icon_common_evening_rain_light_global_template": {
+     "type": "image",
+     "appearance_animation": {
+      "type": "fade",
+      "duration": 300,
+      "interpolator": "ease_in_out"
+     },
+     "height": {
+      "type": "match_parent"
+     },
+     "high_priority_preview_show": true,
+     "image_url": "",
+     "preview": "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",
+     "width": {
+      "type": "match_parent"
+     },
+     "$tint_color": "icon_type_weather_icon_common_evening_rain_light_tint_color"
+    }
+   },
+   "part_body": {
+    "icon_type_part_weather_common_evening_rain_light_global_template": {
+     "type": "image",
+     "appearance_animation": {
+      "type": "fade",
+      "duration": 300,
+      "interpolator": "ease_in_out"
+     },
+     "height": {
+      "type": "match_parent"
+     },
+     "high_priority_preview_show": true,
+     "image_url": "",
+     "preview": "UklGRiABAABXRUJQVlA4IBQBAABQCwCdASpAAFAAPpE8mEizIyIhLNn6qmASCWVrsF+sDE9TgGBGTKXKDGDaafWLCNnKUbcAqHf9erl8xhtNy31d11oyM22tePeyWj4sPaADZ/s+AejZvfRcRbGgHQAEaKB3QgAA/ufEv+l+30Swu7IeG7kA/rYrI/uoIfFhmA+C47UZJ+yDyom3A2cZg8rusiRDPqRbStji/TcrgcJ5jdcTOHtJ9TvT3i2JAud/2waA4rH31K9v9NiF4qP7G1bfffTndmALDBoqcO0amHp/3D/jFAj5dwGhRMU+gKBqqPiXTCtsAv0gf4d2LTVGDryLtDFnO/ZEF7sY9W3P+0uhdAUBDm4tMwLxXRDVqIbXJcIhhhMQAAA=",
+     "width": {
+      "type": "match_parent"
+     },
+     "$tint_color": "icon_type_part_weather_common_evening_rain_light_tint_color"
+    }
+   }
   }
  }
 }

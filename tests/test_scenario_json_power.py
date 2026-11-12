@@ -254,7 +254,7 @@ async def test_weather_uses_user_location(tmp_path):
                 response = message.Event.AliceResponse
                 break
         assert response is not None
-        assert response.Response.Cards[0].Text.startswith("Сейчас +12.")
+        assert response.Response.Cards[0].Text.startswith("Сейчас <[pause none]> +12.")
     finally:
         await runtime.close()
 
