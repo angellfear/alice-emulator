@@ -55,7 +55,7 @@ include = ["server_emulator*"]
 [tool.setuptools.package-data]
 server_emulator = ["ui/*", "schemas/*.pb", "requirements.txt", "voice_stack/packages/*.json",
                    "plugins/*/extension.json", "plugins/*/music/*.py", "plugins/*/phrases/*.json",
-  "plugins/*/weather/*.py", "plugins/*/news/*.py", "plugins/*/README.md",
+  "plugins/*/weather/*.py", "plugins/*/news/*.py", "plugins/*/video/*.py", "plugins/*/README.md",
   "plugins/*/actions/*.py", "plugins/*/datasets/*.py", "plugins/*/modes/*.py", "plugins/*/hooks.py",
   "plugins/*/ha_common.py", "plugins/*/mcp/*.json", "plugins/*/scenarios/**/*.json",
   "plugins/*/scenarios/**/*.py", "plugins/*/voice/adapters/*.py", "plugins/*/voice/presets/*.json",

@@ -1,0 +1,41 @@
+{
+ "id": "builtin.video-links",
+ "name": "Видео (каталог ссылок)",
+ "version": "0.1.0",
+ "description": "Поставщик видео (встроенный): каталог ссылок на веб-видео, правится в настройках плагина без правки кода. Сценарий «открой список …» показывает выдачу open_search карточками, выбор по номеру запускает плеер колонки.",
+ "author": "Angell Fear",
+ "license": "MIT",
+ "requires": {
+  "emulator": ">=0.1.0",
+  "sdk": ">=2.7.0",
+  "python_packages": []
+ },
+ "permissions": {
+  "network": [],
+  "actions": [],
+  "device_push": false,
+  "install": false
+ },
+ "settings": {
+  "fields": [
+   {
+    "key": "videos",
+    "label": "Каталог видео (JSON-список)",
+    "type": "textarea"
+   }
+  ],
+  "defaults": {
+   "videos": "[\n {\"title\": \"Демо-ролик один\", \"embed\": \"https://example.com/embed/one\", \"url\": \"https://example.com/watch/one\", \"genre\": \"комедия\", \"duration\": 600},\n {\"title\": \"Демо-ролик два\", \"embed\": \"https://example.com/embed/two\", \"genre\": \"мультфильм\", \"year\": 2020, \"duration\": 900},\n {\"title\": \"Демо-ролик три: комедия про агентов\", \"embed\": \"https://example.com/embed/three\", \"genre\": \"комедия\", \"duration\": 5400},\n {\"title\": \"Демо-ролик четыре: комедия про путешествия\", \"embed\": \"https://example.com/embed/four\", \"genre\": \"комедия\", \"duration\": 4800},\n {\"title\": \"Демо-ролик пять\", \"embed\": \"https://example.com/embed/five\", \"genre\": \"мультфильм\", \"duration\": 1200}\n]"
+  }
+ },
+ "contributes": {
+  "providers": [
+   {
+    "kind": "video",
+    "title": "Видео",
+    "module": "video/video_links.py",
+    "phrases": "phrases/video.json"
+   }
+  ]
+ }
+}

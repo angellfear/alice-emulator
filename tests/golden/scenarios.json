@@ -28,6 +28,7 @@
       "knowledge.knowledge",
       "lists.shopping",
       "media.music",
+      "media.video",
       "smart_home.light",
       "system.agent_say",
       "system.dialog.reset",
@@ -3007,6 +3008,30 @@
         }
       ],
       "id": "media.music"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "четырнадцать"
+          },
+          "name": "media.video-dir0",
+          "runs": [
+            {
+              "handled": false,
+              "reason": "script_declined:media.video",
+              "scenario": null,
+              "speech": "",
+              "speech_parts": [],
+              "status": null,
+              "text": "четырнадцать"
+            }
+          ]
+        }
+      ],
+      "id": "media.video"
     },
     {
       "cases": [
