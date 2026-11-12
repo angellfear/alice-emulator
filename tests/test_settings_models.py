@@ -49,6 +49,9 @@ def test_section_models_field_errors():
         checked_section({"installed": {"ext": "строка"}}, ExtensionsSettings, "extensions")
     upstream = checked_section({}, UpstreamSettings, "upstream")
     assert upstream["dns_servers"] == ["77.88.8.8", "1.1.1.1"] and upstream["journal"]["max_age_days"] == 14
+    assert upstream["journal"]["group_limit"] == 200
+    with pytest.raises(ValueError, match="upstream.journal.group_limit"):
+        checked_section({"journal": {"group_limit": 0}}, UpstreamSettings, "upstream")
     with pytest.raises(ValueError, match="upstream.journal.max_age_days"):
         checked_section({"journal": {"max_age_days": "год"}}, UpstreamSettings, "upstream")
     agent = checked_section({}, AgentSettings, "agent")

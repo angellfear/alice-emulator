@@ -235,8 +235,9 @@ async def test_direct_sync_info_follows_record_option(tmp_path):
         await stop(runtime, upstream_runner, runner)
 
 
-async def test_group_keeps_ten_records_and_counts_all(tmp_path):
+async def test_group_keeps_limit_records_and_counts_all(tmp_path):
     runtime, calls, upstream_runner, runner, url = await start(tmp_path)
+    runtime.settings["upstream"]["journal"]["group_limit"] = 10  # лимит записей на пару — настройка
     set_record(runtime, "SN-RC", "on")
     try:
         async with ClientSession() as client:

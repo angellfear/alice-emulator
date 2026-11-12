@@ -6,7 +6,7 @@
 с лимитом на тело. WS: открытие и закрытие сессии — записи lifecycle (в закрытии —
 счётчики звуковых кадров без данных), AAPI-кадр и неизвестный кадр — отдельные записи.
 Записи группируются по устройству и ключу события (HTTP — «METHOD host path» без query,
-WS — направление и имя сообщения): на пару хранятся последние GROUP_LIMIT записей, счётчик
+WS — направление и имя сообщения): на пару хранятся последние group_limit записей (настройка upstream.journal), счётчик
 всех случаев — в таблице journal_groups. Ротация по размеру файла и сроку —
 настройки upstream.journal. Значения секретных заголовков (Authorization, Cookie, токены,
 тикеты) маскируются до записи — журнал и экспорт не содержат учётных данных колонки.
@@ -31,8 +31,6 @@ from ..migrations import upgrade_database
 
 log = logging.getLogger(__name__)
 
-GROUP_LIMIT = 10  # записей на пару (устройство, ключ события)
-
 COLUMNS = ("ts", "kind", "direction", "event", "host", "method", "path", "status", "device_sn",
            "device_id", "request_size", "response_size", "duration_ms", "source", "error",
            "close_code", "request_headers", "response_headers", "request_body", "response_body",
@@ -46,7 +44,7 @@ DETAIL_COLUMNS = LIST_COLUMNS + ("request_headers", "response_headers", "request
                                  "audio_in_frames", "audio_in_bytes", "audio_out_frames", "audio_out_bytes")
 BLOB_COLUMNS = ("request_body", "response_body")
 
-DEFAULTS = {"max_body_kb": 256, "max_size_mb": 100, "max_age_days": 14}
+DEFAULTS = {"max_body_kb": 256, "max_size_mb": 100, "max_age_days": 14, "group_limit": 200}
 AGE_ROTATE_EVERY_S = 3600
 SECRET_HEADER = re.compile(r"authorization|cookie|token|ticket|secret|password|api[-_]?key|session[-_]?id", re.I)
 
@@ -96,6 +94,7 @@ class TrafficJournal:
                 number = value.get(key)
                 if isinstance(number, (int, float)) and not isinstance(number, bool) and number >= 0:
                     result[key] = number
+        result["group_limit"] = max(1, int(result["group_limit"]))  # 0 стёр бы журнал
         return result
 
     async def _conn(self):
@@ -212,9 +211,9 @@ class TrafficJournal:
             await self._trim(row.get("device_sn"), row["key"])
 
     async def _trim(self, device_sn, key):
-        """На пару (устройство, ключ) остаются последние GROUP_LIMIT записей."""
+        """На пару (устройство, ключ) остаются последние group_limit записей."""
         await self.db.execute("DELETE FROM exchanges WHERE id IN (SELECT id FROM exchanges WHERE device_sn IS ? AND key=? "
-                        "ORDER BY id DESC LIMIT -1 OFFSET ?)", (device_sn, key, GROUP_LIMIT))
+                        "ORDER BY id DESC LIMIT -1 OFFSET ?)", (device_sn, key, int(self.settings()["group_limit"])))
 
     # --- чтение ---------------------------------------------------------------
     async def list(self, device=None, host=None, source=None, unhandled=False, key=None, limit=100, offset=0):
@@ -270,7 +269,7 @@ class TrafficJournal:
         return [{"device_sn": sn or None, "groups": groups} for sn, groups in result.items()]
 
     async def group_items(self, device_sn, key, source=None, unhandled=False):
-        """Записи группы (до GROUP_LIMIT), новые сверху, без тел."""
+        """Записи группы (до group_limit), новые сверху, без тел."""
         clauses, args = ["device_sn IS ?", "key=?"], [device_sn or None, key]
         if source:
             clauses.append("source=?")
@@ -279,7 +278,7 @@ class TrafficJournal:
             clauses.append("unhandled=1")
         db = await self._conn()
         rows = await (await db.execute(f"SELECT {','.join(LIST_COLUMNS)} FROM exchanges WHERE {' AND '.join(clauses)} "
-                                       "ORDER BY id DESC LIMIT ?", [*args, GROUP_LIMIT])).fetchall()
+                                       "ORDER BY id DESC LIMIT ?", [*args, int(self.settings()["group_limit"])])).fetchall()
         return [dict(zip(LIST_COLUMNS, row)) for row in rows]
 
     async def item(self, exchange_id):

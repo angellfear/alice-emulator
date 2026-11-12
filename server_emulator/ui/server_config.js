@@ -133,7 +133,7 @@
         return note;
       })(),
       make('p', { className: 'hint' }, [version, 'Сейчас: ' + (listeners || '—') + (notes.length ? ' ' + notes.join(' ') : '')].filter(Boolean).join(' · ')),
-      form, selfUpdatePanel(), oauthPanel(), protocolPanel());
+      form, selfUpdatePanel(), oauthPanel(), journalPanel(), protocolPanel());
   }
 
   // Домены, которые должен покрывать сертификат для HTTPS (cert_domains из GET api/server):
@@ -242,6 +242,37 @@
     return form;
   }
 
+  // Журнал трафика: сколько записей хранить на пару «устройство + тип сообщения». Настройка
+  // upstream.journal.group_limit (GET/PUT api/settings), применяется сразу, без перезапуска.
+  function journalPanel() {
+    const journal = state.journal || {};
+    const input = make('input', { type: 'number', min: '1', step: '1', value: String(journal.group_limit || 200) });
+    const error = make('p', { className: 'sc-err', hidden: true, role: 'alert' });
+    const save = make('button', { type: 'submit' }, 'Сохранить');
+    const form = make('form', { className: 'panel' },
+      make('h3', {}, 'Журнал трафика'),
+      make('p', { className: 'hint' }, 'Старые записи сверх лимита удаляются при поступлении новых; счётчик всех случаев хранится отдельно.'),
+      make('label', {}, 'Записей на тип сообщения', input),
+      error, make('div', { className: 'actions' }, save));
+    form.onsubmit = async event => {
+      event.preventDefault();
+      if (busy) return;
+      error.hidden = true;
+      busy = true; save.disabled = true;
+      try {
+        const value = Math.floor(Number(input.value));
+        if (!(value >= 1)) throw new Error('Нужно целое число от 1');
+        const settings = await apiSettings();
+        settings.upstream = { ...settings.upstream, journal: { ...(settings.upstream || {}).journal, group_limit: value } };
+        await apiSettings('PUT', settings);
+        state.journal = settings.upstream.journal;
+        notify('Настройки журнала сохранены');
+      } catch (e) { error.textContent = e.message; error.hidden = false; }
+      finally { busy = false; save.disabled = false; }
+    };
+    return form;
+  }
+
   // OAuth / Passport: режим двух хостов (oauth.yandex.ru, mobileproxy.passport.yandex.net) —
   // настройки эмулятора: GET api/settings, правка oauth.mode, PUT. Читается живьём — без
   // перезапуска сервера; следующее обращение колонки уже по новому режиму.
@@ -343,7 +374,7 @@
       state = await call('GET');
       try { state.front_policy = await callFront('GET'); } catch (e) { /* блок политики не покажется */ }
       try { state.self_update = (await apiSettings()).self_update; } catch (e) { /* блок просто не покажется */ }
-      try { const s = await apiSettings(); state.oauth = s.oauth; state.alice2_settings = s.alice2_settings; } catch (e) { /* блок просто не покажется */ }
+      try { const s = await apiSettings(); state.oauth = s.oauth; state.alice2_settings = s.alice2_settings; state.journal = (s.upstream || {}).journal; } catch (e) { /* блок просто не покажется */ }
       render();
     } catch (e) { section.replaceChildren(make('h2', {}, 'Сервер'), make('p', { className: 'sc-err' }, e.message)); }
   }

@@ -68,7 +68,8 @@ DEFAULT = {
     # Проход наверх: внешние DNS-серверы, закреплённые адреса хостов
     # и лимиты журнала трафика. Какие запросы пересылать — режимы маршрута.
     "upstream": {"dns_servers": ["77.88.8.8", "1.1.1.1"], "upstream_ip": {},
-                 "journal": {"max_body_kb": 256, "max_size_mb": 100, "max_age_days": 14}},
+                 "journal": {"max_body_kb": 256, "max_size_mb": 100, "max_age_days": 14,
+                             "group_limit": 200}},
     # Самообновление: проверка релизов GitHub и обновление по кнопке,
     # автоматически ничего не ставится. token — строка или env:ИМЯ, по умолчанию пуст
     # (API публичного репозитория работает без него); restart — кто запускает сервер после обновления.
@@ -130,6 +131,10 @@ class SettingsService:
         if missing or stored is None:
             settings.update(missing)
             self.store.save_settings(settings)
+        journal = (settings.get("upstream") or {}).get("journal")
+        if isinstance(journal, dict):  # новые лимиты журнала у старых настроек — по умолчанию
+            for key, value in DEFAULT["upstream"]["journal"].items():
+                journal.setdefault(key, value)
         self._migrate_standard_replies(settings)
         self.load_scenario_files(settings)
         return settings

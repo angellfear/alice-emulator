@@ -152,6 +152,7 @@ class JournalSettings(_Strict):
     max_body_kb: int = 256
     max_size_mb: int = 100
     max_age_days: int = 14
+    group_limit: int = Field(default=200, ge=1)  # записей на пару (устройство, тип сообщения)
 
 
 class UpstreamSettings(_Strict):

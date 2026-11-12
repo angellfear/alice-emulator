@@ -276,6 +276,24 @@ async def test_journal_body_truncation(tmp_path):
         await journal.close()
 
 
+async def test_journal_group_limit_is_a_setting(tmp_path):
+    """На пару (устройство, ключ события) хранятся последние group_limit записей; счётчик — всех."""
+    config = {"group_limit": 3}
+    journal = TrafficJournal(Path(tmp_path) / "traffic.sqlite3", config=lambda: config)
+    try:
+        for index in range(7):
+            journal.write(kind="http", direction="exchange", host="g.test", method="GET", path="/same",
+                          status=200, source="upstream", device_sn="SN-1", key="GET g.test /same")
+        await journal.flush()
+        assert len((await journal.group_items("SN-1", "GET g.test /same"))) == 3  # хранятся последние три
+        groups = await journal.groups(device_sn="SN-1")
+        assert groups[0]["groups"][0]["count"] == 7  # счётчик всех случаев остаётся
+        config["group_limit"] = 0  # нуль стёр бы журнал — минимум одна запись
+        assert journal.settings()["group_limit"] == 1
+    finally:
+        await journal.close()
+
+
 async def test_journal_rotation_by_age_and_size(tmp_path):
     age = TrafficJournal(Path(tmp_path) / "age.sqlite3", config={"max_age_days": 14})
     size = TrafficJournal(Path(tmp_path) / "size.sqlite3", config={"max_size_mb": 0.3, "max_age_days": 0})
