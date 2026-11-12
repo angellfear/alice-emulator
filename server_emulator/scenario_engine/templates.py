@@ -119,13 +119,26 @@ def merge_lexicons(sources):
     return lists, skip_words
 
 
+def _yo(value):
+    """«ё» → «е» в шаблонах и своих списках триггера: фраза пользователя проходит clean()
+    (ё→е), а hassil «ё» не отображает — «ещё» в шаблоне иначе не сработало бы. Значения
+    «out» списков (то, что попадает в слот) не трогаются."""
+    if isinstance(value, str):
+        return value.replace("ё", "е").replace("Ё", "Е")
+    if isinstance(value, list):
+        return [_yo(item) for item in value]
+    if isinstance(value, dict):
+        return {key: item if key == "out" else _yo(item) for key, item in value.items()}
+    return value
+
+
 def _trigger_data(trigger):
     """Данные интента hassil из template-триггера: предложения, свои списки
     (per-intent в hassil — перекрывают общие), fixed-слоты."""
-    data = {"sentences": [sentence for sentence in trigger["sentences"]
+    data = {"sentences": [_yo(sentence) for sentence in trigger["sentences"]
                           if isinstance(sentence, str) and sentence.strip()]}
     if isinstance(trigger.get("lists"), dict) and trigger["lists"]:
-        data["lists"] = trigger["lists"]
+        data["lists"] = _yo(trigger["lists"])
     if isinstance(trigger.get("slots"), dict) and trigger["slots"]:
         data["slots"] = trigger["slots"]
     return data

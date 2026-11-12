@@ -71,6 +71,14 @@ def test_card_phrase_table():
         assert index.match(text) == (sid, slots), text
 
 
+def test_yo_in_template_matches_phrase():
+    """«ё» в шаблоне приводится к «е», как в фразе: «ещё» и «еще» срабатывают одинаково."""
+    item = scenario("custom.yo", [{"kind": "template", "sentences": ["покажи ещё"]}])
+    index = TemplateIndex([item])
+    assert index.match("покажи ещё") is not None
+    assert index.match("покажи еще") is not None
+
+
 def test_template_scenarios_are_valid_v2():
     """Форма template-триггера проходит валидатор формата v2."""
     for item in catalog():
