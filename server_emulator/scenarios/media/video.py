@@ -4,7 +4,7 @@
 правится в настройках плагина); ядру остаётся собрать ответ по образцу записи:
 open_search с веб-карточками SearchVideoItem, у каждой — два одинаковых voice-control
 с сущностью selected_video_title («название / N / номер N»), плюс tts_play_placeholder;
-выбор по номеру — play_web_video_directive и «Запуску.» (в записи led-директивы обе
+выбор по номеру — play_web_video_directive и «Запускаю.» (в записи led-директивы обе
 с IsLedSilent, open_search — без AnalyticsType, play — с названием видео).
 
 Выдача запоминается в данных сценария до новой выдачи — по ней выбирается номер.

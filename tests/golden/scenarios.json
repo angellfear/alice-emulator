@@ -3015,18 +3015,131 @@
           "effects": [],
           "input": {
             "kind": "text",
-            "phrase": "четырнадцать"
+            "phrase": "открой список комедий"
           },
-          "name": "media.video-dir0",
+          "name": "video.search",
           "runs": [
             {
-              "handled": false,
-              "reason": "script_declined:media.video",
-              "scenario": null,
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "is_led_silent": true,
+                      "name": "open_search",
+                      "payload_raw": "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",
+                      "type": "client_action"
+                    },
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": ""
+                }
+              ],
+              "reason": "dir:builtin.video-links.search",
+              "scenario": "media.video",
               "speech": "",
               "speech_parts": [],
-              "status": null,
-              "text": "четырнадцать"
+              "status": "finished",
+              "text": "открой список комедий"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "один"
+          },
+          "name": "video.select-first",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "Демо-ролик один",
+                      "is_led_silent": true,
+                      "name": "play_web_video_directive",
+                      "payload_raw": "Ch8KHWh0dHBzOi8vZXhhbXBsZS5jb20vZW1iZWQvb25lEgtleGFtcGxlLmNvbRoc0JTQtdC80L4t0YDQvtC70LjQuiDQvtC00LjQvTIDENgESh1odHRwczovL2V4YW1wbGUuY29tL3dhdGNoL29uZVoHZXhhbXBsZcI+HNCU0LXQvNC+LdGA0L7Qu9C40Log0L7QtNC40L0=",
+                      "type": "client_action"
+                    },
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "Запускаю."
+                }
+              ],
+              "reason": "dir:builtin.video-links.select",
+              "scenario": "media.video",
+              "speech": "Запускаю.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "один"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "двадцать"
+          },
+          "name": "video.select-out-of-range",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [
+                    {
+                      "text": "В списке всего 3.",
+                      "type": "simple_text"
+                    }
+                  ],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": "В списке всего 3."
+                }
+              ],
+              "reason": "dir:builtin.video-links.select",
+              "scenario": "media.video",
+              "speech": "В списке всего 3.",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "двадцать"
             }
           ]
         }

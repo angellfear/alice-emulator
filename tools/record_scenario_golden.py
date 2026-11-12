@@ -458,6 +458,13 @@ CASES = {
         {"name": "music.no-provider-tale", "kind": "text", "phrase": "включи сказку"},
         {"name": "music.stack-next-no-provider", "kind": "callback", "event": "@@mm_stack_engine_get_next"},
     ],
+    "media.video": [
+        # каталог — демо-настройки builtin.video-links: выдача, запуск по номеру из
+        # памяти той же выдачи (кейсы идут по порядку, состояние общее), лишний номер
+        {"name": "video.search", "kind": "text", "phrase": "открой список комедий"},
+        {"name": "video.select-first", "kind": "text", "phrase": "один"},
+        {"name": "video.select-out-of-range", "kind": "text", "phrase": "двадцать"},
+    ],
     "device.volume": [
         {"name": "volume-level", "kind": "text", "phrase": "громкость 5"},
         {"name": "volume-percent", "kind": "text", "phrase": "громкость 50"},
