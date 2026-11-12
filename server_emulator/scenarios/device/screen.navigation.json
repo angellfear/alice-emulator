@@ -1,0 +1,40 @@
+{
+ "format_version": 2,
+ "version": "1.0.0",
+ "category": "device",
+ "id": "device.screen.navigation",
+ "title": {
+  "ru": "Листание экранов",
+  "en": "Screen navigation"
+ },
+ "description": {
+  "ru": "«ещё» → go_forward, «назад» → go_backward: client_action с пустым Payload {}; «главный экран» → go_home — в device.home. Только exact-реплики: «перемотай назад» остаётся плееру"
+ },
+ "priority": 100,
+ "triggers": [
+  {
+   "kind": "phrase",
+   "phrases": [
+    "ещё",
+    "назад"
+   ],
+    "match": "exact"
+  },
+  {
+   "kind": "template",
+   "sentences": [
+    "еще",
+    "назад"
+   ]
+  }
+ ],
+ "executor": {
+  "kind": "script"
+ },
+ "provenance": {
+  "source": "запись .85 «Прозрачно» 2026-11-12: «ещё» (14:26:49) → tts_play_placeholder + go_forward, «назад» (14:27:19, 14:27:29) → go_backward; client_action, IsLedSilent, Payload {} без AnalyticsType; «главный экран» (14:27:59) → go_home (тот же вид)",
+  "changed": [
+   "«дальше» без контекста экрана у сервера — ответ-болталка модели, не навигация; «дальше»/«назад» плеера не перехватываются"
+  ]
+ }
+}

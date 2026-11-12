@@ -252,6 +252,63 @@ async def test_timer_cancel_all(tmp_path):
     assert _speech(reply) == "Хорошо, удалила все таймеры."
 
 
+# --- навигация экранов -----------------------------------------------------------------
+
+async def test_screen_navigation_words(tmp_path):
+    """«ещё»/«назад» без контекста — go_forward/go_backward (запись .85 2026-11-12
+    14:26:49/14:27:19): tts_play_placeholder первой, client_action с пустым Payload {},
+    IsLedSilent, без AnalyticsType."""
+    for phrase, directive in (("ещё", "go_forward"), ("назад", "go_backward")):
+        reply, _ = await _ask(tmp_path, phrase)
+        assert _names(reply) == ["tts_play_placeholder", directive], phrase
+        action = _directive(reply, directive)
+        assert action.Type == "client_action" and action.IsLedSilent, phrase
+        assert not action.PayloadRaw and len(action.Payload.fields) == 0, phrase
+        assert _speech(reply) == ""
+
+
+async def test_rewind_back_not_navigation(tmp_path):
+    """«перемотай назад» — по-прежнему плееру (уточняющий вопрос), не go_backward."""
+    question, _ = await _ask(tmp_path, "перемотай назад")
+    assert "go_backward" not in _names(question)
+
+
+# --- будильник: экран списка и отказ часов ---------------------------------------------
+
+async def test_alarm_list_open_says_none_when_empty(tmp_path):
+    """«открой будильник» (запись .85 2026-11-12 14:28:11): open_screen_alarm_list_directive
+    без payload (в образце PayloadRaw пустой) + реплика «У вас нет установленных
+    будильников.» — будильников у колонки нет."""
+    reply, _ = await _ask(tmp_path, "открой будильник")
+    assert _names(reply) == ["open_screen_alarm_list_directive", "tts_play_placeholder"]
+    action = _directive(reply, "open_screen_alarm_list_directive")
+    assert not action.PayloadRaw and len(action.Payload.fields) == 0
+    assert _speech(reply) == "У вас нет установленных будильников."
+
+
+async def test_alarm_list_open_with_alarms_is_quiet(tmp_path):
+    """Будильники есть — экран списка молча: речи про «нет установленных» в образце нет."""
+    raw = _state_raw(alarms=[{"alarm_id": ALARM_A, "hours": 7, "minutes": 30}])
+    reply, _ = await _ask(tmp_path, "открой будильник", env_state=raw)
+    assert _names(reply) == ["open_screen_alarm_list_directive", "tts_play_placeholder"]
+    assert _speech(reply) == ""
+
+
+async def test_clock_open_refuses_like_server(tmp_path):
+    """«открой часы» (запись .85 2026-11-12 14:28:04): divui_show_view картой отказа
+    (default_div_text_card) + та же реплика речью и simple_text; порядок — карта первой,
+    tts_play_placeholder последней."""
+    reply, _ = await _ask(tmp_path, "открой часы")
+    assert _names(reply) == ["divui_show_view", "tts_play_placeholder"]
+    assert _speech(reply) == "Я не могу открывать сайты и приложения на этом устройстве."
+    assert [c.Text for c in reply.Event.AliceResponse.Response.Cards] == \
+        ["Я не могу открывать сайты и приложения на этом устройстве."]
+    view = _station("NAlice.TLayeredDivUICapability.TDivUIShowViewDirective")()
+    view.ParseFromString(bytes(_directive(reply, "divui_show_view").PayloadRaw))
+    assert view.Name == "default_div_text_card"
+    assert "открывать сайты" in view.Div2Card.StringBody
+
+
 # --- перемотка плеера ----------------------------------------------------------------
 
 async def test_rewind_with_duration(tmp_path):

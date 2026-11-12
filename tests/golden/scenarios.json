@@ -17,6 +17,7 @@
       "device.led.emotion",
       "device.player.pause",
       "device.player.rewind",
+      "device.screen.navigation",
       "device.volume",
       "games.games",
       "informers.clock",
@@ -283,13 +284,14 @@
               "handled": true,
               "messages": [
                 {
-                  "cards": [
-                    {
-                      "text": "Приложение «спотифай» найдено. Запуск пока не поддерживается: директива запуска не восстановлена в схеме.",
-                      "type": "simple_text"
-                    }
-                  ],
+                  "cards": [],
                   "directives": [
+                    {
+                      "is_led_silent": true,
+                      "name": "launch_app",
+                      "payload_raw": "ChNjb20uZXhhbXBsZS5zcG90aWZ5EhphbmRyb2lkLmludGVudC5hY3Rpb24uTUFJTjIpCicKE2NvbS5leGFtcGxlLnNwb3RpZnkSENGB0L/QvtGC0LjRhNCw0Lk=",
+                      "type": "client_action"
+                    },
                     {
                       "analytics": "tts_play_placeholder",
                       "is_led_silent": true,
@@ -302,12 +304,12 @@
                   ],
                   "event": "AliceResponse",
                   "has_voice": false,
-                  "speech": "Приложение «спотифай» найдено. Запуск пока не поддерживается: директива запуска не восстановлена в схеме."
+                  "speech": "<speaker audio='open_sound.opus'>"
                 }
               ],
               "reason": "template",
               "scenario": "device.app.open",
-              "speech": "Приложение «спотифай» найдено. Запуск пока не поддерживается: директива запуска не восстановлена в схеме.",
+              "speech": "<speaker audio='open_sound.opus'>",
               "speech_parts": [],
               "status": "finished",
               "text": "запусти спотифай"
@@ -1274,6 +1276,97 @@
         }
       ],
       "id": "device.player.rewind"
+    },
+    {
+      "cases": [
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "ещё"
+          },
+          "name": "device.screen.navigation-trigger0-0",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    },
+                    {
+                      "is_led_silent": true,
+                      "name": "go_forward",
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": ""
+                }
+              ],
+              "reason": "template",
+              "scenario": "device.screen.navigation",
+              "speech": "",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "ещё"
+            }
+          ]
+        },
+        {
+          "effects": [],
+          "input": {
+            "kind": "text",
+            "phrase": "назад"
+          },
+          "name": "device.screen.navigation-trigger0-1",
+          "runs": [
+            {
+              "handled": true,
+              "messages": [
+                {
+                  "cards": [],
+                  "directives": [
+                    {
+                      "analytics": "tts_play_placeholder",
+                      "is_led_silent": true,
+                      "name": "tts_play_placeholder",
+                      "payload": {
+                        "channel": "Dialog"
+                      },
+                      "type": "client_action"
+                    },
+                    {
+                      "is_led_silent": true,
+                      "name": "go_backward",
+                      "type": "client_action"
+                    }
+                  ],
+                  "event": "AliceResponse",
+                  "has_voice": false,
+                  "speech": ""
+                }
+              ],
+              "reason": "template",
+              "scenario": "device.screen.navigation",
+              "speech": "",
+              "speech_parts": [],
+              "status": "finished",
+              "text": "назад"
+            }
+          ]
+        }
+      ],
+      "id": "device.screen.navigation"
     },
     {
       "cases": [

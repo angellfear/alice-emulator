@@ -3,13 +3,14 @@ cap 39): scenario device.app.open находит приложение по им�
 промпт агента и режима «модель» получают компактные имена (intelligence.apps_context),
 «какие приложения установлены?» перечисляет список без системных пакетов. Списки ведутся
 по серийнику: две колонки — два списка. «Открой ютуб» — тихий запуск webview-картой
-по образцу записи (прочие приложения — честное «запуск не поддержан»). Колонка список
-не прислала — честный ответ «пока не получен».
+по образцу записи; прочие приложения из списка — launch_app по пакету (запись 2026-11-12);
+без пакета — честный ответ. Колонка список не прислала — честный ответ «пока не получен».
 """
 import json
 from pathlib import Path
 
 import pytest
+from google.protobuf import json_format
 
 from server_emulator import intelligence, station_state
 from server_emulator.runtime import Runtime
@@ -28,6 +29,10 @@ EP_APPS = [
     {"name": "Внешний накопитель", "package": "com.example.externalstorage"},
     {"name": "com.example.overlay.framework", "package": "com.example.overlay.framework"},
 ]
+
+# «Яндекс Телемост» — публичное приложение, имя как на проводе записи 2026-11-12
+# (неразрывный пробел между словами — так его сообщает колонка).
+TELE_APPS = EP_APPS + [{"name": "Яндекс\u00a0Телемост", "package": "ru.yandex.telemost"}]
 
 
 def env_state(apps):
@@ -107,7 +112,8 @@ async def test_apps_are_per_device(tmp_path):
 
 
 async def test_app_open_finds_string_names(tmp_path):
-    """Сценарий работает с {name, package}-записями и по человеческому имени пакета."""
+    """Сценарий работает с {name, package}-записями и находит приложение по пакету —
+    запуск launch_app по найденному пакету (образца запуска для спотифая нет)."""
     import importlib.util
     spec = importlib.util.spec_from_file_location(
         "app_open", "server_emulator/scenarios/device/app.open.py")
@@ -125,7 +131,9 @@ async def test_app_open_finds_string_names(tmp_path):
     ctx.update(runtime._scenario_context(sn="SN-A"))
     scenario = ScenarioContext(runtime, ctx)
     result = await app_open.handle(scenario)
-    assert "«Спотифай» найдено" in result["text"]
+    assert result["speech"] == "<speaker audio='open_sound.opus'>"
+    assert [d["name"] for d in result["directives"]] == ["launch_app"]
+    assert result["directives"][0]["fields"]["PackageToLaunch"] == "com.example.spotify"
 
 
 async def test_apps_context_names_and_empty():
@@ -277,10 +285,12 @@ async def test_app_open_launches_youtube_webview(tmp_path):
         await runtime.close()
 
 
-async def test_app_open_other_apps_stay_honest(tmp_path):
-    """Приложение без образца запуска — прежняя честная карточка «найдено, запуск не поддержан»."""
+async def test_app_open_launches_by_package(tmp_path):
+    """«запусти телемост» (запись .85 2026-11-12 14:28:31): launch_app до
+    tts_play_placeholder, payload TLaunchAppDirective по пакету из InstalledAppsList;
+    речью — звук-тег образца, карточек нет."""
     runtime = Runtime(tmp_path)
-    apps_state(runtime, [{"name": "Кинопоиск", "package": "com.example.kinopoisk"}])
+    apps_state(runtime, list(TELE_APPS))
     runtime.settings.update(aapi_model=True, builtin_scenarios=True)
 
     async def chat(*args, **kwargs):
@@ -291,15 +301,29 @@ async def test_app_open_other_apps_stay_honest(tmp_path):
     from tests.conftest import _open_session, listen
     runner, url = await listen(create_app(runtime=runtime))
     try:
-        reply, _, ws = await _open_session(runtime, url, "открой кинопоиск",
-                                           env_state=env_state(
-                                               [{"name": "Кинопоиск", "package": "com.example.kinopoisk"}]))
+        reply, _, ws = await _open_session(runtime, url, "запусти телемост",
+                                           env_state=env_state(TELE_APPS))
         await ws.close()
-        text = reply.Event.AliceResponse.VoiceResponse.OutputSpeech.Text
-        assert "«Кинопоиск» найдено" in text and "не поддерживается" in text
+        alice = reply.Event.AliceResponse
+        directives = alice.Response.Directives
+        assert [d.Name for d in directives] == ["launch_app", "tts_play_placeholder"]
+        action = directives[0]
+        assert action.Type == "client_action" and action.IsLedSilent
+        launch = load_type(schemas_dir(), station_file(),
+                           "NAlice.TAppLaunchCapability.TLaunchAppDirective")()
+        launch.ParseFromString(bytes(action.PayloadRaw))
+        assert json_format.MessageToDict(launch, preserving_proto_field_name=True) == {
+            "PackageToLaunch": "ru.yandex.telemost",
+            "IntentAction": "android.intent.action.MAIN",
+            "Analytics": {"AppLaunch": {"PackageName": "ru.yandex.telemost",
+                                        "VisibleName": "Яндекс\u00a0Телемост"}}}
+        assert alice.VoiceResponse.OutputSpeech.Text == "<speaker audio='open_sound.opus'>"
+        assert len(alice.Response.Cards) == 0  # в образце карточек нет
     finally:
         await runner.cleanup()
         await runtime.close()
+
+
 
 
 async def test_app_open_not_in_list(tmp_path):

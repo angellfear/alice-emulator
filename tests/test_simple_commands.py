@@ -158,9 +158,9 @@ async def test_app_open_found_and_not_found(tmp_path):
         report, sent, _ = await _say(runtime, "открой youtube", sn="SN-A")
         assert report["scenario"] == "device.app.open"
         assert [d.Name for d in _alice(sent).Response.Directives] ==             ["tts_play_placeholder", "divui_show_view"]
-        # прочие приложения — честная карточка «найдено, запуск не поддержан»
+        # прочие приложения из списка — запуск по пакету директивой launch_app, без карточек
         report, sent, _ = await _say(runtime, "открой кинопоиск", sn="SN-A")
-        assert "«Кинопоиск» найдено" in _card(sent)
+        assert [d.Name for d in _alice(sent).Response.Directives] ==             ["launch_app", "tts_play_placeholder"]
         report, sent, _ = await _say(runtime, "запусти спотифай", sn="SN-A")
         assert _card(sent) == "Приложения «спотифай» нет среди установленных на этой колонке."
     finally:

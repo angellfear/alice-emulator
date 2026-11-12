@@ -8,7 +8,7 @@
   "en": "Open app"
  },
  "description": {
-  "ru": "«открой ютуб», «запусти …» → поиск в приложениях колонки из состояния запроса (TAppLaunchCapability.InstalledAppsList, cap 39); системные экраны (Браузер, Настройки) — именованные директивы открытия; запуск прочих — после восстановления wire"
+  "ru": "«открой ютуб», «запусти …» → поиск в приложениях колонки из состояния запроса (TAppLaunchCapability.InstalledAppsList, cap 39); системные экраны (Браузер, Настройки) — именованные директивы открытия; прочие приложения из списка — launch_app по пакету; «открой часы» — отказ «не могу открывать сайты и приложения», «открой будильник» — экран списка будильников"
  },
  "priority": 200,
  "triggers": [
@@ -40,12 +40,14 @@
   ]
  },
  "provenance": {
-  "source": "«открой Браузер» → tts_play_placeholder + open_browser_directive (запись .85 2026-11-12 13:56:15), «открой Настройки» → open_android_settings (13:56:21): client_action, IsLedSilent, payload пустой",
+  "source": "запись .85 «Прозрачно» 2026-11-12: «открой Браузер» → tts_play_placeholder + open_browser_directive (13:56:15), «открой Настройки» → open_android_settings (13:56:21): client_action, IsLedSilent, payload пустой; «запусти телемост» → launch_app + tts_play_placeholder (14:28:31): TLaunchAppDirective{PackageToLaunch=ru.yandex.telemost, IntentAction=android.intent.action.MAIN, Analytics.AppLaunch{PackageName, VisibleName=«Яндекс Телемост»}}, речью — <speaker audio='open_sound.opus'>; «открой часы» → divui_show_view отказа + «Я не могу открывать сайты и приложения на этом устройстве.» (14:28:04); «открой будильник» → open_screen_alarm_list_directive без payload + «У вас нет установленных будильников.» (14:28:11, колонка без будильников)",
   "unsupported": [
-   "TSendAndroidAppIntentDirective не восстановлена — запуск произвольных приложений не выполняется"
+   "TSendAndroidAppIntentDirective не восстановлена — запуск приложений вне InstalledAppsList не выполняется",
+   "«открой таймер» в записи — ошибка сервера («Даже идеальные помощники иногда ломаются»), образца нет"
   ],
   "changed": [
-   "триггер «включи» убран: перехватывал «включи музыку»"
+   "триггер «включи» убран: перехватывал «включи музыку»",
+   "запуск приложений из InstalledAppsList восстановлен по образцу launch_app (2026-11-12): прежняя честная отговорка «запуск не поддержан» убрана"
   ]
  }
 }

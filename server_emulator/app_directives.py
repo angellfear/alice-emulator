@@ -98,3 +98,41 @@ def action_items(name):
         return None
     return [tts_placeholder(),
             {"name": directive, "type": "client_action", "is_led_silent": True}]
+
+
+# Запуск приложения из InstalledAppsList по пакету — образец «запусти телемост»
+# (.85 «Прозрачно», запись 2026-11-12 14:28:31): launch_app (client_action,
+# IsLedSilent) с TLaunchAppDirective{PackageToLaunch, IntentAction MAIN,
+# Analytics.AppLaunch{PackageName, VisibleName}}; речью сервер отвечает звук
+# <speaker audio='open_sound.opus'> (тот же текст в OutputSpeech.Text); на проводе
+# launch_app до tts_play_placeholder (его дописывает каркас ответа).
+LAUNCH_APP_PROTO = "NAlice.TAppLaunchCapability.TLaunchAppDirective"
+MAIN_INTENT = "android.intent.action.MAIN"
+OPEN_SOUND_SPEECH = "<speaker audio='open_sound.opus'>"
+
+
+def launch_app_directive(app):
+    """launch_app по пакету из InstalledAppsList колонки; VisibleName — имя,
+    как его сообщила колонка (в образце «Яндекс Телемост» с неразрывным пробелом)."""
+    return {"name": "launch_app", "type": "client_action", "is_led_silent": True,
+            "proto": LAUNCH_APP_PROTO,
+            "fields": {"PackageToLaunch": app["package"], "IntentAction": MAIN_INTENT,
+                       "Analytics": {"AppLaunch": {"PackageName": app["package"],
+                                                   "VisibleName": app["name"]}}}}
+
+
+# Приложения, которые сервер на этом устройстве не открывает: «открой часы»
+# (запись 2026-11-12 14:28:04) — реплика «Я не могу открывать сайты и приложения
+# на этом устройстве.» + simple_text карточка с ней же + divui_show_view картой
+# отказа (форма — константы образца в app_cards/clock_refusal.json).
+NOT_HERE_APPS = ("часы",)
+NOT_HERE_TEXT = "Я не могу открывать сайты и приложения на этом устройстве."
+
+
+def not_here_directive():
+    """divui_show_view с картой отказа по константам образца."""
+    resource = json.loads((CARDS_DIR / "clock_refusal.json").read_text(encoding="utf-8"))
+    return {"name": "divui_show_view", "type": "client_action", "is_led_silent": True,
+            "analytics_type": resource["analytics_type"],
+            "proto": "NAlice.TLayeredDivUICapability.TDivUIShowViewDirective",
+            "fields": resource["directive"]}

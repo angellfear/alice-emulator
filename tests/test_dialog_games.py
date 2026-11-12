@@ -3,6 +3,8 @@
 Начало игры и типичные ходы игрока не должны перехватываться сценариями в «Модели»/«Агенте».
 Замер (таблица в «Итоге» задания): перехватывают только «хватит» и «стоп» — device.player.pause
 (штатная функция остановки плеера/сигнала, не ошибка шаблона) — БЛОКЕР на флаг «идёт игра».
+С записи 2026-11-12 к перехватам добавилась навигация экранов: «ещё» → device.screen.navigation
+(go_forward) — в игре тот же нерешённый БЛОКЕР на флаг «идёт игра».
 """
 import datetime
 
@@ -13,10 +15,12 @@ from server_emulator.runtime import Runtime
 STARTS = ["Алиса, давай сыграем в города", "Алиса, давай сыграем в верю не верю",
           "Алиса, давай сыграем в загадки"]
 # ходы, которые обязаны дойти до модели (замер 2026-11-03: перехватов нет)
-FREE_MOVES = ["да", "нет", "верю", "не верю", "Москва", "сдаюсь", "ещё", "первое", "второе",
+FREE_MOVES = ["да", "нет", "верю", "не верю", "Москва", "сдаюсь", "первое", "второе",
               "два", "загадывай", "дальше", "новый вопрос", "не знаю", "конец игры"]
-# ходы, перехваченные штатными сценариями плеера (БЛОКЕР 082 — таблица в «Итоге»)
-PLAYER_MOVES = {"хватит": "device.player.pause", "стоп": "device.player.pause"}
+# ходы, перехваченные штатными сценариями колонки: пауза плеера (БЛОКЕР 082 — таблица
+# в «Итоге») и листание экранов (запись 2026-11-12)
+INTERCEPTED_MOVES = {"хватит": "device.player.pause", "стоп": "device.player.pause",
+                     "ещё": "device.screen.navigation"}
 
 
 def _ctx(runtime, text):
@@ -66,9 +70,9 @@ async def test_game_moves_reach_model(tmp_path, move):
         await runtime.close()
 
 
-@pytest.mark.parametrize("move,scenario", sorted(PLAYER_MOVES.items()))
+@pytest.mark.parametrize("move,scenario", sorted(INTERCEPTED_MOVES.items()))
 async def test_player_scenarios_still_own_their_phrases(tmp_path, move, scenario):
-    """Штатные фразы плеера не сужались: перехват задокументирован БЛОКЕРОМ в задании."""
+    """Штатные фразы колонки не сужались: перехват задокументирован БЛОКЕРОМ в задании."""
     runtime = Runtime(tmp_path)
     try:
         report = await _report(runtime, move)
