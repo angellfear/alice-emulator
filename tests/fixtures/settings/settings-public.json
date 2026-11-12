@@ -183,7 +183,8 @@
       "max_body_kb": 128,
       "max_size_mb": 50,
       "max_age_days": 7,
-      "group_limit": 200
+      "group_limit": 200,
+      "asr_group_limit": 1000
     }
   },
   "voice_stack": {

@@ -247,12 +247,14 @@
   function journalPanel() {
     const journal = state.journal || {};
     const input = make('input', { type: 'number', min: '1', step: '1', value: String(journal.group_limit || 200) });
+    const asrInput = make('input', { type: 'number', min: '1', step: '1', value: String(journal.asr_group_limit || 1000) });
     const error = make('p', { className: 'sc-err', hidden: true, role: 'alert' });
     const save = make('button', { type: 'submit' }, 'Сохранить');
     const form = make('form', { className: 'panel' },
       make('h3', {}, 'Журнал трафика'),
-      make('p', { className: 'hint' }, 'Старые записи сверх лимита удаляются при поступлении новых; счётчик всех случаев хранится отдельно.'),
+      make('p', { className: 'hint' }, 'Старые записи сверх лимита удаляются при поступлении новых; счётчик всех случаев хранится отдельно. Результаты распознавания речи идут десятками на реплику — у них свой лимит.'),
       make('label', {}, 'Записей на тип сообщения', input),
+      make('label', {}, 'Записей на результаты распознавания речи', asrInput),
       error, make('div', { className: 'actions' }, save));
     form.onsubmit = async event => {
       event.preventDefault();
@@ -260,10 +262,10 @@
       error.hidden = true;
       busy = true; save.disabled = true;
       try {
-        const value = Math.floor(Number(input.value));
-        if (!(value >= 1)) throw new Error('Нужно целое число от 1');
+        const value = Math.floor(Number(input.value)), asrValue = Math.floor(Number(asrInput.value));
+        if (!(value >= 1) || !(asrValue >= 1)) throw new Error('Нужно целое число от 1');
         const settings = await apiSettings();
-        settings.upstream = { ...settings.upstream, journal: { ...(settings.upstream || {}).journal, group_limit: value } };
+        settings.upstream = { ...settings.upstream, journal: { ...(settings.upstream || {}).journal, group_limit: value, asr_group_limit: asrValue } };
         await apiSettings('PUT', settings);
         state.journal = settings.upstream.journal;
         notify('Настройки журнала сохранены');

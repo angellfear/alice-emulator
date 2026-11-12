@@ -153,6 +153,7 @@ class JournalSettings(_Strict):
     max_size_mb: int = 100
     max_age_days: int = 14
     group_limit: int = Field(default=200, ge=1)  # записей на пару (устройство, тип сообщения)
+    asr_group_limit: int = Field(default=1000, ge=1)  # то же для AsrResult: на реплику их десятки
 
 
 class UpstreamSettings(_Strict):

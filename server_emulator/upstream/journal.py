@@ -6,7 +6,8 @@
 с лимитом на тело. WS: открытие и закрытие сессии — записи lifecycle (в закрытии —
 счётчики звуковых кадров без данных), AAPI-кадр и неизвестный кадр — отдельные записи.
 Записи группируются по устройству и ключу события (HTTP — «METHOD host path» без query,
-WS — направление и имя сообщения): на пару хранятся последние group_limit записей (настройка upstream.journal), счётчик
+WS — направление и имя сообщения): на пару хранятся последние group_limit записей (у AsrResult — asr_group_limit; настройки
+upstream.journal), счётчик
 всех случаев — в таблице journal_groups. Ротация по размеру файла и сроку —
 настройки upstream.journal. Значения секретных заголовков (Authorization, Cookie, токены,
 тикеты) маскируются до записи — журнал и экспорт не содержат учётных данных колонки.
@@ -44,7 +45,9 @@ DETAIL_COLUMNS = LIST_COLUMNS + ("request_headers", "response_headers", "request
                                  "audio_in_frames", "audio_in_bytes", "audio_out_frames", "audio_out_bytes")
 BLOB_COLUMNS = ("request_body", "response_body")
 
-DEFAULTS = {"max_body_kb": 256, "max_size_mb": 100, "max_age_days": 14, "group_limit": 200}
+DEFAULTS = {"max_body_kb": 256, "max_size_mb": 100, "max_age_days": 14, "group_limit": 200,
+            "asr_group_limit": 1000}
+ASR_KEY_SUFFIX = "Event.AsrResult"  # промежуточные результаты распознавания: десятки кадров на реплику
 AGE_ROTATE_EVERY_S = 3600
 SECRET_HEADER = re.compile(r"authorization|cookie|token|ticket|secret|password|api[-_]?key|session[-_]?id", re.I)
 
@@ -94,8 +97,14 @@ class TrafficJournal:
                 number = value.get(key)
                 if isinstance(number, (int, float)) and not isinstance(number, bool) and number >= 0:
                     result[key] = number
-        result["group_limit"] = max(1, int(result["group_limit"]))  # 0 стёр бы журнал
+        for name in ("group_limit", "asr_group_limit"):
+            result[name] = max(1, int(result[name]))  # 0 стёр бы журнал
         return result
+
+    def limit_for(self, key):
+        """Сколько записей хранить на пару (устройство, ключ): у AsrResult свой лимит."""
+        settings = self.settings()
+        return settings["asr_group_limit"] if str(key or "").endswith(ASR_KEY_SUFFIX) else settings["group_limit"]
 
     async def _conn(self):
         async with self._open_lock:  # воркер и чтение не должны открыть два соединения
@@ -213,7 +222,7 @@ class TrafficJournal:
     async def _trim(self, device_sn, key):
         """На пару (устройство, ключ) остаются последние group_limit записей."""
         await self.db.execute("DELETE FROM exchanges WHERE id IN (SELECT id FROM exchanges WHERE device_sn IS ? AND key=? "
-                        "ORDER BY id DESC LIMIT -1 OFFSET ?)", (device_sn, key, int(self.settings()["group_limit"])))
+                        "ORDER BY id DESC LIMIT -1 OFFSET ?)", (device_sn, key, int(self.limit_for(key))))
 
     # --- чтение ---------------------------------------------------------------
     async def list(self, device=None, host=None, source=None, unhandled=False, key=None, limit=100, offset=0):
@@ -278,7 +287,7 @@ class TrafficJournal:
             clauses.append("unhandled=1")
         db = await self._conn()
         rows = await (await db.execute(f"SELECT {','.join(LIST_COLUMNS)} FROM exchanges WHERE {' AND '.join(clauses)} "
-                                       "ORDER BY id DESC LIMIT ?", [*args, int(self.settings()["group_limit"])])).fetchall()
+                                       "ORDER BY id DESC LIMIT ?", [*args, int(self.limit_for(key))])).fetchall()
         return [dict(zip(LIST_COLUMNS, row)) for row in rows]
 
     async def item(self, exchange_id):

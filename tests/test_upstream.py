@@ -290,6 +290,8 @@ async def test_journal_group_limit_is_a_setting(tmp_path):
         assert groups[0]["groups"][0]["count"] == 7  # счётчик всех случаев остаётся
         config["group_limit"] = 0  # нуль стёр бы журнал — минимум одна запись
         assert journal.settings()["group_limit"] == 1
+        config["group_limit"], config["asr_group_limit"] = 2, 5  # у AsrResult свой лимит
+        assert journal.limit_for("ws ← Event.AsrResult") == 5 and journal.limit_for("ws ← Event.AliceResponse") == 2
     finally:
         await journal.close()
 
