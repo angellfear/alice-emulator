@@ -23,9 +23,11 @@ DRM); плеер колонки играет такие прямые ссылк�
   вся очередь с случайным start; кеша нет — вопрос «что включить?».
 
 Очередь — память модуля (STATE, ключ — владелец ctx.sn): «включи музыку» и колбэк
-«дальше» (@@mm_stack_engine_get_next) — разные запросы; переживать рестарт очереди
-не нужно: перезапуск сервера завершает сессию прослушивания. TTL кеша — неделя
-(превью-URL живут долго, но не вечно).
+«дальше» (@@mm_stack_engine_get_next) — разные запросы. Очередь и позиция переживают
+перезапуск сервера: дубликат в ctx.data сценария media.music (ключ «music_queue/spotify»,
+хранилище state/, по владельцу-пользователю/колонке) при каждом изменении, гидратация
+при первом обращении после рестарта — «плей» продолжает последний трек, «дальше/назад»
+идут от него. TTL кеша — неделя (превью-URL живут долго, но не вечно).
 
 rate — None: лайков без Premium API нет (честно, интерфейс ядра).
 
@@ -91,10 +93,42 @@ _TRACK_ID = re.compile(
 
 STATE = {}  # владелец (ctx.sn) → {"queue": [Track], "current": int, "saved_ts": float}
 TOKENS = {}  # client_id → {"value": str, "expires_ts": float} — client credentials кешируются
+PERSIST_KEY = "music_queue/spotify"  # ctx.data сценария media.music: очередь переживает перезапуск
 
 
 class SpotifyError(Exception):
     """Сбой Spotify: сообщение — готовый текст для пользователя (note)."""
+
+
+def _persist(ctx, owner):
+    """Дубликат очереди и позиции в ctx.data (state/, по владельцу) — переживает
+    перезапуск сервера. Нет ctx.data (тесты без двойника) или dry-run — не пишем."""
+    state = STATE.get(owner)
+    data = getattr(ctx, "data", None)
+    if state is None or data is None:
+        return
+    try:
+        data.set(PERSIST_KEY, {"queue": state["queue"], "current": state.get("current", 0),
+                               "saved_ts": state.get("saved_ts")})
+    except Exception:
+        pass  # сбой записи не влияет на ответ колонке
+
+
+def _hydrate(ctx, owner):
+    """Очередь после перезапуска: память пуста — восстанавливаем из ctx.data
+    (последний трек и позиция: «плей» продолжает, «дальше/назад» идут от него)."""
+    if _cached_queue(owner) is not None:
+        return
+    data = getattr(ctx, "data", None)
+    record = data.get(PERSIST_KEY) if data is not None else None
+    if not isinstance(record, dict):
+        return
+    queue = [t for t in (record.get("queue") or [])
+             if isinstance(t, dict) and str(t.get("id") or "").strip()]
+    if not queue:
+        return
+    STATE[owner] = {"queue": queue, "current": min(int(record.get("current") or 0), len(queue) - 1),
+                    "saved_ts": record.get("saved_ts") or 0}
 
 
 # --- HTTP (stdlib urllib, без блокировки цикла событий) -------------------------------
@@ -278,11 +312,12 @@ def _settings(ctx):
     return value("client_id"), value("client_secret"), value("market")
 
 
-def _save_queue(owner, tracks, start):
-    """Очередь поиска → память модуля; результат search для ядра."""
+def _save_queue(ctx, owner, tracks, start):
+    """Очередь поиска → память модуля (+ дубликат в ctx.data); результат search для ядра."""
     queue = list(tracks)[:QUEUE_LIMIT]
     start = max(0, min(int(start), len(queue) - 1)) if queue else 0
     STATE[owner] = {"queue": queue, "current": start, "saved_ts": time.time()}
+    _persist(ctx, owner)
     return {"tracks": queue, "start": start, "context": {"type": "search"}}
 
 
@@ -317,6 +352,7 @@ async def search(ctx, query, kind="music"):
     track_id = _track_id_from_query(query)
 
     if not query:  # «включи музыку» без запроса — случайный трек из кеша прошлых поисков
+        _hydrate(ctx, owner)  # после перезапуска очередь живёт в ctx.data
         cached = _cached_queue(owner)
         if cached:
             start = random.randrange(len(cached["queue"]))
@@ -335,7 +371,7 @@ async def search(ctx, query, kind="music"):
             return _note(exc)
         if track is None:
             return _note(NOTE_NO_PREVIEW)
-        return _save_queue(owner, [track], 0)
+        return _save_queue(ctx, owner, [track], 0)
 
     try:  # строка поиска — только Web API по client credentials
         tracks = await _search_tracks(client_id, client_secret, query, market)
@@ -343,14 +379,16 @@ async def search(ctx, query, kind="music"):
         return _note(exc)
     if not tracks:
         return {"tracks": []}  # пусто: ядро отвечает «не нашла» (без note)
-    return _save_queue(owner, tracks, 0)
+    return _save_queue(ctx, owner, tracks, 0)
 
 
 async def neighbor(ctx, track_id, context, step):
     """Соседний трек очереди (интерфейс ядра): Track или None — дальше нечего.
     Позицию очереди двигает только commit (recoverCommit — подтверждённый старт трека):
     предзагрузка @@mm_stack_engine_get_next и явные шаги её не сдвигают."""
-    state = STATE.get(_owner(ctx))
+    owner = _owner(ctx)
+    _hydrate(ctx, owner)  # после перезапуска очередь живёт в ctx.data
+    state = STATE.get(owner)
     if not state:
         return None
     queue = [track for track in state.get("queue") or [] if isinstance(track, dict)]
@@ -372,7 +410,9 @@ async def neighbor(ctx, track_id, context, step):
 async def commit(ctx, track_id):
     """Сверка позиции очереди с подтверждённым стартом трека (интерфейс ядра, recoverCommit):
     чужого трека в очереди нет — позиция не меняется."""
-    state = STATE.get(_owner(ctx))
+    owner = _owner(ctx)
+    _hydrate(ctx, owner)
+    state = STATE.get(owner)
     if not state:
         return None
     queue = [track for track in state.get("queue") or [] if isinstance(track, dict)]
@@ -380,6 +420,7 @@ async def commit(ctx, track_id):
     if index is None:
         return None
     state["current"] = index
+    _persist(ctx, owner)
     return True
 
 

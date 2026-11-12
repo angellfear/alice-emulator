@@ -131,11 +131,27 @@ def provider():
     module.TOKENS.clear()
 
 
-class ProviderCtx:
-    """Минимальный ctx поставщика: extension (настройки) и sn (владелец очереди)."""
+class SharedData:
+    """Двойник ctx.data: get/set поверх dict — общее хранилище владельца (state/)."""
 
-    def __init__(self, values=None, sn="SN-1"):
+    def __init__(self):
+        self.rows = {}
+
+    def get(self, key, default=None):
+        return self.rows.get(key, default)
+
+    def set(self, key, value):
+        self.rows[key] = value
+        return True
+
+
+class ProviderCtx:
+    """Минимальный ctx поставщика: extension (настройки), sn (владелец очереди)
+    и data (персональное хранилище; общий экземпляр — shared_data)."""
+
+    def __init__(self, values=None, sn="SN-1", shared_data=None):
         self.sn = sn
+        self.data = shared_data if shared_data is not None else SharedData()
         values = dict(values or {})
         self.extension = type("Ext", (), {
             "get": staticmethod(lambda key, default=None: values.get(key, default))})()
@@ -348,6 +364,29 @@ async def test_provider_empty_query_plays_from_cache(provider):
     assert result["tracks"] == queue
     assert 0 <= result["start"] < len(queue)
     assert provider.STATE["SN-1"]["current"] == result["start"]
+
+
+async def test_provider_restart_restores_queue_position(provider, stub):
+    """Перезапуск сервера: очередь и позиция живут в ctx.data (state/, по владельцу) —
+    «плей» продолжает последний трек, «дальше/назад» идут от него без новой команды."""
+    shared = SharedData()
+    result = await provider.search(ProviderCtx(KEYS, shared_data=shared),
+                                   "тестовый исполнитель", "music")
+    assert result["start"] == 0
+    assert await provider.commit(ProviderCtx(KEYS, shared_data=shared), "sp2") is True
+    record = shared.rows[provider.PERSIST_KEY]
+    assert record["current"] == 1 and len(record["queue"]) == 5
+
+    provider.STATE.clear()  # рестарт: память поставщика умирает с процессом
+    current = await provider.neighbor(ProviderCtx(KEYS, shared_data=shared), None, None, 0)
+    assert current["id"] == "sp2"
+    following = await provider.neighbor(ProviderCtx(KEYS, shared_data=shared), None, None, 1)
+    assert following["id"] == "sp3"
+    assert await provider.commit(ProviderCtx(KEYS, shared_data=shared), "sp3") is True
+    back = await provider.neighbor(ProviderCtx(KEYS, shared_data=shared), None, None, -1)
+    assert back["id"] == "sp2"
+    again = await provider.search(ProviderCtx(KEYS, shared_data=shared), "", "music")
+    assert again["context"] == {"type": "cache"}  # «включи музыку» — очередь из хранилища
 
 
 # --- интеграционные: внешнее расширение на настоящем менеджере ---------------------------
