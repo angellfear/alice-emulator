@@ -4,8 +4,9 @@
 (.85 «Прозрачно», запись 2026-11-10) отвечает тихим ответом с tts_play_placeholder +
 divui_show_view (TDivUIShowViewDirective, Div2Card YouTubeWebviewData: webview
 m.youtube.com с youtube_inject). Карта — константы формы в app_cards/youtube.json;
-<uuid> в ней заменяется свежим request_id при сборке. Для прочих приложений образца
-запуска нет — сценарий отвечает «найдено» без запуска.
+<uuid> в ней заменяется свежим request_id при сборке. Прочие приложения из списка
+колонки запускаются директивой launch_app по пакету (образец «запусти телемост»),
+для приложений вне списка образца запуска нет.
 """
 from __future__ import annotations
 

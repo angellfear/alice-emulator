@@ -2,11 +2,13 @@
 
 Проверяется реестр (префикс origin, права, сохранение, комнаты, производный online),
 построители директив колонке (set_iot_user_info / set_div_variables /
-sync_iot_user_info — поля по образцу 2026-11-10), путь «кнопка карточки → плагин →
-новое состояние» (TextInput с фреймом iot_device_action_semantic_frame) и пуш
+sync_iot_user_info / set_iot_account_settings — поля по образцам журнала), путь
+«кнопка карточки → плагин → четыре Push по порядку» (TextInput с фреймом
+iot_device_action_semantic_frame, запись 2026-11-12) и пуш
 списка живым сессиям при изменении реестра.
 """
 import asyncio
+import base64
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -134,6 +136,14 @@ def test_directives_per_sample_fields(tmp_path):
     sync = _centaur("NAlice.TLocalIoTCapability.TSyncIoTUserInfoDirective")
     assert sync.FromString(smart_home.sync_iot_user_info_raw()).Name == "sync_iot_user_info"
 
+    # set_iot_account_settings — Name + пустое TIoTAccountSettings, байт в байт как в записи
+    account = _centaur("NAlice.TLocalIoTCapability.TSetIoTAccountSettingsDirective")
+    raw = smart_home.account_settings_raw()
+    assert raw == base64.b64decode("ChhzZXRfaW90X2FjY291bnRfc2V0dGluZ3MSAA==")
+    msg = account.FromString(raw)
+    assert msg.Name == "set_iot_account_settings" and msg.HasField("IoTAccountSettings")
+    assert not msg.IoTAccountSettings.ListFields()
+
 
 # --- расширение через SDK + действие с колонки ------------------------------------------------
 
@@ -230,14 +240,18 @@ async def test_extension_devices_action_updates_state_and_pushes(tmp_path):
         assert runtime.smart_home.has_actions()
 
         handled, sent = await dispatch_iot(runtime, iot_incoming(["lights:light-1"], "on"))
-        assert handled and len(sent) == 4
+        assert handled and len(sent) == 6  # ack + ответ + четыре пуша по порядку образца
         ack = SERVER.FromString(sent[0][4:])
         assert ack.Event.HasField("InputStartAck")
         response = SERVER.FromString(sent[1][4:]).Event.AliceResponse
         assert response.Header.RequestId == "req-7"
         assert response.VoiceResponse.OutputSpeech.Text == ""
+        assert len(response.Response.Directives) == 1  # ответ — одна tts_play_placeholder
         directive = response.Response.Directives[0]
         assert directive.Name == "tts_play_placeholder" and directive.IsLedSilent
+        assert [push_directive(sent, i).Name for i in range(2, 6)] == [
+            "set_div_variables", "sync_iot_user_info",
+            "set_iot_account_settings", "set_iot_user_info"]
         div = push_directive(sent, 2)
         assert div.Name == "set_div_variables" and div.EndpointId.value == SN
         variables = _centaur("NAlice.TDivViewCapability.TSetDivVariablesDirective")
@@ -245,6 +259,15 @@ async def test_extension_devices_action_updates_state_and_pushes(tmp_path):
             ["device_lights_light_1_on_off_state"]
         sync = push_directive(sent, 3)
         assert sync.Name == "sync_iot_user_info"
+        account = push_directive(sent, 4)
+        settings = _centaur("NAlice.TLocalIoTCapability.TSetIoTAccountSettingsDirective") \
+            .FromString(bytes(account.PayloadRaw))
+        assert settings.Name == "set_iot_account_settings" and settings.HasField("IoTAccountSettings")
+        assert list(settings.IoTAccountSettings.ListFields()) == []  # настроек нет, как в образце
+        user_info = _centaur("NAlice.TLocalIoTCapability.TSetIoTUserInfoDirective") \
+            .FromString(bytes(push_directive(sent, 5).PayloadRaw))
+        assert [d.Id for d in user_info.IoTClientUserInfo.Devices] == ["lights:light-1"]
+        assert user_info.IoTClientUserInfo.Devices[0].StatusInfo.Status == 1  # OnlineDeviceState
 
         assert runtime.smart_home.devices()[0]["capabilities"][0]["value"] is True
         entry = json.loads(calls.read_text(encoding="utf-8").splitlines()[0])
@@ -334,6 +357,29 @@ async def test_registry_change_pushes_user_info_to_live_sessions(tmp_path):
         assert list(msg.IoTClientUserInfo.Devices) == []
     finally:
         await runtime.close()
+
+
+async def test_action_pushes_user_info_once_to_live_session(tmp_path):
+    """Действие карточки: список уходит колонке один раз и в порядке образца —
+    слушатель реестра при действии молчит, иначе дубль опережал бы остальные пуши."""
+    runtime, _calls = await make_ext_runtime(tmp_path)
+    pushed = []
+
+    async def send(data):
+        pushed.append(data)
+
+    _session(runtime, send)
+    try:
+        handled, sent = await dispatch_iot(runtime, iot_incoming(["lights:light-1"], "on"))
+        await asyncio.sleep(0.05)
+        assert handled
+        assert [push_directive(sent, i).Name for i in range(2, 6)] == [
+            "set_div_variables", "sync_iot_user_info",
+            "set_iot_account_settings", "set_iot_user_info"]
+        assert not pushed, "слушатель реестра не дублирует список при действии"
+    finally:
+        await runtime.close()
+        aapi_handlers.drop_builtin(smart_home.IOT_HANDLER_NAME)
 
 
 async def test_empty_registry_not_pushed_to_identified_column(tmp_path):

@@ -9,14 +9,17 @@
 
 Действие с колонки (TextInput с фреймом iot_device_action_semantic_frame) идёт
 только владельцу-расширению (callback, sdk.smart_home_on_device_action): плагин
-возвращает новое состояние — реестр обновляется, колонке уходят set_div_variables
-(переменные device_<id>_<capability>_state) и sync_iot_user_info. Обработчик TextInput
+возвращает новое состояние — реестр обновляется, колонке по порядку уходят четыре Push:
+set_div_variables (переменные device_<id>_<capability>_state) → sync_iot_user_info →
+set_iot_account_settings (настройки пустые) → set_iot_user_info (полный список) —
+как в записи 2026-11-12. Обработчик TextInput
 регистрируется, когда хоть одно расширение поставило обработчик действий
 (aapi_handlers.ensure_builtin — перед обработчиками voice), и возвращается False на
 чужих фреймах. Список устройств колонке — Push set_iot_user_info
 (TSetIoTUserInfoDirective.PayloadRaw = IoTClientUserInfo с Rooms/Households/Devices —
 образец tasks/samples/2026-11-10-iot-rename.txt): при изменении реестра — всем живым
-сессиям, новой колонке — сразу после опознания.
+сессиям, новой колонке — сразу после опознания (действие карточки пушит список само,
+слушателя на это время не зовём).
 
 Своих планировщиков/очередей нет; хранение — JSON-файл, как у прочих состояний.
 """
@@ -84,7 +87,8 @@ IOT_HANDLER_NAME = 'iot_device_action'
 async def _on_iot_device_action(conversation, incoming, trigger):
     """Действие умного дома с колонки: реестр пуст — обычный путь; иначе ответ колонке
     как у настоящего сервера (AliceResponse без голоса + tts_play_placeholder),
-    действие — плагину-владельцу, новое состояние — set_div_variables + sync_iot_user_info.
+    действие — плагину-владельцу, а колонке по порядку четыре Push: set_div_variables,
+    sync_iot_user_info, set_iot_account_settings, set_iot_user_info (запись 2026-11-12).
     Регистрируется при первом обработчике действий (on_device_action → ensure_builtin,
     перед обработчиками voice) — перехватывает фрейм до сценарной маршрутизации;
     voice.py при этом не меняется."""
@@ -103,7 +107,7 @@ async def _on_iot_device_action(conversation, incoming, trigger):
     instance = _capability_instance(body)
     device_sn = conversation.trace_context.get('sn') or ''
     await conversation.message(conversation.event(incoming, 'InputStartAck'))
-    # ответ колонке: пустой голос + tts_play_placeholder (образец записи 2026-11-09)
+    # ответ колонке: пустой голос + одна tts_play_placeholder (запись 2026-11-12)
     output = conversation.event(incoming, 'AliceResponse')
     response = output.Event.AliceResponse
     response.Header.RequestId = getattr(incoming.Event.TextInput.Header, 'RequestId', '') or ''
@@ -123,7 +127,9 @@ async def _on_iot_device_action(conversation, incoming, trigger):
         action = {'instance': instance, 'capability': 'on_off',
                   'value': instance.lower() != 'off' if instance else None}
         try:
-            result = await registry.handle_action(device_id, action)
+            # notify=False: список колонке уходит ниже, в порядке образца,
+            # а не слушателем реестра
+            result = await registry.handle_action(device_id, action, notify=False)
         except SmartHomeError as exc:
             log.warning('Действие умного дома %s: %s', device_id, exc)
             continue
@@ -134,6 +140,12 @@ async def _on_iot_device_action(conversation, incoming, trigger):
                                                    div_variables_raw(changed)).SerializeToString())
     await conversation.send(b'AAPI' + iot_push(server_type, device_sn, 'sync_iot_user_info',
                                                sync_iot_user_info_raw()).SerializeToString())
+    if changed:
+        await conversation.send(b'AAPI' + iot_push(server_type, device_sn,
+                                                   'set_iot_account_settings',
+                                                   account_settings_raw()).SerializeToString())
+        await conversation.send(b'AAPI' + iot_push(server_type, device_sn, 'set_iot_user_info',
+                                                   user_info_raw(registry)).SerializeToString())
     return True
 
 
@@ -171,13 +183,15 @@ class SmartHomeRegistry:
                        for key, room in self._rooms.items()}},
             ensure_ascii=False, indent=1), encoding="utf-8")
 
-    def _changed(self):
+    def _changed(self, notify=True):
         """Реестр изменился: сохранение + слушатели (пуш колонкам) — сбой слушателя
-        не ломает запись."""
+        не ломает запись. notify=False — только сохранение (пуш делает вызывающий)."""
         try:
             self._save()
         except OSError as exc:
             log.warning("Реестр умного дома не сохранён: %s", exc)
+        if not notify:
+            return
         for listener in self._listeners:
             try:
                 listener()
@@ -306,9 +320,11 @@ class SmartHomeRegistry:
         """Есть ли обработчики действий (фича используется хоть одним источником)."""
         return bool(self._callbacks)
 
-    async def handle_action(self, device_id, action):
+    async def handle_action(self, device_id, action, notify=True):
         """Действие колонки → владельцу. Возвращает изменения состояния
-        {capability: value} или None (владелец не подтвердил)."""
+        {capability: value} или None (владелец не подтвердил).
+        notify=False — слушателя реестра (пуш списка всем живым сессиям) не звать:
+        вызывающий отправит список сам, в порядке образца."""
         item = self._devices.get(str(device_id))
         if item is None:
             raise SmartHomeError(f"устройство {device_id} не найдено")
@@ -322,7 +338,7 @@ class SmartHomeRegistry:
                 for entry in capabilities:
                     if entry.get("type") == capability:
                         entry["value"] = value
-            self._changed()
+            self._changed(notify)
             return result
         return None
 
@@ -421,6 +437,13 @@ def sync_iot_user_info_raw():
     """PayloadRaw sync_iot_user_info — только Name (сигнал без нагрузки)."""
     return encode(SCHEMAS_DIR, "NAlice.TLocalIoTCapability.TSyncIoTUserInfoDirective",
                   {"Name": "sync_iot_user_info"}, "centaur")
+
+
+def account_settings_raw():
+    """PayloadRaw set_iot_account_settings: Name + пустое TIoTAccountSettings
+    (запись 2026-11-12 14:35:36 — настроек в директиве нет)."""
+    return encode(SCHEMAS_DIR, "NAlice.TLocalIoTCapability.TSetIoTAccountSettingsDirective",
+                  {"Name": "set_iot_account_settings", "IoTAccountSettings": {}}, "centaur")
 
 
 def iot_push(server_type, sn, name, raw):

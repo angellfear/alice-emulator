@@ -43,6 +43,12 @@ module: "server_emulator/smart_home.py"
 | `set_iot_user_info` | `NAlice.TLocalIoTCapability.TSetIoTUserInfoDirective`: `IoTClientUserInfo` — `Rooms`, `Households`, `Devices{Id, Name, Type, RoomId, HouseholdId, StatusInfo{Status: Online/OfflineDeviceState, …}, Endpoint{Id, AnyCapabilities[{CapabilityType}]}}` | изменение реестра — всем живым сессиям (пустой список тоже: карточки снимаются); новой колонке — сразу после опознания, если реестр не пуст |
 | `set_div_variables` | `NAlice.TDivViewCapability.TSetDivVariablesDirective`: переменная `device_<id, «-» и «:»→«_»>_<capability>_state` (`LongValue` 0/1, `VariableType: Local`) | после действия колонки — по каждой изменившейся возможности |
 | `sync_iot_user_info` | `NAlice.TLocalIoTCapability.TSyncIoTUserInfoDirective` — только `Name` | после каждого действия колонки — сигнал виджетам перечитать |
+| `set_iot_account_settings` | `NAlice.TLocalIoTCapability.TSetIoTAccountSettingsDirective`: `Name` + пустое `IoTAccountSettings` (настроек в директиве нет) | после действия колонки, третьим пушем (запись 2026-11-12) |
+
+Порядок четырёх пушей после действия колонки — `set_div_variables` → `sync_iot_user_info` →
+`set_iot_account_settings` → `set_iot_user_info` (запись 2026-11-12, 14:35:34–14:35:36);
+`set_iot_user_info` при действии уходит этим же путём, а не слушателем реестра, — иначе
+он опережал бы остальные.
 
 `Type` и `CapabilityType` — enum схемы станции; короткие имена возможностей
 (`on_off`/`level`/`color`/`battery`) отображаются на `OnOffCapabilityType`/`LevelCapabilityType`/
@@ -64,9 +70,10 @@ module: "server_emulator/smart_home.py"
    запроса.
 3. Каждое известное устройство — действие его источнику: callback получает
    `{instance, capability, value}`; ответ `{capability: значение}` — реестр обновляет
-   `value` возможности, сохраняет и пушает `set_div_variables` (изменения) затем
-   `sync_iot_user_info` — только этой колонке. Неизвестное устройство/источник без
-   обработчика — только `sync_iot_user_info`.
+   `value` возможности, сохраняет и пушает этой колонке по порядку: `set_div_variables`
+   (изменения) → `sync_iot_user_info` → `set_iot_account_settings` → `set_iot_user_info`
+   (полный список). Неизвестное устройство/источник без обработчика — только
+   `sync_iot_user_info`.
 
 Обработчик `TextInput` с именем `iot_device_action` регистрируется в реестре AAPI, только
 когда хоть одно расширение поставило `smart_home_on_device_action` (перед обработчиками
