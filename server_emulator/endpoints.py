@@ -124,6 +124,25 @@ def clck_json_batch(body):
     return json.dumps([{"ResponseStatus": "OK"} for _ in items], ensure_ascii=False).encode()
 
 
+def protobuf_string_field(value):
+    """Поле 1 (length-delimited) protobuf со строкой — форма ответа
+    /ats_client/register_user (у настоящего сервера там uid пользователя);
+    пустая строка — пустой байтовый ответ."""
+    payload = (value or "").encode("utf-8")
+    if not payload:
+        return b""
+
+    def varint(n):
+        out = bytearray()
+        while n >= 0x80:
+            out.append(n & 0x7F | 0x80)
+            n >>= 7
+        out.append(n)
+        return bytes(out)
+
+    return b"\x0a" + varint(len(payload)) + payload
+
+
 def startup_payload(local_domain=""):
     """GET /analytics/startup (startup.mobile.yandex.net; образец — startup.mobile.yandex.net.ts
     quasar-server): домены telemetry-инфраструктуры — как у Яндекса (до них колонка добирается

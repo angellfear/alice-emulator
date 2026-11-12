@@ -25,9 +25,11 @@ emulate/hybrid; в «Прозрачно» конфиг отдаёт Яндекс
 адреса из get_sync_info без перезагрузки (pushd — при смене значения; после холодной загрузки
 он начинает с `push.yandex.ru`, этот путь тоже обслуживается); пуш-канал в «Эмуляции» ведёт
 эмулятор (`push_channel.py`), в «Прозрачно» и «Вместе» мостит к `push.yandex.ru`
-(`dispatcher.XIVA_PATH`, правило — routing.md), пути `/gproxy/*` и `/report` на
-локальном домене обслуживает как `rpc.alice.yandex.net` и `report.appmetrica.yandex.net`
-(`dispatcher.LOCAL_DOMAIN_PATHS`; ответ startup AppMetrica отдаёт отчёты на `http://<local_domain>`).
+(`dispatcher.XIVA_PATH`, правило — routing.md), пути `/gproxy/*`, `/ats_client/*` и `/report` на
+локальном домене обслуживает как `rpc.alice.yandex.net` и `report.appmetrica.yandex.net` —
+без привязки к Host: ответ тот же, что на настоящем имени (регистрация ATS отвечает
+208 с uid пользователя реестра) (`dispatcher.LOCAL_DOMAIN_PATHS`; ответ startup AppMetrica
+отдаёт отчёты на `http://<local_domain>`).
 Остальные адреса колонка берёт из встроенного quasar.cfg и с сервера не меняет; WebSocket без TLS идёт на
 HTTP-порт эмулятора. Так голос не требует подмены `uniproxy.alice.yandex.net` в DNS остальной
 сети и сертификата. Условие — в DNS сети локальный домен указывает на IP сервера (пояснение в

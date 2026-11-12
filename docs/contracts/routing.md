@@ -52,6 +52,19 @@ WS `/v2/subscribe/websocket` — на локальном домене (`system_c
 `session` (идентификатор станции в query, `identities.resolve_sn`), затем по последнему IP
 устройства. Тесты: test_push_channel, test_device_route_modes.
 
+#### gproxy и отчёты на локальном домене
+
+Адрес `arpc_client.server_url` из get_sync_info направляет gproxy-вызовы колонки на
+локальный домен (`system_config.arpc_client = {"server_url": …}` — секционный ключ,
+применяется станцией после опроса конфига); обработчики `gproxy/push_events_batch` и
+`ats_client/register_user` отвечают одинаково на настоящем имени и на локальном домене —
+маршрутизация по пути, без привязки к Host (`dispatcher.LOCAL_DOMAIN_PATHS`). Регистрация
+ATS — 208 «уже зарегистрирован» с uid пользователя реестра (protobuf), батч событий —
+пустой protobuf. Отчёты AppMetrica направляет ответ startup (`startup_payload`): report и
+diagnostic — базовый адрес `http://<локальный домен>`, SDK шлёт отчёт на путь `/report`,
+приёмник молча принимает (200 `{"status": "accepted"}`) и ничего не хранит.
+Тесты: test_endpoints (локальный домен).
+
 #### Опция устройства «Запись»
 
 Журнал трафика — отдельная ось, не маршрут: опция устройства `record` (`off` по умолчанию |

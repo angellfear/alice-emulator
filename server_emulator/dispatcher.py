@@ -23,7 +23,7 @@ from aiohttp import web
 from multidict import CIMultiDict
 
 from .identity import collect_device_id
-from .endpoints import builtin_covers, clck_json_batch, find_builtin, startup_payload, CLCK_JSON_BATCHES
+from .endpoints import builtin_covers, clck_json_batch, find_builtin, protobuf_string_field, startup_payload, CLCK_JSON_BATCHES
 from . import oauth_stubs
 from . import push_channel
 from . import screensaver_settings
@@ -36,9 +36,10 @@ log = logging.getLogger(__name__)
 
 XIVA_HOST = "push.yandex.ru"  # пуш-канал quasar-realtime колонки
 XIVA_PATH = "/v2/subscribe/websocket"
-# пути на локальном домене → хост Яндекса: gproxy (system_config.arpc_client.server_url) и
-# отчёты AppMetrica (report/diagnostic в ответе startup)
-LOCAL_DOMAIN_PATHS = (("/gproxy/", "rpc.alice.yandex.net"), ("/report", "report.appmetrica.yandex.net"))
+# пути на локальном домене → хост Яндекса: gproxy и регистрация ATS
+# (system_config.arpc_client.server_url) и отчёты AppMetrica (report/diagnostic в ответе startup)
+LOCAL_DOMAIN_PATHS = (("/gproxy/", "rpc.alice.yandex.net"), ("/ats_client/", "rpc.alice.yandex.net"),
+                      ("/report", "report.appmetrica.yandex.net"))
 
 
 class Dispatcher:
@@ -120,6 +121,8 @@ class Dispatcher:
         host = (host or '').lower()
         if host == 'rpc.alice.yandex.net' and path == '/gproxy/get_app_catalog':
             return True  # каталог приложений: ответ собирает эмулятор или отдаёт наблюдённый
+        if host == 'rpc.alice.yandex.net' and method == 'POST' and path == '/ats_client/register_user':
+            return True  # регистрация ATS: 208 + uid пользователя (диспетчер)
         if screensaver_settings.handles(host, method, path):
             return True  # заставки: выбор хранится и зеркалится (screensaver_settings)
         if runtime.updates.match(host, path, method):
@@ -633,6 +636,16 @@ class Dispatcher:
             output = json.dumps(startup_payload(local_domain(runtime) if route_mode in ("emulate", "hybrid") else ""),
                                 ensure_ascii=False).encode()
             headers = {'Content-Type': 'application/json'}
+        elif canonical_host == 'rpc.alice.yandex.net' and request.method == 'POST' \
+                and (path or request.path) == '/ats_client/register_user':
+            # Регистрация клиента ATS (телефонные вызовы): настоящий сервер отвечает
+            # 208 «уже зарегистрирован» + protobuf (поле 1 — uid пользователя строкой);
+            # у эмулятора — её пользователь реестра (владелец устройства), без владельца
+            # поле пустое. Один и тот же ответ на настоящем имени и на локальном домене
+            # (system_config.arpc_client.server_url).
+            status = 208
+            output = protobuf_string_field((device or {}).get('user_id') or '')
+            headers = {'Content-Type': 'application/x-protobuf'}
         elif screensaver_settings.handles(canonical_host, request.method, path or request.path):
             # Заставки (gproxy): выбор коллекций фонов хранится в состоянии устройства
             # и зеркалится в GET — как у настоящего сервера; stateful-маршрут, каталог
