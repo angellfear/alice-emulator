@@ -13,7 +13,7 @@ import time
 
 from .forward import Forwarder, UpstreamError, forward_headers  # noqa: F401 (re-export)
 from .journal import TrafficJournal
-from .record import WsTap  # noqa: F401 (re-export)
+from .record import C2S, WsTap, decode_aapi  # noqa: F401 (re-export)
 from .resolver import LoopError, UpstreamResolver, local_addresses  # noqa: F401 (re-export)
 
 
@@ -107,8 +107,27 @@ class Upstream:
             mode = journal if callable(journal) else (lambda: "on" if journal else "off")
             tap = self.ws_tap("upstream", context["host"], context["path"], list(request.headers.items()),
                               sn=device_sn, device_id=device_id, mode=mode)
-            return await self.forwarder.bridge_ws(request, target, tap=tap, **context)
+            receipt = self._bridge_receipt(context)
+            return await self.forwarder.bridge_ws(request, target, tap=tap, on_client_frame=receipt, **context)
         return await self.forwarder.serve(request, target, journal=bool(journal), unhandled=unhandled, **context)
+
+    def _bridge_receipt(self, context):
+        """Наблюдатель кадров колонки в мосте: квитанция SyncPushResponse — ожидающему
+        push_action этого SN (execute_waiters; сессий эмулятора в «Прозрачно» нет, из мостов
+        квитанцию берёт этот наблюдатель). Кадр — копия: мост продолжает прозрачную передачу,
+        настоящему серверу кадр уходит как обычно. Разбор — только при живом ожидании."""
+
+        def watch(raw):
+            waiter = self.runtime.execute_waiters.get(str(context.get("device_sn") or ""))
+            if waiter is None or waiter.done():
+                return
+            message = decode_aapi(raw, C2S)
+            if message is None or message.WhichOneof("Message") != "Event" \
+                    or message.Event.WhichOneof("Event") != "SyncPushResponse":
+                return
+            waiter.set_result(message)
+
+        return watch
 
     async def close(self):
         await self.journal.close()

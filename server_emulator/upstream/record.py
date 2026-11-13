@@ -28,14 +28,26 @@ MISSED_LIMIT = 256  # MessageId событий без обработчика, о
 PENDING_LIMIT = 16  # кадры до опознания устройства (sync-only идентификация)
 
 
-def parse_aapi(raw, direction):
-    """AAPI-кадр → {name, trigger, message_id, ref_message_id}; None — не разобрать
-    (нет схем, не protobuf, пустое сообщение) — такой кадр пишется как неизвестный."""
+def decode_aapi(raw, direction):
+    """AAPI-кадр → разобранное сообщение (TClientMessage колонки, TServerMessage сервера)
+    или None — нет схем, не protobuf, пустое сообщение."""
     if not schemas_ready():
         return None
     try:
-        message = load_type(DEFAULT_SCHEMAS, ALICE_API, CLIENT_TYPE if direction == C2S else SERVER_TYPE) \
+        return load_type(DEFAULT_SCHEMAS, ALICE_API,
+                         CLIENT_TYPE if direction == C2S else SERVER_TYPE) \
             .FromString(bytes(raw[len(AAPI_PREFIX):]))
+    except Exception:  # noqa: BLE001 — битый protobuf: кадр не разобрать
+        return None
+
+
+def parse_aapi(raw, direction):
+    """AAPI-кадр → {name, trigger, message_id, ref_message_id}; None — не разобрать
+    (нет схем, не protobuf, пустое сообщение) — такой кадр пишется как неизвестный."""
+    message = decode_aapi(raw, direction)
+    if message is None:
+        return None
+    try:
         kind = message.WhichOneof("Message")
         if kind == "StreamControl":
             return {"name": "StreamControl", "trigger": "StreamControl", "message_id": None, "ref_message_id": None}

@@ -4,7 +4,7 @@ import base64
 
 from aiohttp import ClientSession
 
-from server_emulator.animations import DEFAULT_DISPLAY, AnimationStore, display_of
+from server_emulator.animations import DEFAULT_DISPLAY, AnimationStore, display_of, display_of_device
 from server_emulator.runtime import Runtime
 from server_emulator.server import create_app
 from server_emulator.scenario_engine.bindings import BindingError, evaluate
@@ -19,6 +19,19 @@ def test_models_registry_separation():
     assert display_of("mini_2") if "mini_2" in display_of.__module__ else True
     assert display_of("led_matrix") == "led_matrix"
     assert display_of("") == DEFAULT_DISPLAY        # модель не указана
+
+
+def test_display_of_device_from_platform():
+    """Модель реестра пуста или мусор («{}») — способность выводится из платформы SN
+    (updates.platform_of): Station Max (X00T… — как у станции с LED-матрицей) — LED,
+    ДуоМакс (C00T… — chiron) — анимаций нет; заданная пользователем модель сильнее
+    платформы; неизвестное — не отсекается."""
+    assert display_of_device({"sn": "X00T10001B6SAK", "model": "{}"}) == "led_matrix"
+    assert display_of_device({"sn": "X00T10001B6SAK", "model": ""}) == "led_matrix"
+    assert display_of_device({"sn": "C00T10001B6SAK", "model": "{}"}) == "none"   # ДуоМакс честно
+    assert display_of_device({"sn": "C00T10001B6SAK", "model": "led_matrix"}) == "led_matrix"
+    assert display_of_device({"model": "duo_max"}) == "none"                      # явная модель
+    assert display_of_device(None) == DEFAULT_DISPLAY                             # не распознана
 
 
 def test_store_crud_and_media(tmp_path):

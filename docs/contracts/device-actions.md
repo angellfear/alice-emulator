@@ -19,7 +19,7 @@ module: "server_emulator/runtime.py"
 | start_bluetooth / stop_bluetooth | — | 同上 | test_quasar_backend |
 | push_update_config | — | Push.Directives[]: Name=действие, Type=client_action, без IsLedSilent; AnalyticsMetaInfo.RequestId (образец настоящего сервера) | test_push_actions |
 
-Каркас Push-сообщения: Header.MessageId (новый), Header.Ack (ms), Push.PushIds[]+DeduplicationPushId (новые UUID), Timings.SendingTime. Отправка возможна только в активную WS-сессию устройства с назначенным владельцем (runtime.py); чужой SN/чужая сессия → ошибка. Повтор Ack-подтверждённого MessageId не создаёт дубль действия.
+Каркас Push-сообщения: Header.MessageId (новый), Header.Ack (ms), Push.PushIds[]+DeduplicationPushId (новые UUID), Timings.SendingTime. Отправка возможна в активную WS-сессию устройства с назначенным владельцем (runtime.py) или — в «Прозрачно», где сессий эмулятора нет, — инъекцией в живое мостовое соединение по SN (upstream/forward.py `connections`, кадр в журнале помечен `source=emulator`; квитанция ExecuteDirective — наблюдатель кадров моста, копия кадра при этом доходит наверх как обычно). Нет ни сессии, ни моста → `delivery: no_session` с причиной (`reason: transparent` — устройство в «Прозрачно», моста нет; `offline` — колонка не на связи). Чужой SN/чужая сессия → ошибка. Повтор Ack-подтверждённого MessageId не создаёт дубль действия.
 
 ## 2. Директивы внутри AliceResponse (наблюдается в захвате)
 

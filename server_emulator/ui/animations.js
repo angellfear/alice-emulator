@@ -205,7 +205,15 @@ async function animPlay(id) {
   if (!sn) { message('Укажите SN устройства над списком.'); return; }
   const data = await (await fetch('api/animations', {method: 'POST',
     headers: {'X-Emulator': '1', 'Content-Type': 'application/json'}, body: JSON.stringify({id, sn})})).json();
-  message(data.error ? `Не проиграно: ${data.error}` : `Отправлено на ${sn}: ${data.delivery}. Смотрите на станцию.`);
+  if (data.error) { message(`Не проиграно: ${data.error}`); return; }
+  if (data.delivery === 'no_session') {
+    message(data.reason === 'transparent'
+      ? `Не проиграно: в «Прозрачно» нет мостового соединения — колонка ${sn} не на связи.`
+      : `Не проиграно: колонка ${sn} не на связи (нет активной сессии).`);
+    return;
+  }
+  if (data.delivery === 'failed') { message(`Не проиграно: соединение с ${sn} закрылось до отправки.`); return; }
+  message(`Отправлено на ${sn} (${data.delivery}, ${data.execution}). Смотрите на станцию.`);
 }
 
 document.addEventListener('DOMContentLoaded', () => {

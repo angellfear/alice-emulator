@@ -44,6 +44,30 @@ ANIMATION_MODELS = {
 }
 DEFAULT_DISPLAY = "led_matrix"  # модель не указана: предполагаем способность
 
+# Платформа устройства (updates.platform_of, тип-символ SN) → способность дисплея:
+# модель в реестре пуста или мусор («{}») — способность выводится из платформы.
+PLATFORM_DISPLAY = {
+    "yandexstation_2": "led_matrix",    # Станция Макс — LED-матрица
+    "yandexmini": "seven_segment",      # Мини — 7-сегментный дисплей
+    "yandexmini_2": "seven_segment",
+    "chiron": "none",                   # ДуоМакс — анимаций нет
+    "yandexmidi": "none",               # Миди, Лайт, ТВ, микрофон — дисплея нет
+    "blackthorn": "none", "magritte": "none", "yandexmicro": "none",
+}
+
+
+def display_of_device(device):
+    """Способность дисплея устройства реестра: заданная модель (led_matrix/mini/
+    duo_max — как в UI), иначе платформа по SN (updates.platform_of; модель вроде
+    '{}' игнорируется); платформа не распознана — способность предполагается
+    (DEFAULT_DISPLAY), LED-колонки не отсекаются."""
+    model = str((device or {}).get("model") or "").strip()
+    if model in ANIMATION_MODELS:
+        return display_of(model)
+    from .updates import platform_of
+    platform = platform_of({**(device or {}), "model": ""})
+    return PLATFORM_DISPLAY.get(platform, DEFAULT_DISPLAY)
+
 CAPTURED = [
     ("builtin.led.joy", "Глазки (радость)", "emotions/v3/joy.gif"),
     ("builtin.led.wink", "Подмигнуть", "emotions/v3/wink.gif"),
@@ -244,12 +268,13 @@ class AnimationStore:
 
 
 async def play_on_device(runtime, identifier, sn):
-    """Push draw_led_screen в живую сессию SN; способности модели проверяются."""
+    """Push draw_led_screen в живую сессию SN (или мостовое соединение — «Прозрачно»);
+    способности дисплея проверяются по модели/платформе устройства."""
     animation = runtime.animations.get(identifier)
     if animation is None:
         raise ValueError("Анимация не найдена")
     device = next((d for d in runtime.identities.data["devices"] if d.get("sn") == sn), None)
-    if display_of((device or {}).get("model")) == "none":
+    if display_of_device(device) == "none":
         raise ValueError("У этой модели анимаций нет (см. реестр моделей)")
     urls = runtime.animations.sequence_urls(identifier)
     if not urls:

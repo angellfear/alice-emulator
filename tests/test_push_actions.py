@@ -12,7 +12,7 @@ from server_emulator.actions import CATALOG, EXECUTE_ACTIONS, execute_message, p
 from server_emulator.runtime import Runtime, _on_sync_push_response
 from server_emulator.schema import load_type
 from server_emulator.voice import Conversation
-from tests.conftest import types as message_types
+from tests.conftest import listen, types as message_types
 
 SCHEMAS = Path(__file__).resolve().parent.parent / "server_emulator" / "schemas"
 
@@ -273,4 +273,128 @@ async def test_mcp_send_action_receipt(tmp_path):
     await _on_sync_push_response(conversation, receipt, "SyncPushResponse")
     item = await asyncio.wait_for(task, 5)
     assert item["execution"] == "completed" and item.get("origin") == "mcp"
+    await runtime.close()
+
+
+# --- «Прозрачно»: доставка в мостовое соединение -------------------------------------
+
+async def _fake_uniproxy(received):
+    """Локальный «Яндекс» для моста: WS /uni.ws копит кадры колонки (client_to_server)."""
+    from aiohttp import WSMsgType, web
+
+    async def ws(request):
+        socket = web.WebSocketResponse(autoping=False)
+        await socket.prepare(request)
+        async for msg in socket:
+            if msg.type == WSMsgType.BINARY:
+                received.append(bytes(msg.data))
+        return socket
+
+    app = web.Application()
+    app.router.add_get("/uni.ws", ws)
+    runner, url = await listen(app)
+    return runner, int(url.rsplit(":", 1)[1])
+
+
+async def _bridge_setup(tmp_path):
+    """Runtime + устройство в «Прозрачно» («Запись» включена); возвращает runtime."""
+    runtime = Runtime(tmp_path)
+    runtime.identities.mutate({"operation": "user", "id": "u", "name": "U"})
+    runtime.identities.mutate({"operation": "device", "sn": "SN-T", "user_id": "u",
+                               "device_ids": ["t-id"]})
+    runtime.identities.mutate({"operation": "route_mode", "sn": "SN-T", "mode": "proxy"})
+    runtime.identities.mutate({"operation": "record", "sn": "SN-T", "mode": "on"})
+    return runtime
+
+
+async def test_push_action_reaches_column_through_bridge(tmp_path):
+    """«Прозрачно»: сессий эмулятора нет — кадр инъекцией в мост (колонка получает
+    server_to_client, «Яндекс» — копию), в журнале запись с source=emulator."""
+    from aiohttp import ClientSession
+
+    from server_emulator.server import create_app
+
+    received = []
+    upstream_runner, port = await _fake_uniproxy(received)
+    runtime = await _bridge_setup(tmp_path)
+    runtime.settings["aliases"] = {"uniproxy.alice.yandex.net": f"http://127.0.0.1:{port}"}
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        async with ClientSession() as client:
+            mine = await client.ws_connect(url + "/uni.ws",
+                                           headers={"Host": "uniproxy.alice.yandex.net",
+                                                    "x-uprx-device-id": "t-id"})
+            await asyncio.sleep(0.2)  # мост открылся
+            (connection,) = runtime.upstream.forwarder.connections.values()
+            assert connection["device_sn"] == "SN-T"
+            item = await runtime.push_action("SN-T", "draw_led_screen",
+                                             {"frames": ["https://static-alice.s3.yandex.net/led-production/emotions/v3/joy.gif"]})
+            assert item["delivery"] == "sent" and item["execution"] == "unconfirmed"
+            assert item["connection_id"].startswith("bridge-")
+            frame = await asyncio.wait_for(mine.receive(), 5)
+            assert frame.type == 2  # binary — инъекция дошла до колонки
+            message = _cls().FromString(frame.data[4:])
+            assert message.Event.WhichOneof("Event") == "Push"
+            assert message.Event.Push.Directives[0].Name == "draw_led_screen"
+            await asyncio.sleep(0.2)
+            assert not received  # косметика без SyncPush — наверх колонка ничего не отвечала
+            await runtime.upstream.journal.flush()
+            records = (await runtime.upstream.journal.list(device="SN-T"))["items"]
+            injected = [r for r in records if r["source"] == "emulator" and r["direction"] == "server_to_client"]
+            assert injected and "Push" in injected[0]["key"]
+            await mine.close()
+    finally:
+        await upstream_runner.cleanup()
+        await runner.cleanup()
+        await runtime.close()
+
+
+async def test_execute_receipt_through_bridge(tmp_path):
+    """Квитанция ExecuteDirective в «Прозрачно»: кадр колонки — копией наверх
+    (передача прозрачна), ожидающему push_action — разобранное сообщение."""
+    from aiohttp import ClientSession
+
+    from server_emulator.server import create_app
+
+    received = []
+    upstream_runner, port = await _fake_uniproxy(received)
+    runtime = await _bridge_setup(tmp_path)
+    runtime.settings["aliases"] = {"uniproxy.alice.yandex.net": f"http://127.0.0.1:{port}"}
+    runner, url = await listen(create_app(runtime=runtime))
+    client_message, _server = message_types()
+    try:
+        async with ClientSession() as client:
+            mine = await client.ws_connect(url + "/uni.ws",
+                                           headers={"Host": "uniproxy.alice.yandex.net",
+                                                    "x-uprx-device-id": "t-id"})
+            await asyncio.sleep(0.2)
+            task = asyncio.ensure_future(runtime.push_action("SN-T", "clear_queue", {}))
+            frame = await asyncio.wait_for(mine.receive(), 5)  # инъекция SyncPush колонке
+            sync_push = _cls().FromString(frame.data[4:])
+            assert sync_push.Event.WhichOneof("Event") == "SyncPush"
+            # колонка отвечает SyncPushResponse в мост (client_to_server)
+            receipt = _receipt(client_message, sync_push.Event.Header.MessageId)
+            await mine.send_bytes(b"AAPI" + receipt.SerializeToString())
+            item = await asyncio.wait_for(task, 5)
+            assert item["delivery"] == "sent" and item["execution"] == "completed"
+            await asyncio.sleep(0.2)
+            # копия кадра колонки ушла наверх — передача прозрачна
+            assert any(isinstance(r, bytes) and r.startswith(b"AAPI")
+                       and client_message.FromString(r[4:]).Event.WhichOneof("Event") == "SyncPushResponse"
+                       for r in received)
+            await mine.close()
+    finally:
+        await upstream_runner.cleanup()
+        await runner.cleanup()
+        await runtime.close()
+
+
+async def test_no_session_reason(tmp_path):
+    """Честный отказ: устройство в «Прозрачно» без моста — reason transparent;
+    устройство вне связи вовсе — reason offline."""
+    runtime = await _bridge_setup(tmp_path)  # SN-T в «Прозрачно», моста нет
+    item = await runtime.push_action("SN-T", "sound_set_level", {"level": 5})
+    assert item["delivery"] == "no_session" and item["reason"] == "transparent"
+    item = await runtime.push_action("SN-NOBODY", "sound_set_level", {"level": 5})
+    assert item["delivery"] == "no_session" and item["reason"] == "offline"
     await runtime.close()

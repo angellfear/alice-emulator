@@ -178,14 +178,15 @@ class Forwarder:
                                source="upstream", **context)
         return status, forward_headers(response_headers), bytes(payload)
 
-    async def bridge_ws(self, request, target, journal=True, tap=None, **context):
+    async def bridge_ws(self, request, target, journal=True, tap=None, on_client_frame=None, **context):
         """Мост WS: соединение колонки ↔ настоящий uniproxy.
 
         Двунаправленная пересылка текстовых и бинарных кадров, ping/pong, закрытие
         с обеих сторон (одна из задач завершилась — обе стороны закрываются).
         Запись в журнал — через tap (WsTap): опция «Запись» устройства читается на каждом
-        кадре; без tap журнал не пишется. journal/context принимаются ради общей подписи
-        с serve().
+        кадре; без tap журнал не пишется. on_client_frame(raw) — наблюдатель кадров
+        колонки (квитанции push-действий): кадр — копия, прозрачная передача не меняется.
+        journal/context принимаются ради общей подписи с serve().
         """
         headers = forward_headers(request.headers, websocket=True)
         protocols = tuple(token.strip() for token in
@@ -211,8 +212,23 @@ class Forwarder:
             tap = WsTap(self.journal, "upstream", mode=lambda: "off", handled=lambda trigger: False,
                         host=context.get("host"), path=context.get("path"))
         tap.start()
+        # инъекция панели (push_action в «Прозрачно») — отдельный WsTap с source=emulator:
+        # отправку моста и инъекцию в журнале не смешивать; lifecycle-записи — только
+        # при реально отправленных кадрах
+        injection_tap = WsTap(self.journal, "emulator", mode=tap.mode, handled=tap.handled,
+                              host=context.get("host"), path=context.get("path"),
+                              sn=context.get("device_sn"), device_id=context.get("device_id"))
+
+        async def send(data):
+            """Точка отправки в мостовое соединение (push_action): кадр колонке — как от
+            эмулятора. Конкурентные отправки с pump безопасны по кадрам — писатель
+            aiohttp держит посылку кадра под внутренним блокировочным замком."""
+            await local.send_bytes(data)
+            injection_tap.frame("server_to_client", True, data)
+
         connection = {"ws": local, "transport": request.transport,
-                      "device_sn": context.get("device_sn"), "device_id": context.get("device_id")}
+                      "device_sn": context.get("device_sn"), "device_id": context.get("device_id"),
+                      "connection_id": f"bridge-{id(local):x}", "send": send}
         self.connections[id(local)] = connection
 
         async def pump(source, destination, direction):
@@ -221,6 +237,8 @@ class Forwarder:
                     binary = msg.type == WSMsgType.BINARY
                     raw = msg.data if binary else str(msg.data).encode()
                     tap.frame(direction, binary, raw)
+                    if binary and direction == "client_to_server" and on_client_frame is not None:
+                        on_client_frame(raw)  # копия кадра наблюдателю — передача остаётся прозрачной
                     if binary:
                         await destination.send_bytes(msg.data)
                     else:
@@ -244,5 +262,7 @@ class Forwarder:
             self.connections.pop(id(local), None)
             await remote.close()
             await local.close()
+            if injection_tap.opened:  # кадры инъекции были — их сессия тоже закрывается
+                injection_tap.close()
             tap.close(remote.close_code)
         return local

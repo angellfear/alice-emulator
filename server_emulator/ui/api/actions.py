@@ -22,7 +22,8 @@ async def actions(request, runtime, app):
         raise ValueError('Выберите активную сессию нужного SN с назначенным владельцем')
     item=await runtime.push_action(value['device_sn'],value['action'],value.get('arguments') or {})
     if item.get('delivery')=='no_session':
-        raise ValueError('Выберите активную сессию нужного SN с назначенным владельцем')
+        raise ValueError('В «Прозрачно» нет мостового соединения — колонка не на связи'
+                         if item.get('reason')=='transparent' else 'Колонка не на связи (нет активной сессии)')
     if item.get('delivery')=='failed':
         raise ValueError('Сессия закрылась до отправки команды')
     return web.json_response(item)

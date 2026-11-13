@@ -888,28 +888,53 @@ class Runtime:
         temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
         os.replace(temporary, target)
 
+    def _bridge_session(self, sn):
+        """Мостовое соединение устройства («Прозрачно», upstream/forward.py connections):
+        {connection_id, send} — кадр уходит колонке как инъекция эмулятора, журнал
+        помечает его source=emulator; None — мостового соединения нет."""
+        upstream = getattr(self, "upstream", None)
+        if upstream is None:
+            return None
+        for connection in list(upstream.forwarder.connections.values()):
+            if connection.get("send") and self._bridge_sn(connection) == sn:
+                return connection
+        return None
+
+    def _no_session_reason(self, sn):
+        """Причина no_session для панели: устройство в «Прозрачно» — нет мостового
+        соединения (колонка не на связи); иначе — сессии нет вовсе."""
+        device = next((d for d in self.identities.data["devices"] if d["sn"] == sn), None)
+        return "transparent" if (device or {}).get("route_mode") == "proxy" else "offline"
+
     async def push_action(self, sn, action, arguments):
         """Отправка push-действия в живую сессию устройства по SN: важные действия —
         квитируемый SyncPush{ExecuteDirective} (EXECUTE_ACTIONS), косметика и push_tts —
-        обычный Push. Возвращает запись action_log: delivery 'sent'|'failed'|'no_session',
+        обычный Push. Сессия эмулятора или мостовое соединение («Прозрачно» — через
+        upstream/forward.py, кадр-инъекция source=emulator). Возвращает запись
+        action_log: delivery 'sent'|'failed'|'no_session' (reason 'transparent'/'offline'),
         execution 'unconfirmed' (нет квитанции) или статус 'started'|'completed'|'failed'.
-        Квитанция — SyncPushResponse.ExecuteDirectiveResponse, ждётся не дольше 5 с."""
+        Квитанция — SyncPushResponse.ExecuteDirectiveResponse (сессия: обработчик
+        SyncPushResponse; мост: наблюдатель кадров upstream._bridge_receipt), ждётся
+        не дольше 5 с."""
         cls = load_type(ROOT / "schemas", "alice-api.pb", "NAlice.NAliceApi.TServerMessage")
         session = next((x for x in self.sessions.values()
                         if x.get("device_sn") == sn and x.get("send")), None)
-        if session is None:
-            return {"action": action, "delivery": "no_session", "execution": "unconfirmed"}
+        bridge = None if session is not None else self._bridge_session(sn)
+        if session is None and bridge is None:
+            return {"action": action, "delivery": "no_session", "execution": "unconfirmed",
+                    "reason": self._no_session_reason(sn)}
+        connection = session or bridge
         execute = action in actions.EXECUTE_ACTIONS
         if execute:
             message = execute_message(cls, action, arguments)
         else:
             message = push_message(cls, action, arguments)
-        item = {"message_id": message.Event.Header.MessageId, "connection_id": session["connection_id"],
-                "device_sn": sn, "user_id": session.get("user_id"), "action": action,
+        item = {"message_id": message.Event.Header.MessageId, "connection_id": connection["connection_id"],
+                "device_sn": sn, "user_id": connection.get("user_id"), "action": action,
                 "delivery": "sending", "execution": "unconfirmed"}
         self.action_log = (self.action_log + [item])[-100:]
         try:
-            await session["send"](b"AAPI" + message.SerializeToString())
+            await connection["send"](b"AAPI" + message.SerializeToString())
         except (ConnectionError, RuntimeError):
             item["delivery"] = "failed"
             return item
