@@ -181,6 +181,97 @@
         }
       },
       "value": "Значение"
+    },
+    {
+      "id": "aa8d7b79df",
+      "name": "Стол (видеостикеры)",
+      "path": "/config/system_config/centaur/video_stickers",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "Как у Яндекса": {
+          "enabled": true,
+          "mark_as_watched_percent": 0.64,
+          "max_video_duration_in_sec": 60,
+          "onboarding_video_url": "https://yastatic.net/s3/smart-display-res/video_stickers/onboarding.mp4",
+          "random_softness_pull": [
+            "Крошечке",
+            "Плюшечке",
+            "Зефирке",
+            "Лапулечке",
+            "Карамельке",
+            "Шушунчику",
+            "Коте",
+            "Обнимашке",
+            "Чмокуле",
+            "Сладуле",
+            "Пирожуле",
+            "Кринжуле",
+            "Бубусе",
+            "Пупсичу",
+            "Бусинке",
+            "Пупусе",
+            "Любимке",
+            "Тюлеше",
+            "Сплюше",
+            "Кабачочку",
+            "Лапотусику",
+            "Солнышку",
+            "Солнцу",
+            "Зайчонку",
+            "Зайчуше",
+            "Зайчику",
+            "Ласкуше",
+            "Облачку",
+            "Птенчику",
+            "Пупсику",
+            "Мяу",
+            "Кусь",
+            "Чмок",
+            "Жмяк",
+            "Мур-мур",
+            "Люблю!",
+            "( ˘͈ ᵕ ˘͈♡)",
+            "(っ˘з(˘⌣˘ )",
+            "(っ´▽｀)っ",
+            "(っ˘ω˘ς )",
+            "(⸝⸝ᵕᴗᵕ⸝⸝)",
+            "(⁎˃ᴗ˂⁎)",
+            "(⌯’▾’⌯)",
+            "(❀❛ ֊ ❛„)♡",
+            "(♡‿♡)",
+            "=^･ω･^=",
+            "( ͡• ͜ʖ ͡• )",
+            "ʕ•ﻌ•ʔ",
+            "U･ᴥ･U",
+            "=*",
+            "<3"
+          ]
+        }
+      },
+      "value": "Как у Яндекса"
+    },
+    {
+      "id": "f9d5916b78",
+      "name": "Журнал редких событий интонационного споттера",
+      "path": "/config/system_config/voiceDialogSettings/intonationSpotterSettings/spotterLoggingVeryRareEventPercent",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "100%": 100
+      },
+      "value": "100%"
+    },
+    {
+      "id": "6096f4e18f",
+      "name": "Журнал редких событий интонационного споттера (прерывание)",
+      "path": "/config/system_config/voiceDialogSettings/intonationInterruptionSpotterSettings/spotterLoggingVeryRareEventPercent",
+      "kind": "select",
+      "enabled": true,
+      "options": {
+        "100%": 100
+      },
+      "value": "100%"
     }
   ]
 }

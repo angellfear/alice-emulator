@@ -323,6 +323,22 @@ async def test_get_sync_info_rules_end_to_end(tmp_path):
         await runtime.close()
 
 
+def test_chiron_video_stickers_and_spotter_logging(tmp_path):
+    """Правила платформы chiron доводят до сгенерированного конфига то, что настоящий
+    сервер отдаёт в живом ответе (образец get_sync_info chiron, 2026-11-13): «стол»
+    (video_stickers) и журнал редких событий интонационных споттеров. Без «стола»
+    на экране станции пропадает стол."""
+    from server_emulator.quasar_rules import QUASAR_RULES_DIR
+    runtime = FakeRuntime(tmp_path, shipped_dir=QUASAR_RULES_DIR)
+    body = compose_config(runtime, "chiron", device_fixture())
+    stickers = body["config"]["system_config"]["centaur"]["video_stickers"]
+    assert stickers["enabled"] is True and stickers["mark_as_watched_percent"] == 0.64
+    assert stickers["max_video_duration_in_sec"] == 60
+    dialog = body["config"]["system_config"]["voiceDialogSettings"]
+    assert dialog["intonationSpotterSettings"]["spotterLoggingVeryRareEventPercent"] == 100
+    assert dialog["intonationInterruptionSpotterSettings"]["spotterLoggingVeryRareEventPercent"] == 100
+
+
 def test_quasar_defaults_package():
     """Встроенные дефолты: 13 платформенных файлов, квирк chiron/magritte доводит
     общий дефолт до платформенной формы, README несёт происхождение."""
