@@ -433,8 +433,12 @@ def _capability_raw(entry):
 def user_info_raw(registry):
     """PayloadRaw директивы set_iot_user_info: TSetIoTUserInfoDirective c
     IoTClientUserInfo (Rooms/Households/Devices) — поля по образцу 2026-11-10.
-    RawCapability умений вписываются в готовое сообщение напрямую (байты), —
-    ParseDict их портит: bytes-поля он ждёт в base64-строках."""
+    Умения вписываются в готовое сообщение напрямую (ParseDict портит bytes-поля:
+    он ждёт их в base64-строках). Держатель умения несёт RawCapability и
+    CapabilityType вместе (оба поля в образце): колонка строит из CapabilityType
+    идентификатор строки умения, и держатель без него у всех умений одного
+    устройства даёт одинаковый UnknownCapabilityType — на первичном ключе
+    (id, device_smart_home_id) это конфликт, и колонка отвергает весь набор."""
     rooms = registry._rooms
     devices, households = [], {DEFAULT_HOUSEHOLD["id"]: DEFAULT_HOUSEHOLD["name"]}
     capability_lists = []
@@ -450,7 +454,7 @@ def user_info_raw(registry):
                 continue
             raw = _capability_raw(cap)
             if raw is not None:
-                capabilities.append(raw)
+                capabilities.append((raw, CAPABILITY_TYPES[kind]))
                 continue
             name = CAPABILITY_TYPES.get(kind, kind if kind.endswith("CapabilityType")
                                         else "UnknownCapabilityType")
@@ -484,8 +488,9 @@ def user_info_raw(registry):
         endpoint = message.IoTClientUserInfo.Devices[index].Endpoint
         for entry in capabilities:
             cap = endpoint.AnyCapabilities.add()
-            if isinstance(entry, bytes):
-                cap.RawCapability = entry
+            if isinstance(entry, tuple):
+                cap.RawCapability = entry[0]
+                cap.CapabilityType = entry[1]
             else:
                 cap.CapabilityType = entry
     return message.SerializeToString()

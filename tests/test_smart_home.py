@@ -124,10 +124,12 @@ def test_directives_per_sample_fields(tmp_path):
     assert [h.Name for h in msg.IoTClientUserInfo.Households] == ["Дом"]
     devices = {d.Id: d for d in msg.IoTClientUserInfo.Devices}
     assert devices["plug:l-1"].Type == 1  # LightDeviceType (enum схемы)
-    # умения — RawCapability (типизированные сообщения, как в образце), не голый enum
+    # умения — RawCapability и CapabilityType вместе (оба поля в образце):
+    # колонка строит идентификатор строки умения из CapabilityType
     on_off, level = devices["plug:l-1"].Endpoint.AnyCapabilities
     assert len(bytes(on_off.RawCapability)) > 0 and len(bytes(level.RawCapability)) > 0
-    assert on_off.CapabilityType == 0 and level.CapabilityType == 0  # enum не задан
+    assert on_off.CapabilityType == 1  # OnOffCapabilityType
+    assert level.CapabilityType == 3  # LevelCapabilityType
     caps = _centaur("NAlice.TOnOffCapability")
     on_off_msg = caps.FromString(bytes(on_off.RawCapability))
     assert on_off_msg.State.On is False and on_off_msg.Meta.Retrievable

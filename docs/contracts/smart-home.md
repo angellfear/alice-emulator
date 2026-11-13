@@ -54,15 +54,21 @@ module: "server_emulator/smart_home.py"
 (`on_off`/`level`/`color`/`battery`) отображаются на `OnOffCapabilityType`/`LevelCapabilityType`/
 `ColorCapabilityType`/`BatteryCapabilityType`, неизвестное значение становится
 `UnknownDeviceType`/`UnknownCapabilityType` — сборка списка не падает.
-`AnyCapabilities` несёт `RawCapability` — типизированное сообщение умения, как в
-образце 2026-11-10 (колонка строит карточку по Instance/State, голого enum ей мало —
-она не рендерит устройства без них): `on_off` → `TOnOffCapability{Meta{SupportedDirectives:
+`AnyCapabilities` несёт держатель умения с `RawCapability` и `CapabilityType` вместе —
+оба поля заполняются, как в образце 2026-11-10 (журнал 2026-11-13: настоящий кадр —
+`OnOffCapabilityType=1`/`LevelCapabilityType=3`/`BatteryCapabilityType=15` рядом с
+байтами умения). Колонка строит из `CapabilityType` идентификатор строки умения в
+своей БД (первичный ключ — идентификатор и устройство), а карточку — по
+`Instance`/`State` внутри байтов: `on_off` → `TOnOffCapability{Meta{SupportedDirectives:
 OnOffDirectiveType, Retrievable}, State{On}}`, `level` → `TLevelCapability{…,
 Parameters{Instance, Unit, Range}, State{Level}}`, `battery` → `TBatteryCapability{…,
-State{Percentage}}`. Инстанс уровня расширение несёт в умении коротким именем
-(`brightness`/`open`/`temperature`/`humidity`/… → `BrightnessInstance`/`CoverInstance`/…,
-Unit и диапазон — из той же таблицы); громкость плеера в enum станции не входит —
-умение идёт без инстанса. Неизвестный тип умения идёт `CapabilityType`'ом.
+State{Percentage}}`. Держатель без `CapabilityType` даёт всем умениям устройства один
+и тот же `UnknownCapabilityType` — конфликт на первичном ключе, и колонка отвергает
+весь набор умений целиком (SQLiteConstraintException в её журнале). Инстанс уровня
+расширение несёт в умении коротким именем (`brightness`/`open`/`temperature`/`humidity`/… →
+`BrightnessInstance`/`CoverInstance`/…, Unit и диапазон — из той же таблицы); громкость
+плеера в enum станции не входит — умение идёт без инстанса. Неизвестный тип умения
+идёт `CapabilityType`'ом (без байтов).
 Переменная div строится по образцу `device_<id>_<capability>_state` (образцов с «:» в id нет;
 префикс origin в имени тоже становится «_»).
 
