@@ -9,6 +9,7 @@
   ASR_THREADS    потоков процессора    ASR_WORKERS параллельных запросов
   CUDA_VISIBLE_DEVICES                 какая видеокарта видна процессу
 """
+import onnx_cuda
 import speech_common as common
 
 RATE = 16000
@@ -51,13 +52,9 @@ def real_loaders():
     def load_model(name, device, quantization):
         providers = ["CPUExecutionProvider"]
         if device == "cuda":
-            common.preload_cuda_libs()
-            try:
-                onnxruntime.preload_dlls()
-            except Exception:  # noqa: BLE001 — старые сборки без preload_dlls
-                pass
-            if "CUDAExecutionProvider" not in onnxruntime.get_available_providers():
-                raise SystemExit("CUDA недоступна: нет видеокарты NVIDIA или установлен onnxruntime без CUDA")
+            reason = onnx_cuda.problem(common.env("ASR_MODEL_DIR") or common.env("ASR_VAD_DIR"))
+            if reason:
+                raise SystemExit("CUDA недоступна: " + reason)
             providers.insert(0, "CUDAExecutionProvider")
         options = onnxruntime.SessionOptions()
         threads = common.env_int("ASR_THREADS", 0)

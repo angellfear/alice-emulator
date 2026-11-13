@@ -496,8 +496,7 @@ class Runtime:
 
     async def close(self):
         """Идемпотентная остановка общих ресурсов (клиент, фоновые задачи)."""
-        for variant in list(self.voice_stack.local.processes):  # локальные речевые серверы
-            self.voice_stack.local.stop_key(variant, wait=False)  # убить сразу, выхода не ждать
+        await self.voice_stack.shutdown()  # локальные речевые серверы: все, включая осиротевшие
         if self.routines is not None:
             self.routines.shutdown()
         await self.self_update.close()  # цикл проверки релизов и его клиент
@@ -1200,6 +1199,7 @@ class Runtime:
             if before != ((mode or 'emulate') == 'proxy'):
                 closed = self.disconnect_devices(lambda device_sn: device_sn == sn, b'Route changed')
         return {"sn": sn, "mode": mode, "disconnected": closed}
+
     async def rename_device(self, sn, user_id, name=None, room=None):
         """Название/комната колонки: реестр (как правка в «Устройствах») + параметры
         device.name / device.room, затем профили сессий. Под замком; запись устройства
@@ -1224,7 +1224,6 @@ class Runtime:
                 self.quasar_params.set_value(owner, "device.room", saved.get("room") or "")
             self.refresh_profiles()
         return saved
-
 
     async def set_device_record_mode(self, sn, mode):
         """Опция «Запись» устройства: off | on | misses. Соединения не закрываются:
@@ -1465,7 +1464,7 @@ def mount_ui(app, runtime, prefix="/emulator"):
 
     # Каталог картинок устройств (модель по SN): только существующие
     # PNG/WebP из каталога картинок (device_images.images_dir) — путь проверяется на выход за пределы папки.
-    ASSETS = ("index.html", "toast.js", "ws.js", "templates.js", "app.js", "style.css", "users.js", "backend.js", "updates.js", "catalog.js", "replies.js", "animations.js", "endpoints.js", "misses.js", "endpoints.css", "devices_common.js", "device_cards.js", "mcp.js", "agent.js", "memory.js", "routines.js", "scenario_drafts.js", "params.js", "voice_stack.js", "live_status.js", "sound_cache.js", "extensions.js", "setup.js", "server_config.js", "server_log.js", "smart_home.js", "traffic.js", "providers.js", "configurator.js")
+    ASSETS = ("index.html", "toast.js", "ws.js", "templates.js", "app.js", "style.css", "users.js", "backend.js", "updates.js", "catalog.js", "replies.js", "animations.js", "endpoints.js", "misses.js", "endpoints.css", "devices_common.js", "device_cards.js", "mcp.js", "agent.js", "memory.js", "routines.js", "scenario_drafts.js", "params.js", "voice_stack.js", "voice_stack_local.js", "live_status.js", "sound_cache.js", "extensions.js", "setup.js", "server_config.js", "server_log.js", "smart_home.js", "traffic.js", "providers.js", "configurator.js")
     GENERIC_IMAGES = ROOT / "ui" / "img" / "generic"
     VENDOR = ROOT / "ui" / "vendor"
 

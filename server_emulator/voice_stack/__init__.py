@@ -22,7 +22,7 @@
 
   {плейсхолдеры} — параметры запуска, {dir} — папка установки, {python} — python venv.
   Параметры запуска хранятся в state/voice_stack/packages/<id>.json: доступны до установки
-  и переживают её удаление. Живой /health на порту считается «запущен» (переживает рестарт панели).
+  и переживают её удаление. Живой /health на порту считается «запущен»; применение и остановка панели ведёт lifecycle.py (все серверы пакетов, включая осиротевшие).
 
 Применение пишет конфигурацию с ключом "adapter" в settings[stt|tts|model]; конвейер вызывает
 адаптер оттуда (Runtime.provider / recognize_stream / speech_stream), профили устройств работают как раньше.
@@ -62,13 +62,15 @@ from pathlib import Path
 from aiohttp import ClientSession, ClientTimeout
 
 from . import adapters as adapter_registry
+from . import processes
+from .processes import kill_tree
 
 log = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parent
 PROJECT = ROOT.parent.parent
 PACKAGES = ROOT / "packages"
-SPEECH_DIR = PROJECT / "data" / "speech"  # venv и модели локальных пакетов (тесты подменяют на временную)
+SPEECH_DIR = Path(os.environ.get("ALICA_SPEECH_DIR") or PROJECT / "data" / "speech")  # venv и модели пакетов (тесты подменяют; ALICA_SPEECH_DIR — второй экземпляр панели со своими движками)
 SERVICES = ("asr", "tts", "llm")
 SETTINGS_KEY = {"asr": "stt", "tts": "tts", "llm": "model"}
 FIELD_TYPES = ("text", "password", "number", "select", "textarea", "file")
@@ -261,6 +263,9 @@ def validate_package(item):
         raise ValueError("platforms: {windows|linux: {cpu|cuda: [шаги]}}")
     validate_fields(item.get("fields", []))
     validate_modes(item)
+    depends = item.get("depends", [])
+    if not (isinstance(depends, list) and all(re.fullmatch(r"[a-z0-9][a-z0-9._-]*", str(d)) for d in depends)):
+        raise ValueError("depends: список id общих зависимостей (латиница/цифры/._-)")
     bake = item.get("bake")
     if bake is not None:
         keys = {f["key"] for f in item.get("fields", [])}
@@ -331,6 +336,10 @@ class LocalSpeech:
     def python(self, package):
         venv = self.folder(package) / "venv"
         return venv / "Scripts" / "python.exe" if os.name == "nt" else venv / "bin" / "python"
+
+    @staticmethod
+    def script(package):
+        return PROJECT / package["server"]["script"]
 
     @staticmethod
     def devices(package):
@@ -451,6 +460,16 @@ class LocalSpeech:
         return [k for k in package.get("reinstall_on", []) if k in marker and marker[k] != options.get(k)
                 and not (k == "device" and covers.get(marker[k]) == options.get(k))]
 
+    def wrong_device(self, package):
+        """Текст-причина, если выбран CUDA, а пакет установлен под процессор (сервер на видеокарте
+        не стартует без CUDA-сборки библиотек), иначе ''."""
+        marker, options = self.marker(package) or {}, self.options(package)
+        if options.get("device") == "cuda" and marker.get("device", "cuda") != "cuda":
+            return (f"«{package.get('title', package['id'])}»: выбрана видеокарта NVIDIA (CUDA), а пакет установлен "
+                    "для процессора — библиотеки без поддержки CUDA. Нажмите «Переустановить»: "
+                    "будет поставлена сборка для видеокарты.")
+        return ""
+
     async def health(self, package):
         """JSON /health работающего сервера пакета или None (не запущен)."""
         url = f"http://127.0.0.1:{self.options(package)['port']}{package['server'].get('health', '/health')}"
@@ -523,6 +542,9 @@ class LocalSpeech:
     def _install_sync(self, package, job):
         folder, options = self.folder(package), self.options(package)
         steps = package["platforms"][PLATFORM][options.get("device", "cpu")]
+        if options.get("device") == "cuda" and not gpus():
+            raise RuntimeError("Выбрана видеокарта NVIDIA, но nvidia-smi её не видит: установите драйвер NVIDIA "
+                               "или выберите «Процессор (CPU)»")
         (folder / "installed.json").unlink(missing_ok=True)
         folder.mkdir(parents=True, exist_ok=True)
         if not self.python(package).exists():
@@ -530,13 +552,17 @@ class LocalSpeech:
         python = str(self.python(package))
         for index, step in enumerate(steps):
             job.update(progress=round(0.05 + 0.45 * index / max(1, len(steps)), 3))
-            if step.get("pip"):
+            if step.get("uninstall"):  # сборки-конкуренты (onnxruntime и onnxruntime-gpu делят один пакет)
+                self._run([python, "-m", "pip", "uninstall", "--yes", *step["uninstall"]],
+                          job, "Удаление пакетов: " + ", ".join(step["uninstall"]))
+            elif step.get("pip"):
                 packages = [fill(p, options) for p in step["pip"]]
                 self._run([python, "-m", "pip", "install", "--disable-pip-version-check",
                            *[fill(a, options) for a in step.get("args", [])], *packages],
                           job, "Установка пакетов: " + ", ".join(packages))
             elif step.get("run"):
-                self._run([fill(a, {**options, "python": python, "dir": str(folder)}) for a in step["run"]],
+                self._run([fill(a, {**options, "python": python, "dir": str(folder), "tools": str(PROJECT / "tools")})
+                           for a in step["run"]],
                           job, step.get("title") or "Подготовка")
         models = [{k: fill(v, options) for k, v in m.items()} for m in package.get("models", [])]
         for index, model in enumerate(models):
@@ -583,6 +609,9 @@ class LocalSpeech:
     async def start(self, package):
         if not self.installed(package):
             return
+        wrong = self.wrong_device(package)
+        if wrong:
+            raise ValueError(wrong)
         folder = self.folder(package)
         process = self.processes.get(package["id"])
         own = (process is not None and process.poll() is None) or (folder / "server.pid").exists()
@@ -622,13 +651,18 @@ class LocalSpeech:
     def stop(self, package):
         """Остановить сервер, в том числе запущенный прошлым экземпляром панели (по server.pid)."""
         self.stop_key(package["id"])
-        pid_file = self.folder(package) / "server.pid"
+        folder = self.folder(package)
+        pid_file = folder / "server.pid"
         try:
             pid = int(pid_file.read_text(encoding="ascii"))
         except (OSError, ValueError):
-            return
-        pid_file.unlink(missing_ok=True)
-        kill_tree(pid)
+            pid = None
+        if pid is not None:
+            pid_file.unlink(missing_ok=True)
+            kill_tree(pid)
+        if folder.is_dir():  # осиротевшие серверы и рабочие процессы пакета (прошлые запуски)
+            for root in processes.find(folder, self.script(package)):
+                kill_tree(root.pid)
 
     def stop_key(self, identifier, wait=True):
         """Остановить процесс. wait=True (панель) — дождаться выхода (5 с, иначе kill);
@@ -646,25 +680,16 @@ class LocalSpeech:
                     process.kill()
 
 
-def kill_tree(pid):
-    """Остановить процесс вместе с дочерними. На Windows python.exe из venv запускает настоящий
-    интерпретатор дочерним процессом: убить только родителя — оставить сервер сиротой на порту."""
-    try:
-        if os.name == "nt":
-            subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, timeout=15,
-                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-        else:
-            os.kill(pid, 15)
-    except (OSError, subprocess.SubprocessError):
-        pass
-
-
 class VoiceStack:
     def __init__(self, runtime, packages_dir=PACKAGES, state_dir=None, speech_dir=None):
         self.runtime = runtime
         self.packages_dir = packages_dir
         self.state_dir = Path(state_dir or Path(runtime.directory) / "voice_stack")
         self.local = LocalSpeech(speech_dir or SPEECH_DIR, self.state_dir / "packages")
+        from .installed import Inventory
+        from .lifecycle import Lifecycle
+        self.lifecycle = Lifecycle(self)
+        self.installed = Inventory(self)
         adapter_registry.configure(self.state_dir / "adapters",
                                    extension_dirs=lambda: self._extension_layers("voice/adapters"))
 
@@ -920,16 +945,21 @@ class VoiceStack:
         return {**DEFAULT_KEYS[name], **config}, package
 
     async def apply(self, service, ref):
+        """Применить источник: остановить ненужные серверы (в том числе осиротевшие), записать
+        настройки, запустить и дождаться сервера пакета (lifecycle.py)."""
         if service not in SERVICES:
             raise ValueError("service: asr|tts|llm")
-        config, package = self.config(service, ref)
+        return await self.lifecycle.run(service, ref)
+
+    async def save_source(self, service, ref, config):
         settings = copy.deepcopy(self.runtime.settings)
         settings[SETTINGS_KEY[service]] = config
         settings["voice_stack"] = {**(settings.get("voice_stack") or {}), service: ref}
         await self.runtime.save_settings(settings)
-        if package:
-            await self.local.start(package)
-        return {"service": service, "active": ref}
+
+    async def shutdown(self):
+        """Остановка панели: завершить все локальные речевые серверы."""
+        await self.lifecycle.shutdown()
 
     async def migrate(self):
         """Настройки без выбранного источника → пресет «Текущие настройки» (ничего не

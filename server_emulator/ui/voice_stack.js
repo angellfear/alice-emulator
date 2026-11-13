@@ -69,6 +69,7 @@
     if (!cfg || !background) { try { cfg = await api('settings') } catch (e) { cfg = { voice_stack: {} } } }  // режимы вывода; без настроек — флаги скрыты
     data = await api('voice-stack');
     for (const [s] of SERVICES) if (!refs(s).includes(chosen[s])) chosen[s] = data[s].active || refs(s)[0] || '';
+    if (!background) document.dispatchEvent(new Event('vs-changed'));  // блок «Установлено локально»
     if (!background || before !== statusKey(data)) render(true);
     else hosts().forEach(h => h.querySelectorAll('.vs-local[data-pkg]').forEach(box => {  // опрос: только блок статуса, форма не трогается
       const [s, id] = box.dataset.pkg.split('/'), pkg = data[s].packages.find(p => p.id === id);
@@ -354,7 +355,7 @@
     el.append(input({ key: 'title', label: 'Название' }, d), form(adapter.fields, d.values, ctx));
     const check = () => checkRequired(adapter.fields, d.values, ctx, d);
     const actions = make('div', 'vs-actions');
-    if (!active) actions.append(button('Применить', null, async () => { check(); await save(); await api('voice-stack-apply', 'POST', { service: s, ref }); await load(); say('Применён: ' + d.title) }));
+    if (!active) actions.append(button('Применить', null, async () => { check(); await save(); const ok = await voiceApply(s, ref, d.title); await load(); if (ok) say('Применён: ' + d.title) }));
     actions.append(button('Сохранить', active ? null : 'secondary', async () => { check(); await save(); await load(); say('Сохранено: ' + d.title) }));
     if (s === 'tts' && adapter.test) actions.append(testButton(ref, 'Проверить голос'));
     if (!active) actions.append(button('Удалить', 'danger', async () => {
@@ -440,7 +441,7 @@
     const check = () => checkRequired(pkg.fields, d.values, ctx, d);
     const actions = make('div', 'vs-actions');
     if (!active && ['running', 'stopped', 'starting'].includes(st.status))
-      actions.append(button('Применить', null, async () => { check(); await saveOptions(); await api('voice-stack-apply', 'POST', { service: s, ref }); await load(); say('Применён: ' + pkg.title) }));
+      actions.append(button('Применить', null, async () => { check(); await saveOptions(); const ok = await voiceApply(s, ref, pkg.title); await load(); if (ok) say('Применён: ' + pkg.title) }));
     actions.append(button('Сохранить настройки', 'secondary', async () => { check(); await saveOptions(); await load(); say('Настройки сохранены: ' + pkg.title) }));
     top(el, actions);
   }
@@ -530,6 +531,7 @@
   const sync = () => { clearTimeout(poll); poll = null;
     if (['#voice-stack', '#llm'].includes(location.hash)) { render(); work(load) } };
   window.addEventListener('hashchange', sync);
+  document.addEventListener('vs-cleaned', () => work(load));
   document.addEventListener('DOMContentLoaded', sync);
   if (document.readyState !== 'loading') sync();
 })();

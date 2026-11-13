@@ -93,7 +93,7 @@ def test_ports_are_unique_across_packages(packages):
 def test_placeholders_resolve_to_options(packages, ident):
     package = packages[ident]
     keys = {f["key"] for f in package["fields"]}
-    known = set(package["defaults"]) | {"dir", "python"}
+    known = set(package["defaults"]) | {"dir", "python", "tools"}
     assert keys <= set(package["defaults"]), "поле без значения по умолчанию"
     used = placeholders([package["config"], package["server"].get("env", {}), package["models"], package["platforms"]])
     assert used <= known, used - known
@@ -116,7 +116,7 @@ def test_pip_versions_are_pinned_and_platforms_complete(packages, ident):
             for step in steps:
                 for spec in step.get("pip", []):
                     assert "==" in spec, f"{ident}: версия {spec} не закреплена"
-                assert step.get("pip") or step.get("run")
+                assert step.get("pip") or step.get("run") or step.get("uninstall")
     gpu_only = LABELS[ident] == "(CPU)"
     assert (set(package["platforms"]["windows"]) == {"cpu"}) == gpu_only
 
@@ -124,16 +124,18 @@ def test_pip_versions_are_pinned_and_platforms_complete(packages, ident):
 @pytest.mark.parametrize("ident", sorted(IDS))
 def test_run_steps_are_valid_python(packages, ident):
     package = packages[ident]
-    options = {**package["defaults"], "dir": "C:/data/" + ident, "python": "python"}
+    options = {**package["defaults"], "dir": "C:/data/" + ident, "python": "python", "tools": "C:/project/tools"}
     for platform in package["platforms"].values():
         for steps in platform.values():
             for step in steps:
                 if "run" not in step:
                     continue
                 command = [fill(part, options) for part in step["run"]]
-                assert command[:2] == ["python", "-c"] and step.get("title")
-                compile(command[2], "<run>", "exec")
-                assert "{" not in "".join(command[3:]), "неподставленный параметр: " + str(command[3:])
+                assert step.get("title") and "{" not in "".join(command[3:]), "неподставленный параметр: " + str(command[3:])
+                if command[1] == "-c":
+                    compile(command[2], "<run>", "exec")
+                else:  # готовый скрипт из tools/ (проверка CUDA)
+                    assert command[1] == "C:/project/tools/" + Path(command[1]).name and (TOOLS / Path(command[1]).name).is_file()
 
 
 @pytest.mark.parametrize("ident", sorted(IDS))
@@ -352,9 +354,9 @@ class FakeVoice:
 def test_tts_app_returns_float32_pcm_with_headers():
     fake = FakeVoice()
     app = speech_common.tts_app(fake.synth, 24000, {"engine": "fake", "voice": "v", "state": {"model_loaded": True}})
+    fake.calls.clear()  # прогрев при создании приложения — в test_tts_app_warms_up_before_serving
 
     async def scenario(client):
-    fake.calls.clear()  # прогрев при создании приложения — в test_tts_app_warms_up_before_serving
         response = await client.post("/v1/audio/speech", json={"input": " Привет ", "voice": "a", "model": "x"})
         assert response.status == 200
         assert response.headers["X-Audio-Format"] == "f32le" and response.headers["X-Audio-Sample-Rate"] == "24000"
@@ -370,8 +372,6 @@ def test_tts_app_returns_float32_pcm_with_headers():
     assert fake.calls[0] == ("Привет", "a") and fake.calls[1] == ("ещё", None)
 
 
-def test_tts_app_streams_chunks_and_rate_may_be_a_function():
-    fake = FakeVoice()
 def test_tts_app_warms_up_before_serving():
     """Холодный движок (CUDA) первым синтезом платит секунды — дольше ожидания озвучки ответа.
     Прогон происходит при создании приложения, до открытия порта; сбой прогрева запуск не ломает."""
@@ -385,6 +385,8 @@ def test_tts_app_warms_up_before_serving():
     assert app is not None
 
 
+def test_tts_app_streams_chunks_and_rate_may_be_a_function():
+    fake = FakeVoice()
     rate = {"value": 24000}
     app = speech_common.tts_app(fake.synth, lambda: rate["value"], {"engine": "fake"}, stream=fake.stream)
 

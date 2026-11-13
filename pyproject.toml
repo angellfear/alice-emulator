@@ -39,6 +39,7 @@ dependencies = [
   "sqlalchemy>=2,<3",
   "num2words>=0.5.14,<2",
   "Pillow>=10,<13",
+  "psutil>=5.9,<8",
 ]
 
 [project.optional-dependencies]

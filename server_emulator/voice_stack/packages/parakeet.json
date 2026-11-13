@@ -125,6 +125,12 @@
     "windows": {
       "cpu": [
         {
+          "uninstall": [
+            "onnxruntime",
+            "onnxruntime-gpu"
+          ]
+        },
+        {
           "pip": [
             "onnx-asr[hub]==0.12.0",
             "huggingface-hub==2.4.0",
@@ -151,6 +157,12 @@
       ],
       "cuda": [
         {
+          "uninstall": [
+            "onnxruntime",
+            "onnxruntime-gpu"
+          ]
+        },
+        {
           "pip": [
             "onnx-asr[hub]==0.12.0",
             "huggingface-hub==2.4.0",
@@ -174,12 +186,26 @@
             "{dir}/silero-vad"
           ],
           "title": "Загрузка модели и VAD"
+        },
+        {
+          "run": [
+            "{python}",
+            "{tools}/onnx_cuda.py",
+            "{dir}/parakeet-tdt-0.6b-v3"
+          ],
+          "title": "Проверка CUDA"
         }
       ]
     },
     "linux": {
       "cpu": [
         {
+          "uninstall": [
+            "onnxruntime",
+            "onnxruntime-gpu"
+          ]
+        },
+        {
           "pip": [
             "onnx-asr[hub]==0.12.0",
             "huggingface-hub==2.4.0",
@@ -206,6 +232,12 @@
       ],
       "cuda": [
         {
+          "uninstall": [
+            "onnxruntime",
+            "onnxruntime-gpu"
+          ]
+        },
+        {
           "pip": [
             "onnx-asr[hub]==0.12.0",
             "huggingface-hub==2.4.0",
@@ -229,6 +261,14 @@
             "{dir}/silero-vad"
           ],
           "title": "Загрузка модели и VAD"
+        },
+        {
+          "run": [
+            "{python}",
+            "{tools}/onnx_cuda.py",
+            "{dir}/parakeet-tdt-0.6b-v3"
+          ],
+          "title": "Проверка CUDA"
         }
       ]
     }

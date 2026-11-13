@@ -648,6 +648,32 @@ small.warn{color:var(--warning)}
 .vs-file-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .vs-file-name{color:var(--text);font-size:13px}
 .vs-file audio{width:100%;height:34px}
+.vs-apply{width:min(480px,calc(100vw - 40px))}
+.vs-apply h3{margin:0 0 10px;overflow-wrap:anywhere}
+.vs-steps{list-style:none;margin:0 0 10px;padding:0;display:flex;flex-direction:column;gap:6px}
+.vs-step{display:flex;gap:8px;align-items:flex-start;font-size:13.5px}
+.vs-step-icon{width:18px;text-align:center;flex-shrink:0}
+.vs-step-body{display:flex;flex-direction:column;gap:2px;min-width:0;overflow-wrap:anywhere}
+.vs-step-body small{color:var(--muted);font-size:12px;white-space:pre-wrap}
+.vs-step.ok .vs-step-icon{color:var(--live)}
+.vs-step.fail .vs-step-icon,.vs-step.fail small{color:var(--danger)}
+.vs-step.warn .vs-step-icon{color:var(--warning-strong)}
+.vs-step.wait{color:var(--faint)}
+.vs-apply-summary{margin:0;font-weight:600;font-size:13.5px}
+.vs-apply-summary.ok{color:var(--live)}
+.vs-apply-summary.error{color:var(--danger)}
+.vs-apply-summary.warn{color:var(--warning-strong)}
+#voice-stack-local{margin-top:12px}
+.vs-inst-total{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.vs-inst-total b{color:var(--text)}
+.vs-inst-row{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;border:1px solid var(--border);border-radius:var(--radius-s);background:var(--surface-3);padding:8px 12px}
+.vs-inst-head{display:flex;justify-content:space-between;gap:8px;grid-column:1 / -1;min-width:0}
+.vs-inst-head b{min-width:0;overflow-wrap:anywhere}
+.vs-inst-size{font-family:Consolas,monospace;font-size:12.5px;color:var(--muted);white-space:nowrap}
+.vs-inst-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--muted);min-width:0}
+.vs-inst-tag{border:1px solid var(--border);border-radius:10px;padding:0 7px}
+.vs-inst-status.active,.vs-inst-status.running{color:var(--live)}
+.vs-inst-status.installing{color:var(--accent-strong)}
 .vs-label{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .vs-link{font-size:12px;color:var(--accent-strong);text-decoration:none;white-space:nowrap}
 .vs-link:hover{text-decoration:underline}

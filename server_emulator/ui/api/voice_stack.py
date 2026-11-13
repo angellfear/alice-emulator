@@ -3,7 +3,12 @@
 GET    voice-stack            — {asr|tts|llm: {presets, packages, adapters, active}}
 POST   voice-stack-preset     — {service, adapter, title, values, id?} создать/обновить пресет
 DELETE voice-stack-preset     — ?service=&id=
-POST   voice-stack-apply      — {service, ref: "p:<пресет>"|"k:<пакет>"} → settings[stt|tts|model]
+POST   voice-stack-apply      — {service, ref: "p:<пресет>"|"k:<пакет>", background?} → остановить ненужные серверы,
+                                записать settings[stt|tts|model], запустить пакет; background → {job}, ход — GET ?job=
+GET    voice-stack-apply      — ?job= журнал шагов применения {state, summary, steps}
+POST   voice-stack-apply-plan — {service, ref} → {stop: [...], start, keep} что остановится и запустится
+GET    voice-stack-installed  — установленное локально: строки, размеры (фон, кеш), итоги
+POST   voice-stack-clean      — {ids: [...]} | {all_unused: true} удалить неиспользуемое и ставшие ненужными зависимости
 POST   voice-stack-package    — {id, values} параметры запуска пакета (до установки тоже)
 POST   voice-stack-install    — {id} фоновая установка (прогресс в GET)
 POST   voice-stack-uninstall  — {id} удалить установку остановленного пакета (параметры остаются)
@@ -24,6 +29,7 @@ import logging
 
 from aiohttp import web
 
+from ...voice_stack import SERVICES
 from . import route
 
 log = logging.getLogger(__name__)
@@ -66,10 +72,45 @@ async def voice_stack_preset(request, runtime, app):
     return web.json_response({"id": item["id"]})
 
 
-@route("voice-stack-apply", methods=("POST",))
+@route("voice-stack-apply", methods=("GET", "POST"))
 async def voice_stack_apply(request, runtime, app):
+    lifecycle = runtime.voice_stack.lifecycle
+    if request.method == "GET":
+        job = lifecycle.jobs.get(request.query.get("job", ""))
+        if job is None:
+            raise ValueError("Применение не найдено")
+        return web.json_response(job.public())
     body = await _body(request)
-    return web.json_response(await runtime.voice_stack.apply(body.get("service"), str(body.get("ref", ""))))
+    service, ref = body.get("service"), str(body.get("ref", ""))
+    if body.get("background"):
+        if service not in SERVICES:
+            raise ValueError("service: asr|tts|llm")
+        job = lifecycle.begin(service, ref)
+        lifecycle.start_background(job)
+        return web.json_response({"job": job.id})
+    return web.json_response(await runtime.voice_stack.apply(service, ref))
+
+
+@route("voice-stack-apply-plan", methods=("POST",))
+async def voice_stack_apply_plan(request, runtime, app):
+    body = await _body(request)
+    if body.get("service") not in SERVICES:
+        raise ValueError("service: asr|tts|llm")
+    return web.json_response(await runtime.voice_stack.lifecycle.plan(body["service"], str(body.get("ref", ""))))
+
+
+@route("voice-stack-installed", methods=("GET",))
+async def voice_stack_installed(request, runtime, app):
+    return web.json_response(await runtime.voice_stack.installed.items())
+
+
+@route("voice-stack-clean", methods=("POST",))
+async def voice_stack_clean(request, runtime, app):
+    body = await _body(request)
+    ids = body.get("ids")
+    if not body.get("all_unused") and not (isinstance(ids, list) and ids and all(isinstance(i, str) for i in ids)):
+        raise ValueError("ids: непустой список или all_unused")
+    return web.json_response(await runtime.voice_stack.installed.clean(ids, everything=bool(body.get("all_unused"))))
 
 
 @route("voice-stack-package", methods=("POST",))
