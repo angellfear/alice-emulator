@@ -12,7 +12,7 @@ regex = '''\b[A-Z]\d{2}[A-Z0-9]{9,14}\b'''
 keywords = ["00"]
   [[rules.allowlists]]
   description = "Фиктивные серийники проекта (префикс модели + T1/T2 или 00T1000, корректная CRC)"
-  regexes = ['''^[CX]00T[12]000[12][0-9A-Z]{4}[A-Z]$''', '''^[CXUM]00T1000[0-9A-Z]{4}K$''']
+  regexes = ['''^[CXM]00T[12]000[12][0-9A-Z]{4}[A-Z]$''', '''^[CXUM]00T1000[0-9A-Z]{4}K$''']
 
 [[rules]]
 id = "alica-private-lan-ip"

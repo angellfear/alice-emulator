@@ -1,5 +1,11 @@
-"""Раздел «Анимации»: каталог LED-анимаций станций (JSON + GIF) с разделением
-по устройствам.
+"""Раздел «Анимации»: проекты анимаций по платформам колонок и каталог GIF-кадров.
+
+Проекты (animation_storage.py, форматы — animation_formats.py): платформа → дисплеи
+(PLATFORM_DISPLAYS), у каждого родной формат — .led (кольцо, панель, окно), .scled
+(часы Мини 2), GIF 25×16 (фронтальная матрица Макса). Отправка — play_project.
+
+Каталог GIF-кадров (AnimationStore ниже, на нём сценарии и MCP): LED-анимации станций
+(JSON + GIF) с разделением по устройствам.
 
 Модель — реестр способностей (display: led_matrix|seven_segment|none): ДуоМакс
 без анимаций, Мини — 7-сегментный дисплей, LED-матрица — emotions v2/v3.
@@ -69,80 +75,69 @@ def display_of_device(device):
     return PLATFORM_DISPLAY.get(platform, DEFAULT_DISPLAY)
 
 
-# --- Реестр платформ и их дисплеев для раздела «Анимации» ---------------------
+# --- Реестр платформ и их дисплеев для проектов анимаций ---------------------
 
-# kind → описание, формат кадров, размер дисплея, частота fps
+# kind: frontal — GIF-матрица, ring — кольцо, panel — световая панель, oknix — окно,
+# clock — 7-сегментные часы; size — число LED (или ширина×высота), format — родной файл.
 PLATFORM_DISPLAYS: dict[str, list[dict]] = {
     "yandexstation_2": [
-        {"kind": "frontal", "title": "Фронтальный дисплей (глазки)",
-         "size": [25, 16], "fps": 30, "format": "gif",
-         "note": "GIF 25×16, Push draw_led_screen (animation_sequence)"},
-        {"kind": "ring", "title": "Кольцо верха",
-         "size": [24], "fps": 30, "format": "led",
-         "note": ".led текст/бинарник, 24 LED"},
+        {"kind": "frontal", "title": "Фронтальный дисплей", "size": [25, 16], "format": "gif"},
+        {"kind": "ring", "title": "Кольцо верха", "size": [24], "format": "led"},
     ],
     "yandexmidi": [
-        {"kind": "panel", "title": "Световая панель",
-         "size": [15, 13], "fps": 30, "format": "led",
-         "note": ".led текст/бинарник, 84 LED (15×13)"},
-        {"kind": "oknix", "title": "Окникс (окно)",
-         "size": [5], "fps": 30, "format": "led",
-         "note": ".led текст/бинарник, 5 цветов на кадр"},
+        {"kind": "panel", "title": "Световая панель", "size": [84], "format": "led"},
+        {"kind": "oknix", "title": "Окно", "size": [5], "format": "led"},
     ],
     "yandexmini_2": [
-        {"kind": "ring", "title": "Кольцо верха",
-         "size": [6], "fps": 30, "format": "led",
-         "note": ".led текст/бинарник, 6 LED"},
-        {"kind": "clock", "title": "Часы 7-сегмент",
-         "size": [32], "fps": 30, "format": "scled",
-         "note": ".scled текст/бинарник, 32 сегмента (4 цифры × 7 + индикаторы)"},
+        {"kind": "ring", "title": "Кольцо верха", "size": [6], "format": "led"},
+        {"kind": "clock", "title": "Часы", "size": [32], "format": "scled"},
     ],
     "yandexstation": [
-        {"kind": "ring", "title": "Кольцо верха",
-         "size": [24], "fps": 30, "format": "led",
-         "note": ".led текст/бинарник, 24 LED"},
+        {"kind": "ring", "title": "Кольцо верха", "size": [24], "format": "led"},
     ],
     "yandexmini": [
-        {"kind": "ring", "title": "Кольцо верха",
-         "size": [24], "fps": 30, "format": "led",
-         "note": ".led текст/бинарник, 24 LED"},
+        {"kind": "ring", "title": "Кольцо верха", "size": [24], "format": "led"},
     ],
-    "chiron": [],  # без дисплея — анимаций нет
 }
-
-
-def list_platforms() -> list[dict]:
-    """Список всех платформ с их дисплеями для API «какие платформы доступны».
-
-    Каждый элемент: {platform, title, displays: [{kind, title, size, fps, format, note}]}.
-    Платформы без дисплеев (chiron) возвращаются с пустым списком дисплеев.
-    """
-    titles = {
-        "yandexstation_2": "Станция Макс",
-        "yandexmidi": "Станция Миди",
-        "yandexmini_2": "Станция Мини 2",
-        "yandexstation": "Станция",
-        "yandexmini": "Станция Мини",
-        "chiron": "ДуоМакс",
-    }
-    result = []
-    for platform, displays in PLATFORM_DISPLAYS.items():
-        result.append({
-            "platform": platform,
-            "title": titles.get(platform, platform),
-            "displays": displays,
-        })
-    return result
-
-
-def platform_has_displays(platform: str) -> bool:
-    """Есть ли у платформе хоть один дисплей с анимациями."""
-    return bool(PLATFORM_DISPLAYS.get(platform))
+PLATFORM_TITLES = {
+    "yandexstation_2": "Станция Макс", "yandexmidi": "Станция Миди", "yandexmini_2": "Станция Мини 2",
+    "yandexstation": "Станция", "yandexmini": "Станция Мини",
+}
+# Дисплеи, на которые эмулятор умеет отправить анимацию: часы Мини 2 (draw_scled_animations)
+# и фронтальная матрица (GIF + draw_led_screen). Для остальных директивы прошивки
+# с нужной нагрузкой нет — анимацию можно редактировать, импортировать и экспортировать.
+PLAYABLE_KINDS = {"clock", "frontal"}
 
 
 def platform_displays(platform: str) -> list[dict]:
-    """Дисплеи платформы (список, возможно пустой)."""
-    return list(PLATFORM_DISPLAYS.get(platform, []))
+    """Дисплеи платформы (пусто — платформы нет в реестре или дисплея нет)."""
+    return [dict(d) for d in PLATFORM_DISPLAYS.get(platform, [])]
+
+
+def device_platform(device) -> str:
+    """Платформа устройства из реестра дисплеев: профиль/модель, иначе тип-символ SN;
+    '' — платформа без анимаций или не распознана."""
+    from .updates import platform_of
+    device = device or {}
+    explicit = (device.get("profile") or {}).get("platform") or device.get("model")
+    platform = explicit if explicit in PLATFORM_DISPLAYS else platform_of({**device, "model": "", "profile": {}})
+    return platform if platform in PLATFORM_DISPLAYS else ""
+
+
+def list_platforms(devices: list[dict]) -> list[dict]:
+    """Платформы реестра, у которых есть колонка пользователя: [{platform, title,
+    displays, devices: [{sn, name, model}]}] — порядок реестра."""
+    by_platform: dict[str, list[dict]] = {}
+    for device in devices:
+        platform = device_platform(device)
+        if platform and device.get("sn"):
+            by_platform.setdefault(platform, []).append(
+                {"sn": device["sn"], "name": device.get("name") or (device.get("profile") or {}).get("name") or "",
+                 "model": device.get("model") or ""})
+    return [{"platform": platform, "title": PLATFORM_TITLES[platform],
+             "displays": platform_displays(platform), "devices": by_platform[platform]}
+            for platform in PLATFORM_DISPLAYS if platform in by_platform]
+
 
 CAPTURED = [
     ("builtin.led.joy", "Глазки (радость)", "emotions/v3/joy.gif"),
@@ -356,3 +351,31 @@ async def play_on_device(runtime, identifier, sn):
     if not urls:
         raise ValueError("Анимация без кадров: задайте url или frames")
     return await runtime.push_action(sn, "draw_led_screen", {"frames": urls})
+
+
+async def play_project(runtime, platform, project_id, sn, base_url):
+    """Проект анимации — на колонку SN. Часы Мини 2 — Push draw_scled_animations (бинарный
+    .scled, gzip, base64); фронтальная матрица — GIF проекта в media и Push draw_led_screen
+    с URL base_url (адрес эмулятора, доступный колонке). Кольцо, панель и окно не играются:
+    директивы прошивки с такой нагрузкой нет."""
+    project = runtime.animation_projects.get(platform, project_id)
+    if project is None:
+        raise ValueError("Проект не найден")
+    device = next((d for d in runtime.identities.data["devices"] if d.get("sn") == sn), None)
+    if device is None:
+        raise ValueError("Колонка не найдена")
+    if device_platform(device) != platform:
+        raise ValueError(f"Колонка — платформа {device_platform(device) or 'без анимаций'}, проект — {platform}")
+    kind = project["kind"]
+    if kind not in PLAYABLE_KINDS:
+        raise ValueError("Этот дисплей эмулятор не проигрывает: нужна директива прошивки, образца нет")
+    if kind == "clock":
+        from .animation_formats import build_scled_animation_payload
+        payload = build_scled_animation_payload(project["id"], project["frames"], project["loop_from"])
+        return await runtime.push_action(sn, "draw_scled_animations", payload)
+    from urllib.parse import urlsplit
+    if urlsplit(base_url).hostname in ("localhost", "127.0.0.1", "::1"):
+        raise ValueError("Колонка не достанет GIF по адресу localhost: откройте интерфейс по адресу сервера в сети")
+    name = runtime.animation_projects.publish_gif(project)
+    return await runtime.push_action(sn, "draw_led_screen",
+                                     {"frames": [f"{base_url}/emulator/api/animations-media?file={name}"]})

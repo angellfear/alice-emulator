@@ -371,36 +371,37 @@ input[type=file]::file-selector-button:hover{border-color:var(--accent-border);c
 .route-add{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .route-add input{min-width:200px}
 
-/* Анимации */
-#animations .split{grid-template-columns:1.4fr 1fr}
-.animation-row{display:flex;align-items:center;gap:12px;padding:8px;border-radius:10px;cursor:pointer}
-.animation-row:hover,.animation-row.selected{background:var(--surface-3)}
-.animation-preview{width:48px;height:48px;object-fit:contain;background:var(--surface-3);border-radius:8px;flex:none}
-.animation-label{flex:1;min-width:0}
-.animation-label small{display:block;opacity:.6}
-#animation-preview-live{background:var(--surface-3);border-radius:8px;padding:4px}
-
-/* Редактор анимаций */
-.anim-toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
-.anim-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-.anim-filter input,.anim-filter select{min-width:140px}
-.anim-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(230px,100%),1fr));gap:10px;align-content:start}
-.anim-actions{display:flex;gap:8px;flex-wrap:wrap}
-.anim-card{display:flex;flex-direction:column;background:var(--surface-2);border-radius:12px;padding:10px;gap:8px;border:1px solid transparent}
+/* Анимации: каталог проектов, редактор, плеер */
+.anim-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.anim-head h3{margin:0}
+.anim-head-actions,.anim-tool-row,.anim-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.anim-actions{margin-top:14px}
+.anim-actions select{flex:1 1 180px;min-width:0}
+.anim-kinds{margin:0 0 12px}
+.anim-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(140px,100%),1fr));gap:10px}
+.anim-card{display:flex;flex-direction:column;gap:4px;min-width:0;background:var(--surface-3);border:1px solid transparent;border-radius:var(--radius-s);padding:8px;cursor:pointer}
 .anim-card:hover{border-color:var(--border-strong)}
-.anim-card.selected{border-color:var(--accent)}
-.anim-thumb{width:100%;height:96px;object-fit:contain;background:var(--surface-3);border-radius:8px}
-.anim-thumb.small{height:48px;width:48px}
-.anim-card-body{display:flex;flex-direction:column;gap:4px}
-.anim-card-body small{opacity:.6}
-.anim-actions{display:flex;gap:6px;margin-top:4px}
-.muted{color:var(--faint)}
-.anim-mode-switch{display:flex;gap:6px;margin-bottom:8px}
-.anim-frames-editor{border:1px dashed var(--border-strong);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:8px}
-.anim-frames-pick{display:flex;gap:6px}
-.anim-frames-strip{display:flex;gap:6px;flex-wrap:wrap}
-#animation-preview-live{background:var(--surface-3);border-radius:8px;padding:4px}
-
+.anim-card.selected{border-color:var(--accent);background:var(--accent-bg)}
+.anim-card strong{overflow-wrap:anywhere;font-size:13px}
+.anim-card-preview{display:flex;justify-content:center;max-height:96px}
+.anim-card-preview svg{max-width:100%;max-height:96px}
+.anim-surface{display:block;width:100%;height:auto;touch-action:none;user-select:none}
+.anim-cell{fill:var(--surface);stroke:var(--border-strong);stroke-width:.6}
+.anim-canvas{max-width:360px;margin:8px auto;background:var(--surface-3);border-radius:var(--radius-s);padding:8px}
+.anim-canvas .anim-surface{cursor:crosshair}
+.anim-player{max-width:240px;margin:8px auto;background:var(--surface-3);border-radius:var(--radius-s);padding:8px}
+.anim-tools{margin:8px 0}
+.anim-tools label{margin-bottom:8px}
+.anim-tools input[type=color]{width:44px;min-height:34px;padding:2px;flex:0 0 auto}
+.anim-swatch{width:28px;height:28px;min-height:0;padding:0;border:1px solid var(--border-strong);border-radius:50%;box-shadow:none;flex:0 0 auto}
+.anim-eraser{background:var(--surface-3);color:var(--muted);font-size:15px}
+.anim-frames-head{display:flex;flex-direction:column;gap:8px;margin:12px 0 8px}
+.anim-strip{display:flex;gap:6px;overflow-x:auto;padding:4px 0 8px}
+.anim-thumb{display:flex;flex-direction:column;align-items:center;gap:2px;flex:0 0 auto;width:64px;padding:4px;background:var(--surface-3);border:1px solid var(--border);border-radius:8px;cursor:pointer}
+.anim-thumb.selected{border-color:var(--accent);background:var(--accent-bg)}
+.anim-thumb svg{width:100%;height:36px}
+.anim-timing label{margin-bottom:0;flex:1 1 120px}
+.anim-timing select{flex:1 1 150px;min-width:0}
 /* Эндпоинты: дерево шаблона */
 .endpoint-tree{display:flex;flex-direction:column;gap:4px;border:1px solid var(--border);border-radius:8px;padding:10px;max-height:340px;overflow:auto}
 .tree-node{padding-left:10px;border-left:2px solid var(--border);margin-top:4px}
@@ -425,7 +426,6 @@ input[type=file]::file-selector-button:hover{border-color:var(--accent-border);c
 .quasar-stack .short{display:none}
 @media (max-width:719px){
   .quasar-layers{grid-template-columns:1fr;gap:12px}
-  #animations .split{grid-template-columns:1fr}
   .quasar-stack{flex-direction:row;gap:0;padding:3px;border:1px solid var(--accent-border);
     border-radius:999px;background:var(--surface-2)}
   .quasar-stack button{flex:1 1 0;min-width:0;flex-direction:row;justify-content:center;align-items:center;gap:0;

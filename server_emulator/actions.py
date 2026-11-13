@@ -15,7 +15,7 @@ CATALOG = [
     {'id':'stop_bluetooth','name':'Выключить Bluetooth','parameters':{}},
     {'id':'push_update_config','name':'Обновить конфигурацию','parameters':{}},
     {'id':'draw_led_screen','name':'Показать анимацию (LED)','parameters':{'animation':'id или URL'}},
-    {'id':'draw_animation','name':'Проиграть анимацию (родной формат)','parameters':{'animation':'id, base64+gzip'}},
+    {'id':'draw_scled_animations','name':'Анимация часов Мини 2 (.scled)','parameters':{'animations':'[{name, base64_encoded_value, compression_type}]'}},
     {'id':'player_pause','name':'Пауза плеера','parameters':{}},
     {'id':'clear_queue','name':'Очистить очередь','parameters':{}},
     {'id':'push_tts','name':'Произнести текст','parameters':{'text':'строка'}},
@@ -29,6 +29,23 @@ CATALOG = [
 # запрашивает сама TextInput'ом с тем же фреймом), push_update_config — Push по
 # образцу настоящего сервера (колонка сама запрашивает get_sync_info).
 EXECUTE_ACTIONS = {'player_pause', 'clear_queue'}
+
+
+def _payload_push(server_type, action, payload):
+    """Push client_action без речи (IsLedSilent) с JSON-payload директивы."""
+    output=server_type()
+    output.Event.Header.MessageId=uuid.uuid4().hex
+    output.Event.Header.Ack=int(time.time()*1000)
+    push=output.Event.Push
+    push.DeduplicationPushId=uuid.uuid4().hex
+    push.PushIds.append(uuid.uuid4().hex)
+    directive=push.Directives.add()
+    directive.Name=action
+    directive.Type='client_action'
+    directive.IsLedSilent=True
+    json_format.ParseDict(payload,directive.Payload,descriptor_pool=server_type.DESCRIPTOR.file.pool)
+    output.Timings.SendingTime.seconds=int(time.time())
+    return output
 
 
 def push_message(server_type, action, arguments):
@@ -86,69 +103,21 @@ def push_message(server_type, action, arguments):
         frames = arguments.get('frames') if isinstance(arguments, dict) else None
         if not (isinstance(frames, list) and frames and all(isinstance(u, str) and u.startswith('http') for u in frames)):
             raise ValueError('Анимация: {frames: [URL,…]} — кадры последовательности wire')
-        arguments, payload = {}, {'animation_sequence':[{'frontal_led_image': u} for u in frames],
-                                  'till_end_of_speech': False}
-        output=server_type()
-        output.Event.Header.MessageId=uuid.uuid4().hex
-        output.Event.Header.Ack=int(time.time()*1000)
-        push=output.Event.Push
-        push.DeduplicationPushId=uuid.uuid4().hex
-        push.PushIds.append(uuid.uuid4().hex)
-        directive=push.Directives.add()
-        directive.Name=action
-        directive.Type='client_action'
-        directive.IsLedSilent=True
-        json_format.ParseDict(payload,directive.Payload,descriptor_pool=server_type.DESCRIPTOR.file.pool)
-        output.Timings.SendingTime.seconds=int(time.time())
-        return output
-
-    if action=='draw_animation':
-        """Родная директива draw_animation с BinaryAnimation (base64+gzip).
-        Аргументы: {base64_value: str, compression_type: 'Gzip'|None, name?: str}
-        Собирается через существующие схемы эмулятора (proto_schemas.encode_message).
-        """
-        if not isinstance(arguments, dict):
-            raise ValueError('Анимация: объект с base64_value и compression_type')
-        base64_value = arguments.get('base64_value')
-        compression_type = arguments.get('compression_type')
-        anim_name = arguments.get('name') or 'animation'
-        if not isinstance(base64_value, str) or not base64_value:
-            raise ValueError('base64_value: непустая строка')
-        if compression_type is not None and compression_type not in ('Gzip', None):
-            raise ValueError("compression_type: 'Gzip' или null")
-
-        from .proto_schemas import encode_message
-        directive_body = {
-            "Name": "draw_animation_directive",
-            "Animations": [
-                {
-                    "BinaryAnimation": {
-                        "Base64EncodedValue": base64_value,
-                    }
-                }
-            ]
-        }
-        if compression_type == "Gzip":
-            directive_body["Animations"][0]["BinaryAnimation"]["Compression"] = "Gzip"
-
-        payload_raw = encode_message(
-            "NAlice.TAnimationCapability.TDrawAnimationDirective",
-            directive_body,
-        )
-
-        output=server_type()
-        output.Event.Header.MessageId=uuid.uuid4().hex
-        output.Event.Header.Ack=int(time.time()*1000)
-        push=output.Event.Push
-        push.DeduplicationPushId=uuid.uuid4().hex
-        push.PushIds.append(uuid.uuid4().hex)
-        directive=push.Directives.add()
-        directive.Name='draw_animation'
-        directive.Type='client_action'
-        directive.IsLedSilent=True
-        directive.PayloadRaw = bytes(payload_raw)
-        output.Timings.SendingTime.seconds=int(time.time())
-        return output
+        return _payload_push(server_type, action, {'animation_sequence':[{'frontal_led_image': u} for u in frames],
+                                                   'till_end_of_speech': False})
+    if action=='draw_scled_animations':
+        # часы Мини 2: DrawSegmentAnimationParser прошивки читает animations[{name,
+        # base64_encoded_value, compression_type}] и animation_stop_policy из payload директивы
+        animations = arguments.get('animations') if isinstance(arguments, dict) else None
+        valid = isinstance(animations, list) and animations and all(
+            isinstance(a, dict) and isinstance(a.get('base64_encoded_value'), str) and a['base64_encoded_value']
+            and a.get('compression_type', 'None') in ('None', 'Gzip') for a in animations)
+        if not valid:
+            raise ValueError('Анимация: {animations: [{name, base64_encoded_value, compression_type}]}')
+        policy = arguments.get('animation_stop_policy', 'PlayOnce')
+        if policy not in ('PlayOnce', 'PlayOnceTillEndOfTTS', 'RepeatLastTillEndOfTTS', 'RepeatLastTillNextDirective'):
+            raise ValueError('animation_stop_policy: неизвестная политика')
+        return _payload_push(server_type, action, {'animations': animations, 'animation_stop_policy': policy})
     if not isinstance(arguments,dict) or set(arguments)-({'level'} if action=='sound_set_level' else set()):
         raise ValueError('Недопустимые параметры действия')
     payload = {}

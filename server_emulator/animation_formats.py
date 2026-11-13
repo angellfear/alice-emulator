@@ -1,412 +1,271 @@
-"""Parse and build animation formats: .led, .scled, BinaryAnimation (base64+gzip).
+"""Родные форматы анимаций колонок: .led (кольцо/панель/окно), .scled (часы Мини 2),
+сборка бинарника для директивы draw_scled_animations.
 
-Supported formats:
-  .led  — текстовый формат для кольцевого LED-дисплея (yandex_io/modules/leds/led_patterns/led_pattern.cpp)
-  .scled — текстовый и бинарный формат для 7-сегментных часов Мини 2
-           (ScLedPattern::loadFromBinary, scled_to_bin_converter/main.cpp)
-  BinaryAnimation — draw_animation_directive структура: [name, base64_encoded_value,
-                     compression_type None|Gzip]
+Кадр .led — {"colors": [[r, g, b, w], …N], "delayMs": int}, кадр .scled —
+{"brightnesses": [0..255 × 32], "delayMs": int}. Результат разбора —
+ParsedAnimation: кадры, loop_from (индекс кадра, с которого анимация зацикливается,
+-1 — без цикла), name.
 
-Формат .led: строка на кадр — hex-RGB цвета × ledCount LED + delay мс.
-Макросы: loop (зацикливание), smooth N, gammacorrection, background, name X,
-         no_size_optimization, rotate/step1/step2/fill/unfill.
-Формат .scled текст: строка на кадр — 32 яркости (0-255) + delay мс.
-                  ループ строка — просто слово "loop".
-Формат .scled бинарный: блоки [0][32 байта яркости][2B delay BE] или [1]=loop.
-BinaryAnimation: бинарный .scled данные, gzip-компрессия, base64-кодирование.
+.led — как LedPattern::load прошивки: строка = кадр (N цветов hex RGB или RGBW + delay мс),
+`loop` — начало цикла, `name X`, макросы-префиксы кадра rotate/step1/step2/fill/unfill
+(разворачиваются в серию кадров), `gradient led1 цвет led2 цвет delay`. Директивы
+smooth/logsmooth/gammacorrection/background/no_size_optimization читаются и не
+применяются: кадры остаются такими, как написаны.
+
+.scled — как ScLedPattern прошивки: текст — 32 яркости (разделитель `|` игнорируется) + delay,
+`loop`; бинарник — блоки [0][32 яркости][delay uint16 BE] и [1] (метка цикла перед
+следующим кадром).
 """
+from __future__ import annotations
 
 import base64
 import gzip
+import re
 import struct
-from dataclasses import dataclass
-from typing import List, Optional
+from dataclasses import dataclass, field
+
+SCLED_LEDS = 32
+SCLED_DIGITS = 4          # цифры: 4 × сегменты A–G (индексы 0..27)
+SCLED_SEGMENTS = 7
+# 28 PLUS1, 29 PLUS2, 30 MINUS, 31 DEGREE
+MAX_DELAY_MS = 0xFFFF
+
+_HEX_COLOR = re.compile(r"(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})")
+_LED_MACROS = ("rotate", "step1", "step2", "fill", "unfill")
+_LED_DIRECTIVES = ("smooth", "logsmooth", "gammacorrection", "background", "no_size_optimization")
 
 
 @dataclass
-class RgbColor:
-    """RGBW цвет пикселя."""
-    r: int = 0
-    g: int = 0
-    b: int = 0
-    w: int = 0
-
-    def to_bytes(self) -> bytes:
-        return bytes([self.r, self.g, self.b, self.w])
-
-    @classmethod
-    def from_bytes(cls, data: bytes) -> "RgbColor":
-        if len(data) >= 4:
-            return cls(data[0], data[1], data[2], data[3])
-        return cls()
-
-
-@dataclass
-class LedFrame:
-    """Кадр анимации для светодиодного дисплея."""
-    colors: List[RgbColor]  # длиной ledCount (или 28 для 7-сегментных часов)
-    delayMs: int = 0
-
-
-@dataclass
-class AnimationResult:
-    """Результат парсинга анимации."""
-    frames: List[LedFrame]
+class ParsedAnimation:
+    frames: list = field(default_factory=list)
+    loop_from: int = -1
     name: str = ""
 
 
-# ─── .led format parser ──────────────────────────────────────────────────────
+# --- .led -------------------------------------------------------------------
+
+def read_color(word: str) -> list[int]:
+    """Цвет hex: RRGGBB или RRGGBBWW (с префиксом # / 0x) → [r, g, b, w]."""
+    text = word.strip()
+    if text[:1] == "#":
+        text = text[1:]
+    elif text[:2].lower() == "0x":
+        text = text[2:]
+    if not _HEX_COLOR.fullmatch(text):
+        raise ValueError(f"цвет «{word}»: нужен hex RRGGBB или RRGGBBWW")
+    values = [int(text[i:i + 2], 16) for i in range(0, len(text), 2)]
+    return values + [0] * (4 - len(values))
 
 
-def _parse_hex_color(word: str) -> RgbColor:
-    """Parse hex color string like '#FF00AA' or 'FF00AA' or '0xFF00AA'."""
-    w = word.strip()
-    if w.startswith("#"):
-        w = w[1:]
-    if w.startswith("0x") or w.startswith("0X"):
-        w = w[2:]
-    w = w.ljust(6, "0")[:6]
-    try:
-        val = int(w, 16)
-        return RgbColor(
-            r=(val >> 16) & 0xFF,
-            g=(val >> 8) & 0xFF,
-            b=val & 0xFF,
-            w=0,
-        )
-    except ValueError:
-        return RgbColor()
+def _rotated(colors: list, count: int) -> list:
+    count %= len(colors)
+    return colors[len(colors) - count:] + colors[:len(colors) - count] if count else list(colors)
 
 
-MACROS = (
-    "loop", "smooth", "gammacorrection", "background", "name",
-    "no_size_optimization", "rotate", "step1", "step2", "fill", "unfill",
-)
+def _gradient(led1: int, color1: list, led2: int, color2: list, count: int) -> list:
+    if led1 == led2:
+        raise ValueError("gradient: точки совпадают")
+    if not (0 <= led1 < count and 0 <= led2 < count):
+        raise ValueError(f"gradient: номера LED от 0 до {count - 1}")
+    start, end, from_color, to_color = (led1, led2, color1, color2) if led1 < led2 else (led2, led1, color2, color1)
+    result = [[0, 0, 0, 0] for _ in range(count)]
+
+    def mix(percent):
+        return [int(round(from_color[k] + (to_color[k] - from_color[k]) * percent)) & 0xFF for k in range(4)]
+
+    for i in range(start, end + 1):
+        result[i] = mix((i - start) / (end - start))
+    i = (end + 1) % count
+    while i != start:
+        result[i] = mix(((count - i) + start) / (count - (end - start)))
+        i = (i + 1) % count
+    return result
 
 
-def parse_led_text(text: str, led_count: int) -> AnimationResult:
-    """Parse .led text format.
+def _expand_macro(macro: str, colors: list, delay: int) -> list:
+    count = len(colors)
+    black = [0, 0, 0, 0]
+    frames = []
 
-    Format per line (after stripping comments # and empty lines):
-      <hex-colors> <delayMs>
-    where <hex-colors> is space-separated hex RGB values for ledCount LEDs.
+    def add(frame_colors):
+        frames.append({"colors": [list(c) for c in frame_colors], "delayMs": delay})
 
-    Macros processed: loop, smooth N, gammacorrection, background, name X,
-    no_size_optimization, rotate/step1/step2/fill/unfill.
-    Transformation macros (rotate/step1/step2/fill/unfill) are recorded as
-    plain frames — the emulator renders them as-is; the firmware-side
-    multi-frame expansion is not part of this stage.
-    """
-    frames: List[LedFrame] = []
-    name = ""
-    loop_from_index = -1
-    smooth = False
-    gamma_correction = False
-    background = False
-    optimize_size = True
+    if macro == "rotate":
+        for i in range(count):
+            add(_rotated(colors, i))
+    elif macro == "step1":
+        for i in range(count):
+            add(_rotated(colors[:i + 1] + [black] * (count - i - 1), i - 1))
+        add(colors)
+        for i in range(count - 1):
+            add(_rotated([black] * (i + 1) + colors[:count - i - 1], i + 1))
+    elif macro == "step2":
+        for i in range(1, count + 1):
+            add(colors[:i] + [black] * (count - i))
+        for i in range(1, count):
+            add([black] * i + colors[i:])
+    elif macro == "fill":
+        for i in range(count):
+            add(colors[:i + 1] + [black] * (count - i - 1))
+    elif macro == "unfill":
+        for i in range(count):
+            add([black] * i + colors[i:])
+    return frames
 
-    for raw_line in text.split("\n"):
-        line = raw_line.strip()
+
+def parse_led_text(text: str, led_count: int) -> ParsedAnimation:
+    """Разбор .led для дисплея из led_count светодиодов; ValueError с номером строки."""
+    if led_count < 1:
+        raise ValueError("число LED должно быть положительным")
+    result = ParsedAnimation()
+    for number, raw in enumerate(text.splitlines(), 1):
+        line = raw.strip()
         if not line or line.startswith("#"):
             continue
-
-        lower = line.lower()
-
-        if lower.startswith("loop"):
-            loop_from_index = len(frames)
-            continue
-
-        if lower.startswith("smooth"):
-            parts = line.split()
-            smooth = len(parts) > 1 and _safe_int(parts[1], 0) > 0
-            continue
-
-        if lower.startswith("gammacorrection"):
-            gamma_correction = True
-            continue
-
-        if lower.startswith("background"):
-            background = True
-            continue
-
-        if lower.startswith("name"):
-            parts = line.split(None, 1)
-            if len(parts) > 1:
-                name = parts[1].strip().strip('"').strip("'")
-            continue
-
-        if lower.startswith("no_size_optimization"):
-            optimize_size = False
-            continue
-
-        if lower.startswith(("rotate", "step1", "step2", "fill", "unfill")):
-            # Transformation macro — record the following frame if present,
-            # but treat this line as a macro with no direct frame output.
-            # The following frame line will be parsed normally on next iteration.
-            continue
-
-        # Frame line: hex colors + delay
-        # Format: <color1> <color2> ... <colorN> <delayMs>
-        # where N = ledCount colors, then delay is the last number.
         tokens = line.split()
-        if not tokens:
-            continue
-
-        # Try to interpret the last token as a delay
-        delay = 0
-        color_tokens = tokens[:]
+        head = tokens[0].lower()
         try:
-            maybe_delay = int(tokens[-1])
-            delay = maybe_delay
-            color_tokens = tokens[:-1]
-        except ValueError:
-            pass
-
-        # Filter out macro keywords from color tokens
-        color_tokens = [
-            t for t in color_tokens
-            if not any(t.lower().startswith(m) for m in MACROS)
-        ]
-
-        if not color_tokens:
-            continue
-
-        colors: List[RgbColor] = []
-        for j in range(min(led_count, len(color_tokens))):
-            colors.append(_parse_hex_color(color_tokens[j]))
-        while len(colors) < led_count:
-            colors.append(RgbColor())
-
-        frames.append(LedFrame(colors=colors, delayMs=delay))
-
-    return AnimationResult(frames=frames, name=name)
-
-
-def _safe_int(value: str, default: int = 0) -> int:
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return default
-
-
-# ─── .scled format parsers ───────────────────────────────────────────────────
-
-
-def parse_scled_text(text: str) -> AnimationResult:
-    """Parse .scled text format for Mini 2 clock (7-сегментный дисплей).
-
-    Format per line:
-      <32 brightness values 0-255> <delay ms>
-    or simply:
-      loop        — маркер зацикливания
-
-    Example:
-      255 128 64 ... (32 values) ... 100   # кадр с задержкой 100 мс
-      loop                                  # зацикливание с этой позиции
-    """
-    frames: List[LedFrame] = []
-    name = ""
-
-    for raw_line in text.split("\n"):
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-
-        lower = line.lower()
-        if lower == "loop":
-            # Loop marker — emulated as a frame with delay 0; the renderer
-            # treats the last frame as loop start. We record it as a marker
-            # on the existing last frame instead.
-            if frames:
-                frames[-1].delayMs = max(frames[-1].delayMs, 0)
-            continue
-
-        tokens = line.split()
-        values: List[int] = []
-        delay = 0
-        for token in tokens:
-            try:
-                v = int(token)
-                values.append(v)
-            except ValueError:
+            if head == "loop":
+                result.loop_from = len(result.frames)
                 continue
-
-        if not values:
-            continue
-
-        # Last value is the delay if it looks like one (>= 100 typical delay
-        # vs brightness 0-255). Actually the text format puts delay as the
-        # final number on the line.
-        delay = values[-1] if len(values) > 1 else 0
-        brightnesses = values[:-1] if len(values) > 1 else values[:]
-
-        # Clamp brightnesses to 0-255
-        brightnesses = [max(0, min(255, b)) for b in brightnesses]
-        # Take up to 32 brightness values
-        brightnesses = brightnesses[:32]
-
-        colors = [RgbColor(b, b, b, 0) for b in brightnesses]
-        frames.append(LedFrame(colors=colors, delayMs=delay))
-
-    return AnimationResult(frames=frames, name=name)
-
-
-def parse_scled_binary(data: bytes) -> AnimationResult:
-    """Parse .scled binary format.
-
-    Blocks: [0][32 bytes brightness][2B BE delay] for a frame,
-            [1] for a loop marker.
-    """
-    frames: List[LedFrame] = []
-    pos = 0
-    length = len(data)
-
-    while pos < length:
-        selector = data[pos]
-        pos += 1
-
-        if selector == 1:
-            # Loop marker — if we have frames, mark the last one as loop start
-            # (the renderer handles the loop). We record a zero-delay marker.
-            if frames:
-                frames[-1].delayMs = max(frames[-1].delayMs, 0)
-            continue
-
-        if selector != 0:
-            # Unknown selector byte — stop parsing
-            break
-
-        # Read 32 brightness bytes
-        brightnesses = []
-        for _ in range(32):
-            if pos < length:
-                brightnesses.append(data[pos])
-                pos += 1
+            if head == "name":
+                result.name = tokens[1] if len(tokens) > 1 else ""
+                continue
+            if head in _LED_DIRECTIVES:
+                continue
+            macro = None
+            if head in _LED_MACROS:
+                macro, tokens = head, tokens[1:]
+            if tokens and tokens[0].lower() == "gradient":
+                if len(tokens) != 6:
+                    raise ValueError("gradient: led1 цвет led2 цвет delay")
+                colors = _gradient(int(tokens[1]), read_color(tokens[2]), int(tokens[3]),
+                                   read_color(tokens[4]), led_count)
+                delay = int(tokens[5])
             else:
-                brightnesses.append(0)
-
-        # Read 2 bytes big-endian delay
-        delay = 0
-        if pos + 2 <= length:
-            delay = struct.unpack(">H", data[pos:pos + 2])[0]
-            pos += 2
-
-        colors = [RgbColor(b, b, b, 0) for b in brightnesses]
-        frames.append(LedFrame(colors=colors, delayMs=delay))
-
-    return AnimationResult(frames=frames, name="")
-
-
-def build_scled_binary(animation_result: AnimationResult) -> bytes:
-    """Build .scled binary data from AnimationResult.
-
-    Produces blocks: [0][32 bytes brightness][2B BE delay] per frame,
-    [1] for loop markers.
-    """
-    result = bytearray()
-    for frame in animation_result.frames:
-        # Take brightness from first color channel (grayscale)
-        brightnesses = []
-        for i in range(32):
-            if i < len(frame.colors):
-                brightnesses.append(max(0, min(255, frame.colors[i].r)))
-            else:
-                brightnesses.append(0)
-
-        result.append(0)  # frame selector
-        result.extend(bytes(brightnesses))
-        result.extend(struct.pack(">H", frame.delayMs & 0xFFFF))
-
-    # Loop marker — the last frame in a looping animation gets byte 1
-    # The loop_from_index logic: in this simple builder, if there are frames
-    # we add a loop marker after them (the renderer will loop from start).
-    # More precise loop_from_index handling is left to the caller/UI.
-    if frames := animation_result.frames:
-        result.append(1)  # loop marker
-
-    return bytes(result)
+                if len(tokens) != led_count + 1:
+                    raise ValueError(f"нужно {led_count} цветов и задержка, получено {len(tokens)} слов")
+                colors = [read_color(word) for word in tokens[:led_count]]
+                delay = int(tokens[-1])
+            if delay < 0:
+                raise ValueError("задержка не может быть отрицательной")
+        except ValueError as exc:
+            raise ValueError(f"строка {number}: {exc}") from None
+        if macro:
+            expanded = _expand_macro(macro, colors, delay)
+            if result.loop_from == len(result.frames) and not expanded:
+                continue
+            result.frames.extend(expanded)
+        else:
+            result.frames.append({"colors": colors, "delayMs": delay})
+    return result
 
 
-# ─── BinaryAnimation builder ─────────────────────────────────────────────────
+def build_led_text(frames: list, loop_from: int = -1, name: str = "") -> str:
+    """Кадры → текст .led (RRGGBBWW на LED, как LedPattern::getInRawFormat)."""
+    lines = [f"name {name}"] if name else []
+    for index, frame in enumerate(frames):
+        if loop_from == index:
+            lines.append("loop")
+        words = ["".join(f"{int(v) & 0xFF:02x}" for v in (list(c) + [0] * 4)[:4]) for c in frame["colors"]]
+        lines.append(" ".join(words + [str(int(frame["delayMs"]))]))
+    return "\n".join(lines) + "\n"
 
 
-def build_binary_animation(
-    name: str,
-    animation_result: AnimationResult,
-    compression_type: Optional[str] = None,
-) -> tuple[str, Optional[str]]:
-    """Build BinaryAnimation fields from an AnimationResult.
+# --- .scled -----------------------------------------------------------------
 
-    BinaryAnimation{Compression, Base64EncodedValue} — the binary .scled
-    data is gzip-compressed (if compression_type == "Gzip") then base64-encoded.
-
-    Returns (base64_encoded_value, compression_type).
-    """
-    binary_data = build_scled_binary(animation_result)
-
-    actual_compression: Optional[str] = compression_type
-    if compression_type == "Gzip":
-        binary_data = gzip.compress(binary_data)
-    elif compression_type is not None and compression_type != "None":
-        raise ValueError(f"Unsupported compression_type: {compression_type}")
-
-    base64_value = base64.b64encode(binary_data).decode("ascii")
-    return base64_value, actual_compression
+def _scled_frame(values: list, delay: int) -> dict:
+    if len(values) != SCLED_LEDS:
+        raise ValueError(f"нужно {SCLED_LEDS} яркостей, получено {len(values)}")
+    if any(v < 0 or v > 255 for v in values):
+        raise ValueError("яркость сегмента 0..255")
+    if not 0 <= delay <= MAX_DELAY_MS:
+        raise ValueError(f"задержка 0..{MAX_DELAY_MS} мс")
+    return {"brightnesses": list(values), "delayMs": delay}
 
 
-def parse_binary_animation(
-    name: str,
-    base64_value: str,
-    compression_type: Optional[str] = None,
-) -> AnimationResult:
-    """Parse BinaryAnimation into AnimationResult.
-
-    Decodes base64, optionally gzip-decompresses, then parses as .scled binary.
-    """
-    try:
-        raw = base64.b64decode(base64_value, validate=True)
-    except Exception:
-        return AnimationResult(frames=[], name=name)
-
-    if compression_type == "Gzip":
+def parse_scled_text(text: str) -> ParsedAnimation:
+    result = ParsedAnimation()
+    for number, raw in enumerate(text.splitlines(), 1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.lower().startswith("loop"):
+            result.loop_from = len(result.frames)
+            continue
         try:
-            raw = gzip.decompress(raw)
-        except Exception:
-            pass
-
-    return parse_scled_binary(raw)
-
-
-# ─── Convenience file parsers ────────────────────────────────────────────────
-
-
-def parse_led_file(path: str, led_count: int) -> AnimationResult:
-    """Parse a .led file from disk."""
-    try:
-        with open(path, "r", encoding="utf-8", errors="replace") as f:
-            text = f.read()
-        return parse_led_text(text, led_count)
-    except Exception:
-        return AnimationResult(frames=[], name="")
+            numbers = [int(word) for word in line.replace("|", " ").split()]
+            if len(numbers) != SCLED_LEDS + 1:
+                raise ValueError(f"нужно {SCLED_LEDS} яркостей и задержка, получено {len(numbers)} чисел")
+            result.frames.append(_scled_frame(numbers[:SCLED_LEDS], numbers[SCLED_LEDS]))
+        except ValueError as exc:
+            raise ValueError(f"строка {number}: {exc}") from None
+    return result
 
 
-def parse_scled_file(path: str) -> AnimationResult:
-    """Parse a .scled file from disk (text or binary auto-detected)."""
-    try:
-        with open(path, "rb") as f:
-            data = f.read()
-        return parse_scled_bytes(data)
-    except Exception:
-        return AnimationResult(frames=[], name="")
+def parse_scled_binary(data: bytes) -> ParsedAnimation:
+    result = ParsedAnimation()
+    position = 0
+    while position < len(data):
+        key = data[position]
+        if key == 1:
+            result.loop_from = len(result.frames)
+            position += 1
+            continue
+        if key != 0:
+            raise ValueError(f"байт {position}: ожидался 0 или 1, получен {key}")
+        end = position + 1 + SCLED_LEDS + 2
+        if end > len(data):
+            raise ValueError("бинарник .scled оборван на середине кадра")
+        values = list(data[position + 1:position + 1 + SCLED_LEDS])
+        delay = struct.unpack(">H", data[end - 2:end])[0]
+        result.frames.append(_scled_frame(values, delay))
+        position = end
+    return result
 
 
-def parse_scled_bytes(data: bytes) -> AnimationResult:
-    """Parse .scled bytes (text or binary auto-detected)."""
-    try:
-        text_data = data.decode("utf-8", errors="replace")
-        result = parse_scled_text(text_data)
-        if result.frames:
-            return result
-        return parse_scled_binary(data)
-    except Exception:
-        return AnimationResult(frames=[], name="")
+def parse_scled_bytes(data: bytes) -> ParsedAnimation:
+    """.scled из файла: бинарник (начинается с байта 0/1, не печатный текст) или текст."""
+    return parse_scled_binary(data) if data[:1] in (b"\x00", b"\x01") else parse_scled_text(data.decode("utf-8", errors="replace"))
+
+
+def build_scled_text(frames: list, loop_from: int = -1) -> str:
+    lines = []
+    for index, frame in enumerate(frames):
+        if loop_from == index:
+            lines.append("loop")
+        values = frame["brightnesses"]
+        digits = " ".join(
+            " ".join(str(v) for v in values[d * SCLED_SEGMENTS:(d + 1) * SCLED_SEGMENTS])
+            for d in range(SCLED_DIGITS))
+        lines.append(f"{digits} | {' '.join(str(v) for v in values[28:])} {int(frame['delayMs'])}")
+    return "\n".join(lines) + "\n"
+
+
+def build_scled_binary(frames: list, loop_from: int = -1) -> bytes:
+    """Кадры → бинарник ScLedPattern::loadFromBinary. Метка цикла ставится перед кадром
+    loop_from; метка после последнего кадра прошивку роняет, поэтому её не пишем."""
+    out = bytearray()
+    for index, frame in enumerate(frames):
+        if loop_from == index:
+            out.append(1)
+        frame = _scled_frame(list(frame["brightnesses"]), int(frame["delayMs"]))
+        out.append(0)
+        out.extend(bytes(frame["brightnesses"]))
+        out.extend(struct.pack(">H", frame["delayMs"]))
+    return bytes(out)
+
+
+def build_scled_animation_payload(name: str, frames: list, loop_from: int = -1,
+                                  policy: str | None = None) -> dict:
+    """Payload директивы draw_scled_animations (DrawSegmentAnimationParser прошивки):
+    animations[{name, base64_encoded_value, compression_type}] + animation_stop_policy.
+    Без policy цикл анимации (loop_from >= 0) → RepeatLastTillNextDirective, иначе PlayOnce."""
+    if not frames:
+        raise ValueError("Анимация без кадров")
+    binary = gzip.compress(build_scled_binary(frames, loop_from))
+    if policy is None:
+        policy = "RepeatLastTillNextDirective" if 0 <= loop_from < len(frames) else "PlayOnce"
+    return {"animations": [{"name": name, "base64_encoded_value": base64.b64encode(binary).decode("ascii"),
+                            "compression_type": "Gzip"}],
+            "animation_stop_policy": policy}

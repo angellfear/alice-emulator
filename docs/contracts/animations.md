@@ -1,184 +1,93 @@
 ---
 title: "Контракт раздела «Анимации»"
 status: stable
-module: "server_emulator/animations.py, animation_formats.py, animation_storage.py, ui/api/animations.py"
+module: "server_emulator/animations.py, animation_formats.py, animation_storage.py, ui/api/animations.py, ui/animations.js"
 ---
 
 # Контракт раздела «Анимации»
 
-Раздел «Анимации» эмулятора сервера Яндекс Алисы: хранение проектов анимаций, разбор и сборка родных форматов (.led, .scled, GIF), HTTP API для управления проектами и проигрывание на колонке.
+Проекты анимаций дисплеев колонок: хранение по платформам, разбор и сборка родных форматов (.led, .scled, GIF), редактор с плеером в UI, отправка на колонку. Отдельно живёт каталог GIF-кадров станций (`AnimationStore`, домен `animations`): на нём сценарии LED-эмоций и MCP.
 
 ## 1. Платформы и дисплеи
 
-Список платформ и их дисплеев берётся из реестра `PLATFORM_DISPLAYS` в `server_emulator/animations.py`.
+Реестр — `PLATFORM_DISPLAYS` в `animations.py`. Колонка относится к платформе по профилю/модели, иначе по типу-символу SN (`device_platform`). Платформы без дисплея (ДуоМакс) в разделе не показываются.
 
-| Платформа | Дисплеи | Размер | Формат кадров | Примечание |
+| Платформа | Дисплей (`kind`) | Размер | Родной формат | Отправка на колонку |
 |---|---|---|---|---|
-| yandexstation_2 | frontal (глазки) + ring (кольцо) | 25×16 + 24 | gif / led | GIF по `draw_led_screen`, `.led` для кольца |
-| yandexmidi | panel (панель) + oknix (окно) | 15×13 + 5 | led | `.led` текст/бинарник |
-| yandexmini_2 | ring (кольцо) + clock (часы) | 6 + 32 | led / scled | `.scled` для часов 7-сегмент |
-| yandexstation | ring | 24 | led | |
-| yandexmini | ring | 24 | led | |
-| chiron | — | — | — | без дисплея, анимаций нет |
+| yandexstation_2 | `frontal` | 25×16 пикселей | GIF | да |
+| yandexstation_2 | `ring` | 24 LED | .led | нет |
+| yandexmidi | `panel` | 84 LED | .led | нет |
+| yandexmidi | `oknix` | 5 LED | .led | нет |
+| yandexmini_2 | `ring` | 6 LED | .led | нет |
+| yandexmini_2 | `clock` | 32 сегмента | .scled | да |
+| yandexstation, yandexmini | `ring` | 24 LED | .led | нет |
 
-API `GET /emulator/api/animations-platforms` возвращает все платформы с их дисплеями:
-`{platforms: [{platform, title, displays: [{kind, title, size, fps, format, note}]}]}`.
+`GET api/animations-platforms` → `{platforms: [{platform, title, displays: [{kind, title, size, format}], devices: [{sn, name, model}]}]}`: только платформы, у которых есть колонка пользователя; `devices` — колонки этой платформы (для списка «Проиграть»).
 
-## 2. Модель проекта анимации
+## 2. Проект
 
-Проект хранится в `state/animations/<platform>/<id>.json`:
+Файл `state/animations/<platform>/<id>.json`:
 
 ```json
-{
-  "platform": "yandexstation_2",
-  "id": "my.ring",
-  "title": "Моя анимация",
-  "kind": "ring",
-  "size": [24],
-  "fps": 30,
-  "frames": [ ... ]
-}
+{"platform": "yandexmini_2", "id": "my.clock.1", "title": "Часы 1", "kind": "clock",
+ "size": [32], "loop_from": -1, "frames": [{"brightnesses": [0, "… 32 значения"], "delayMs": 100}]}
 ```
 
-- `platform` — идентификатор платформы из реестра.
-- `id` — строчные буквы/цифры/._- до 64 символов.
-- `title` — непустая строка.
-- `kind` — `ring` | `panel` | `frontal` | `clock` | `oknix`.
-- `size` — список положительных целых (размер дисплея в пикселях/LED).
-- `fps` — положительное число.
-- `frames` — список кадров в родном представленииplatformы.
+- `id` — `[a-z0-9_.-]{1,64}`; `title` — непустая строка; `kind` — дисплей платформы; `size` берётся из реестра, не от клиента.
+- `loop_from` — индекс кадра, с которого анимация зацикливается; `-1` — без цикла.
+- Кадров от 1 до 500. Задержка `delayMs`: целое, у `clock` до 65535 мс, у `frontal` не меньше 20 мс, у остальных до 600000.
+- `ring`/`panel`/`oknix`: `{colors: [[r,g,b,w] × N], delayMs}`; цвета RGB без W дополняются нулём.
+- `clock`: `{brightnesses: [0..255 × 32], delayMs}`. Порядок: 4 цифры × сегменты A–G (индексы 0–27), затем PLUS1, PLUS2, MINUS, DEGREE.
+- `frontal`: `{colors: [[r,g,b] × 400], delayMs}`; GIF 25×16 строится из кадров при экспорте и отправке.
 
-### Представления кадров
+## 3. Родные форматы (`animation_formats.py`)
 
-**ring / panel / oknix (`.led`)** — каждый кадр: `{colors: [[r,g,b,w], ...], delayMs: N}` где `colors` — массив длиной `size[0]` цветов RGBW, `delayMs` — задержка кадра в мс.
+**.led** (как `LedPattern::load` прошивки): строка — кадр, N цветов hex `RRGGBB` или `RRGGBBWW` и задержка мс; `loop` — начало цикла; `name X`; макросы-префиксы кадра `rotate`, `step1`, `step2`, `fill`, `unfill` разворачиваются в серию кадров; `gradient led1 цвет led2 цвет delay`. Строки `smooth`, `logsmooth`, `gammacorrection`, `background`, `no_size_optimization` читаются и не применяются. Ошибка разбора — `ValueError` с номером строки. Экспорт пишет `RRGGBBWW`.
 
-**clock (`.scled`)** — каждый кадр: `{brightnesses: [0..255 x 32], delayMs: N}` — 32 значения яркости сегментов (4 цифры × 7 сегментов + индикаторы) + задержка.
+**.scled** (как `ScLedPattern` прошивки): текст — 32 яркости (разделитель `|` допускается) и задержка, `loop`; бинарник — блоки `[0][32 яркости][задержка uint16 big-endian]` и `[1]` (метка цикла перед следующим кадром). Метка цикла после последнего кадра роняет прошивку, поэтому не пишется. Формат файла при импорте определяется по первому байту.
 
-**frontal (GIF)** — каждый кадр: `{media_file: "имя.gif", media_url: "/emulator/api/animations-media?file=имя.gif"}` — ссылка на GIF-файл в `state/animations/media/`.
+## 4. Отправка на колонку
 
-## 3. Родные форматы
+`POST api/animations-play {platform, id, sn}` (`play_project`). Колонка должна быть той же платформы, что проект.
 
-### .led (кольцевой LED-дисплей)
+- `clock` — Push `draw_scled_animations` (имя и разбор нагрузки — `DrawSegmentAnimationParser` прошивки Мини 2): `{animations: [{name, base64_encoded_value, compression_type: "Gzip"}], animation_stop_policy}`; политика `RepeatLastTillNextDirective`, если задан цикл, иначе `PlayOnce`. Образца этой директивы в журнале нет, на колонке не проверена.
+- `frontal` — GIF проекта кладётся в `state/animations/media/project.<platform>.<id>.gif`, Push `draw_led_screen` с URL `<схема>://<host запроса>/emulator/api/animations-media?file=…`. Интерфейс нужно открыть по адресу сервера в сети: с `localhost` колонка GIF не достанет, API отвечает ошибкой.
+- `ring`, `panel`, `oknix` — не отправляются: универсальный обработчик `draw_animation` прошивки ветку `BinaryAnimation` не реализует, директивы с такой нагрузкой для кольца и панели не найдено. Редактор, импорт и экспорт работают.
 
-Текстовый формат, строка на кадр:
+Доставка — `runtime.push_action`: живая сессия или мостовое соединение («Прозрачно»); экран колонки не подтверждается (`sent/unconfirmed`).
 
-```
-<hex-RGB> <hex-RGB> ... <hex-RGB> <delayMs>
-```
+## 5. API
 
-где цветов столько, сколько LED в дисплее, а `delayMs` — задержка кадра в миллисекундах.
-
-Макросы (обрабатываются парсером):
-- `loop` — метка зацикливания с этой позиции
-- `smooth N` — сглаживание между кадрами (коэффициент N)
-- `gammacorrection` — гамма-коррекция цветов
-- `background` — фоновый кадр
-- `name X` — имя анимации
-- `no_size_optimization` — отключить оптимизацию размера
-- `rotate` / `step1` / `step2` / `fill` / `unfill` — трансформационные макросы
-
-Пример для 3 LED:
-```
-FF0000 00FF00 0000FF 100
-00FF00 FF0000 0000FF 200
-loop
-```
-
-### .scled (7-сегментные часы Мини 2)
-
-Текстовый формат, строка на кадр:
-
-```
-<яркость1> <яркость2> ... <яркость32> <delayMs>
-```
-
-где 32 значения яркости (0–255) для сегментов 4 цифр (A–G по каждой) и индикаторов, `delayMs` — задержка.
-
-Строка `loop` — метка зацикливания.
-
-Бинарный формат (соответствует `ScLedPattern::loadFromBinary`):
-
-```
-[0][32 байта яркости][2 байта delay big-endian] [1]=loop
-```
-
-Каждый блок `0` — один кадр. Блок `1` — маркер зацикливания.
-
-### BinaryAnimation (draw_animation_directive)
-
-Структура из схемы станции `NAlice.TAnimationCapability.TDrawAnimationDirective`:
-
-```protobuf
-message TAnimation {
-  oneof value {
-    TBinaryAnimation binary_animation = 1;
-    TS3Directory s3_directory = 2;
-    TTypedAnimation typed_animation = 3;
-  }
-}
-message TBinaryAnimation {
-  optional string compression = 1;   // "Gzip" или отсутствует
-  optional string base64_encoded_value = 2;
-}
-```
-
-Сборка через существующие схемы эмулятора (`proto_schemas.encode_message` с типом `NAlice.TAnimationCapability.TDrawAnimationDirective`). Бинарные `.scled` данные кодируются gzip (опционально) и base64.
-
-API `POST /emulator/api/animations` с `{id, sn}` отправляет `Push draw_animation` в живую сессию устройства (или мостовое соединение в «Прозрачно»).
-
-## 4. HTTP API
-
-### 4.1 animations — каталог LED-анимаций (существующий)
-
-| Метод | Путь | Параметры | Описание |
-|---|---|---|---|
-| GET | `/emulator/api/animations` | — | Список анимаций + реестр моделей |
-| PUT | `/emulator/api/animations` | `{animation, media_base64?}` | Сохранить анимацию |
-| DELETE | `/emulator/api/animations?id=` | `id` | Удалить анимацию |
-| POST | `/emulator/api/animations` | `{id, sn}` | Проиграть на устройстве (Push draw_led_screen) |
-
-### 4.2 animations-media — выдача GIF
-
-| Метод | Путь | Параметры | Описание |
-|---|---|---|---|
-| GET | `/emulator/api/animations-media` | `file` | Выдать GIF-файл каталога |
-
-### 4.3 animations-platforms — платформы и дисплеи
-
-| Метод | Путь | Описание |
+| Домен | Метод | Описание |
 |---|---|---|
-| GET | `/emulator/api/animations-platforms` | Список платформ с их дисплеями |
+| `animations-platforms` | GET | платформы с колонками пользователя |
+| `animations-projects` | GET `?platform=[&id=]` | список проектов платформы / проект |
+| `animations-projects` | PUT | сохранить `{platform, id, title, kind, loop_from, frames}` |
+| `animations-projects` | DELETE `?platform=&id=` | удалить проект (и его GIF) |
+| `animations-import` | POST | `{platform, id, title, kind, filename, data_base64}`: .led/.scled/.gif до 2 МиБ; GIF другого размера масштабируется к 25×16 |
+| `animations-export` | GET `?platform=&id=` | файл в родном формате: `.led`, `.scled` или `.gif` |
+| `animations-play` | POST | отправка на колонку (раздел 4) |
+| `animations-media` | GET `?file=` | GIF каталога и проектов |
+| `animations` | GET/PUT/DELETE/POST | каталог GIF-кадров станций; POST — Push `draw_led_screen` |
 
-### 4.4 animations-projects — CRUD проектов
+Запись — только с заголовком `X-Emulator: 1`. GIF строится и читается через Pillow (основная зависимость).
 
-| Метод | Путь | Описание |
-|---|---|---|
-| GET | `/emulator/api/animations-projects?platform=` | Список проектов платформы |
-| GET | `/emulator/api/animations-projects?platform=&id=` | Проект по id |
-| PUT | `/emulator/api/animations-projects` | Тело `{platform, id, title, kind, size, fps, frames}` — создать/заменить |
-| DELETE | `/emulator/api/animations-projects?platform=&id=` | Удалить проект |
-| POST | `/emulator/api/animations-projects` | То же, что PUT (alias) |
+## 6. UI
 
-### 4.5 animations-import — импорт файла
+Раздел «Анимации» группы «Эмулятор» (после «Каталога приложений»). Подвкладки — платформы колонок; при двух дисплеях — переключатель дисплея. На вкладке: каталог проектов (предпросмотр первого кадра), редактор (SVG-холст под дисплей: сетка, кольцо, 7-сегментные часы; палитра RGB или яркость сегмента, заливка, лента кадров, дубль/перемещение/удаление, задержка кадра, начало цикла), плеер предпросмотра, сохранение, экспорт, удаление, выбор колонки и «Проиграть», импорт файла или вставленного текста.
 
-| Метод | Путь | Описание |
-|---|---|---|
-| POST | `/emulator/api/animations-import` | Тело `{platform, id, title, kind, size, fps, media_base64, filename}` — импорт .led/.scled/.gif |
+## 7. Добыча файлов анимаций
 
-Все write-методы требуют заголовок `X-Emulator: 1` и same-origin ( guard диспетчера `ui/api/__init__.py`).
+Каталоги прошивки в репозиторий не входят. Свои файлы с колонки или из распакованной OTA:
 
-## 5. Проигрывание на колонке
+```
+python tools/import_animations.py pull --remote <каталог на колонке> --dest <папка>     # adb pull
+python tools/import_animations.py import --platform yandexmini_2 --kind clock <папка>   # в state/animations/
+```
 
-`POST /emulator/api/animations` с `{id, sn}`:
-1. Найти проект/анимацию по id.
-2. Проверить, что у устройства SN есть дисплей (способность != "none").
-3. Для `frontal` (GIF): Push `draw_led_screen` с `animation_sequence[{frontal_led_image: url}]`.
-4. Для остальных (ring/panel/clock/oknix): Push `draw_animation` с `BinaryAnimation` (base64+gzip родного бинарника).
+Расширение должно подходить дисплею (`ring`/`panel`/`oknix` — .led, `clock` — .scled, `frontal` — .gif 25×16); неподходящие файлы пропускаются с причиной. Каталог на колонке пользователь находит сам (`adb shell find / -name "*.scled"`).
 
-Отправка через `runtime.push_action(sn, action, arguments)` — квитируемая доставка в живую WS-сессию или мостовое соединение («Прозрачно»).
+## 8. Границы
 
-## 6. Границы
-
-- Реагирующие анимации (эквалайзер, LED_USER_CONFIG) — вне этапа 2, не реализованы.
-- Каталоги прошивки (встроенные .led/.scled/GIF из Z:/alice/source) не извлекаются в репозиторий — только импорт пользовательских файлов.
-- UI-подвкладки не делаются на этой стадии (следующий исполнитель).
+- Реагирующие на звук анимации (эквалайзер, выбор стиля из приложения «Дом») не реализованы: нужна запись конфигурационных каналов с колонки.
+- Раскладка 84 светодиодов панели Миди на растре 15×13 не воспроизводится: панель редактируется списком LED (12 в ряд), нумерация LED кольца — от верхней точки по часовой стрелке.

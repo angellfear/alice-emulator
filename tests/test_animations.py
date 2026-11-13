@@ -2,14 +2,17 @@
 анимаций, Мини 7-сегмент), API, проигрывание Push'ом, bindings-источник,
 хранение проектов (state/animations/<platform>/<id>.json)."""
 import base64
+import gzip
+import io
 
+import pytest
 from aiohttp import ClientSession
 
-from server_emulator.animation_formats import parse_led_text, parse_scled_text, parse_scled_binary
+from server_emulator import animation_formats as formats
 from server_emulator.animation_storage import AnimationProjectStore
 from server_emulator.animations import (
-    DEFAULT_DISPLAY, AnimationStore, display_of, display_of_device,
-    list_platforms, platform_has_displays, platform_displays,
+    DEFAULT_DISPLAY, PLATFORM_DISPLAYS, AnimationStore, device_platform, display_of,
+    display_of_device, list_platforms, platform_displays,
 )
 from server_emulator.runtime import Runtime
 from server_emulator.server import create_app
@@ -129,240 +132,313 @@ def test_sequence_frames_compose_wire(tmp_path):
     assert store.sequence_urls("builtin.led.joy") == [store.get("builtin.led.joy")["url"]]
 
 
-# ─── платформы / дисплеи ───────────────────────────────────────────────────
+# ─── родные форматы ────────────────────────────────────────────────────────
 
-def test_list_platforms_counts():
-    platforms = list_platforms()
-    ids = {p["platform"] for p in platforms}
-    assert ids == {"yandexstation_2", "yandexmidi", "yandexmini_2", "yandexstation", "yandexmini", "chiron"}
-    assert platform_has_displays("yandexmini_2")
-    assert not platform_has_displays("chiron")
-    station2 = next(p for p in platforms if p["platform"] == "yandexstation_2")
-    kinds = {d["kind"] for d in station2["displays"]}
-    assert kinds == {"frontal", "ring"}
+def test_led_parse_frames_loop_name_and_rgbw():
+    parsed = formats.parse_led_text("name demo\nff000000 00ff0000 0000ff00 100\nloop\n"
+                                    "#комментарий\n00000000 11223344 000000 200\nsmooth 3\n", 3)
+    assert parsed.name == "demo" and parsed.loop_from == 1
+    assert parsed.frames[0] == {"colors": [[255, 0, 0, 0], [0, 255, 0, 0], [0, 0, 255, 0]], "delayMs": 100}
+    assert parsed.frames[1]["colors"][1] == [0x11, 0x22, 0x33, 0x44]   # RRGGBBWW
 
 
-def test_platform_displays_shape():
-    for p in list_platforms():
-        for d in p["displays"]:
-            assert set(d) >= {"kind", "title", "size", "fps", "format", "note"}
-            assert d["fps"] > 0
-            assert all(s > 0 for s in d["size"])
+def test_led_macros_expand_to_frames():
+    rotate = formats.parse_led_text("rotate ff0000 000000 000000 000000 50", 4)
+    assert [f["colors"].index([255, 0, 0, 0]) for f in rotate.frames] == [0, 1, 2, 3]
+    fill = formats.parse_led_text("fill 111111 222222 333333 40", 3).frames
+    assert [sum(1 for c in f["colors"] if c != [0, 0, 0, 0]) for f in fill] == [1, 2, 3]
+    unfill = formats.parse_led_text("unfill 111111 222222 333333 40", 3).frames
+    assert [sum(1 for c in f["colors"] if c != [0, 0, 0, 0]) for f in unfill] == [3, 2, 1]
+    step2 = formats.parse_led_text("step2 111111 222222 333333 40", 3).frames
+    assert len(step2) == 3 + 2
+    gradient = formats.parse_led_text("gradient 0 000000 2 ff0000 30", 3).frames[0]
+    assert gradient["colors"][1][0] == 128 and gradient["delayMs"] == 30
 
 
-# ─── AnimationProjectStore: CRUD ───────────────────────────────────────────
-
-def test_project_store_put_get_list_delete(tmp_path):
-    store = AnimationProjectStore(tmp_path / "animations")
-    entry = store.put("yandexmini_2", {
-        "id": "my.clock", "title": "Мои часы", "kind": "clock",
-        "size": [32], "fps": 30, "platform": "yandexmini_2",
-        "frames": [{"brightnesses": [255] * 32, "delayMs": 100}],
-    })
-    assert entry["id"] == "my.clock" and entry["kind"] == "clock"
-
-    got = store.get("yandexmini_2", "my.clock")
-    assert got is not None and got["title"] == "Мои часы" and got["platform"] == "yandexmini_2"
-
-    projects = store.list("yandexmini_2")
-    assert any(p["id"] == "my.clock" for p in projects)
-    assert store.list("yandexstation") == []
-
-    store.delete("yandexmini_2", "my.clock")
-    assert store.get("yandexmini_2", "my.clock") is None
+def test_led_rejects_wrong_line_with_number():
+    with pytest.raises(ValueError, match="строка 2"):
+        formats.parse_led_text("ff0000 00ff00 10\nff0000 20", 2)
+    with pytest.raises(ValueError, match="цвет"):
+        formats.parse_led_text("zz0000 10", 1)
 
 
-def test_project_store_validation(tmp_path):
-    store = AnimationProjectStore(tmp_path / "animations")
-    bad_cases = [
-        {"id": "BAD", "title": "t", "kind": "ring", "size": [24], "fps": 30},  # id не строчные
-        {"id": "ok", "title": "", "kind": "ring", "size": [24], "fps": 30},    # пустой title
-        {"id": "ok", "title": "t", "kind": "nope", "size": [24], "fps": 30},   # плохой kind
-        {"id": "ok", "title": "t", "kind": "ring", "size": [0], "fps": 30},    # size <= 0
-        {"id": "ok", "title": "t", "kind": "ring", "size": [24], "fps": 0},    # fps <= 0
-        {"id": "ok", "title": "t", "kind": "ring", "size": [24], "fps": 30, "frames": "nope"},  # frames не список
-    ]
-    for value in bad_cases:
-        try:
-            store.put("yandexmini_2", value)
-            raise AssertionError(f"должен быть отвергнут: {value}")
-        except ValueError:
-            pass
+def test_led_text_roundtrip():
+    frames = [{"colors": [[1, 2, 3, 4], [5, 6, 7, 8]], "delayMs": 90},
+              {"colors": [[0, 0, 0, 0], [9, 9, 9, 0]], "delayMs": 10}]
+    text = formats.build_led_text(frames, loop_from=1, name="x")
+    parsed = formats.parse_led_text(text, 2)
+    assert parsed.frames == frames and parsed.loop_from == 1 and parsed.name == "x"
 
 
-def test_project_store_platform_mismatch_rejected(tmp_path):
-    store = AnimationProjectStore(tmp_path / "animations")
-    try:
-        store.put("yandexmini_2", {"id": "x", "title": "t", "kind": "ring",
-                                   "size": [24], "fps": 30, "platform": "yandexstation"})
-        raise AssertionError("platform mismatch должен отвергаться")
-    except ValueError:
-        pass
+def _scled(brightness, delay):
+    return {"brightnesses": [brightness] * 32, "delayMs": delay}
 
 
-def test_project_store_persists(tmp_path):
-    root = tmp_path / "animations"
-    store = AnimationProjectStore(root)
-    store.put("yandexmini_2", {"id": "persist", "title": "P", "kind": "ring",
-                               "size": [24], "fps": 30, "frames": []})
-    # новый экземпляр — данные на диске
-    assert AnimationProjectStore(root).get("yandexmini_2", "persist") is not None
+def test_scled_text_and_binary_roundtrip_keep_loop_position():
+    frames = [_scled(10, 100), _scled(200, 300), _scled(0, 50)]
+    text = formats.build_scled_text(frames, loop_from=1)
+    parsed = formats.parse_scled_text(text)
+    assert parsed.frames == frames and parsed.loop_from == 1
+    binary = formats.build_scled_binary(frames, loop_from=1)
+    assert binary[0] == 0 and binary[1 + 32 + 2] == 1          # метка цикла перед вторым кадром
+    again = formats.parse_scled_binary(binary)
+    assert again.frames == frames and again.loop_from == 1
+    assert formats.parse_scled_binary(formats.build_scled_binary(frames, loop_from=-1)).loop_from == -1
+    assert len(formats.build_scled_binary(frames, loop_from=-1)) == 3 * 35        # без метки цикла
+    assert formats.parse_scled_bytes(binary).frames == frames
+    assert formats.parse_scled_bytes(text.encode()).frames == frames
 
 
-# ─── импорт файлов ─────────────────────────────────────────────────────────
-
-def test_import_led(tmp_path):
-    store = AnimationProjectStore(tmp_path / "animations")
-    led = "FF0000 00FF00 100\n00FF00 FF0000 200\n"
-    entry = store.import_file("yandexstation_2", "my.ring", "Моё кольцо", "ring",
-                              [24], 30, led.encode("utf-8"), "my.ring.led")
-    assert entry["kind"] == "ring" and entry["size"] == [24]
-    assert len(entry["frames"]) == 2
-    # цвета дополнены до led_count (24) чёрными
-    assert len(entry["frames"][0]["colors"]) == 24
-    assert entry["frames"][0]["colors"][0] == [255, 0, 0, 0]
-    assert entry["frames"][0]["colors"][1] == [0, 255, 0, 0]
-    assert entry["frames"][0]["delayMs"] == 100
-    assert entry["frames"][1]["delayMs"] == 200
+def test_scled_rejects_garbage():
+    with pytest.raises(ValueError):
+        formats.parse_scled_text("1 2 3")
+    with pytest.raises(ValueError):
+        formats.parse_scled_binary(b"\x07")
+    with pytest.raises(ValueError):
+        formats.parse_scled_binary(b"\x00" + b"\x01" * 10)
+    with pytest.raises(ValueError):
+        formats.build_scled_binary([_scled(300, 10)])
 
 
-def test_import_scled_text(tmp_path):
-    store = AnimationProjectStore(tmp_path / "animations")
-    scled = " ".join("255" for _ in range(32)) + " 100\n"
-    entry = store.import_file("yandexmini_2", "my.clock", "Часы", "clock",
-                              [32], 30, scled.encode("utf-8"), "my.clock.scled")
-    assert entry["kind"] == "clock"
-    assert len(entry["frames"]) == 1
-    assert entry["frames"][0]["brightnesses"] == [255] * 32
-    assert entry["frames"][0]["delayMs"] == 100
+def test_scled_payload_matches_firmware_parser():
+    payload = formats.build_scled_animation_payload("demo", [_scled(255, 100), _scled(0, 100)], loop_from=0)
+    assert payload["animation_stop_policy"] == "RepeatLastTillNextDirective"
+    item = payload["animations"][0]
+    assert item["name"] == "demo" and item["compression_type"] == "Gzip"
+    binary = gzip.decompress(base64.b64decode(item["base64_encoded_value"]))
+    assert formats.parse_scled_binary(binary).frames[0]["brightnesses"] == [255] * 32
+    assert formats.build_scled_animation_payload("d", [_scled(1, 1)])["animation_stop_policy"] == "PlayOnce"
+    with pytest.raises(ValueError):
+        formats.build_scled_animation_payload("d", [])
 
 
-def test_import_scled_binary(tmp_path):
-    store = AnimationProjectStore(tmp_path / "animations")
-    data = b"\x00" + bytes(range(32)) + (250).to_bytes(2, "big") + b"\x01"
-    entry = store.import_file("yandexmini_2", "my.clock", "Часы", "clock",
-                              [32], 30, data, "my.clock.scled")
-    assert len(entry["frames"]) == 1
-    assert entry["frames"][0]["brightnesses"] == list(range(32))
-    assert entry["frames"][0]["delayMs"] == 250
+# ─── реестр платформ ───────────────────────────────────────────────────────
+
+def test_registry_displays():
+    assert set(PLATFORM_DISPLAYS) == {"yandexstation_2", "yandexmidi", "yandexmini_2", "yandexstation", "yandexmini"}
+    assert [d["kind"] for d in platform_displays("yandexstation_2")] == ["frontal", "ring"]
+    assert platform_displays("chiron") == []
+    assert device_platform({"sn": "X00T10001B6SAK"}) == "yandexstation_2"
+    assert device_platform({"sn": "C00T10001B6SAK"}) == ""            # ДуоМакс — без анимаций
+    assert device_platform({"sn": "S", "model": "yandexmidi"}) == "yandexmidi"
 
 
-def test_import_gif_stores_media(tmp_path):
-    store = AnimationProjectStore(tmp_path / "animations")
-    gif = b"GIF89a" + b"\x00" * 40
-    entry = store.import_file("yandexstation_2", "my.frontal", "Глазки", "frontal",
-                              [25, 16], 30, gif, "my.frontal.gif")
-    assert entry["kind"] == "frontal"
-    assert entry["frames"][0]["media_file"] == "my.frontal.gif"
-    assert entry["frames"][0]["media_url"] == "/emulator/api/animations-media?file=my.frontal.gif"
-    assert (store.media / "my.frontal.gif").read_bytes() == gif
+def test_list_platforms_only_user_devices():
+    devices = [{"sn": "X00T10001B6SAK", "name": "Макс"}, {"sn": "C00T10001B6SAK"},
+               {"sn": "M00T10001B6SAK", "profile": {"name": "Кухня"}}]
+    platforms = list_platforms(devices)
+    assert [p["platform"] for p in platforms] == ["yandexstation_2", "yandexmini_2"]
+    assert platforms[0]["devices"] == [{"sn": "X00T10001B6SAK", "name": "Макс", "model": ""}]
+    assert platforms[1]["devices"][0]["name"] == "Кухня"
+    assert list_platforms([]) == []
 
 
-def test_import_unsupported_extension_rejected(tmp_path):
-    store = AnimationProjectStore(tmp_path / "animations")
-    try:
-        store.import_file("yandexmini_2", "x", "t", "ring", [24], 30, b"data", "x.txt")
-        raise AssertionError("должен быть отвергнут")
-    except ValueError:
-        pass
+# ─── хранилище проектов ────────────────────────────────────────────────────
+
+def _ring(n=24, delay=50, color=(255, 0, 0, 0)):
+    return {"colors": [list(color)] + [[0, 0, 0, 0]] * (n - 1), "delayMs": delay}
 
 
-# ─── API: platforms ────────────────────────────────────────────────────────
+def _project(**extra):
+    return {"id": "my.ring", "title": "Кольцо", "kind": "ring", "loop_from": 0, "frames": [_ring()], **extra}
 
-async def test_animations_platforms_api(tmp_path):
+
+def test_project_store_roundtrip(tmp_path):
+    store = AnimationProjectStore(tmp_path)
+    saved = store.put("yandexstation", _project())
+    assert saved["size"] == [24] and saved["platform"] == "yandexstation"
+    assert store.get("yandexstation", "my.ring") == saved
+    assert [p["id"] for p in store.list("yandexstation")] == ["my.ring"]
+    assert AnimationProjectStore(tmp_path).get("yandexstation", "my.ring") == saved   # переживает перезапуск
+    assert store.list("yandexmini") == []
+    store.delete("yandexstation", "my.ring")
+    assert store.get("yandexstation", "my.ring") is None
+    with pytest.raises(ValueError):
+        store.delete("yandexstation", "my.ring")
+
+
+def test_project_validation(tmp_path):
+    store = AnimationProjectStore(tmp_path)
+    for platform, value in [
+        ("chiron", _project()),                                     # платформа без дисплея
+        ("nope", _project()),
+        ("../x", _project()),                                       # выход из каталога
+        ("yandexstation", _project(id="Bad Id")),
+        ("yandexstation", _project(title=" ")),
+        ("yandexstation", _project(kind="clock")),                   # у платформы нет такого дисплея
+        ("yandexstation", _project(frames=[])),
+        ("yandexstation", _project(frames=[_ring(n=23)])),            # размер кадра — по дисплею
+        ("yandexstation", _project(frames=[_ring(color=(256, 0, 0, 0))])),
+        ("yandexstation", _project(loop_from=1)),
+        ("yandexstation_2", _project(kind="frontal", frames=[{"colors": [[0, 0, 0]] * 399, "delayMs": 100}])),
+        ("yandexmini_2", _project(kind="clock", frames=[_scled(0, 70000)])),
+    ]:
+        with pytest.raises(ValueError):
+            store.put(platform, value)
+    ring3 = {"colors": [[1, 2, 3]] * 24, "delayMs": 5}               # RGB без W — дополняется
+    assert store.put("yandexstation", _project(frames=[ring3]))["frames"][0]["colors"][0] == [1, 2, 3, 0]
+
+
+def test_import_led_scled_and_kind_mismatch(tmp_path):
+    store = AnimationProjectStore(tmp_path)
+    led = ("ff0000 " * 6 + "100\nloop\n" + "00ff00 " * 6 + "200\n").encode()
+    project = store.import_file("yandexmini_2", "imp.ring", "", "ring", led, "Ring.led")
+    assert project["title"] == "Ring" and project["loop_from"] == 1 and len(project["frames"]) == 2
+    scled = formats.build_scled_binary([_scled(9, 10), _scled(8, 20)], loop_from=0)
+    clock = store.import_file("yandexmini_2", "imp.clock", "Часы", "clock", scled, "x.scled")
+    assert clock["frames"][1]["delayMs"] == 20 and clock["loop_from"] == 0
+    for kind, data, name in [("ring", scled, "x.scled"), ("clock", led, "x.led"), ("ring", b"", "x.led"),
+                             ("ring", led, "x")]:
+        with pytest.raises(ValueError):
+            store.import_file("yandexmini_2", "bad", "t", kind, data, name)
+
+
+def _gif_bytes(frames, size=(25, 16), duration=100):
+    from PIL import Image
+    images = [Image.new("RGB", size, color) for color in frames]
+    out = io.BytesIO()
+    images[0].save(out, format="GIF", save_all=True, append_images=images[1:], duration=duration, loop=0)
+    return out.getvalue()
+
+
+def test_frontal_gif_import_render_and_export(tmp_path):
+    from PIL import Image
+    store = AnimationProjectStore(tmp_path)
+    data = _gif_bytes([(255, 0, 0), (0, 0, 255)])
+    project = store.import_file("yandexstation_2", "eyes", "Глаза", "frontal", data, "eyes.gif")
+    assert len(project["frames"]) == 2 and len(project["frames"][0]["colors"]) == 400
+    assert project["frames"][0]["colors"][0] == [255, 0, 0] and project["frames"][0]["delayMs"] == 100
+    big = store.import_file("yandexstation_2", "big", "t", "frontal", _gif_bytes([(0, 255, 0)], size=(50, 32)), "b.gif")
+    assert len(big["frames"][0]["colors"]) == 400                       # масштаб к 25×16
+    name = store.publish_gif(project)
+    with Image.open(store.media / name) as gif:
+        assert gif.size == (25, 16) and gif.n_frames == 2
+    file_name, content_type, body = store.export("yandexstation_2", "eyes")
+    assert (file_name, content_type) == ("eyes.gif", "image/gif") and body.startswith(b"GIF8")
+    with pytest.raises(ValueError):
+        store.import_file("yandexstation_2", "x", "t", "frontal", b"GIF89a-not-a-gif", "x.gif")
+    store.delete("yandexstation_2", "eyes")
+    assert not (store.media / name).exists()
+
+
+def test_export_native_formats(tmp_path):
+    store = AnimationProjectStore(tmp_path)
+    store.put("yandexstation", _project())
+    name, content_type, body = store.export("yandexstation", "my.ring")
+    assert name == "my.ring.led" and content_type.startswith("text/plain")
+    assert formats.parse_led_text(body.decode(), 24).frames[0]["delayMs"] == 50
+    store.put("yandexmini_2", {"id": "c", "title": "c", "kind": "clock", "loop_from": -1, "frames": [_scled(5, 40)]})
+    name, _, body = store.export("yandexmini_2", "c")
+    assert name == "c.scled" and formats.parse_scled_text(body.decode()).frames == [_scled(5, 40)]
+
+
+# ─── API ───────────────────────────────────────────────────────────────────
+
+HEADERS = {'X-Emulator': '1'}
+
+
+async def _runtime_with_devices(tmp_path):
     runtime = Runtime(tmp_path)
     runtime.identities.mutate({'operation': 'user', 'id': 'owner', 'name': 'O'})
+    for sn in ('X00T10001B6SAK', 'M00T10001B6SAK', 'C00T10001B6SAK'):
+        runtime.identities.mutate({'operation': 'device', 'sn': sn, 'user_id': 'owner', 'device_ids': [], 'model': ''})
+    return runtime
+
+
+async def test_api_platforms_projects_import_export(tmp_path):
+    runtime = await _runtime_with_devices(tmp_path)
     runner, url = await listen(create_app(runtime=runtime))
     try:
         async with ClientSession() as client:
             async with client.get(url + '/emulator/api/animations-platforms') as response:
-                assert response.status == 200
-                data = await response.json()
-                ids = {p["platform"] for p in data["platforms"]}
-                assert ids == {"yandexstation_2", "yandexmidi", "yandexmini_2",
-                               "yandexstation", "yandexmini", "chiron"}
-                mini2 = next(p for p in data["platforms"] if p["platform"] == "yandexmini_2")
-                kinds = {d["kind"] for d in mini2["displays"]}
-                assert kinds == {"ring", "clock"}
-                chiron = next(p for p in data["platforms"] if p["platform"] == "chiron")
-                assert chiron["displays"] == []
+                platforms = (await response.json())['platforms']
+            assert [p['platform'] for p in platforms] == ['yandexstation_2', 'yandexmini_2']   # chiron — без дисплея
+            assert platforms[0]['devices'][0]['sn'] == 'X00T10001B6SAK'
+            project = {**_project(), 'platform': 'yandexmini_2', 'frames': [_ring(6)]}
+            async with client.put(url + '/emulator/api/animations-projects', json=project, headers=HEADERS) as response:
+                assert (await response.json())['saved'] == 'my.ring'
+            async with client.put(url + '/emulator/api/animations-projects', json={**project, 'platform': 'chiron'},
+                                  headers=HEADERS) as response:
+                assert 'error' in await response.json()
+            async with client.get(url + '/emulator/api/animations-projects?platform=yandexmini_2') as response:
+                assert [p['id'] for p in (await response.json())['projects']] == ['my.ring']
+            async with client.get(url + '/emulator/api/animations-projects?platform=yandexmini_2&id=my.ring') as response:
+                assert (await response.json())['size'] == [6]
+            async with client.get(url + '/emulator/api/animations-export?platform=yandexmini_2&id=my.ring') as response:
+                assert 'my.ring.led' in response.headers['Content-Disposition']
+                assert (await response.text()).startswith('name my.ring')
+            body = {'platform': 'yandexmini_2', 'id': 'imp', 'title': 'Часы', 'kind': 'clock', 'filename': 'a.scled',
+                    'data_base64': base64.b64encode(formats.build_scled_text([_scled(7, 30)]).encode()).decode()}
+            async with client.post(url + '/emulator/api/animations-import', json=body, headers=HEADERS) as response:
+                assert await response.json() == {'saved': 'imp', 'frames': 1}
+            async with client.post(url + '/emulator/api/animations-import', json={**body, 'data_base64': '!!'},
+                                   headers=HEADERS) as response:
+                assert 'base64' in (await response.json())['error']
+            async with client.delete(url + '/emulator/api/animations-projects?platform=yandexmini_2&id=imp',
+                                     headers=HEADERS) as response:
+                assert (await response.json())['deleted'] == 'imp'
     finally:
         await runner.cleanup()
         await runtime.close()
 
 
-# ─── API: projects CRUD + play ─────────────────────────────────────────────
+async def test_api_play_project(tmp_path, monkeypatch):
+    runtime = await _runtime_with_devices(tmp_path)
+    sent = []
 
-async def test_animations_projects_crud_api(tmp_path):
-    runtime = Runtime(tmp_path)
-    runtime.identities.mutate({'operation': 'user', 'id': 'owner', 'name': 'O'})
+    async def push_action(sn, action, arguments):
+        sent.append((sn, action, arguments))
+        return {'action': action, 'delivery': 'sent', 'execution': 'unconfirmed'}
+
+    monkeypatch.setattr(runtime, 'push_action', push_action)
+    store = runtime.animation_projects
+    store.put('yandexmini_2', {'id': 'c', 'title': 'c', 'kind': 'clock', 'loop_from': -1, 'frames': [_scled(5, 40)]})
+    store.put('yandexmini_2', {'id': 'r', 'title': 'r', 'kind': 'ring', 'loop_from': -1, 'frames': [_ring(6)]})
+    store.put('yandexstation_2', {'id': 'f', 'title': 'f', 'kind': 'frontal', 'loop_from': -1,
+                                  'frames': [{'colors': [[1, 2, 3]] * 400, 'delayMs': 100}]})
     runner, url = await listen(create_app(runtime=runtime))
+    play = url + '/emulator/api/animations-play'
     try:
         async with ClientSession() as client:
-            # пусто
-            async with client.get(url + '/emulator/api/animations-projects?platform=yandexmini_2') as response:
-                data = await response.json()
-                assert data["projects"] == []
+            async def post(**value):
+                async with client.post(play, json=value, headers=HEADERS) as response:
+                    return await response.json()
 
-            # создать (PUT)
-            project = {"platform": "yandexmini_2", "id": "my.clock", "title": "Часы",
-                       "kind": "clock", "size": [32], "fps": 30,
-                       "frames": [{"brightnesses": [255] * 32, "delayMs": 100}]}
-            async with client.put(url + '/emulator/api/animations-projects', json=project,
-                                  headers={'X-Emulator': '1'}) as response:
-                assert (await response.json())["saved"] == "my.clock"
-
-            # получить
-            async with client.get(url + '/emulator/api/animations-projects?platform=yandexmini_2&id=my.clock') as response:
-                got = await response.json()
-                assert got["title"] == "Часы" and got["kind"] == "clock"
-
-            # список
-            async with client.get(url + '/emulator/api/animations-projects?platform=yandexmini_2') as response:
-                data = await response.json()
-                assert any(p["id"] == "my.clock" for p in data["projects"])
-
-            # заменить (POST alias)
-            project["title"] = "Новые часы"
-            async with client.post(url + '/emulator/api/animations-projects', json=project,
-                                   headers={'X-Emulator': '1'}) as response:
-                assert (await response.json())["saved"] == "my.clock"
-            async with client.get(url + '/emulator/api/animations-projects?platform=yandexmini_2&id=my.clock') as response:
-                got = await response.json()
-                assert got["title"] == "Новые часы"
-
-            # удалить
-            async with client.delete(url + '/emulator/api/animations-projects?platform=yandexmini_2&id=my.clock',
-                                     headers={'X-Emulator': '1'}) as response:
-                assert (await response.json())["deleted"] == "my.clock"
-            assert store_get(runtime, "yandexmini_2", "my.clock") is None
+            assert (await post(platform='yandexmini_2', id='c', sn='M00T10001B6SAK'))['delivery'] == 'sent'
+            sn, action, arguments = sent[-1]
+            assert (sn, action) == ('M00T10001B6SAK', 'draw_scled_animations')
+            assert arguments['animations'][0]['compression_type'] == 'Gzip'
+            assert 'error' in await post(platform='yandexmini_2', id='r', sn='M00T10001B6SAK')        # кольцо не играется
+            assert 'платформа' in (await post(platform='yandexmini_2', id='c', sn='X00T10001B6SAK'))['error']
+            assert 'не найден' in (await post(platform='yandexmini_2', id='zz', sn='M00T10001B6SAK'))['error']
+            assert 'localhost' in (await post(platform='yandexstation_2', id='f', sn='X00T10001B6SAK'))['error']
+            async with client.post(play, json={'platform': 'yandexstation_2', 'id': 'f', 'sn': 'X00T10001B6SAK'},
+                                   headers={**HEADERS, 'Host': '192.0.2.10:8090'}) as response:
+                assert (await response.json())['delivery'] == 'sent'
+            sn, action, arguments = sent[-1]
+            assert action == 'draw_led_screen'
+            assert arguments['frames'][0] == 'http://192.0.2.10:8090/emulator/api/animations-media?file=project.yandexstation_2.f.gif'
+            async with client.get(url + '/emulator/api/animations-media?file=project.yandexstation_2.f.gif') as response:
+                assert response.status == 200 and (await response.read()).startswith(b'GIF8')
     finally:
         await runner.cleanup()
         await runtime.close()
 
 
-def store_get(runtime, platform, project_id):
-    return runtime.animation_projects.get(platform, project_id)
-
-
-async def test_animations_projects_import_api(tmp_path):
-    runtime = Runtime(tmp_path)
-    runtime.identities.mutate({'operation': 'user', 'id': 'owner', 'name': 'O'})
-    runner, url = await listen(create_app(runtime=runtime))
-    try:
-        async with ClientSession() as client:
-            led = "FF0000 00FF00 100\n"
-            body = {"platform": "yandexstation_2", "id": "my.ring", "title": "Кольцо",
-                    "kind": "ring", "size": [24], "fps": 30,
-                    "media_base64": base64.b64encode(led.encode("utf-8")).decode(),
-                    "filename": "my.ring.led"}
-            async with client.post(url + '/emulator/api/animations-import', json=body,
-                                   headers={'X-Emulator': '1'}) as response:
-                data = await response.json()
-                assert data["saved"] == "my.ring"
-            got = store_get(runtime, "yandexstation_2", "my.ring")
-            assert got["kind"] == "ring"
-            assert got["frames"][0]["delayMs"] == 100
-    finally:
-        await runner.cleanup()
-        await runtime.close()
+def test_push_wire_forms_for_scled_and_led_screen():
+    from pathlib import Path
+    from server_emulator.actions import push_message
+    from server_emulator.schema import load_type
+    cls = load_type(Path(__file__).resolve().parent.parent / "server_emulator" / "schemas", "alice-api.pb",
+                    "NAlice.NAliceApi.TServerMessage")
+    payload = formats.build_scled_animation_payload("n", [_scled(1, 10)])
+    directive = cls.FromString(push_message(cls, "draw_scled_animations", payload).SerializeToString()).Event.Push.Directives[0]
+    assert directive.Name == "draw_scled_animations" and directive.Type == "client_action" and directive.IsLedSilent
+    assert directive.Payload.fields["animation_stop_policy"].string_value == "PlayOnce"
+    assert directive.Payload.fields["animations"].list_value.values[0].struct_value.fields["name"].string_value == "n"
+    for bad in ({}, {"animations": []}, {"animations": [{"base64_encoded_value": "x", "compression_type": "Zip"}]},
+                {**payload, "animation_stop_policy": "Forever"}):
+        with pytest.raises(ValueError):
+            push_message(cls, "draw_scled_animations", bad)
+    led = cls.FromString(push_message(cls, "draw_led_screen", {"frames": ["http://h/a.gif"]}).SerializeToString())
+    assert led.Event.Push.Directives[0].Payload.fields["animation_sequence"].list_value.values
