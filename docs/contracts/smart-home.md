@@ -40,7 +40,7 @@ module: "server_emulator/smart_home.py"
 
 | Директива | Тип PayloadRaw | Когда |
 |---|---|---|
-| `set_iot_user_info` | `NAlice.TLocalIoTCapability.TSetIoTUserInfoDirective`: `IoTClientUserInfo` — `Rooms`, `Households`, `Devices{Id, Name, Type, RoomId, HouseholdId, StatusInfo{Status: Online/OfflineDeviceState, …}, Endpoint{Id, AnyCapabilities[{CapabilityType}]}}` | изменение реестра — всем живым сессиям (пустой список тоже: карточки снимаются); новой колонке — сразу после опознания, если реестр не пуст |
+| `set_iot_user_info` | `NAlice.TLocalIoTCapability.TSetIoTUserInfoDirective`: `IoTClientUserInfo` — `Rooms{Id, Name, HouseholdId}`, `Households`, `Devices{Id, Name, Type, RoomId, HouseholdId, StatusInfo{Status: Online/OfflineDeviceState, …}, Endpoint{Id, AnyCapabilities}}` | изменение реестра — всем живым сессиям (пустой список тоже: карточки снимаются); новой колонке — сразу после опознания, если реестр не пуст |
 | `set_div_variables` | `NAlice.TDivViewCapability.TSetDivVariablesDirective`: переменная `device_<id, «-» и «:»→«_»>_<capability>_state` (`LongValue` 0/1, `VariableType: Local`) | после действия колонки — по каждой изменившейся возможности |
 | `sync_iot_user_info` | `NAlice.TLocalIoTCapability.TSyncIoTUserInfoDirective` — только `Name` | после каждого действия колонки — сигнал виджетам перечитать |
 | `set_iot_account_settings` | `NAlice.TLocalIoTCapability.TSetIoTAccountSettingsDirective`: `Name` + пустое `IoTAccountSettings` (настроек в директиве нет) | после действия колонки, третьим пушем (запись 2026-11-12) |
@@ -54,6 +54,15 @@ module: "server_emulator/smart_home.py"
 (`on_off`/`level`/`color`/`battery`) отображаются на `OnOffCapabilityType`/`LevelCapabilityType`/
 `ColorCapabilityType`/`BatteryCapabilityType`, неизвестное значение становится
 `UnknownDeviceType`/`UnknownCapabilityType` — сборка списка не падает.
+`AnyCapabilities` несёт `RawCapability` — типизированное сообщение умения, как в
+образце 2026-11-10 (колонка строит карточку по Instance/State, голого enum ей мало —
+она не рендерит устройства без них): `on_off` → `TOnOffCapability{Meta{SupportedDirectives:
+OnOffDirectiveType, Retrievable}, State{On}}`, `level` → `TLevelCapability{…,
+Parameters{Instance, Unit, Range}, State{Level}}`, `battery` → `TBatteryCapability{…,
+State{Percentage}}`. Инстанс уровня расширение несёт в умении коротким именем
+(`brightness`/`open`/`temperature`/`humidity`/… → `BrightnessInstance`/`CoverInstance`/…,
+Unit и диапазон — из той же таблицы); громкость плеера в enum станции не входит —
+умение идёт без инстанса. Неизвестный тип умения идёт `CapabilityType`'ом.
 Переменная div строится по образцу `device_<id>_<capability>_state` (образцов с «:» в id нет;
 префикс origin в имени тоже становится «_»).
 

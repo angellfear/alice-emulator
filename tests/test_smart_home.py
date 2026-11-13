@@ -110,7 +110,7 @@ def test_directives_per_sample_fields(tmp_path):
     reg = _standalone_registry(tmp_path, loaded={"plug": {}})
     reg.add_device({"id": "l-1", "name": "Свет", "room": "room-1", "type": "LightDeviceType",
                     "capabilities": [{"type": "on_off", "value": False},
-                                     {"type": "level", "value": 40}]}, "plug")
+                                     {"type": "level", "value": 40, "instance": "brightness"}]}, "plug")
     reg.add_device({"id": "x-1", "name": "Неизвестное", "type": "light",
                     "capabilities": [{"type": "temperature", "value": 21}], "online": False}, "plug")
     reg.set_rooms({"room-1": "Кухня"}, "plug")
@@ -118,14 +118,30 @@ def test_directives_per_sample_fields(tmp_path):
     user_info = _centaur("NAlice.TLocalIoTCapability.TSetIoTUserInfoDirective")
     msg = user_info.FromString(smart_home.user_info_raw(reg))
     assert msg.Name == "set_iot_user_info"
-    assert [(r.Id, r.Name) for r in msg.IoTClientUserInfo.Rooms] == [("room-1", "Кухня")]
+    rooms = msg.IoTClientUserInfo.Rooms
+    assert [(r.Id, r.Name) for r in rooms] == [("room-1", "Кухня")]
+    assert rooms[0].HouseholdId == "emulator-home"  # комната в доме, как в образце
     assert [h.Name for h in msg.IoTClientUserInfo.Households] == ["Дом"]
     devices = {d.Id: d for d in msg.IoTClientUserInfo.Devices}
     assert devices["plug:l-1"].Type == 1  # LightDeviceType (enum схемы)
-    assert [c.CapabilityType for c in devices["plug:l-1"].Endpoint.AnyCapabilities] == [1, 3]
+    # умения — RawCapability (типизированные сообщения, как в образце), не голый enum
+    on_off, level = devices["plug:l-1"].Endpoint.AnyCapabilities
+    assert len(bytes(on_off.RawCapability)) > 0 and len(bytes(level.RawCapability)) > 0
+    assert on_off.CapabilityType == 0 and level.CapabilityType == 0  # enum не задан
+    caps = _centaur("NAlice.TOnOffCapability")
+    on_off_msg = caps.FromString(bytes(on_off.RawCapability))
+    assert on_off_msg.State.On is False and on_off_msg.Meta.Retrievable
+    assert list(on_off_msg.Meta.SupportedDirectives) == [1]  # OnOffDirectiveType
+    levels = _centaur("NAlice.TLevelCapability")
+    level_msg = levels.FromString(bytes(level.RawCapability))
+    assert level_msg.State.Level == 40.0
+    assert level_msg.Parameters.Instance == 4  # BrightnessInstance (короткое имя «brightness»)
+    assert level_msg.Parameters.Unit == 1 and level_msg.Parameters.Range.Max == 100  # PercentUnit 1..100
     assert devices["plug:l-1"].StatusInfo.Status == 1  # OnlineDeviceState
     assert devices["plug:x-1"].Type == 0  # значение вне enum → UnknownDeviceType
     assert devices["plug:x-1"].StatusInfo.Status == 2  # OfflineDeviceState
+    unknown_cap = devices["plug:x-1"].Endpoint.AnyCapabilities[0]
+    assert unknown_cap.CapabilityType == 0  # неизвестный тип умения — CapabilityType без Raw
 
     div = _centaur("NAlice.TDivViewCapability.TSetDivVariablesDirective")
     variables = div.FromString(smart_home.div_variables_raw(

@@ -31,7 +31,7 @@ import uuid
 from pathlib import Path
 
 from . import aapi_handlers
-from .scenario_engine.proto_build import encode
+from .scenario_engine.proto_build import build, encode
 
 log = logging.getLogger(__name__)
 
@@ -352,6 +352,27 @@ USER_INFO_PROTO = "NAlice.TLocalIoTCapability.TSetIoTUserInfoDirective"
 CAPABILITY_TYPES = {"on_off": "OnOffCapabilityType", "level": "LevelCapabilityType",
                     "color": "ColorCapabilityType", "battery": "BatteryCapabilityType"}
 
+# Умение уровня → сообщение TLevelCapability.Parameters: короткое имя инстанса
+# (его даёт расширение вместе с умением) → enum Instance, единица и диапазон
+# (образец: яркость света — BrightnessInstance, PercentUnit, 1..100).
+LEVEL_INSTANCES = {
+    "brightness": ("BrightnessInstance", "PercentUnit", 1, 100),
+    "open": ("CoverInstance", "PercentUnit", 0, 100),
+    "temperature": ("TemperatureInstance", "TemperatureCelsiusUnit", None, None),
+    "humidity": ("HumidityInstance", "PercentUnit", 0, 100),
+    "pressure": ("PressureInstance", None, None, None),
+    "illuminance": ("IlluminanceInstance", None, None, None),
+    "voltage": ("VoltageInstance", None, None, None),
+    "amperage": ("AmperageInstance", None, None, None),
+    "power": ("PowerInstance", None, None, None),
+    "co2": ("CO2Instance", None, None, None),
+}
+
+# Поддерживаемые директивы умения (Meta.SupportedDirectives, образец).
+CAPABILITY_DIRECTIVES = {"on_off": ["OnOffDirectiveType"],
+                         "level": ["SetAbsoluteLevelDirectiveType"],
+                         "battery": []}
+
 _VALID_ENUMS: dict = {}
 
 
@@ -377,11 +398,46 @@ def _enum_names(kind):
     return _VALID_ENUMS.get(kind)
 
 
+def _capability_raw(entry):
+    """Payload умения AnyCapabilities.RawCapability — типизированное сообщение схемы
+    (образец 2026-11-10: AnyCapabilities несёт RawCapability, не голый CapabilityType):
+    on_off → TOnOffCapability (State.On), level → TLevelCapability (Parameters.Instance
+    по короткому имени из расширения, Unit/Range, State.Level), battery →
+    TBatteryCapability (State.Percentage). Meta — поддерживаемые директивы +
+    Retrievable. None — тип неизвестен (умение идёт CapabilityType'ом)."""
+    kind = str(entry.get("type") or "")
+    value = entry.get("value")
+    if kind not in CAPABILITY_DIRECTIVES:
+        return None
+    meta = {"SupportedDirectives": CAPABILITY_DIRECTIVES[kind], "Retrievable": True}
+    if kind == "on_off":
+        return encode(SCHEMAS_DIR, "NAlice.TOnOffCapability",
+                      {"Meta": meta, "State": {"On": bool(value)}}, "centaur")
+    if kind == "level":
+        params = {}
+        instance = LEVEL_INSTANCES.get(str(entry.get("instance") or ""))
+        if instance:
+            name, unit, lo, hi = instance
+            params["Instance"] = name
+            if unit:
+                params["Unit"] = unit
+            if lo is not None:
+                params["Range"] = {"Min": lo, "Max": hi, "Precision": 1}
+        return encode(SCHEMAS_DIR, "NAlice.TLevelCapability",
+                      {"Meta": meta, "Parameters": params,
+                       "State": {"Level": float(value or 0)}}, "centaur")
+    return encode(SCHEMAS_DIR, "NAlice.TBatteryCapability",
+                  {"Meta": meta, "State": {"Percentage": float(value or 0)}}, "centaur")
+
+
 def user_info_raw(registry):
     """PayloadRaw директивы set_iot_user_info: TSetIoTUserInfoDirective c
-    IoTClientUserInfo (Rooms/Households/Devices) — поля по образцу 2026-11-10."""
+    IoTClientUserInfo (Rooms/Households/Devices) — поля по образцу 2026-11-10.
+    RawCapability умений вписываются в готовое сообщение напрямую (байты), —
+    ParseDict их портит: bytes-поля он ждёт в base64-строках."""
     rooms = registry._rooms
     devices, households = [], {DEFAULT_HOUSEHOLD["id"]: DEFAULT_HOUSEHOLD["name"]}
+    capability_lists = []
     now = int(time.time())
     type_names, cap_names = _enum_names("type"), _enum_names("capability")
     for item in registry.devices():
@@ -392,11 +448,16 @@ def user_info_raw(registry):
             kind = str(cap.get("type") or "")
             if not kind:
                 continue
+            raw = _capability_raw(cap)
+            if raw is not None:
+                capabilities.append(raw)
+                continue
             name = CAPABILITY_TYPES.get(kind, kind if kind.endswith("CapabilityType")
                                         else "UnknownCapabilityType")
             if cap_names is not None and name not in cap_names:
                 name = "UnknownCapabilityType"
-            capabilities.append({"CapabilityType": name})
+            capabilities.append(name)
+        capability_lists.append(capabilities)
         device_type = str(item.get("type") or "UnknownDeviceType")
         if type_names is not None and device_type not in type_names:
             device_type = "UnknownDeviceType"
@@ -408,16 +469,26 @@ def user_info_raw(registry):
             "HouseholdId": household,
             "StatusInfo": {"Status": "OnlineDeviceState" if item["online"] else "OfflineDeviceState",
                            "Updated": now, "Changed": now},
-            "Endpoint": {"Id": item["id"], "AnyCapabilities": capabilities},
+            "Endpoint": {"Id": item["id"]},
         })
-    return encode(SCHEMAS_DIR, "NAlice.TLocalIoTCapability.TSetIoTUserInfoDirective",
-                  {"Name": "set_iot_user_info",
-                   "IoTClientUserInfo": {
-                       "Rooms": [{"Id": key, "Name": room["name"]}
-                                 for key, room in sorted(rooms.items())],
-                       "Households": [{"Id": key, "Name": name}
-                                      for key, name in sorted(households.items())],
-                       "Devices": devices}}, "centaur")
+    message = build(SCHEMAS_DIR, USER_INFO_PROTO,
+                    {"Name": "set_iot_user_info",
+                     "IoTClientUserInfo": {
+                         "Rooms": [{"Id": key, "Name": room["name"],
+                                    "HouseholdId": DEFAULT_HOUSEHOLD["id"]}
+                                   for key, room in sorted(rooms.items())],
+                         "Households": [{"Id": key, "Name": name}
+                                        for key, name in sorted(households.items())],
+                         "Devices": devices}}, "centaur")
+    for index, capabilities in enumerate(capability_lists):
+        endpoint = message.IoTClientUserInfo.Devices[index].Endpoint
+        for entry in capabilities:
+            cap = endpoint.AnyCapabilities.add()
+            if isinstance(entry, bytes):
+                cap.RawCapability = entry
+            else:
+                cap.CapabilityType = entry
+    return message.SerializeToString()
 
 
 def div_variables_raw(changes):

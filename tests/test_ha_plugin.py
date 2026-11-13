@@ -164,14 +164,15 @@ async def test_ha_entities_fill_registry_and_actions(tmp_path):
         assert device["room"] == AREA
         assert sdk.smart_home_devices()["rooms"] == {AREA: "Кухня", "unassigned": "Не назначено"}
         assert {"type": "on_off", "value": True} in device["capabilities"]
-        assert {"type": "level", "value": 50} in device["capabilities"]  # 127/2.55 ≈ 50
+        # уровень несёт инстанс (яркость света) — сборщик строит из него Parameters.Instance
+        assert {"type": "level", "value": 50, "instance": "brightness"} in device["capabilities"]
         # дельта: состояние off, яркость удалена; атрибуты сливаются с кешем снимка
         release.set()
         await asyncio.sleep(0.4)
         device = registry_map(runtime)[f"{EXT_ID}:{ENTITY}"]
         assert device["name"] == "Кухня свет"  # имя живёт в кеше, дельта его не теряет
         assert {"type": "on_off", "value": False} in device["capabilities"]
-        assert {"type": "level", "value": 50} not in device["capabilities"]  # "-" убрал яркость
+        assert not [c for c in device["capabilities"] if c["type"] == "level"]  # "-" убрал яркость
         assert device["online"] is False  # "r": сущность удалена из HA
         # действие карточки → сервис HA (REST)
         result = await module.action_handler(

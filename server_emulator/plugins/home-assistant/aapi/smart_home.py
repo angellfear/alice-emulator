@@ -82,22 +82,32 @@ ACTION_SERVICES = {  # действие карточки → сервис HA п�
     ("level", None): "set_cover_position",  # домен решает в _service_for
 }
 
+# Умения уровня → короткое имя инстанса реестра (колонке сообщает, ЧТО измеряет
+# уровень: яркость света, позиция шторы, температура климата); громкость плеера
+# в enum станции не входит — умение идёт без инстанса.
+LEVEL_INSTANCES = {"light": "brightness", "cover": "open", "climate": "temperature"}
+
 
 def _capabilities(domain, state, attributes):
-    """Умения сущности по домену: [{type, value}] короткими именами реестра."""
+    """Умения сущности по домену: [{type, value, instance?}] короткими именами
+    реестра; level несёт instance (LEVEL_INSTANCES) — из него сборщик списка
+    строит TLevelCapability.Parameters.Instance."""
     caps = []
     if domain in ("light", "switch", "media_player", "fan", "humidifier", "climate"):
         caps.append({"type": "on_off", "value": state == "on"})
     if domain == "light" and isinstance(attributes.get("brightness"), int):
-        caps.append({"type": "level", "value": round(attributes["brightness"] / 2.55)})
+        caps.append({"type": "level", "value": round(attributes["brightness"] / 2.55),
+                     "instance": LEVEL_INSTANCES[domain]})
     if domain == "cover":
         position = attributes.get("current_position")
-        caps.append({"type": "level", "value": int(position or 0)})
+        caps.append({"type": "level", "value": int(position or 0),
+                     "instance": LEVEL_INSTANCES[domain]})
         caps.append({"type": "on_off", "value": state == "open"})
     if domain == "media_player" and isinstance(attributes.get("volume_level"), (int, float)):
         caps.append({"type": "level", "value": round(attributes["volume_level"] * 100)})
     if domain == "climate" and isinstance(attributes.get("temperature"), (int, float)):
-        caps.append({"type": "level", "value": int(attributes["temperature"])})
+        caps.append({"type": "level", "value": int(attributes["temperature"]),
+                     "instance": LEVEL_INSTANCES[domain]})
     if domain == "sensor" and isinstance(attributes.get("battery_level"), (int, float)):
         caps.append({"type": "battery", "value": int(attributes["battery_level"])})
     return caps
