@@ -10,11 +10,14 @@ GET/PUT api/server-front — политика доменов вне сертиф
 GET отдаёт ещё observed (домены, которые фронт видел с запуска) и sans (имена сертификата). PUT api/server
 не обнуляет эти ключи: форма их не отправляет — значения берутся из файла.
 """
+import os
+
 from aiohttp import web
 
 from ... import control, server_config
 from ...front import cert_covers, dns_names_in_cert
 from ...version import current
+from ...voice_stack import speech_dir_from_config
 
 from . import route
 
@@ -48,8 +51,8 @@ async def server(request, runtime, app):
                                   "errors": info.get("errors", []), "launcher": info.get("launcher", False), "version": current()})
     body = await request.json()
     if request.method == "PUT":
+        file_cfg = server_config.load(state)
         if isinstance(body, dict):  # форма эти ключи не отправляет — сохранить значения из файла
-            file_cfg = server_config.load(state)
             for key in ("front_uncovered", "front_allow"):
                 body.setdefault(key, file_cfg[key])
         config = server_config.validate(state, body)
@@ -57,6 +60,11 @@ async def server(request, runtime, app):
         for port in (config["port"], config["http_port"]):
             if port and port not in bound and server_config.port_busy(config["host"], port):
                 warnings.append(f"Порт {port} сейчас занят другим процессом")
+        if file_cfg.get("speech_dir") != config.get("speech_dir") and not os.environ.get("ALICA_SPEECH_DIR"):
+            old_dir, new_dir = speech_dir_from_config(file_cfg), speech_dir_from_config(config)
+            if old_dir != new_dir and not (new_dir.is_dir() and any(new_dir.iterdir())):
+                warnings.append(f"По новому пути ({new_dir}) пакетов голосового стека нет — их нужно "
+                                 f"установить заново. Файлы по прежнему пути ({old_dir}) не удалены.")
         server_config.save(state, config)
         effective, overridden = server_config.effective(config, {k: info.get("config", {}).get(k)
                                                                  for k in info.get("overridden", [])})

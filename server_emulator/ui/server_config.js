@@ -5,7 +5,7 @@
   const section = document.getElementById('server');
   if (!section) return;
   let state = null, busy = false;
-  const FIELDS = ['host', 'port', 'ssl', 'cert', 'key', 'http_port', 'front', 'front_dns', 'local_domain'];
+  const FIELDS = ['host', 'port', 'ssl', 'cert', 'key', 'http_port', 'front', 'front_dns', 'local_domain', 'speech_dir'];
 
   const make = (tag, props = {}, ...children) => { const n = Object.assign(document.createElement(tag), props); n.append(...children); return n; };
   const call = async (method, body) => {
@@ -76,6 +76,7 @@
       front: make('input', { type: 'checkbox', checked: c.front !== false }),
       front_dns: make('input', { value: (c.front_dns || []).join(', '), spellcheck: false }),
       local_domain: make('input', { value: c.local_domain || '', spellcheck: false, placeholder: 'пусто — конфиг колонок не меняется' }),
+      speech_dir: make('input', { value: c.speech_dir || '', spellcheck: false, placeholder: 'пусто — data/speech внутри проекта' }),
     };
     const sslRow = make('label', { className: 'srv-check' }, inputs.ssl, make('span', {}, 'SSL на основном порту'));
     const uploaded = s => notify('Загружено: ' + s.path + '. Нажмите «Сохранить и перезапустить», чтобы применить.');
@@ -101,9 +102,12 @@
     const save = make('button', { type: 'submit' }, 'Сохранить и перезапустить');
     const listeners = (state.listeners || []).map(l => (l.ok ? '' : '✕ ') + l.scheme + '://' + l.host + ':' + l.port + (l.ok ? '' : ' — ' + l.error)).join(' · ');
     const version = state.version ? 'Версия: ' + state.version.version + (state.version.commit ? ' · ' + state.version.commit : '') + (state.version.dirty ? ' (есть правки)' : '') : '';
+    const speechDirRow = field('Папка голосовых пакетов', inputs.speech_dir);
+    speechDirRow.append(make('small', { className: 'hint' },
+      ' — venv и модели ASR/TTS/LLM-пакетов; относительный путь — от корня проекта. Смена не переносит и не удаляет файлы по прежнему пути.'));
     const form = make('form', { className: 'panel srv-form' },
       field('Адрес', inputs.host), field('Порт', inputs.port), field('Локальный домен', inputs.local_domain), sslRow, certBox,
-      field('HTTP-порт (0 — выключен)', inputs.http_port), frontRow, dnsRow, policyBox,
+      field('HTTP-порт (0 — выключен)', inputs.http_port), frontRow, dnsRow, policyBox, speechDirRow,
       error, make('div', { className: 'actions' }, save));
     form.onsubmit = async event => {
       event.preventDefault();

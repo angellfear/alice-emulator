@@ -112,10 +112,14 @@
       "cuda": [
         {
           "pip": [
-            "sherpa-onnx==1.13.8+cuda",
+            "sherpa-onnx==1.13.8+cuda12.cudnn9",
             "numpy",
             "aiohttp",
-            "soxr"
+            "soxr",
+            "nvidia-cuda-runtime-cu12==12.8.90",
+            "nvidia-cublas-cu12==12.8.4.1",
+            "nvidia-cudnn-cu12==9.8.0.87",
+            "nvidia-cufft-cu12==11.3.3.83"
           ],
           "args": [
             "-f",
@@ -138,10 +142,14 @@
       "cuda": [
         {
           "pip": [
-            "sherpa-onnx==1.13.8+cuda",
+            "sherpa-onnx==1.13.8+cuda12.cudnn9",
             "numpy",
             "aiohttp",
-            "soxr"
+            "soxr",
+            "nvidia-cuda-runtime-cu12==12.8.90",
+            "nvidia-cublas-cu12==12.8.4.1",
+            "nvidia-cudnn-cu12==9.8.0.87",
+            "nvidia-cufft-cu12==11.3.3.83"
           ],
           "args": [
             "-f",

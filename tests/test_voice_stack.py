@@ -64,6 +64,35 @@ def test_resolve_defaults():
         adapters.resolve("tts", {"adapter": "anthropic"})  # anthropic не умеет tts
 
 
+def test_speech_dir_from_config_priority(tmp_path, monkeypatch):
+    monkeypatch.delenv("ALICA_SPEECH_DIR", raising=False)
+    assert voice_stack.speech_dir_from_config({}) == voice_stack.SPEECH_DIR
+    assert voice_stack.speech_dir_from_config({"speech_dir": "custom/speech"}) == voice_stack.PROJECT / "custom" / "speech"
+    absolute = tmp_path / "abs-speech"
+    assert voice_stack.speech_dir_from_config({"speech_dir": str(absolute)}) == absolute
+    monkeypatch.setenv("ALICA_SPEECH_DIR", str(tmp_path / "env-speech"))  # приоритет выше настройки
+    assert voice_stack.speech_dir_from_config({"speech_dir": str(absolute)}) == tmp_path / "env-speech"
+
+
+def test_resolve_speech_dir_reads_server_json(tmp_path, monkeypatch):
+    from server_emulator import server_config
+    monkeypatch.delenv("ALICA_SPEECH_DIR", raising=False)
+    state = tmp_path / "state"
+    assert voice_stack.resolve_speech_dir(state) == voice_stack.SPEECH_DIR  # нет server.json — значение по умолчанию
+    server_config.save(state, {**server_config.DEFAULTS, "speech_dir": str(tmp_path / "custom")})
+    assert voice_stack.resolve_speech_dir(state) == tmp_path / "custom"
+
+
+def test_voice_stack_uses_configured_speech_dir_without_explicit_arg(tmp_path, monkeypatch):
+    from server_emulator import server_config
+    monkeypatch.delenv("ALICA_SPEECH_DIR", raising=False)
+    state = tmp_path / "state"
+    configured = tmp_path / "configured-speech"
+    server_config.save(state, {**server_config.DEFAULTS, "speech_dir": str(configured)})
+    stack = VoiceStack(FakeRuntime(state), tmp_path / "pk")
+    assert stack.local.directory == configured
+
+
 def test_user_adapter_from_state(stack):
     write(stack.state_dir / "adapters" / "mine.py",
           'TITLE = "Мой"\nSERVICES = {"llm": {"fields": [], "defaults": {}}}\n'

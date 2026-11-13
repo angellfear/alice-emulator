@@ -304,6 +304,41 @@ async def test_api_uploads_cert_and_does_not_touch_settings(tmp_path):
     assert sorted(p.name for p in (tmp_path / "state" / "certs").iterdir()) == ["server.crt", "server.key"]
 
 
+def test_speech_dir_default_and_clean_path(tmp_path):
+    assert server_config.DEFAULTS["speech_dir"] == ""
+    assert server_config.validate(tmp_path, {"ssl": False})["speech_dir"] == ""
+    quoted = server_config.validate(tmp_path, {"ssl": False, "speech_dir": '  "D:/speech" '})
+    assert quoted["speech_dir"] == "D:/speech"
+
+
+async def test_api_warns_when_speech_dir_changes_to_empty_location(tmp_path, monkeypatch):
+    monkeypatch.delenv("ALICA_SPEECH_DIR", raising=False)
+    runtime = Runtime(tmp_path / "state")
+    runner, url = await listen(server.create_app(runtime=runtime))
+    api = url + "/emulator/api/server"
+    headers = {"X-Emulator": "1"}
+    old_dir = tmp_path / "old-speech"
+    (old_dir / "some-package").mkdir(parents=True)
+    new_dir = tmp_path / "new-speech"
+    port = free_port()
+    try:
+        async with ClientSession() as client:
+            async with client.put(api, headers=headers,
+                                  json={"port": port, "ssl": False, "http_port": 0, "speech_dir": str(old_dir)}) as response:
+                assert response.status == 200
+                assert (await response.json())["warnings"] == []
+            async with client.put(api, headers=headers,
+                                  json={"port": port, "ssl": False, "http_port": 0, "speech_dir": str(new_dir)}) as response:
+                assert response.status == 200
+                body = await response.json()
+            assert any("пакетов голосового стека нет" in w for w in body["warnings"])
+            assert str(old_dir) in body["warnings"][0] and str(new_dir) in body["warnings"][0]
+            assert old_dir.is_dir()  # прежний путь не трогается
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
 def test_local_domain_validation_and_cert_domains(tmp_path):
     """Локальный домен: нормализуется, пусто — выключен, не домен — ошибка; список доменов
     сертификата — локальный первым, покрытие по SAN файла сертификата."""

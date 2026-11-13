@@ -23,7 +23,8 @@ FILE = "server.json"
 DEFAULTS = {"host": "0.0.0.0", "port": 443, "ssl": True, "cert": "", "key": "", "http_port": 80,
             "front": True, "front_dns": ["8.8.8.8", "1.1.1.1"],  # фронт TLS и DNS туннелей
             "front_uncovered": "tunnel", "front_allow": [],  # домены вне сертификата: режимы фронта
-            "local_domain": "alica.lan"}  # имя сервера в DNS сети для колонок; пусто — конфиг колонок не меняется
+            "local_domain": "alica.lan",  # имя сервера в DNS сети для колонок; пусто — конфиг колонок не меняется
+            "speech_dir": ""}  # папка пакетов голосового стека; пусто — data/speech внутри проекта (voice_stack.resolve_speech_dir)
 # Домены, которые колонка открывает по HTTPS и на которые отвечает эмулятор: их должен покрывать
 # сертификат (к ним добавляется local_domain). Голос на local_domain идёт по ws:// без TLS.
 CERT_DOMAINS = ("quasar.yandex.net", "uniproxy.alice.yandex.net", "rpc.alice.yandex.net", "push.yandex.ru",
@@ -162,7 +163,8 @@ def validate(state, value):
               "http_port": _port(value.get("http_port", DEFAULTS["http_port"]), "HTTP-порт", allow_zero=True),
               "front": bool(value.get("front", DEFAULTS["front"])),
               "front_dns": [item.strip() for item in dns],
-              "front_uncovered": mode, "front_allow": allow, "local_domain": local_domain}
+              "front_uncovered": mode, "front_allow": allow, "local_domain": local_domain,
+              "speech_dir": clean_path(value.get("speech_dir", DEFAULTS["speech_dir"]))}
     if config["port"] == config["http_port"]:
         raise ValueError("Порт и HTTP-порт должны различаться")
     ssl_context(state, config)

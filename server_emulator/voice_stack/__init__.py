@@ -61,6 +61,7 @@ from pathlib import Path
 
 from aiohttp import ClientSession, ClientTimeout
 
+from .. import server_config
 from . import adapters as adapter_registry
 from . import processes
 from .processes import kill_tree
@@ -70,7 +71,28 @@ log = logging.getLogger(__name__)
 ROOT = Path(__file__).resolve().parent
 PROJECT = ROOT.parent.parent
 PACKAGES = ROOT / "packages"
-SPEECH_DIR = Path(os.environ.get("ALICA_SPEECH_DIR") or PROJECT / "data" / "speech")  # venv и модели пакетов (тесты подменяют; ALICA_SPEECH_DIR — второй экземпляр панели со своими движками)
+SPEECH_DIR = Path(os.environ.get("ALICA_SPEECH_DIR") or PROJECT / "data" / "speech")  # запасной путь по умолчанию (тесты подменяют через monkeypatch)
+
+
+def speech_dir_from_config(config):
+    """Папка venv/моделей пакетов по уже загруженному server.json: `ALICA_SPEECH_DIR`
+    (окружение — второй экземпляр панели со своими движками или тесты, приоритет выше
+    настройки панели) > `config["speech_dir"]` (настройка «Папка голосовых пакетов», раздел
+    «Сервер», относительный путь — от корня проекта) > SPEECH_DIR (data/speech внутри проекта
+    по умолчанию)."""
+    override = os.environ.get("ALICA_SPEECH_DIR")
+    if override and override.strip():
+        return Path(override.strip())
+    configured = str((config or {}).get("speech_dir") or "").strip()
+    if configured:
+        path = Path(configured).expanduser()
+        return path if path.is_absolute() else PROJECT / path
+    return SPEECH_DIR
+
+
+def resolve_speech_dir(state):
+    """speech_dir_from_config по настройкам state/server.json этой папки данных."""
+    return speech_dir_from_config(server_config.load(state))
 SERVICES = ("asr", "tts", "llm")
 SETTINGS_KEY = {"asr": "stt", "tts": "tts", "llm": "model"}
 FIELD_TYPES = ("text", "password", "number", "select", "textarea", "file")
@@ -705,7 +727,7 @@ class VoiceStack:
         self.runtime = runtime
         self.packages_dir = packages_dir
         self.state_dir = Path(state_dir or Path(runtime.directory) / "voice_stack")
-        self.local = LocalSpeech(speech_dir or SPEECH_DIR, self.state_dir / "packages")
+        self.local = LocalSpeech(speech_dir or resolve_speech_dir(runtime.directory), self.state_dir / "packages")
         from .installed import Inventory
         from .lifecycle import Lifecycle
         self.lifecycle = Lifecycle(self)

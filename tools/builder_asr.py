@@ -1,8 +1,12 @@
 """Sherpa online Russian ASR: binary float32 PCM at 8000Hz, WS partial/final."""
 import asyncio
 import os
+import sys
 from pathlib import Path
 import numpy as np
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from speech_common import preload_cuda_libs
+preload_cuda_libs()  # каталоги CUDA/cuDNN из pip-пакетов nvidia-* в путь поиска DLL — до импорта sherpa_onnx
 import sherpa_onnx
 import soxr
 from aiohttp import web, WSMsgType
