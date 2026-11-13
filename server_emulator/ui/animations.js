@@ -2,7 +2,7 @@
    отправлять просто будет некуда, редактор это не блокирует), у каждой — каталог проектов,
    редактор кадров в родном виде дисплея и плеер предпросмотра. Кадры хранятся как у колонки:
    ring/panel/oknix — цвета LED (.led), clock — яркости 32 сегментов (.scled),
-   frontal — пиксели 25×16 (GIF). API: animations-platforms/-projects/-import/-export/-play. */
+   frontal — пиксели 25×16, монохромные (GIF). API: animations-platforms/-projects/-import/-export/-play. */
 (() => {
   const root = $('animations');
   if (!root) return;
@@ -252,6 +252,7 @@
   function editorPanel() {
     const w = state.work;
     const isClock = w.kind === 'clock';
+    const isMono = isClock || w.kind === 'frontal';   // клетки без цвета — только яркость белого
     const idInput = el('input', {id: 'anim-id', value: w.id, readonly: !state.isNew, pattern: ID_RE.source, maxlength: '64',
       oninput: (ev) => { w.id = ev.target.value.trim(); touch(); }});
     const titleInput = el('input', {id: 'anim-title', value: w.title, oninput: (ev) => { w.title = ev.target.value; touch(); }});
@@ -259,7 +260,7 @@
     canvas = {box: el('div', {class: 'anim-canvas'})};
     strip = el('div', {class: 'anim-strip'});
 
-    const tools = isClock
+    const tools = isMono
       ? el('div', {class: 'anim-tools'},
         el('label', {text: 'Яркость сегмента'},
           el('input', {id: 'anim-level', type: 'range', min: '0', max: '255', value: String(state.level),
@@ -372,8 +373,10 @@
 
   function setCell(i) {
     const f = frame();
-    if (state.work.kind === 'clock') f.brightnesses[i] = state.level;
-    else f.colors[i] = state.work.kind === 'frontal' ? state.rgb.slice() : [...state.rgb, 0];
+    const kind = state.work.kind;
+    if (kind === 'clock') f.brightnesses[i] = state.level;
+    else if (kind === 'frontal') f.colors[i] = [state.level, state.level, state.level];
+    else f.colors[i] = [...state.rgb, 0];
     touch();
     paint(canvas.surface, f);
     repaintThumb();
@@ -381,8 +384,10 @@
 
   function fillFrame() {
     const f = frame();
-    if (state.work.kind === 'clock') f.brightnesses = Array(32).fill(state.level);
-    else f.colors = f.colors.map(() => (state.work.kind === 'frontal' ? state.rgb.slice() : [...state.rgb, 0]));
+    const kind = state.work.kind;
+    if (kind === 'clock') f.brightnesses = Array(32).fill(state.level);
+    else if (kind === 'frontal') f.colors = f.colors.map(() => [state.level, state.level, state.level]);
+    else f.colors = f.colors.map(() => [...state.rgb, 0]);
     touch();
     refreshCanvas();
     repaintThumb();

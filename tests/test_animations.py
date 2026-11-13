@@ -281,6 +281,8 @@ def test_project_validation(tmp_path):
         ("yandexstation", _project(frames=[_ring(color=(256, 0, 0, 0))])),
         ("yandexstation", _project(loop_from=1)),
         ("yandexstation_2", _project(kind="frontal", frames=[{"colors": [[0, 0, 0]] * 399, "delayMs": 100}])),
+        ("yandexstation_2", _project(kind="frontal",                     # монохромный: r=g=b, цвет отклоняется
+                                     frames=[{"colors": [[255, 0, 0]] * 400, "delayMs": 100}])),
         ("yandexmini_2", _project(kind="clock", frames=[_scled(0, 70000)])),
     ]:
         with pytest.raises(ValueError):
@@ -314,12 +316,14 @@ def _gif_bytes(frames, size=(25, 16), duration=100):
 def test_frontal_gif_import_render_and_export(tmp_path):
     from PIL import Image
     store = AnimationProjectStore(tmp_path)
-    data = _gif_bytes([(255, 0, 0), (0, 0, 255)])
+    data = _gif_bytes([(200, 200, 200), (10, 10, 10)])
     project = store.import_file("yandexstation_2", "eyes", "Глаза", "frontal", data, "eyes.gif")
     assert len(project["frames"]) == 2 and len(project["frames"][0]["colors"]) == 400
-    assert project["frames"][0]["colors"][0] == [255, 0, 0] and project["frames"][0]["delayMs"] == 100
+    assert project["frames"][0]["colors"][0] == [200, 200, 200] and project["frames"][0]["delayMs"] == 100
     big = store.import_file("yandexstation_2", "big", "t", "frontal", _gif_bytes([(0, 255, 0)], size=(50, 32)), "b.gif")
     assert len(big["frames"][0]["colors"]) == 400                       # масштаб к 25×16
+    color = big["frames"][0]["colors"][0]
+    assert color[0] == color[1] == color[2]                             # цветной GIF — в градации серого
     name = store.publish_gif(project)
     with Image.open(store.media / name) as gif:
         assert gif.size == (25, 16) and gif.n_frames == 2
@@ -409,7 +413,7 @@ async def test_api_play_project(tmp_path, monkeypatch):
     store.put('yandexmini_2', {'id': 'c', 'title': 'c', 'kind': 'clock', 'loop_from': -1, 'frames': [_scled(5, 40)]})
     store.put('yandexmini_2', {'id': 'r', 'title': 'r', 'kind': 'ring', 'loop_from': -1, 'frames': [_ring(6)]})
     store.put('yandexstation_2', {'id': 'f', 'title': 'f', 'kind': 'frontal', 'loop_from': -1,
-                                  'frames': [{'colors': [[1, 2, 3]] * 400, 'delayMs': 100}]})
+                                  'frames': [{'colors': [[50, 50, 50]] * 400, 'delayMs': 100}]})
     runner, url = await listen(create_app(runtime=runtime))
     play = url + '/emulator/api/animations-play'
     try:
@@ -455,4 +459,9 @@ def test_push_wire_forms_for_scled_and_led_screen():
         with pytest.raises(ValueError):
             push_message(cls, "draw_scled_animations", bad)
     led = cls.FromString(push_message(cls, "draw_led_screen", {"frames": ["http://h/a.gif"]}).SerializeToString())
-    assert led.Event.Push.Directives[0].Payload.fields["animation_sequence"].list_value.values
+    directive = led.Event.Push.Directives[0]
+    assert directive.Name == "draw_led_screen" and directive.Type == "client_action" and directive.IsLedSilent
+    payload = directive.Payload.fields
+    entry = payload["animation_sequence"].list_value.values[0].struct_value.fields
+    assert entry["frontal_led_image"].string_value == "http://h/a.gif"
+    assert payload["till_end_of_speech"].bool_value is False

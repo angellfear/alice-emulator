@@ -77,7 +77,7 @@ def display_of_device(device):
 
 # --- Реестр платформ и их дисплеев для проектов анимаций ---------------------
 
-# kind: frontal — GIF-матрица, ring — кольцо, panel — световая панель, oknix — окно,
+# kind: frontal — GIF-матрица (монохромная, яркость белого), ring — кольцо, panel — световая панель, oknix — окно,
 # clock — 7-сегментные часы; size — число LED (или ширина×высота), format — родной файл.
 PLATFORM_DISPLAYS: dict[str, list[dict]] = {
     "yandexstation_2": [

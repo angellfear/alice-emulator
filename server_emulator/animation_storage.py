@@ -5,7 +5,8 @@
 только kind. Кадры — в родном представлении дисплея:
   ring / panel / oknix — {colors: [[r,g,b,w] × N], delayMs}  (.led)
   clock                — {brightnesses: [0..255 × 32], delayMs}  (.scled)
-  frontal              — {colors: [[r,g,b] × W·H], delayMs}  (GIF 25×16 строится на лету)
+  frontal              — {colors: [[v,v,v] × W·H], delayMs}  (GIF 25×16 строится на лету;
+                          дисплей монохромный — r=g=b, цвета не допускаются)
 loop_from — индекс кадра, с которого анимация зацикливается (-1 — без цикла).
 
 Импорт .led/.scled/.gif, экспорт в родной формат, сборка GIF для draw_led_screen
@@ -84,7 +85,12 @@ def _frame(kind: str, display: dict, frame) -> dict:
         if not isinstance(color, list) or not 3 <= len(color) <= 4:
             raise ValueError("цвет: [r, g, b] или [r, g, b, w]")
         channels = [_byte(v, "канал цвета") for v in color]
-        clean.append(channels[:3] if kind == "frontal" else channels + [0] * (4 - len(channels)))
+        if kind == "frontal":
+            if channels[0] != channels[1] or channels[1] != channels[2]:
+                raise ValueError("frontal: дисплей монохромный, r=g=b (яркость белого)")
+            clean.append(channels[:3])
+        else:
+            clean.append(channels + [0] * (4 - len(channels)))
     low = MIN_GIF_DELAY_MS if kind == "frontal" else 0
     return {"colors": clean, "delayMs": _delay(frame.get("delayMs"), low, MAX_DELAY_MS)}
 
@@ -228,7 +234,10 @@ def render_gif(project: dict) -> bytes:
 
 
 def _gif_frames(data: bytes, size: tuple) -> list[dict]:
-    """GIF → кадры RGB заданного размера (другой размер — масштаб ближайшим соседом)."""
+    """GIF → кадры монохромной яркости заданного размера (другой размер — масштаб
+    ближайшим соседом). Дисплей frontal белый без оттенков цвета: кадр переводится
+    в градации серого (яркость канала L), цветной источник не отклоняется —
+    приводится к тому, что реально показала бы колонка."""
     Image = _pillow()
     if not data.startswith(b"GIF8"):
         raise ValueError("Файл не GIF")
@@ -239,12 +248,12 @@ def _gif_frames(data: bytes, size: tuple) -> list[dict]:
             gif.seek(index)
             image = gif.convert("RGBA")
             background = Image.new("RGBA", image.size, (0, 0, 0, 255))
-            image = Image.alpha_composite(background, image).convert("RGB")
+            image = Image.alpha_composite(background, image).convert("L")
             if image.size != size:
                 image = image.resize(size, Image.NEAREST)
             delay = max(MIN_GIF_DELAY_MS, min(int(gif.info.get("duration", 100) or 100), MAX_DELAY_MS))
             raw = image.tobytes()
-            frames.append({"colors": [list(raw[i:i + 3]) for i in range(0, len(raw), 3)], "delayMs": delay})
+            frames.append({"colors": [[v, v, v] for v in raw], "delayMs": delay})
     except (OSError, EOFError, ValueError) as exc:
         raise ValueError(f"GIF не разобран: {exc}") from None
     return frames
