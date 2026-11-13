@@ -21,9 +21,12 @@
   color-scheme:dark;line-height:1.5;font-size:15px;
 }
 /* Светлая тема: те же смысловые токены, значения под контраст WCAG 4.5 (акцент для
-   текста затемняется, фирменный голубой на кнопках и заливках сохраняется) */
-@media (prefers-color-scheme:light){
-  :root{
+   текста затемняется, фирменный голубой на кнопках и заливках сохраняется).
+   Тёмная — значения :root выше, явный выбор ей не нужен. Явный выбор пользователя
+   (theme.js, data-theme на <html>, ключ localStorage theme) против prefers-color-scheme
+   не борется: «авто» сам разрешается в light/dark и следует системе живьём (matchMedia) —
+   здесь всегда стоит конкретное значение, медиа-запрос не нужен. */
+:root[data-theme="light"]{
     color-scheme:light;
     --bg:#f2f5fa;--surface:#ffffff;--surface-2:#e9eef6;--surface-3:#dfe6f0;
     --border:#c9d4e4;--border-strong:#9fb0c8;
@@ -39,7 +42,6 @@
     --shadow-sm:0 1px 2px rgba(30,40,60,.18);--shadow-md:0 2px 10px rgba(30,40,60,.22);
     --shadow-press:inset 0 2px 4px rgba(30,40,60,.16);--shadow-inset:inset 0 1px 0 rgba(255,255,255,.6);
     --dc-bg:var(--surface);--dc-bg-hover:#f0f4fa;--dc-bg-selected:#e3edfb;--dc-danger:#b23a3a;--dc-badge-bg:var(--surface-3);
-  }
 }
 /* Диалоги: базовая тема (id-диалоги без класса — update-dialog и будущие);
    классные (.catalog-dialog, .params-dialog, .mcp-dialog, .upd-firmware) переопределяют */
@@ -132,6 +134,11 @@ nav .active{background:color-mix(in srgb,var(--accent) 22%,transparent);color:va
 .segmented button:hover{color:var(--text)}
 .segmented [aria-checked=true]{background:var(--accent-bg);color:var(--text);font-weight:600}
 @media (max-width:760px){nav{flex-wrap:wrap}.groups{min-width:0;max-width:100%;overflow-x:auto;scrollbar-width:none}.segmented{margin-left:0}}
+/* Тема оформления: тот же сегментный переключатель, три значка без подписи
+   (title/aria-label — доступность), сразу после режима «Интеллект» */
+.theme-switch{margin-left:0}
+.theme-switch button{display:flex;align-items:center;padding:6px 10px}
+.theme-switch svg{width:16px;height:16px;display:block}
 
 /* Тосты (toast.js): фиксированный стек справа сверху поверх содержимого, страницу не сдвигает;
    сообщения — результат действия пользователя или ошибка, автоскрытие в toast.js */

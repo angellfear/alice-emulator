@@ -223,14 +223,24 @@ def test_registry_displays():
     assert device_platform({"sn": "S", "model": "yandexmidi"}) == "yandexmidi"
 
 
-def test_list_platforms_only_user_devices():
+def test_list_platforms_includes_platforms_without_devices():
+    """Редактор анимаций доступен без единой колонки: list_platforms возвращает ВСЕ
+    платформы реестра PLATFORM_DISPLAYS, devices — колонки пользователя этой платформы
+    или пустой список, если их нет (посылать анимацию будет некуда, но редактор работает)."""
     devices = [{"sn": "X00T10001B6SAK", "name": "Макс"}, {"sn": "C00T10001B6SAK"},
                {"sn": "M00T10001B6SAK", "profile": {"name": "Кухня"}}]
     platforms = list_platforms(devices)
-    assert [p["platform"] for p in platforms] == ["yandexstation_2", "yandexmini_2"]
-    assert platforms[0]["devices"] == [{"sn": "X00T10001B6SAK", "name": "Макс", "model": ""}]
-    assert platforms[1]["devices"][0]["name"] == "Кухня"
-    assert list_platforms([]) == []
+    assert [p["platform"] for p in platforms] == list(PLATFORM_DISPLAYS)
+    by_platform = {p["platform"]: p for p in platforms}
+    assert by_platform["yandexstation_2"]["devices"] == [{"sn": "X00T10001B6SAK", "name": "Макс", "model": ""}]
+    assert by_platform["yandexmini_2"]["devices"][0]["name"] == "Кухня"
+    assert by_platform["yandexmidi"]["devices"] == []     # нет колонки этой платформы — список пуст
+    assert by_platform["yandexstation"]["devices"] == []
+    assert by_platform["yandexmini"]["devices"] == []
+    # без единой колонки пользователя — все платформы реестра всё равно возвращаются
+    empty = list_platforms([])
+    assert [p["platform"] for p in empty] == list(PLATFORM_DISPLAYS)
+    assert all(p["devices"] == [] for p in empty)
 
 
 # ─── хранилище проектов ────────────────────────────────────────────────────
@@ -352,8 +362,12 @@ async def test_api_platforms_projects_import_export(tmp_path):
         async with ClientSession() as client:
             async with client.get(url + '/emulator/api/animations-platforms') as response:
                 platforms = (await response.json())['platforms']
-            assert [p['platform'] for p in platforms] == ['yandexstation_2', 'yandexmini_2']   # chiron — без дисплея
-            assert platforms[0]['devices'][0]['sn'] == 'X00T10001B6SAK'
+            # chiron (ДуоМакс) — без дисплея, вообще не в реестре; остальные платформы видны
+            # всегда, даже без колонки этой платформы у пользователя
+            assert [p['platform'] for p in platforms] == list(PLATFORM_DISPLAYS)
+            by_platform = {p['platform']: p for p in platforms}
+            assert by_platform['yandexstation_2']['devices'][0]['sn'] == 'X00T10001B6SAK'
+            assert by_platform['yandexmidi']['devices'] == []
             project = {**_project(), 'platform': 'yandexmini_2', 'frames': [_ring(6)]}
             async with client.put(url + '/emulator/api/animations-projects', json=project, headers=HEADERS) as response:
                 assert (await response.json())['saved'] == 'my.ring'

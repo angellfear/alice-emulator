@@ -133,7 +133,7 @@
         return note;
       })(),
       make('p', { className: 'hint' }, [version, 'Сейчас: ' + (listeners || '—') + (notes.length ? ' ' + notes.join(' ') : '')].filter(Boolean).join(' · ')),
-      form, selfUpdatePanel(), oauthPanel(), journalPanel(), protocolPanel());
+      form, selfUpdatePanel(), oauthPanel(), journalPanel(), protocolPanel(), appearancePanel());
   }
 
   // Домены, которые должен покрывать сертификат для HTTPS (cert_domains из GET api/server):
@@ -339,6 +339,23 @@
       finally { busy = false; save.disabled = false; }
     };
     return form;
+  }
+
+  // Оформление: тема панели (theme.js, localStorage) — тот же выбор, что переключатель
+  // в шапке; радио здесь только синхронизируется с ним (делегирование событий в theme.js),
+  // своего состояния и обращения к серверу нет.
+  function appearancePanel() {
+    const current = window.AppTheme ? window.AppTheme.current() : 'auto';
+    const options = [['light', 'Светлая'], ['dark', 'Тёмная'], ['auto', 'Системная (авто)']];
+    const rows = options.map(([value, label]) => {
+      const input = make('input', { type: 'radio', name: 'appearance-theme', checked: value === current });
+      input.dataset.themeChoice = value;
+      return make('label', { className: 'srv-check' }, input, make('span', {}, label));
+    });
+    return make('div', { className: 'panel' },
+      make('h3', {}, 'Оформление'),
+      make('p', { className: 'hint' }, 'Тема панели — тот же выбор, что переключатель в правом верхнем углу шапки.'),
+      ...rows);
   }
 
   // адрес панели после перезапуска: сервер слушает все адреса (0.0.0.0 / ::) — остаёмся на хосте, по которому

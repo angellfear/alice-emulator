@@ -1,5 +1,6 @@
-/* Раздел «Анимации»: подвкладки платформ колонок, у каждой — каталог проектов, редактор
-   кадров в родном виде дисплея и плеер предпросмотра. Кадры хранятся как у колонки:
+/* Раздел «Анимации»: подвкладки всех платформ реестра (доступны без единой колонки —
+   отправлять просто будет некуда, редактор это не блокирует), у каждой — каталог проектов,
+   редактор кадров в родном виде дисплея и плеер предпросмотра. Кадры хранятся как у колонки:
    ring/panel/oknix — цвета LED (.led), clock — яркости 32 сегментов (.scled),
    frontal — пиксели 25×16 (GIF). API: animations-platforms/-projects/-import/-export/-play. */
 (() => {
@@ -116,7 +117,6 @@
     } else {
       state.platform = state.platforms.find((p) => p.platform === state.platform.platform);
     }
-    $('anim-empty').hidden = state.platforms.length > 0;
     await loadProjects();
     renderTabs();
   }
@@ -300,7 +300,8 @@
 
     const devices = state.platform.devices;
     const playable = PLAYABLE.includes(w.kind);
-    const deviceSelect = el('select', {id: 'anim-device', 'aria-label': 'Колонка для проигрывания', disabled: !playable},
+    const hasDevices = devices.length > 0;
+    const deviceSelect = el('select', {id: 'anim-device', 'aria-label': 'Колонка для проигрывания', disabled: !playable || !hasDevices},
       devices.map((d) => el('option', {value: d.sn, text: [...new Set([d.name, d.model || state.platform.title, d.sn].filter(Boolean))].join(' — ')})));
 
     return el('div', {class: 'panel anim-editor'},
@@ -322,7 +323,8 @@
       player.box, el('div', {class: 'anim-tool-row'}, player.button),
       el('div', {class: 'anim-actions'},
         button('Сохранить', saveProject),
-        playable ? [deviceSelect, button('Проиграть на колонке', playOnDevice, {disabled: !devices.length})] : null,
+        playable ? [deviceSelect, button('Проиграть на колонке', playOnDevice, {disabled: !hasDevices}),
+          !hasDevices ? el('span', {class: 'hint', text: 'Нет подключённых колонок этой платформы.'}) : null] : null,
         secondary('Экспорт', exportProject),
         state.isNew ? null : secondary('Удалить проект', deleteProject)));
   }

@@ -125,8 +125,10 @@ def device_platform(device) -> str:
 
 
 def list_platforms(devices: list[dict]) -> list[dict]:
-    """Платформы реестра, у которых есть колонка пользователя: [{platform, title,
-    displays, devices: [{sn, name, model}]}] — порядок реестра."""
+    """Все платформы реестра (редактор доступен без единой колонки — посылать
+    анимацию просто будет некуда): [{platform, title, displays, devices: [{sn,
+    name, model}]}] — порядок реестра; devices — колонки пользователя этой
+    платформы, пустой список — колонок нет."""
     by_platform: dict[str, list[dict]] = {}
     for device in devices:
         platform = device_platform(device)
@@ -135,8 +137,8 @@ def list_platforms(devices: list[dict]) -> list[dict]:
                 {"sn": device["sn"], "name": device.get("name") or (device.get("profile") or {}).get("name") or "",
                  "model": device.get("model") or ""})
     return [{"platform": platform, "title": PLATFORM_TITLES[platform],
-             "displays": platform_displays(platform), "devices": by_platform[platform]}
-            for platform in PLATFORM_DISPLAYS if platform in by_platform]
+             "displays": platform_displays(platform), "devices": by_platform.get(platform, [])}
+            for platform in PLATFORM_DISPLAYS]
 
 
 CAPTURED = [
