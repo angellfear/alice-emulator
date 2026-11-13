@@ -108,7 +108,6 @@
       const headRow = make('div', null, 'sc-edit-head');
       headRow.append(make('h3', 'Шаблон: ' + entry.id));
       const close = make('button', '✕', 'icon-btn'); close.type = 'button'; close.setAttribute('aria-label', 'Закрыть');
-      close.onclick = dismissEditor;
       headRow.append(close);
       form.append(headRow);
 
@@ -170,7 +169,7 @@
         row.append(resetBtn);
       }
       const sendBtn = make('button', 'Отправить на колонку', 'secondary'); sendBtn.type = 'button';
-      const cancel = make('button', 'Закрыть', 'secondary'); cancel.type = 'button'; cancel.onclick = dismissEditor;
+      const cancel = make('button', 'Закрыть', 'secondary'); cancel.type = 'button';
       row.append(sendBtn, cancel);
       foot.append(row);
       form.append(foot);
@@ -222,16 +221,31 @@
       }
       cm.on('change', schedule);
 
-      // канвас карточки — экран станции 720×1280, масштабируется в панель;
-      // первый рендер — после раскладки диалога: DivKit измеряет target при
-      // старте, рендер в неразложенный диалог даёт схлопнутый контейнер (1px)
+      // канвас карточки — экран станции шириной 720; высоту канвы подсказывает сам
+      // iframe (postMessage с фактической высотой карточки) — карточка всегда видна
+      // целиком, масштаб по меньшей стороне, без прокрутки и обрезки. Первый рендер —
+      // после раскладки диалога: DivKit измеряет target при старте, рендер в
+      // неразложенный диалог даёт схлопнутый контейнер (1px)
+      let cardH = 0;
+      const onCardSize = e => {
+        if (e.source !== frame.contentWindow || !e.data || e.data.type !== 'tpl-card-size') return;
+        cardH = Math.max(360, Math.min(1280, Math.round(e.data.height) || 0));
+        fit();
+      };
+      window.addEventListener('message', onCardSize);
+      const dismiss = () => { window.removeEventListener('message', onCardSize); dismissEditor(); };
+      close.onclick = dismiss;
+      cancel.onclick = dismiss;
       let laidOut = false;
       const fit = () => {
         const r = frameWrap.getBoundingClientRect();
         if (!r.width || !r.height) return;
-        const scale = Math.min(r.width / 720, r.height / 1280);
+        const h = cardH || 1280;
+        frame.style.height = h + 'px';
+        const scale = Math.min(r.width / 720, r.height / h);
         frame.style.transform = 'scale(' + scale + ')';
         frame.style.left = Math.max(0, Math.round((r.width - 720 * scale) / 2)) + 'px';
+        frame.style.top = Math.max(0, Math.round((r.height - h * scale) / 2)) + 'px';
         if (!laidOut) {
           laidOut = true;
           render();
@@ -289,13 +303,21 @@
   function previewDoc(card) {
     // скрипты — в конце body: на момент их исполнения document.body существует
     // (в head ещё нет — target получал undefined, рендер падал). ?v=33 — кэш:
-    // URL сменился вместе с бандлом (браузерная сборка вместо CommonJS)
+    // URL сменился вместе с бандлом (браузерная сборка вместо CommonJS).
+    // overflow:hidden — прокрутка внутри iframe не нужна: высоту карточки панель
+    // узнаёт через postMessage и масштабирует канву сама
     return '<!doctype html><html><head><meta charset="utf-8"><style>'
-      + 'html,body{margin:0;height:100%;background:#0b0f14;color:#e6eef9;font-family:Inter,system-ui,sans-serif}'
+      + 'html,body{margin:0;height:100%;background:#0b0f14;color:#e6eef9;'
+      + 'font-family:Inter,system-ui,sans-serif;overflow:hidden}'
       + '</style></head><body>'
       + '<script src="vendor/divkit.min.js?v=33"><\/script>'
       + '<script>try{window.Ya.DivKit.render({id:"preview",target:document.body,json:'
-      + JSON.stringify(card).replace(/</g, '\\u003c') + '});}catch(e){document.body.textContent="DivKit: "+e.message;}<\/script>'
+      + JSON.stringify(card).replace(/</g, '\\u003c') + '});'
+      + 'var __tell=function(){var el=document.body.lastElementChild;'
+      + 'parent.postMessage({type:"tpl-card-size",'
+      + 'height:el&&el.getBoundingClientRect?el.getBoundingClientRect().height:0},"*");};'
+      + 'requestAnimationFrame(__tell);setTimeout(__tell,700);'
+      + '}catch(e){document.body.textContent="DivKit: "+e.message;}<\/script>'
       + '</body></html>';
   }
 
