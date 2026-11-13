@@ -14,7 +14,10 @@ def on_enable(settings):
 
 
 def on_disable(settings):
-    """При выключении; файлы не удаляются."""
+    """При выключении; файлы не удаляются. Останавливает фоновую WS-задачу умного
+    дома (sdk.extension_runtime — синхронный stop, отдельный поток хука)."""
+    from server_emulator import sdk
+    sdk.extension_runtime("builtin.home-assistant").stop()
 
 
 def migrate(from_version, settings):

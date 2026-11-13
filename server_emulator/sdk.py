@@ -26,6 +26,7 @@ import datetime
 import inspect
 import json
 import time
+import asyncio
 from dataclasses import dataclass
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -37,7 +38,7 @@ from .extensions.context import (ExtensionContext, action_context,  # ExtensionC
 from .scenario_engine import bindings as _bindings
 from .scenario_engine import parsers as _parsers
 
-SDK_VERSION = "2.7.0"  # 2.7.0: smart_home_* — реестр устройств умного дома; 2.6.0: ctx.provider(kind); 2.5.0: dataset_context(name) — настройки для кода datasets/*.py; 2.4.0: ctx.music; 2.3.0: ctx.route_mode, ctx.player_owner; 2.2.0: ctx.intelligence, no_data_source; 2.1.0: ctx.data
+SDK_VERSION = "2.8.0"  # 2.8.0: extension_runtime — фоновые задачи расширения; 2.7.0: smart_home_* — реестр устройств умного дома; 2.6.0: ctx.provider(kind); 2.5.0: dataset_context(name) — настройки для кода datasets/*.py; 2.4.0: ctx.music; 2.3.0: ctx.route_mode, ctx.player_owner; 2.2.0: ctx.intelligence, no_data_source; 2.1.0: ctx.data
 DATASET_REFRESH_TIMEOUT_S = 10.0  # как у шага refresh без timeout
 
 
@@ -65,6 +66,108 @@ def bind_runtime(runtime):
     у расширений; последний вызов побеждает (один самостоятельный сервер)."""
     global _RUNTIME
     _RUNTIME = runtime
+
+
+class ExtensionRuntime:
+    """Хэндл фоновых задач расширения (sdk.extension_runtime): свежий контекст настроек,
+    идемпотентный spawn (одна живая задача на расширение — повторный spawn останавливает
+    прежнюю и стартует новую; пересборка реестра с изменённым модулем сама перезапускает
+    задачу) и синхронный stop для хуков hooks.py (отдельный поток —
+    run_coroutine_threadsafe на сохранённый loop). Ошибки задачи не гасятся — их видит
+    spawning-корутина/лог; задача должна сама вести реконнект и тихо завершаться,
+    когда расширение не настроено."""
+
+    def __init__(self, ext_id):
+        self.ext_id = str(ext_id)
+        self._task = None
+        self._loop = None
+
+    @property
+    def alive(self):
+        """Живая задача есть и не завершена."""
+        task = self._task
+        return task is not None and not task.done()
+
+    def _runtime(self):
+        """Привязанный Runtime на момент вызова; None — честная ошибка."""
+        runtime = _RUNTIME
+        if runtime is None:
+            raise SDKError("extension_runtime — runtime ещё не привязан (bind_runtime)")
+        return runtime
+
+    def context(self):
+        """Свежий ExtensionContext расширения (настройки — на каждый вызов)."""
+        return self._runtime().extensions.context(self.ext_id)
+
+    def _capture_loop(self):
+        try:
+            self._loop = asyncio.get_running_loop()
+        except RuntimeError:
+            pass  # вне loop (поток хука) — остаётся сохранённый с прошлого spawn
+        return self._loop
+
+    def spawn(self, coro):
+        """Идемпотентный запуск корутины задачи: прежняя отменяется (await её
+        завершения), новая стартует на текущем loop. Вызов — из async-контекста
+        сервера (импорт модуля расширения идёт на нём). Возвращает задачу задачи
+        расширения (не обёртку запуска)."""
+        self._capture_loop()
+        return asyncio.ensure_future(self._spawn_and_store(coro))
+
+    async def _spawn_and_store(self, coro):
+        await self.astop()
+        self._loop = asyncio.get_running_loop()
+        self._task = asyncio.create_task(coro)
+
+    async def astop(self):
+        """Асинхронная остановка: отмена задачи с ожиданием завершения."""
+        task, self._task = self._task, None
+        if task is not None and not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+    def stop(self):
+        """Синхронная остановка (hooks.on_disable — отдельный поток): на loop-потоке —
+        прямая отмена, из потока — run_coroutine_threadsafe с ограниченным ожиданием."""
+        task = self._task
+        if task is None or task.done():
+            self._task = None
+            return
+        try:
+            current = asyncio.get_running_loop()
+        except RuntimeError:
+            current = None
+        if current is not None and current is self._loop:
+            task.cancel()
+            self._task = None
+            return
+        loop = self._loop
+        if loop is None or not loop.is_running():
+            return
+        future = asyncio.run_coroutine_threadsafe(self.astop(), loop)
+        try:
+            future.result(timeout=8)
+        except Exception:  # noqa: BLE001 — остановка не должна ронять хук
+            pass
+
+
+_EXTENSION_RUNTIMES: dict[str, ExtensionRuntime] = {}
+
+
+def extension_runtime(ext_id):
+    """Хэндл фоновых задач расширения (2.8.0): context()/spawn(coro)/stop() — один объект
+    на ext_id (spawn идемпотентен). Детали — docs/contracts/extensions.md
+    «Фоновые задачи расширений»."""
+    if _RUNTIME is None:
+        raise SDKError("extension_runtime — runtime ещё не привязан (bind_runtime)")
+    handle = _EXTENSION_RUNTIMES.get(str(ext_id))
+    if handle is None:
+        handle = ExtensionRuntime(ext_id)
+        _EXTENSION_RUNTIMES[str(ext_id)] = handle
+    return handle
 
 
 class _LoadingExt:

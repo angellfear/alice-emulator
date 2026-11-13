@@ -405,8 +405,12 @@ async def test_empty_registry_not_pushed_to_identified_column(tmp_path):
 
 async def test_feature_inactive_without_extension(tmp_path):
     """Пока обработчиков действий нет — TextInput фичей не перехватывается
-    (инвариант флагов профиля сохранён)."""
+    (инвариант флагов профиля сохранён). Встроенный HA-плагин регистрирует
+    обработчик всегда — инвариант проверяется на чистом реестре без колбэков
+    (подменой store, как у модульных тестов ядра)."""
     runtime = Runtime(tmp_path)
+    from server_emulator.smart_home import SmartHomeRegistry
+    runtime.smart_home = SmartHomeRegistry(runtime)  # без колбэков плагинов
     sent = []
 
     async def send(data):

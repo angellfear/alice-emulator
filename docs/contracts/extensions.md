@@ -505,6 +505,85 @@ sdk.smart_home_on_device_action(device_action)
   (`TextInput`, перед обработчиками реплик); без обработчиков события идут обычным путём.
 - Как реестр доходит до колонки (директивы `set_iot_user_info`, `set_div_variables`,
   `sync_iot_user_info`) и как устроено действие карточки — docs/contracts/smart-home.md.
+- Шкала карточки для умения `level` дискретная (ступени тепла/холода у термостата,
+  шаг яркости) — непрерывные величины колонка огрубляет сама; полный термостат с
+  заданием температуры — отдельная возможность, не `level`.
+
+## Фоновые задачи расширений (SDK)
+
+Подписки и клиенты с временем жизни больше одного запроса (WS-соединение с источником,
+периодический сбор) — задача расширения через `sdk.extension_runtime(ext_id)`:
+
+```python
+async def run_forever(handle):          # реконнект-цикл внутри корутины
+    while True:
+        try:
+            if not await cycle(handle.context()):  # настройки — свежие на каждый вызов
+                return                             # не настроено — тихое завершение
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            pass  # сеть/отказ источника — реконнект с бэкоффом
+        await asyncio.sleep(1)
+
+handle = sdk.extension_runtime("builtin.example")
+handle.spawn(run_forever(handle))       # из async-контекста (импорт модуля — на цикле сервера)
+```
+
+- **Самостарт при импорте модуля** — расширение стартует свою задачу само, когда
+  настроено (настройки читает сама корутина); при пустых настройках — тихо, без шума
+  в тестах. Ленивый вариант — старт при первой активности (колбэк действия, наблюдатель
+  события).
+- **Идемпотентность** — `spawn` ключуется по расширению: повторный spawn (пересборка
+  реестра при сохранении настроек, ленивый старт) останавливает прежнюю задачу и
+  стартует новую — одна живая задача на расширение всегда.
+- **Остановка** — выключение расширения останавливает задачу: `hooks.on_disable` зовёт
+  `handle.stop()` (синхронный, отдельный поток хука); `astop()` — асинхронный вариант.
+  Ошибки задачи не гасятся — корутина сама ведёт реконнект и тихо завершается, когда
+  расширение не настроено.
+- Контекст — `handle.context()` возвращает свежий `ExtensionContext` на каждый вызов:
+  правка настроек применяется кодом без рестарта (новое соединение читает новые
+  значения).
+
+## Встроенный плагин Home Assistant
+
+`builtin.home-assistant` (SDK 2.8.0, `extension_runtime`) — сущности HA в реестре умного
+дома без опроса, действия с колонки → сервисы HA:
+
+- **Транспорт** — WS API HA (`url` + long-lived `token` из настроек плагина):
+  auth → `subscribe_entities`. Подписка подтверждается result (null); данные идут
+  событиями — снимок `{"event": {"a": {entity_id: {s, a, c, lc, lu}}}}` (s=состояние,
+  a=атрибуты), дельты `{"event": {"c": {entity_id: {"+": {s, a…}, "-": {"a": [ключи]}}}}}`
+  ("+" частичен, "-" удаляет ключи атрибутов), удаление сущности
+  `{"event": {"r": [entity_ids]}}` → устройство в реестре офлайн.
+- **Кеш на соединение** — {state, attributes} сущности: снимок заполняет, дельты сливают,
+  устройство реестра считается от кеша; офлайн — состояние `unavailable`/`unknown`.
+  Реконнект с бэкоффом 1→60 с, снимок восполняет пропущенное.
+- **Комнаты** — REST-реестры HA (`/api/config/entity_registry/list`: entity_id → area_id,
+  `/api/config/area_registry/list`: area_id → имя): устройство несёт `room` = area_id,
+  имена комнат — `smart_home_set_rooms({area_id: имя})`.
+- **Запуск** — ленивый: при первой активности колонки (наблюдатель `RequestStat`,
+  объявлен в `permissions.aapi`) или при действии карточки; не настроено (токен пуст) —
+  задача тихо завершается; выключение плагина останавливает её через `hooks.on_disable`.
+- **Действие карточки** → REST `POST /api/services/<домен>/<сервис>` (entity_id);
+  новое состояние возвращается событием WS. Сопоставление доменов HA и реестра
+  (type — enum станции, неизвестное значение реестр сам деградирует в
+  `UnknownDeviceType`; умения — короткие имена `on_off`/`level`):
+
+| HA domain | type | умения | сервис действия |
+|---|---|---|---|
+| light | LightDeviceType | on_off, level | light.turn_on/turn_off (level → brightness) |
+| switch | SwitchDeviceType | on_off | switch.turn_on/turn_off |
+| climate | ClimateDeviceType | on_off, level | climate.turn_on/turn_off, level → set_temperature |
+| cover | CoverDeviceType | level, on_off | cover.open_cover/close_cover, level → set_cover_position |
+| media_player | MediaDeviceType | on_off, level | media_player.media_play/media_pause, level → volume_set |
+| vacuum | VacuumCleanerDeviceType | on_off | vacuum.start/stop |
+| sensor, binary_sensor | SensorDeviceType | battery | — (только состояние) |
+| lock, fan, humidifier | LockDeviceType/FanDeviceType/… | on_off/level | по домену |
+| script, scene | — (не устройство) | — | script.turn_on / scene.turn_on |
+
+- Не затронуто здесь: режим «Интеллекта» (conversation-агент HA), действие `ha.call_service`
+  для сценариев, пресеты ASR/TTS через Assist, MCP-сервер HA — прежние части плагина.
 
 ## Не реализовано
 
