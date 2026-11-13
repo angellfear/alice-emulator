@@ -284,11 +284,12 @@
     w.frames.map((_, i) => el('option', {value: String(i), text: `Цикл с кадра ${i + 1}`, selected: i === w.loop_from})));
     loopSelect.value = String(w.loop_from);
 
-    const delayInput = el('input', {id: 'anim-delay', type: 'number', min: w.kind === 'frontal' ? '20' : '0', max: '65535', step: '10',
+    const delayMax = w.kind === 'clock' ? 65535 : 600000;   // часы — uint16 бинарника .scled, остальным — предел хранилища
+    const delayInput = el('input', {id: 'anim-delay', type: 'number', min: w.kind === 'frontal' ? '20' : '0', max: String(delayMax), step: '10',
       value: String(frame().delayMs), 'aria-label': 'Задержка кадра, мс',
       onchange: (ev) => {
         const min = w.kind === 'frontal' ? 20 : 0;
-        frame().delayMs = Math.max(min, Math.min(65535, Math.round(+ev.target.value) || 0));
+        frame().delayMs = Math.max(min, Math.min(delayMax, Math.round(+ev.target.value) || 0));
         ev.target.value = String(frame().delayMs);
         touch();
       }});

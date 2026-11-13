@@ -284,11 +284,16 @@ def test_project_validation(tmp_path):
         ("yandexstation_2", _project(kind="frontal",                     # монохромный: r=g=b, цвет отклоняется
                                      frames=[{"colors": [[255, 0, 0]] * 400, "delayMs": 100}])),
         ("yandexmini_2", _project(kind="clock", frames=[_scled(0, 70000)])),
+        ("yandexstation", _project(frames=[_ring(delay=600001)])),        # предел хранилища — 600000 мс
     ]:
         with pytest.raises(ValueError):
             store.put(platform, value)
     ring3 = {"colors": [[1, 2, 3]] * 24, "delayMs": 5}               # RGB без W — дополняется
     assert store.put("yandexstation", _project(frames=[ring3]))["frames"][0]["colors"][0] == [1, 2, 3, 0]
+    assert store.put("yandexstation", _project(frames=[_ring(delay=600000)]))["frames"][0]["delayMs"] == 600000
+    assert store.put("yandexmini_2", _project(kind="clock", frames=[_scled(0, 65535)]))["frames"][0]["delayMs"] == 65535
+    with pytest.raises(ValueError):                                  # у clock предел uint16 — 65535
+        store.put("yandexmini_2", _project(kind="clock", frames=[_scled(0, 65536)]))
 
 
 def test_import_led_scled_and_kind_mismatch(tmp_path):
