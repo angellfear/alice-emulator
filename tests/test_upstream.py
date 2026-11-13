@@ -281,6 +281,43 @@ async def test_resolver_loop_protection_and_pins():
         await resolver.close()
 
 
+async def test_resolver_refuses_local_domain(tmp_path):
+    """Локальный домен эмулятора (server.json local_domain) наружу не резолвится —
+    LoopError: это имя самого сервера, внешний DNS его не знает (наблюдение —
+    ClientConnectorDNSError на alica.lan)."""
+    runtime = Runtime(tmp_path)
+    try:
+        with pytest.raises(LoopError):
+            await runtime.upstream.resolver.resolve("alica.lan", 443)
+    finally:
+        await runtime.close()
+
+
+async def test_target_for_host_local_domain(tmp_path):
+    """Пути локального домена → настоящий хост: голосовой канал (uniProxyUrl реального
+    конфига — uniproxy) и gproxy; неизвестный путь не переводится (его отсечёт резолвер),
+    настоящий хост и алиас не трогаются, пустой local_domain — имени за ним ничего нет."""
+    runtime = Runtime(tmp_path)
+    try:
+        upstream = runtime.upstream
+        assert upstream.target_for_host("alica.lan", "/uni.ws", websocket=True) == \
+            "wss://uniproxy.alice.yandex.net/uni.ws"
+        assert upstream.target_for_host("alica.lan", "/gproxy/push_events_batch") == \
+            "https://rpc.alice.yandex.net/gproxy/push_events_batch"
+        assert upstream.target_for_host("uniproxy.alice.yandex.net", "/uni.ws", websocket=True) == \
+            "wss://uniproxy.alice.yandex.net/uni.ws"
+        assert upstream.target_for_host("alica.lan", "/unknown") == "https://alica.lan/unknown"
+        runtime.settings["aliases"] = {"alica.lan": "http://127.0.0.1:9000"}
+        assert upstream.target_for_host("alica.lan", "/uni.ws", websocket=True) == \
+            "http://127.0.0.1:9000/uni.ws"
+        runtime.settings["aliases"] = {}
+        (tmp_path / "server.json").write_text(json.dumps({"local_domain": ""}), encoding="utf-8")
+        assert upstream.target_for_host("alica.lan", "/uni.ws", websocket=True) == \
+            "wss://alica.lan/uni.ws"
+    finally:
+        await runtime.close()
+
+
 async def test_forward_to_self_journals_error_and_raises(tmp_path):
     """Резолв в собственный адрес: ошибки понятный текст, запроса нет, запись 502 в журнале."""
     runtime = Runtime(tmp_path)

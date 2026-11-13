@@ -16,6 +16,16 @@ from .journal import TrafficJournal
 from .record import C2S, WsTap, decode_aapi  # noqa: F401 (re-export)
 from .resolver import LoopError, UpstreamResolver, local_addresses  # noqa: F401 (re-export)
 
+# пути на локальном домене (server.json local_domain) → хост Яндекса: голосовой канал
+# (system_config.uniProxyUrl), gproxy и регистрация ATS (arpc_client.server_url),
+# отчёты AppMetrica (report/diagnostic в ответе startup).
+# Локальный домен — имя самого эмулятора: наружу под ним ничего не пересылается,
+# запрос на локальном домене переводится в настоящий хост (target_for_host,
+# dispatcher.local_domain_host); неизвестный путь отсечёт резолвер (LoopError).
+LOCAL_DOMAIN_PATHS = (("/uni.ws", "uniproxy.alice.yandex.net"),
+                      ("/gproxy/", "rpc.alice.yandex.net"), ("/ats_client/", "rpc.alice.yandex.net"),
+                      ("/report", "report.appmetrica.yandex.net"))
+
 
 class Upstream:
     """Механизм прохода наверх: резолвер + пересылка + журнал."""
@@ -24,12 +34,17 @@ class Upstream:
         self.runtime = runtime
         self.journal = TrafficJournal(runtime.directory / "traffic.sqlite3",
                                       config=lambda: self.settings().get("journal"))
-        self.resolver = UpstreamResolver(config=self.settings)
+        self.resolver = UpstreamResolver(config=self.settings, local_domain=self.local_domain)
         self.forwarder = Forwarder(self.resolver, self.journal)
 
     def settings(self):
         value = self.runtime.settings.get("upstream")
         return value if isinstance(value, dict) else {}
+
+    def local_domain(self):
+        """Локальный домен эмулятора (server.json local_domain) — резолвер наружу его не шлёт."""
+        from ..server_config import load
+        return str(load(self.runtime.directory).get("local_domain") or "").strip().lower().rstrip(".")
 
     def target_for(self, request, host=None, path=None, websocket=False):
         """URL настоящего сервера для запроса колонки — см. target_for_host."""
@@ -42,15 +57,27 @@ class Upstream:
 
         Канонический хост берётся из алиасов эмулятора; значение алиаса может быть полным upstream
         со схемой и портом (http://127.0.0.1:9000 — тесты и кастомные upstream),
-        иначе — https (wss для WS) к настоящему Яндексу.
+        иначе — https (wss для WS) к настоящему Яндексу. Локальный домен — имя самого
+        эмулятора: известные пути переводятся в настоящий хост (LOCAL_DOMAIN_PATHS) —
+        так голосовой канал станции с адресом ws://<локальный домен>/uni.ws в «Прозрачно»
+        мостится к настоящему uniproxy; неизвестный путь не переводится — отсечёт резолвер.
         """
         host = (host or "").split(":", 1)[0].lower()
         mapped = str((self.runtime.settings.get("aliases") or {}).get(host) or "").strip()
         if mapped.lower().startswith(("http://", "https://")):
             base = mapped.rstrip("/")
         else:
-            base = ("wss://" if websocket else "https://") + (mapped or host)
+            base = ("wss://" if websocket else "https://") + (mapped or self._real_host(host, path) or host)
         return base + path + (("?" + query) if query else "")
+
+    def _real_host(self, host, path):
+        """Настоящий хост Яндекса за путём локального домена (LOCAL_DOMAIN_PATHS);
+        не локальный домен — хост как есть, неизвестный путь — пусто."""
+        if not host or host != self.local_domain():
+            return host
+        clean = (path or "").split("?", 1)[0]
+        return next((name for prefix, name in LOCAL_DOMAIN_PATHS
+                     if clean == prefix or clean.startswith(prefix.rstrip("/") + "/")), "")
 
     # --- опция «Запись» устройства -------------------------------------
     def record_mode(self, sn):

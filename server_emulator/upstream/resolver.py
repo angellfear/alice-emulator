@@ -5,7 +5,8 @@ DNS), поэтому настоящий адрес хоста берётся у 
 а не у системы. Поверх запроса — закреплённые адреса (settings.upstream.upstream_ip)
 и кеш по TTL. Защита от петли: адрес, совпадающий с адресами собственных
 интерфейсов сервера, в пересылку не идёт — LoopError с понятным текстом, иначе
-запрос вернулся бы в самого себя.
+запрос вернулся бы в самого себя. Локальный домен эмулятора (server.json
+local_domain) — имя самого сервера: наружу он не резолвится вовсе — LoopError.
 """
 from __future__ import annotations
 
@@ -56,10 +57,12 @@ def local_addresses():
 
 
 class UpstreamResolver(AbstractResolver):
-    """aiohttp-резолв для коннектора пересылки: пин → кеш TTL → внешний DNS."""
+    """aiohttp-резолв для коннектора пересылки: пин → кеш TTL → внешний DNS.
+    Локальный домен эмулятора наружу не резолвится — LoopError."""
 
-    def __init__(self, config=None):
+    def __init__(self, config=None, local_domain=None):
         self.config = config  # dict или callable → settings["upstream"]
+        self.local_domain = local_domain  # callable → server.json local_domain
         self._cache = {}  # host → (monotonic-срок, [ips])
         self._locks = {}
 
@@ -76,6 +79,10 @@ class UpstreamResolver(AbstractResolver):
         if isinstance(value, list) and value:
             return [str(item).strip() for item in value if str(item).strip()]
         return list(DEFAULT_SERVERS)
+
+    def _local_domain(self):
+        value = self.local_domain() if callable(self.local_domain) else self.local_domain
+        return str(value or "").strip().lower().rstrip(".")
 
     def invalidate(self, host=None):
         if host:
@@ -100,6 +107,12 @@ class UpstreamResolver(AbstractResolver):
         if is_ip(host):
             self._check_loop(host, host)
             return [self._result(host, host, port)]
+        domain = self._local_domain()
+        if domain and host == domain:
+            raise LoopError(
+                f"{host} — локальный домен эмулятора: наружу не пересылается, запрос "
+                f"адресован самому серверу (путь должен обслуживаться локально или "
+                f"переводиться в настоящий хост — LOCAL_DOMAIN_PATHS)")
         pin = str(self._pins().get(host) or "").strip()
         ips = [pin] if pin else await self._resolve_dns(host)
         for ip in ips:

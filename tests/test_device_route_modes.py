@@ -223,6 +223,32 @@ async def test_ws_modes_bridge_or_local(tmp_path):
         await runtime.close()
 
 
+async def test_ws_local_voice_url_bridges_in_proxy(tmp_path):
+    """«Прозрачно» и голосовой канал на локальном домене: станция несёт адрес
+    ws://<local_domain>/uni.ws из конфига времён «Эмуляции» (заменяется настоящим
+    только при опросе конфига) — мост открывается на настоящий uniproxy, наружу
+    под именем локального домена ничего не резолвится (test_target_for_host_local_domain,
+    test_upstream.py). Эмуляция/Вместе — канал остаётся локальным (test_ws_modes_bridge_or_local)."""
+    runtime = Runtime(tmp_path)
+    registry(runtime, "SN-L", "l-id")
+    calls = []
+    upstream_runner, port = await start_upstream(calls)
+    alias_upstream(runtime, port)  # включает uniproxy.alice.yandex.net
+    set_route(runtime, "SN-L", "proxy")
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        async with ClientSession() as client:
+            async with client.ws_connect(url + "/uni.ws",
+                                         headers={"Host": "alica.lan", "x-uprx-device-id": "l-id"}) as ws:
+                await ws.send_str("привет")
+                assert (await asyncio.wait_for(ws.receive(), 3)).data == "up:привет"
+        assert calls == [("ws-open", "/uni.ws")]
+    finally:
+        await upstream_runner.cleanup()
+        await runner.cleanup()
+        await runtime.close()
+
+
 async def test_device_route_mode_applies_and_reroutes(tmp_path):
     runtime = Runtime(tmp_path)
     registry(runtime, "SN-R", "r-id")

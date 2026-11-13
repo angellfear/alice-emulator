@@ -29,17 +29,13 @@ from . import push_channel
 from . import screensaver_settings
 from .quasar_replace import (SUPPORTED_CONFIG_GENERATION, apply_replacements, config_generation,
                              effective_direct_replace, replaced_headers)
-from .upstream import UpstreamError, forward_headers
+from .upstream import UpstreamError, LOCAL_DOMAIN_PATHS, forward_headers
 from .upstream.forward import decoded_json
 
 log = logging.getLogger(__name__)
 
 XIVA_HOST = "push.yandex.ru"  # пуш-канал quasar-realtime колонки
 XIVA_PATH = "/v2/subscribe/websocket"
-# пути на локальном домене → хост Яндекса: gproxy и регистрация ATS
-# (system_config.arpc_client.server_url) и отчёты AppMetrica (report/diagnostic в ответе startup)
-LOCAL_DOMAIN_PATHS = (("/gproxy/", "rpc.alice.yandex.net"), ("/ats_client/", "rpc.alice.yandex.net"),
-                      ("/report", "report.appmetrica.yandex.net"))
 
 
 class Dispatcher:
@@ -92,9 +88,10 @@ class Dispatcher:
         return None, device_id or None, 'emulate'
 
     def local_domain_host(self, request, host=None, path=None):
-        """Запрос на локальный домен (server.json local_domain) по пути хоста Яндекса, чей адрес
-        колонка берёт из get_sync_info или ответа startup (LOCAL_DOMAIN_PATHS), обслуживается
-        как запрос к этому хосту; иначе host без изменений."""
+        """Запрос на локальный домен (server.json local_domain) по пути хоста Яндекса —
+        голосовой канал (uniProxyUrl), gproxy/ATS, отчёты startup (LOCAL_DOMAIN_PATHS,
+        upstream/__init__.py) — обслуживается как запрос к этому хосту; иначе host
+        без изменений."""
         from .quasar_rules import local_domain
         current = (host or request.host or "").split(':', 1)[0].rstrip('.').lower()
         domain = local_domain(self.runtime).lower()
