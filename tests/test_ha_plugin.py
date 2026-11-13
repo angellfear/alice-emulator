@@ -162,7 +162,7 @@ async def test_ha_entities_fill_registry_and_actions(tmp_path):
         assert device is not None and device["type"] == "LightDeviceType"
         assert device["name"] == "Кухня свет" and device["online"] is True
         assert device["room"] == AREA
-        assert sdk.smart_home_devices()["rooms"] == {AREA: "Кухня"}
+        assert sdk.smart_home_devices()["rooms"] == {AREA: "Кухня", "unassigned": "Не назначено"}
         assert {"type": "on_off", "value": True} in device["capabilities"]
         assert {"type": "level", "value": 50} in device["capabilities"]  # 127/2.55 ≈ 50
         # дельта: состояние off, яркость удалена; атрибуты сливаются с кешем снимка
@@ -201,8 +201,8 @@ async def test_ha_rooms_unavailable_still_registers(tmp_path):
         await asyncio.sleep(0.4)
         device = registry_map(runtime).get(f"{EXT_ID}:{ENTITY}")
         assert device is not None and device["online"] is True
-        assert device.get("room") is None
-        assert sdk.smart_home_devices()["rooms"] == {}
+        assert device.get("room") == "unassigned"  # комнаты недоступны — псевдокомната
+        assert sdk.smart_home_devices()["rooms"] == {"unassigned": "Не назначено"}
         assert handle.alive  # сбой комнат не рвёт соединение
     finally:
         handle.stop()

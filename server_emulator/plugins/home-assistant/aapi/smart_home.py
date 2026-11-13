@@ -12,7 +12,8 @@
 устройства реестра считаются от кеша. Комнаты — WS-команды config-реестров HA
 (`config/entity_registry/list`: entity_id → area_id;
 `config/area_registry/list`: area_id → имя; REST `/api/config/*` с HA 2026.5
-отвечает 404): устройство несёт room = area_id,
+отвечает 404): устройство несёт room = area_id, без области в HA или при
+недоступности реестра — псевдокомната `unassigned` («Не назначено»),
 имена комнат — sdk.smart_home_set_rooms({area_id: имя}). Действие карточки с
 колонки → REST POST /api/services/<домен>/<сервис> (entity_id) — новое состояние
 возвращается событием WS. Реконнект — бэкофф 1→60 с; настройки читаются свежими
@@ -58,6 +59,7 @@ log = logging.getLogger(__name__)
 EXT_ID = "builtin.home-assistant"
 BACKOFF_START_S = 1.0
 BACKOFF_MAX_S = 60.0
+UNASSIGNED_AREA = "unassigned"  # псевдокомната для сущностей без области в HA
 ENTITY_DOMAINS = ("light", "switch", "climate", "cover", "media_player",
                   "vacuum", "sensor", "binary_sensor", "lock", "fan", "humidifier")
 
@@ -110,9 +112,8 @@ def _device_from_state(entity_id, state, attributes, area):
     name = str(attributes.get("friendly_name") or entity_id)
     device = {"id": entity_id, "name": name, "type": mapping["type"],
               "capabilities": _capabilities(domain, state, attributes),
-              "online": state not in ("unavailable", "unknown")}
-    if area:
-        device["room"] = area
+              "online": state not in ("unavailable", "unknown"),
+              "room": area or UNASSIGNED_AREA}  # без области в HA — псевдокомната «Не назначено»
     return device
 
 
@@ -211,8 +212,8 @@ class _Client:
                     raise ValueError("HA WS: токен отклонён (auth_invalid)")
                 entity_areas, area_names = await self._rooms(ws)
                 self._areas = entity_areas
-                if area_names:  # комнаты реестра: {area_id: имя}
-                    sdk.smart_home_set_rooms(area_names, self.ctx)
+                area_names = {**area_names, UNASSIGNED_AREA: "Не назначено"}
+                sdk.smart_home_set_rooms(area_names, self.ctx)
                 identifier = self._next_id()
                 await ws.send_json({"id": identifier, "type": "subscribe_entities"})
                 self._cache = {}  # кеш — на соединение: снимок его восполняет
