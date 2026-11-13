@@ -2,7 +2,7 @@
  "id": "builtin.spotify",
  "name": "Spotify",
  "version": "0.1.0",
- "description": "Поставщик музыки Spotify (встроенный): «включи музыку <что-то>» ищет по Web API и играет превью 30 с (mp3, p.scdn.co), «дальше/назад» — по своей очереди топ-5. Превью 30 с — лицензионное ограничение Spotify.",
+ "description": "Поставщик музыки Spotify (встроенный): «включи музыку <что-то>» ищет по Web API и играет превью 30 с (mp3, p.scdn.co), «дальше/назад» — по своей очереди (до 30 треков). Превью 30 с — лицензионное ограничение Spotify.",
  "author": "Angell Fear",
  "license": "MIT",
  "requires": {
@@ -36,12 +36,18 @@
     "key": "market",
     "label": "Маркет (market, код страны)",
     "type": "text"
+   },
+   {
+    "key": "default_playlist",
+    "label": "Плейлист для «включи музыку» (ссылка или id публичного плейлиста)",
+    "type": "text"
    }
   ],
   "defaults": {
    "client_id": "",
    "client_secret": "",
-   "market": "RU"
+   "market": "RU",
+   "default_playlist": ""
   }
  },
  "contributes": {

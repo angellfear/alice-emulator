@@ -95,29 +95,8 @@ def _snapshot(runtime, user_id, admin):
 
 
 async def _rename(runtime, device, name=None, room=None):
-    """Название/комната колонки: реестр (как правка в «Устройствах») + параметры
-    device.name / device.room, затем профили сессий. Под runtime.lock; запись устройства
-    перечитывается под ним — привязку могли сменить, пока ждали lock."""
-    async with runtime.lock:
-        current = next((d for d in runtime.identities.data["devices"]
-                        if d["sn"] == device["sn"] and d.get("user_id") == device.get("user_id")), None)
-        if current is None:
-            raise ValueError("Устройство отвязано от пользователя")
-        request = {"operation": "device", "sn": current["sn"], "user_id": current.get("user_id"),
-                   "device_ids": current.get("device_ids") or [], "name": current.get("name")}
-        if name is not None:
-            request["name"] = name
-        if room is not None:
-            request["room"] = room
-        registry = runtime.identities.mutate(request)
-        saved = next(d for d in registry["devices"] if d["sn"] == device["sn"])
-        owner = "device:" + device["sn"]
-        if name is not None and runtime.quasar_params.def_get("device.name"):
-            runtime.quasar_params.set_value(owner, "device.name", saved["name"])
-        if room is not None and runtime.quasar_params.def_get("device.room"):
-            runtime.quasar_params.set_value(owner, "device.room", saved.get("room") or "")
-        runtime.refresh_profiles()
-    return saved
+    """Название/комната колонки — Runtime.rename_device (реестр, параметры, профили сессий)."""
+    return await runtime.rename_device(device["sn"], device.get("user_id"), name, room)
 
 
 async def params(request, runtime, app):

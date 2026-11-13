@@ -10,7 +10,7 @@
 """
 import re
 
-from server_emulator.sdk import say
+from server_emulator.sdk import ask, say
 
 
 def _items(value):
@@ -52,12 +52,8 @@ def handle(ctx):
         rest = _after_marker(text, ("из списка покупок", "из покупок", "из списка", "из"))
         name = rest.strip(" .!?")
         if not name:
-            return say("Что убрать из списка? Назовите товар.")
-        kept = [item for item in items if item.lower() != name]
-        if len(kept) == len(items):
-            return say(f"В списке покупок нет «{name}».")
-        data.set("items", kept)
-        return say(f"Убрала «{name}» из списка покупок.")
+            return ask("Что убрать из списка? Назовите товар.", then="on_remove")
+        return _remove(data, items, name)
 
     if "очист" in text or ("весь" in text and ("убер" in text or "удал" in text)):
         if not items:
@@ -76,7 +72,35 @@ def handle(ctx):
         rest = rest.replace(skip, " ", 1)
     requested = _requested(rest)
     if not requested:
-        return say("Что добавить в список покупок?")
+        return ask("Что добавить в список покупок?", then="on_add")
+    return _add(data, items, requested)
+
+
+def on_add(ctx, answer):
+    """Ответ на «Что добавить в список покупок?» — колонка слушает без «Алиса»."""
+    requested = _requested(str(answer).lower())
+    if not requested:
+        return say("Не расслышала, что добавить.")
+    return _add(ctx.data, _items(ctx.data.get("items")), requested)
+
+
+def on_remove(ctx, answer):
+    """Ответ на «Что убрать из списка?»."""
+    name = str(answer).lower().strip(" .!?")
+    if not name:
+        return say("Не расслышала, что убрать.")
+    return _remove(ctx.data, _items(ctx.data.get("items")), name)
+
+
+def _remove(data, items, name):
+    kept = [item for item in items if item.lower() != name]
+    if len(kept) == len(items):
+        return say(f"В списке покупок нет «{name}».")
+    data.set("items", kept)
+    return say(f"Убрала «{name}» из списка покупок.")
+
+
+def _add(data, items, requested):
     known = [item.lower() for item in items]
     added = [name for name in requested if name.lower() not in known]
     if not added:

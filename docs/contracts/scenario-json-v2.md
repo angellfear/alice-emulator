@@ -264,7 +264,7 @@ finish / error`; py-сценарии пишет администратор.
 `alarm.start {time,label?,timezone?,sn?}` → `{id,time,delivery}`,
 `timer.cancel {kind,sn?}` → число отменённых (0|1),
 `device.push {action,arguments,sn?}`, `light.set {room,on,brightness?}`
-→ `{on,brightness}`. `sn` — колонка-адресат (по умолчанию — та, что спросила).
+→ `{on,brightness}`, `device.set_room {room,sn?}` → запомненная комната. `sn` — колонка-адресат (по умолчанию — та, что спросила).
 `timer.*`/`alarm.*` — не серверное расписание, а отправка колонке штатных
 директив (`timer_set_directive`, `alarm_add_directive`, `timer_cancel_directive`):
 `delivery: "sent"` в живую WS-сессию, `"no_session"` без неё; состояние таймеров

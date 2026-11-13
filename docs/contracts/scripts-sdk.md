@@ -86,7 +86,7 @@ module: "server_emulator/sdk.py"
 
 | Вызов | Назначение |
 |---|---|
-| `await ctx.action(name, **arguments)` | действие реестра Executor (`timer.start`, `alarm.start`, `timer.cancel`, `device.push`, `light.set`). `timer.start`/`alarm.start`/`timer.cancel` отправляют колонке штатные директивы (`open_screen_*` + `timer_set`/`alarm_add`/`timer_cancel`), своего расписания на сервере нет. В dry_run не выполняется: запись `{kind, name, arguments}` в `ctx.effects`, вернётся `None` |
+| `await ctx.action(name, **arguments)` | действие реестра Executor (`timer.start`, `alarm.start`, `timer.cancel`, `device.push`, `light.set`, `device.set_room`). `timer.start`/`alarm.start`/`timer.cancel` отправляют колонке штатные директивы (`open_screen_*` + `timer_set`/`alarm_add`/`timer_cancel`), своего расписания на сервере нет. `device.set_room {room, sn?}` запоминает комнату колонки (запись реестра устройств и параметр `device.room`, как «Комната» в кабинете). В dry_run не выполняется: запись `{kind, name, arguments}` в `ctx.effects`, вернётся `None` |
 | `await ctx.fetch_json(url, ttl=0)` | GET JSON через общий fetcher движка (кеш TTL, лимит 512 КиБ, честная ошибка) |
 | `await ctx.dataset(name, key, max_age=0, args=None)` | данные плагина: свежая запись из БД (age ≤ max_age) — сразу; иначе пинок плагина, запись в БД делает executor. Нет плагина — устаревшая запись, без записи — `SDKError` |
 | `ctx.lexicon(name)` | общий словарь (`scenarios/lexicons.json`) с приоритетом словаря сценария; неизвестное имя → `{}` |

@@ -16,12 +16,23 @@
 До первого обращения колонки — честный отказ с объяснением.
 
 Поиск (search(ctx, query, kind)): `Client.search(text, type_="track")` → Track
-(id/title/artist/album/duration_ms/cover), топ-5 (ядро режет очередь); ссылка — у первого
-трека сразу, у соседей — при переходе. kind (tales/podcast/audiobook) — тем же type=track.
+(id/title/artist/album/duration_ms/cover), первые QUEUE_LIMIT (30) результатов в порядке
+выдачи; ссылка потока — у первого трека сразу, у следующих PREFETCH_AHEAD — предзагрузкой
+в фоне, у остальных — лениво при переходе (трек без ссылки остаётся в очереди).
+kind (tales/podcast/audiobook) — тем же type=track.
+
+«Включи музыку» без запроса — плейлист по умолчанию (настройка `default_playlist`):
+«Мне нравится» (по умолчанию; порядок — новые лайки первыми, по timestamp), «Моя волна»
+(`user:onyourwave`, первая порция станции) или название плейлиста пользователя
+(порядок плейлиста). Названного плейлиста нет или он пуст — «Мне нравится», затем волна;
+пусто всё — вопрос «Что включить?». Сбой API — честный отказ с типом ошибки.
+Очередь плеера — первые QUEUE_LIMIT треков выбранного списка, стартует первый.
 
 neighbor(ctx, track_id, context, step): очередь — память модуля по владельцу (как у
 встроенного Spotify): «включи музыку» и колбэк «дальше» — разные запросы; step ±1 по
-сохранённому списку, 0 — текущий трек (продолжение с паузы). Очередь и ссылки потока
+сохранённому списку от трека track_id (нет в очереди — от текущей позиции), 0 — текущий
+трек (продолжение с паузы). Следующий всегда следующий по порядку списка; позицию двигает
+только commit (подтверждённый старт трека). queue(ctx) — всё окно очереди для виджета. Очередь и ссылки потока
 переживают перезапуск сервера: гидратация из ctx.data сценария media.music
 (ключ «music_queue/yandex-music», хранилище state/, по владельцу-пользователю/колонке)
 при первом обращении; очередь и позиция дублируются туда при каждом изменении,
@@ -31,7 +42,7 @@ neighbor(ctx, track_id, context, step): очередь — память моду
 
 Отклик кнопок: ссылка потока кешируется с TTL (LINK_TTL_S, подпись ссылки живёт
 часами — запас 10 минут), соседи текущего трека предзагружаются заранее — в фоне
-после поиска (вся очередь) и при подтверждении старта трека (±1). «дальше/назад/
+после поиска (PREFETCH_AHEAD следующих) и при подтверждении старта трека (±1). «дальше/назад/
 продолжить» из кеша отвечают без обращений к Яндексу; нет в кеше — добор ссылки
 коротким таймаутом (LINK_TIMEOUT_S), как раньше. Предзагрузка позицию очереди не
 двигает (её двигает только commit) и о себе не сообщает: сбой — просто нет кеша.
@@ -45,7 +56,6 @@ rate(ctx, track_id, like): «Мне нравится» или дизлайк в 
 from __future__ import annotations
 
 import asyncio
-import random
 import time
 
 import requests
@@ -54,7 +64,12 @@ from yandex_music import Client
 PROVIDER = {"id": "builtin.yandex-music", "title": "Яндекс Музыка",
             "service": "yandex-music"}
 
-QUEUE_LIMIT = 5
+QUEUE_LIMIT = 30  # окно очереди плеера (MAX_QUEUE ядра)
+PREFETCH_AHEAD = 2  # ссылки скольких следующих треков берутся заранее; остальные — лениво
+DEFAULT_PLAYLIST = "Мне нравится"  # значение настройки default_playlist по умолчанию
+LIKES_NAMES = ("мне нравится", "likes", "любимое")
+WAVE_NAMES = ("моя волна", "волна", "wave")
+WAVE_STATION = "user:onyourwave"
 BASE_URL = None  # None — адрес API по умолчанию библиотеки (api.music.yandex.net)
 COVER_SIZE = "200x200"
 REDIRECT_TIMEOUT_S = 5
@@ -210,13 +225,16 @@ def _track_meta(track):
 
 
 def _download_link(client, track_id):
-    """Прямая ссылка mp3: лучший битрейт без превью (download-info библиотеки)."""
-    infos = client.tracks_download_info(track_id, get_direct_links=True) or []
+    """Прямая ссылка mp3: лучший битрейт без превью. Список вариантов — один запрос; XML со ссылкой
+    берётся только у выбранного (get_direct_links=True тянул его у каждого варианта по очереди:
+    секунды лишнего ожидания перед ответом колонке)."""
+    infos = client.tracks_download_info(track_id) or []
     variants = [info for info in infos
-                if str(info.codec or "").lower() == "mp3" and not info.preview and info.direct_link]
+                if str(info.codec or "").lower() == "mp3" and not info.preview and info.download_info_url]
     if not variants:
         raise MusicError(NOTE_NO_PLAYABLE)
-    return _final_link(max(variants, key=lambda info: int(info.bitrate_in_kbps or 0)).direct_link)
+    best = max(variants, key=lambda info: int(info.bitrate_in_kbps or 0))
+    return _final_link(best.get_direct_link())
 
 
 def _final_link(url):
@@ -244,6 +262,18 @@ def _with_stream(ctx, owner, track, timeout=None):
     return track
 
 
+def _queue_window(ctx):
+    owner = _owner(ctx)
+    _hydrate(ctx, owner)
+    entry = _cached_queue(owner)
+    return [dict(track) for track in entry["queue"]] if entry else []
+
+
+async def queue(ctx):
+    """Окно очереди для виджета (интерфейс ядра): все треки очереди в порядке воспроизведения."""
+    return _queue_window(ctx)
+
+
 def _cached_queue(owner):
     entry = STATE.get(owner)
     return entry if entry and entry.get("queue") else None
@@ -253,8 +283,8 @@ def _save_queue(ctx, owner, tracks, start=0, loop=None):
     entry = {"queue": tracks, "current": int(start), "ts": time.time()}
     STATE[owner] = entry
     _persist(ctx, owner)
-    # ссылку первого добрали сразу, остальные — заранее в фоне: «дальше» без задержки
-    _prefetch(ctx, owner, [t["id"] for t in tracks[1:]], loop)
+    # ссылку первого добрали сразу, ближайшие следующие — заранее в фоне: «дальше» без задержки
+    _prefetch(ctx, owner, [t["id"] for t in tracks[start + 1:start + 1 + PREFETCH_AHEAD]], loop)
     return entry
 
 
@@ -271,20 +301,18 @@ def _search_sync(ctx, query, kind, loop):
         return {"tracks": [], "note": NOTE_NO_TOKEN}
     owner = _owner(ctx)
 
-    if not query:  # «включи музыку» без запроса — случайный трек из кеша прошлых поисков
-        _hydrate(ctx, owner)  # после перезапуска очередь живёт в ctx.data
-        cached = _cached_queue(owner)
-        if cached:
-            start = random.randrange(len(cached["queue"]))
-            cached["current"] = start
-            _persist(ctx, owner)
-            return {"tracks": cached["queue"], "start": start, "context": {"type": "cache"}}
-        return {"tracks": [], "note": NOTE_WHAT}
-
     client = _client(token, _language(ctx))
     try:
-        found = client.search(query, type_="track")
-        tracks = [_track_meta(t) for t in ((found.tracks.results if found and found.tracks else None) or [])]
+        if query:
+            found = client.search(query, type_="track")
+            raw = (found.tracks.results if found and found.tracks else None) or []
+            context = {"type": "search"}
+        else:  # «включи музыку»: плейлист по умолчанию
+            raw, source = _default_tracks(client, _default_playlist(ctx))
+            if not raw:
+                return {"tracks": [], "note": NOTE_WHAT}  # плейлиста нет физически — спросить
+            context = {"type": "default", "source": source}
+        tracks = [_track_meta(t) for t in raw]
         tracks = [t for t in tracks if t["id"] and t["title"]][:QUEUE_LIMIT]
         if not tracks:
             return {"tracks": []}  # пусто: ядро отвечает «не нашла» (без note)
@@ -294,7 +322,71 @@ def _search_sync(ctx, query, kind, loop):
     except Exception as exc:  # сеть/API библиотеки — честный отказ с типом ошибки
         return {"tracks": [], "note": f"{NOTE_SEARCH_FAIL} ({type(exc).__name__})"}
     _save_queue(ctx, owner, tracks, 0, loop)
-    return {"tracks": tracks, "start": 0, "context": {"type": "search"}}
+    return {"tracks": tracks, "start": 0, "context": context}
+
+
+def _default_playlist(ctx):
+    settings = getattr(getattr(ctx, "extension", None), "settings", None) or {}
+    return str(settings.get("default_playlist") or DEFAULT_PLAYLIST).strip() or DEFAULT_PLAYLIST
+
+
+def _uid(client):
+    status = client.account_status()
+    uid = status.account.uid if status and status.account else None
+    if uid is None:
+        raise MusicError("Не удалось определить аккаунт Яндекс.Музыки.")
+    return uid
+
+
+def _full_tracks(client, shorts):
+    """TrackShort → полные Track одним запросом, порядок — как в списке."""
+    ids = [str(short.track_id) for short in shorts[:QUEUE_LIMIT] if short.track_id]
+    by_id = {str(track.id): track for track in (client.tracks(ids) if ids else []) or []}
+    return [by_id[str(short.id)] for short in shorts[:QUEUE_LIMIT] if str(short.id) in by_id]
+
+
+def _likes(client):
+    """«Мне нравится»: новые лайки первыми (по timestamp, при равенстве — порядок API)."""
+    liked = client.users_likes_tracks(user_id=_uid(client))
+    shorts = sorted(liked.tracks or [], key=lambda short: str(short.timestamp or ""), reverse=True) if liked else []
+    return _full_tracks(client, shorts)
+
+
+def _wave(client):
+    """«Моя волна»: первая порция станции user:onyourwave в порядке выдачи."""
+    result = client.rotor_station_tracks(WAVE_STATION)
+    return [item.track for item in (result.sequence if result else None) or [] if item.track]
+
+
+def _user_playlist(client, title):
+    """Плейлист пользователя по названию (без учёта регистра), порядок — как в плейлисте."""
+    uid = _uid(client)
+    wanted = title.strip().lower()
+    for item in client.users_playlists_list(user_id=uid) or []:
+        if str(item.title or "").strip().lower() == wanted:
+            playlist = client.users_playlists(item.kind, user_id=uid)
+            playlist = playlist[0] if isinstance(playlist, list) and playlist else playlist
+            return _full_tracks(client, list(getattr(playlist, "tracks", None) or []))
+    return []
+
+
+def _default_tracks(client, name):
+    """(треки yandex_music, источник) плейлиста по умолчанию: названный, затем «Мне нравится»,
+    затем «Моя волна»; ([], "") — не нашлось ничего."""
+    lowered = name.lower()
+    chain = []
+    if lowered in LIKES_NAMES:
+        chain.append(("likes", _likes))
+    elif lowered in WAVE_NAMES:
+        chain.append(("wave", _wave))
+    else:
+        chain.append(("playlist", lambda c: _user_playlist(c, name)))
+    chain += [item for item in (("likes", _likes), ("wave", _wave)) if item[0] != chain[0][0]]
+    for source, load in chain:
+        tracks = load(client)
+        if tracks:
+            return tracks, source
+    return [], ""
 
 
 async def neighbor(ctx, track_id, context, step):

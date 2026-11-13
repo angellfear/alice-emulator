@@ -301,11 +301,11 @@ async def test_full_widget_stack_on_play_phrase(tmp_path):
         # экран плеера — с идентификатором играющего трека
         assert _decoded(message, "show_audio_player_screen_directive", SCREEN_PROTO) == \
             {"TrackId": "t1"}
-        # очередь: сущности треков поиска (до 5), текущий — первый, мета с title/artist/cover
+        # очередь: сущности всех треков списка поставщика (окно MAX_QUEUE), текущий — первый, мета с title/artist/cover
         queue = _decoded(message, "apply_player_playback_queue_directive", QUEUE_PROTO)
         entities = queue["MusicPlatformQueue"]["Entities"]
         assert [e["PlaybackEntity"]["TrackEntity"]["Track"]["Id"] for e in entities] == \
-            ["t1", "t2", "t3", "t4", "t5"]
+            [t["id"] for t in TRACKS]
         assert queue["MusicPlatformQueue"]["CurrentEntityIndex"] == 0
         meta_records = queue["MusicPlatformQueue"]["MusicPlatformMetaStorage"]["ProviderMeta"][
             "MUSIC_PROVIDER_UNSPECIFIED"]["TrackMetaRecords"]
@@ -349,7 +349,7 @@ async def test_play_phrase_without_query_asks_provider(tmp_path):
         assert _reply_speech(report["messages"][0]) == "Включаю."
         assert json.loads(marker.read_text(encoding="utf-8"))[0] == ["search", "", "music"]
         queue = _decoded(report["messages"][0], "apply_player_playback_queue_directive", QUEUE_PROTO)
-        assert len(queue["MusicPlatformQueue"]["Entities"]) == 5  # топ-5 поиска
+        assert len(queue["MusicPlatformQueue"]["Entities"]) == len(TRACKS)  # весь список поставщика
     finally:
         await runtime.close()
 
@@ -497,16 +497,19 @@ async def test_search_kind_by_phrase(tmp_path):
         await runtime.close()
 
 
-async def test_queue_cut_to_five(tmp_path):
+async def test_queue_cut_to_window(tmp_path):
+    """Окно очереди — первые MAX_QUEUE треков списка поставщика в его порядке."""
     runtime = Runtime(tmp_path)
     marker = tmp_path / "marker.json"
-    module = _provider_module(marker).replace("TRACKS, \"start\"", "TRACKS + TRACKS, \"start\"")
+    module = _provider_module(marker).replace(
+        "TRACKS, \"start\"", "[dict(TRACKS[0], id=f'x{i}') for i in range(40)], \"start\"")
     make_music_extension(runtime, files={"music/fake.py": module}, phrases=MUSIC_PHRASES)
     _disable_builtin_providers(runtime)
     try:
         report = await say(runtime, "включи музыку")
         queue = _decoded(report["messages"][0], "apply_player_playback_queue_directive", QUEUE_PROTO)
-        assert len(queue["MusicPlatformQueue"]["Entities"]) == 5  # очередь режется до MAX_QUEUE
+        ids = [e["PlaybackEntity"]["TrackEntity"]["Track"]["Id"] for e in queue["MusicPlatformQueue"]["Entities"]]
+        assert ids == [f"x{i}" for i in range(music.MAX_QUEUE)]
     finally:
         await runtime.close()
 
@@ -1167,3 +1170,42 @@ async def test_widget_buttons_follow_voice_commands(tmp_path):
     finally:
         await runtime.close()
 
+
+
+async def test_next_step_carries_whole_queue_window(tmp_path):
+    """Поставщик с queue(ctx): «дальше» отдаёт виджету весь список окна, индекс — у
+    играющего (следующего) трека; порядок списка — порядок поставщика."""
+    runtime = Runtime(tmp_path)
+    marker = tmp_path / "marker.json"
+    module = _provider_module(marker) + (
+        "\nasync def queue(ctx):\n    return TRACKS\n"
+        "\nasync def neighbor(ctx, track_id, context, step):\n    return TRACKS[2]\n")
+    make_music_extension(runtime, files={"music/fake.py": module}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
+    try:
+        station = {"player": {"state": "playing", "playing": True, "title": "Трек 1"}}
+        report = await say(runtime, "дальше", station=station, deliver=False)
+        [message] = report["messages"]
+        queue = _decoded(message, "apply_player_playback_queue_directive", QUEUE_PROTO)
+        ids = [e["PlaybackEntity"]["TrackEntity"]["Track"]["Id"]
+               for e in queue["MusicPlatformQueue"]["Entities"]]
+        assert ids == [t["id"] for t in TRACKS]
+        assert queue["MusicPlatformQueue"]["CurrentEntityIndex"] == 2
+        state = _decoded(message, "set_audio_player_sequence_state_directive", SEQSTATE_PROTO)
+        assert state["SequenceState"]["CurrentItem"]["Track"]["Id"] == "t3"
+    finally:
+        await runtime.close()
+
+
+async def test_tracks_without_stream_stay_in_queue(tmp_path):
+    """Трек без ссылки потока остаётся в очереди (ссылку поставщик добирает лениво);
+    играет первый со ссылкой; без единой ссылки играть нечего."""
+    provider = {"id": "p"}
+    raw = {"tracks": [{"id": "a", "title": "А"}, {"id": "b", "title": "Б",
+                                                  "stream": {"url": "http://x/b.mp3"}},
+                      {"id": "c", "title": "В"}], "start": 0}
+    found = music.normalize_result(raw, provider)
+    assert [t["id"] for t in found["tracks"]] == ["a", "b", "c"]
+    assert found["start"] == 1 and "stream" not in found["tracks"][0]
+    assert music.normalize_result({"tracks": [{"id": "a", "title": "А"}]}, provider) is None
+    assert music.normalize_track({"id": "a", "title": "А"}) is None  # воспроизведение — только со ссылкой

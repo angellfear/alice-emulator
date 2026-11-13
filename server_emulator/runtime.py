@@ -336,6 +336,13 @@ class Runtime:
                                           arguments.get("arguments") or {})
             return item["delivery"]
 
+        async def device_set_room(arguments, execution):
+            """Запомнить комнату колонки (та же правка, что «Комната» в кабинете)."""
+            device = (getattr(execution, "ctx", None) or {}).get("device") or {}
+            sn = arguments.get("sn") or _input(execution).get("sn") or device.get("sn") or ""
+            saved = await self.rename_device(sn, device.get("user_id"), room=str(arguments["room"]))
+            return saved.get("room") or ""
+
         def light_set(arguments, execution):
             from .scenario_engine.light import apply_light
             on = arguments.get("on")
@@ -370,7 +377,8 @@ class Runtime:
         # (заглушки тестов и tools подменяют weather на месте).
         self._builtin_actions = {"timer.start": timer_start, "alarm.start": alarm_start,
                                  "timer.cancel": timer_cancel, "device.push": device_push,
-                                 "light.set": light_set}
+                                 "light.set": light_set,
+                                 "device.set_room": device_set_room}
         self._builtin_plugins = {"weather": weather_plugin(self)}
         self.scenario_plugins = dict(self._builtin_plugins)
         from .tts_cache import TtsCache
@@ -1192,6 +1200,31 @@ class Runtime:
             if before != ((mode or 'emulate') == 'proxy'):
                 closed = self.disconnect_devices(lambda device_sn: device_sn == sn, b'Route changed')
         return {"sn": sn, "mode": mode, "disconnected": closed}
+    async def rename_device(self, sn, user_id, name=None, room=None):
+        """Название/комната колонки: реестр (как правка в «Устройствах») + параметры
+        device.name / device.room, затем профили сессий. Под замком; запись устройства
+        перечитывается под ним — привязку могли сменить, пока ждали замок."""
+        async with self.lock:
+            current = next((d for d in self.identities.data["devices"]
+                            if d["sn"] == sn and d.get("user_id") == user_id), None)
+            if current is None:
+                raise ValueError("Устройство отвязано от пользователя")
+            request = {"operation": "device", "sn": sn, "user_id": user_id,
+                       "device_ids": current.get("device_ids") or [], "name": current.get("name")}
+            if name is not None:
+                request["name"] = name
+            if room is not None:
+                request["room"] = room
+            registry = self.identities.mutate(request)
+            saved = next(d for d in registry["devices"] if d["sn"] == sn)
+            owner = "device:" + sn
+            if name is not None and self.quasar_params.def_get("device.name"):
+                self.quasar_params.set_value(owner, "device.name", saved["name"])
+            if room is not None and self.quasar_params.def_get("device.room"):
+                self.quasar_params.set_value(owner, "device.room", saved.get("room") or "")
+            self.refresh_profiles()
+        return saved
+
 
     async def set_device_record_mode(self, sn, mode):
         """Опция «Запись» устройства: off | on | misses. Соединения не закрываются:

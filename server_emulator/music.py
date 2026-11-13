@@ -18,8 +18,14 @@ runtime.rebuild_extension_registries; конфликт имён или биты�
 
     async def rate(ctx, track_id, like):    # необязательна; None — не поддерживается
 
+    async def queue(ctx):                   # необязательна: текущая очередь поставщика
+        return [Track, ...]                 # окно очереди для виджета (порядок воспроизведения)
+
     Track = {"id", "title", "artist", "album"?, "duration_ms", "cover_url"?,
              "stream": {"url", "format": "mp3|aac|flac", "decode_key"?}}
+    # В очереди (search.tracks, queue) трек без stream.url допустим: ссылку поставщик
+    # добирает лениво; играть можно только трек со ссылкой — start указывает на него,
+    # neighbor всегда возвращает трек со ссылкой.
 
 Выбранный поставщик — настройка settings["providers"]["music"] (id; пусто — первый
 включённый по алфавиту). ctx.music (SDK) — запись выбранного поставщика или None.
@@ -67,7 +73,7 @@ from pathlib import Path
 
 from . import providers as _providers
 
-MAX_QUEUE = 5  # очередь поиска: топ-5 результатов (решение владельца, PLAN-spotify-music)
+MAX_QUEUE = 30  # окно очереди плеера: первые 30 треков списка поставщика, порядок — как у поставщика
 
 ANIMATION_PROTO = "NAlice.TAnimationCapability.TDrawAnimationDirective"
 SCREEN_PROTO = "NAlice.TAudioPlayerScreenCapability.TShowAudioPlayerScreenDirective"
@@ -151,7 +157,7 @@ UNSPECIFIED_KEY = "MUSIC_PROVIDER_UNSPECIFIED"
 
 
 # потребитель вида music: обязательные функции поставщика (см. providers.require)
-_providers.require("music", ("search", "neighbor"), ("rate", "commit"))
+_providers.require("music", ("search", "neighbor"), ("rate", "commit", "queue"))
 
 
 def selected(settings):
@@ -229,7 +235,7 @@ async def _call(ctx, provider, function, *args):
 
 async def search(ctx, provider, query, kind="music"):
     """search поставщика → {"tracks": [Track], "start": int, "context": dict, "provider"}
-    (очередь режется до MAX_QUEUE) или None — нет поставщика/пусто/сбой результата.
+    (окно очереди — первые MAX_QUEUE треков; трек без ссылки потока остаётся в очереди) или None — нет поставщика/пусто/сбой результата.
     Пустой результат с "note" — честный отказ поставщика с объяснением: dict с пустыми
     треками и note передаётся сценарию."""
     if provider is None:
@@ -239,15 +245,22 @@ async def search(ctx, provider, query, kind="music"):
 
 
 def normalize_result(raw, provider):
-    """Результат search поставщика → контракт ответа: треки нормализованы, очередь
-    до MAX_QUEUE, start в границах; пустой результат с note — честный отказ с
+    """Результат search поставщика → контракт ответа: треки нормализованы (без ссылки
+    потока — остаются в очереди), очередь — первые MAX_QUEUE в порядке поставщика,
+    start — играбельный трек (со ссылкой): указанный поставщиком, иначе первый со ссылкой; пустой результат с note — честный отказ с
     объяснением; None — не словарь, пусто или без note. Нужен и сценарию: на ступени
     свободных хвостов поиск делает диспетчер, и исполнитель получает уже сырой ответ
     поставщика."""
     if not isinstance(raw, dict):
         return None
-    tracks = [track for track in (normalize_track(item) for item in raw.get("tracks") or [])
+    tracks = [track for track in (normalize_track(item, playable=False) for item in raw.get("tracks") or [])
               if track][:MAX_QUEUE]
+    start = raw.get("start")
+    start = int(start) if isinstance(start, (int, float)) and 0 <= int(start) < len(tracks) else 0
+    if tracks and not (tracks[start].get("stream") or {}).get("url"):
+        start = next((i for i, track in enumerate(tracks) if (track.get("stream") or {}).get("url")), None)
+        if start is None:
+            tracks = []
     if not tracks:
         note = str(raw.get("note") or "").strip()
         if note:
@@ -255,8 +268,6 @@ def normalize_result(raw, provider):
                     "context": raw.get("context") if isinstance(raw.get("context"), dict) else {},
                     "note": note, "provider": provider}
         return None
-    start = raw.get("start")
-    start = int(start) if isinstance(start, (int, float)) and 0 <= int(start) < len(tracks) else 0
     context = raw.get("context") if isinstance(raw.get("context"), dict) else {}
     return {"tracks": tracks, "start": start, "context": context, "provider": provider}
 
@@ -268,6 +279,16 @@ async def neighbor(ctx, provider, track_id, context, step=1):
     raw = await _call(ctx, provider, provider["neighbor"],
                       ctx, track_id, context if isinstance(context, dict) else None, int(step))
     return normalize_track(raw)
+
+
+async def queue(ctx, provider):
+    """Окно очереди поставщика (необязательная функция queue) для виджета: [Track]
+    в порядке воспроизведения, пусто — функции нет или очереди нет."""
+    if provider is None or provider.get("queue") is None:
+        return []
+    raw = await _call(ctx, provider, provider["queue"], ctx)
+    tracks = (normalize_track(item, playable=False) for item in raw or [])
+    return [track for track in tracks if track][:MAX_QUEUE]
 
 
 async def rate(ctx, provider, track_id, like=True):
@@ -289,25 +310,28 @@ async def commit(ctx, provider, track_id):
     return True if raw else None
 
 
-def normalize_track(raw):
-    """Track поставщика → контракт (недостающие обязательные — None): без id,
-    title или stream.url трек не играет и не показывается."""
+def normalize_track(raw, playable=True):
+    """Track поставщика → контракт (недостающие обязательные — None): без id или
+    title трек не показывается; без stream.url он не играет — playable=True (по
+    умолчанию: neighbor, воспроизведение) отбрасывает такой трек, playable=False
+    (очередь) оставляет его без ключа stream, ссылку добирает поставщик."""
     if not isinstance(raw, dict):
         return None
     track_id = str(raw.get("id") or "").strip()
     title = str(raw.get("title") or "").strip()
     stream = raw.get("stream") if isinstance(raw.get("stream"), dict) else {}
     url = str(stream.get("url") or "").strip()
-    if not track_id or not title or not url:
+    if not track_id or not title or (playable and not url):
         return None
     track = {"id": track_id,
              "title": title,
              "artist": str(raw.get("artist") or ""),
-             "duration_ms": int(raw.get("duration_ms") or 0) if raw.get("duration_ms") else 0,
-             "stream": {"url": url,
-                        "format": str(stream.get("format") or "mp3").strip().lower() or "mp3"}}
-    if stream.get("decode_key"):
-        track["stream"]["decode_key"] = str(stream["decode_key"])
+             "duration_ms": int(raw.get("duration_ms") or 0) if raw.get("duration_ms") else 0}
+    if url:
+        track["stream"] = {"url": url,
+                           "format": str(stream.get("format") or "mp3").strip().lower() or "mp3"}
+        if stream.get("decode_key"):
+            track["stream"]["decode_key"] = str(stream["decode_key"])
     for optional, key in (("album", "album"), ("cover_url", "cover_url")):
         if raw.get(key):
             track[optional] = str(raw[key])
@@ -476,15 +500,27 @@ def start_reply(result, text="", commit_token=None):
         audio_play_directive(tracks[start], commit_token=commit_token)]}
 
 
-def step_reply(track, provider, text="", offset_ms=0, commit_token=None):
+def _window(track, window):
+    """(очередь, индекс трека): окно поставщика, если играющий трек в нём есть
+    (виджет видит весь список), иначе очередь из одного трека."""
+    tracks = list(window or [])
+    index = next((i for i, item in enumerate(tracks) if str(item["id"]) == str(track["id"])), None)
+    if index is None:
+        return [track], 0
+    tracks[index] = track  # у играющего — свежая ссылка потока
+    return tracks, index
+
+
+def step_reply(track, provider, text="", offset_ms=0, commit_token=None, window=None):
     """Ответ на «дальше/назад», колбэк @@mm_stack_engine_get_next и
     продолжение с паузы: тройка очередь+состояние+audio_play без экрана и анимации
-    (образцы «дальше» и «продолжи»; очередь из одного трека — neighbor отдаёт один
-    Track). offset_ms — позиция продолжения; commit_token — recoverCommit-колбэк."""
-    tracks = [track]
+    (образцы «дальше» и «продолжи»). window — окно очереди поставщика (music.queue):
+    виджет получает весь список с индексом играющего трека; без окна — очередь из
+    одного трека. offset_ms — позиция продолжения; commit_token — recoverCommit-колбэк."""
+    tracks, index = _window(track, window)
     return {"text": text, "card": False, "directives": [
         tts_placeholder(),
-        queue_directive(tracks, 0, provider),
+        queue_directive(tracks, index, provider),
         sequence_state_directive(track, tracks, provider),
         audio_play_directive(track, offset_ms, commit_token)]}
 
@@ -506,15 +542,15 @@ def like_reply(track, provider):
         queue, tts_placeholder()]}
 
 
-def dislike_reply(next_track, provider, commit_token=None):
+def dislike_reply(next_track, provider, commit_token=None, window=None):
     """Ответ на «дизлайк» (образец захвата 2026-11-02): анимация player_dislike, затем
     стек «дальше» на следующий трек (очередь, состояние, tts_play_placeholder, audio_play)
     с речью. Следующего нет — только анимация и речь. set_div_variables образца правит
     div-карточку облака — в ответ не входит."""
     directives = [_draw_animation(PLAYER_DISLIKE_ANIMATION)]
     if next_track is not None:
-        tracks = [next_track]
-        directives += [queue_directive(tracks, 0, provider),
+        tracks, index = _window(next_track, window)
+        directives += [queue_directive(tracks, index, provider),
                        sequence_state_directive(next_track, tracks, provider),
                        tts_placeholder(), audio_play_directive(next_track, 0, commit_token)]
     else:

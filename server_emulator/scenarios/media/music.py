@@ -111,7 +111,7 @@ async def _stack_next(ctx):
     track = await music.neighbor(ctx, provider, ctx.event.callback or None, None, 1)
     if track is None:  # дальше нечего — колонка остановится сама
         return None
-    return _with_commit(ctx, provider, track)
+    return await _with_commit(ctx, provider, track)
 
 
 async def handle(ctx):
@@ -145,7 +145,7 @@ async def handle(ctx):
         return None  # плеер колонки пуст: «дальше»/«продолжи» — не музыке (игры, модель)
     if intent in STEPS:  # «дальше» / «предыдущий» — сосед в очереди поставщика
         track = await music.neighbor(ctx, provider, None, None, STEPS[intent])
-        return _with_commit(ctx, provider, track) if track is not None else say(NOTHING[intent])
+        return await _with_commit(ctx, provider, track) if track is not None else say(NOTHING[intent])
     if intent == "like":  # «лайк»: оценка играющего трека в аккаунте поставщика
         return await _like(ctx, provider)
     if intent == "dislike":  # «дизлайк»: оценка в аккаунте и переход к следующему треку
@@ -159,7 +159,7 @@ async def handle(ctx):
         if resumed is not None:
             return resumed
         track = await music.neighbor(ctx, provider, None, None, 0)
-        return _with_commit(ctx, provider, track) if track is not None else say(NOT_FOUND)
+        return await _with_commit(ctx, provider, track) if track is not None else say(NOT_FOUND)
 
     if not query:
         resumed = await _resume(ctx, provider)
@@ -193,7 +193,7 @@ async def _touch(ctx):
         if resumed is not None:
             return resumed
         track = await music.neighbor(ctx, provider, None, None, 0)
-    return _with_commit(ctx, provider, track) if track is not None else None
+    return await _with_commit(ctx, provider, track) if track is not None else None
 
 
 async def _like(ctx, provider):
@@ -216,7 +216,7 @@ async def _dislike(ctx, provider):
         return say(NO_RATE[False])
     following = await music.neighbor(ctx, provider, None, None, 1)
     token = music.keep_commit(following) if following is not None else None
-    return music.dislike_reply(following, provider, token)
+    return music.dislike_reply(following, provider, token, window=await music.queue(ctx, provider))
 
 
 async def _repeat(ctx, provider):
@@ -262,7 +262,7 @@ async def _resume(ctx, provider):
     track = await music.neighbor(ctx, provider, None, None, 0)
     if track is None or str(track.get("title") or "").strip().lower() != title:
         return None  # на паузе чужой трек (не этого поставщика) — обычный путь
-    return _with_commit(ctx, provider, track,
+    return await _with_commit(ctx, provider, track,
                         offset_ms=int(player.get("played_ms") or 0))
 
 
@@ -293,11 +293,13 @@ def _reply(ctx, found, query, ext_id=""):
                              commit_token=token)
 
 
-def _with_commit(ctx, provider, track, offset_ms=0):
+async def _with_commit(ctx, provider, track, offset_ms=0):
     """step_reply «дальше»/«продолжи» с токеном recoverCommit (колонка вернёт его при
-    старте трека; токен запоминает и поставщика — позицию очереди сверяет он)."""
+    старте трека; токен запоминает и поставщика — позицию очереди сверяет он).
+    Виджет получает всё окно очереди поставщика с индексом играющего трека."""
     token = music.keep_commit(track, str(provider.get("ext_id") or ""))
-    return music.step_reply(track, provider, offset_ms=offset_ms, commit_token=token)
+    return music.step_reply(track, provider, offset_ms=offset_ms, commit_token=token,
+                            window=await music.queue(ctx, provider))
 
 
 async def _recover_commit(ctx):

@@ -123,14 +123,96 @@ async def test_light_default_room_and_single(tmp_path):
         await runtime.close()
 
 
-async def test_light_ambiguous_and_unknown(tmp_path):
-    """Тексты ядра: не понял, какую лампу (без комнаты при двух), лампы «X» нет."""
+async def _say_listen(runtime, text):
+    """Реплика и признак ShouldListen ответа (колонка слушает ответ без «Алиса»)."""
+    seen = []
+
+    async def send(data):
+        from server_emulator.schema import load_type
+        cls = load_type("server_emulator/schemas", "alice-api.pb", "NAlice.NAliceApi.TServerMessage")
+        message = cls.FromString(data[4:])
+        if message.Event.WhichOneof("Event") == "AliceResponse":
+            response = message.Event.AliceResponse
+            seen.append((response.Response.Cards[0].Text, response.VoiceResponse.ShouldListen))
+
+    ctx = {"input": {"message_id": "m", "request_id": "r", "dialog_id": "dg", "sn": "SN-T", "text": text},
+           "clock": {"now": datetime.datetime.now()}}
+    ctx.update(runtime._scenario_context(sn="SN-T"))
+    await runtime.dialog.handle_text(text, ctx, "dg", send)
+    return seen[0] if seen else (None, None)
+
+
+def speaker_room(runtime):
+    return next(d for d in runtime.identities.data["devices"] if d["sn"] == "SN-T").get("room")
+
+
+async def test_light_no_room_asks_once_and_remembers(tmp_path):
+    """Комнаты у колонки нет, ламп несколько: один вопрос со слушанием, ответ включает
+    свет и запоминается как комната колонки; дальше «включи свет» не спрашивает."""
     runtime, stub, runner = await ha_home(tmp_path)
     try:
-        _, text = await _say(runtime, "включи свет")
-        assert text == 'Не понял, какую лампу: доступны ["кухня", "спальня"].'
-        _, text = await _say(runtime, "включи свет в ванной")
-        assert text.startswith('Лампы «ванная» нет. Доступны: ["кухня", "спальня"]')
+        text, listen_flag = await _say_listen(runtime, "включи свет")
+        assert text == "В какой комнате колонка?" and listen_flag is True
+        assert not service_calls(stub)
+        text, listen_flag = await _say_listen(runtime, "на кухне")
+        assert text == "Свет (кухня) включён." and not listen_flag
+        assert service_calls(stub)[-1]["body"]["entity_id"] == "light.kitchen"
+        assert speaker_room(runtime) == "кухня"
+        text, listen_flag = await _say_listen(runtime, "выключи свет")  # больше не спрашивает
+        assert text == "Свет (кухня) выключен." and not listen_flag
+        assert service_calls(stub)[-1]["path"] == "/api/services/light/turn_off"
+        assert len(service_calls(stub)) == 2
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
+async def test_light_speaker_room_from_registry_and_explicit_priority(tmp_path):
+    """Комната колонки из реестра — без вопроса; названная во фразе комната приоритетнее."""
+    runtime, stub, runner = await ha_home(tmp_path, room="спальня")
+    try:
+        text, listen_flag = await _say_listen(runtime, "включи свет")
+        assert text == "Свет (спальня) включён." and not listen_flag
+        assert service_calls(stub)[-1]["body"]["entity_id"] == "light.bedroom"
+        text, _ = await _say_listen(runtime, "включи свет на кухне")
+        assert text == "Свет (кухня) включён."
+        assert service_calls(stub)[-1]["body"]["entity_id"] == "light.kitchen"
+        assert speaker_room(runtime) == "спальня"  # явная комната колонку не перепривязывает
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
+async def test_light_all_lamps_of_room(tmp_path):
+    """Несколько ламп одной площадки включаются одним вызовом (список entity_id)."""
+    runtime, stub, runner = await ha_home(tmp_path, lights=("kitchen_a", "kitchen_b", "спальня"),
+                                          areas={"light.kitchen_a": "Кухня", "light.kitchen_b": "Кухня"},
+                                          room="кухня")
+    try:
+        text, _ = await _say_listen(runtime, "включи свет")
+        assert text == "Свет (Кухня) включён."
+        entities = service_calls(stub)[-1]["body"]["entity_id"]
+        assert sorted(entities) == ["light.kitchen_a", "light.kitchen_b"]
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
+async def test_light_unknown_answer_and_room_asks_with_listen(tmp_path):
+    """Незнакомая комната во фразе — вопрос со слушанием; ответ с известной комнатой
+    включает свет, комнату колонки не меняет. Непонятный ответ — без зацикливания."""
+    runtime, stub, runner = await ha_home(tmp_path)
+    try:
+        text, listen_flag = await _say_listen(runtime, "включи свет в ванной")
+        assert text.startswith("Лампы «ванная» нет.") and listen_flag is True
+        text, _ = await _say_listen(runtime, "в спальне")
+        assert text == "Свет (спальня) включён."
+        assert speaker_room(runtime) in (None, "")
+        text, listen_flag = await _say_listen(runtime, "включи свет")
+        assert listen_flag is True
+        text, listen_flag = await _say_listen(runtime, "на балконе")
+        assert text.startswith("Не нашла такую комнату") and not listen_flag
+        assert speaker_room(runtime) in (None, "")
     finally:
         await runner.cleanup()
         await runtime.close()

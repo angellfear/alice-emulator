@@ -19,8 +19,13 @@ DRM); плеер колонки играет такие прямые ссылк�
 - ключей нет, запрос — строка: embed по строке искать не умеет, Web API без
   ключей не ищет — честный отказ {"tracks": [], "note": "..."} (ядро и сценарий
   media.music произносят note пользователю);
-- запроса нет («включи музыку»): случайный трек из кеша прошлых поисков —
-  вся очередь с случайным start; кеша нет — вопрос «что включить?».
+- запроса нет («включи музыку»): плейлист по умолчанию — настройка default_playlist
+  (id, ссылка open.spotify.com/playlist/<id> или spotify:playlist:<id>; нужны ключи
+  Web API, плейлист публичный): GET /v1/playlists/<id>/tracks, очередь — первые
+  QUEUE_LIMIT треков с превью в порядке плейлиста, играет первый. Плейлиста нет (не задан,
+  пуст или без превью) — случайный трек из кеша прошлых поисков (вся очередь со
+  случайным start); кеша нет — вопрос «что включить?». Любимые треки аккаунта
+  (user-library-read) не используются: пользовательский токен поставщику не передаётся.
 
 Очередь — память модуля (STATE, ключ — владелец ctx.sn): «включи музыку» и колбэк
 «дальше» (@@mm_stack_engine_get_next) — разные запросы. Очередь и позиция переживают
@@ -73,10 +78,11 @@ ACCOUNTS_URL = "https://accounts.spotify.com/api/token"
 SEARCH_URL = "https://api.spotify.com/v1/search"
 TRACK_URL = "https://api.spotify.com/v1/tracks/"
 EMBED_URL = "https://open.spotify.com/embed/track/{}"
+PLAYLIST_URL = "https://api.spotify.com/v1/playlists/{}/tracks"
 
 TIMEOUT_S = 10  # один запрос
 FETCH_LIMIT = 10  # сколько запрашивать у поиска (часть результатов без превью)
-QUEUE_LIMIT = 5  # очередь — топ-5 (MAX_QUEUE ядра)
+QUEUE_LIMIT = 30  # окно очереди (MAX_QUEUE ядра)
 QUEUE_TTL_S = 7 * 24 * 3600  # кеш поиска живёт неделю (превью не вечны)
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) alice-emulator"
 
@@ -329,10 +335,40 @@ def _cached_queue(owner):
     return state if state.get("queue") else None
 
 
+class _NoExt:
+    @staticmethod
+    def get(key, default=None):
+        return default
+
+
 def _note(text):
     """Честный отказ с объяснением: ядро (search) передаёт note сценарию, сценарий
     произносит текст пользователю."""
     return {"tracks": [], "note": str(text)}
+
+
+def _playlist_id(value):
+    """id плейлиста из настройки: id, ссылка open.spotify.com/playlist/<id> или spotify:playlist:<id>."""
+    match = re.search(r"(?:playlist/|spotify:playlist:)([0-9A-Za-z]{22})", str(value or ""))
+    if match:
+        return match.group(1)
+    value = str(value or "").strip()
+    return value if re.fullmatch(r"[0-9A-Za-z]{22}", value) else ""
+
+
+async def _playlist_tracks(client_id, client_secret, playlist_id, market):
+    """GET /v1/playlists/<id>/tracks → [Track] с preview_url в порядке плейлиста, топ QUEUE_LIMIT."""
+    token = await _access_token(client_id, client_secret)
+    params = {"limit": str(FETCH_LIMIT * 3)}
+    if market:
+        params["market"] = market
+    url = PLAYLIST_URL.format(urllib.parse.quote(playlist_id)) + "?" + urllib.parse.urlencode(params)
+    try:
+        data = await _json(url, headers={"Authorization": "Bearer " + token})
+    except SpotifyError as exc:
+        raise SpotifyError(f"Spotify недоступен ({exc}). Попробуйте позже.") from exc
+    items = [(item or {}).get("track") for item in (data or {}).get("items") or [] if isinstance(item, dict)]
+    return [track for track in (_api_track(item) for item in items) if track][:QUEUE_LIMIT]
 
 
 def _track_id_from_query(query):
@@ -351,7 +387,17 @@ async def search(ctx, query, kind="music"):
     keys = bool(client_id and client_secret)
     track_id = _track_id_from_query(query)
 
-    if not query:  # «включи музыку» без запроса — случайный трек из кеша прошлых поисков
+    if not query:  # «включи музыку» без запроса — плейлист по умолчанию, иначе кеш прошлых поисков
+        playlist_id = _playlist_id((getattr(ctx, "extension", None) or _NoExt()).get("default_playlist"))
+        if keys and playlist_id:
+            try:
+                tracks = await _playlist_tracks(client_id, client_secret, playlist_id, market)
+            except SpotifyError as exc:
+                return _note(exc)
+            if tracks:
+                saved = _save_queue(ctx, owner, tracks, 0)
+                saved["context"] = {"type": "default", "id": playlist_id}
+                return saved
         _hydrate(ctx, owner)  # после перезапуска очередь живёт в ctx.data
         cached = _cached_queue(owner)
         if cached:

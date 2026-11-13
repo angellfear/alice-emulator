@@ -91,6 +91,8 @@ class FakeSpotify:
         self.embed_calls = []  # [track_id]
         self.embed_entity = dict(EMBED_ENTITY)
         self.embed_page = None  # None — страница из embed_entity
+        self.playlist_calls = []  # [(playlist_id, dict(query))]
+        self.playlist_items = None  # None — API_ITEMS; иначе список track-объектов
 
     async def _token(self, request):
         self.token_calls.append((request.headers.get("Authorization", ""),
@@ -112,6 +114,11 @@ class FakeSpotify:
         if self.track_by_id is None:
             return web.json_response({"error": {}}, status=404)
         return web.json_response(self.track_by_id)
+
+    async def _playlist(self, request):
+        self.playlist_calls.append((request.match_info["pid"], dict(request.query)))
+        items = API_ITEMS if self.playlist_items is None else self.playlist_items
+        return web.json_response({"items": [{"track": item} for item in items]})
 
     async def _embed(self, request):
         track_id = request.match_info["tid"]
@@ -165,12 +172,14 @@ async def stub(provider, monkeypatch):
     app.router.add_post("/api/token", fake._token)
     app.router.add_get("/v1/search", fake._search)
     app.router.add_get("/v1/tracks/{tid}", fake._track)
+    app.router.add_get("/v1/playlists/{pid}/tracks", fake._playlist)
     app.router.add_get("/embed/track/{tid}", fake._embed)
     runner = web.AppRunner(app)
     await runner.setup()
     port = unused_port()
     await web.TCPSite(runner, "127.0.0.1", port).start()
     base = f"http://127.0.0.1:{port}"
+    monkeypatch.setattr(provider, "PLAYLIST_URL", base + "/v1/playlists/{}/tracks")
     monkeypatch.setattr(provider, "ACCOUNTS_URL", base + "/api/token")
     monkeypatch.setattr(provider, "SEARCH_URL", base + "/v1/search")
     monkeypatch.setattr(provider, "TRACK_URL", base + "/v1/tracks/")
@@ -194,6 +203,18 @@ async def test_provider_empty_query_without_cache_asks(provider, stub):
     """«Включи музыку» без запроса и без кеша — «Что включить?»."""
     result = await provider.search(ProviderCtx(), "", "music")
     assert result == {"tracks": [], "note": provider.NOTE_WHAT}
+
+
+async def test_provider_empty_query_plays_default_playlist(provider, stub):
+    """«Включи музыку» без запроса при заданном плейлисте по умолчанию: его треки в порядке
+    плейлиста (окно очереди), играет первый; кеш прошлых поисков не нужен."""
+    playlist = "37i9dQZF1DXcBWIGoYBM5M"
+    ctx = ProviderCtx({**KEYS, "default_playlist": "https://open.spotify.com/playlist/" + playlist + "?si=x"})
+    result = await provider.search(ctx, "", "music")
+    assert [t["id"] for t in result["tracks"]] == [item["id"] for item in API_ITEMS]
+    assert result["start"] == 0 and result["context"] == {"type": "default", "id": playlist}
+    assert stub.playlist_calls[0][0] == playlist and stub.search_calls == []
+    assert (await provider.neighbor(ctx, None, None, 1))["id"] == "sp2"  # следующий — по порядку списка
 
 
 async def test_provider_empty_query_with_stale_cache_asks(provider):
