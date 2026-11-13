@@ -290,6 +290,15 @@ def load_extension_packages(origin, directory):
     return result
 
 
+class InstallStepError(RuntimeError):
+    """Шаг установки завершился с ошибкой: stage — название шага, output — хвост его вывода,
+    текст исключения — этап и последняя строка вывода (причина)."""
+
+    def __init__(self, stage, output, reason):
+        super().__init__(f"{stage}: {reason}")
+        self.stage, self.output = stage, output
+
+
 class PcmTTS:
     """Движок PCM-синтеза из текущих settings["tts"] для звукового кеша (tts_cache).
     Скалярные атрибуты — отпечаток кеша: другая модель/голос/URL — другие файлы."""
@@ -529,15 +538,25 @@ class LocalSpeech:
             job.update(stage="done", progress=1.0)
             await self.start(package)
         except Exception as exc:  # noqa: BLE001 — причина видна в карточке
-            log.warning("Установка %s не удалась: %s", package["id"], exc)
-            job.update(stage="error", error=str(exc)[-600:])
+            output = getattr(exc, "output", None) or str(exc)
+            try:
+                (self.folder(package) / "install.log").write_text(
+                    f"{getattr(exc, 'stage', '')}\n{output}\n", encoding="utf-8")
+            except OSError:
+                pass
+            # сообщение журнала — одна строка (последняя строка вывода), весь хвост — в detail записи
+            log.warning("Установка %s не удалась: %s", package["id"], exc,
+                        extra={"journal_detail": {"stage": getattr(exc, "stage", None), "output": output[-8000:]}})
+            job.update(stage="error", error=(getattr(exc, "stage", "") + ": " + output.strip()[-500:]).lstrip(": "))
 
     def _run(self, command, job, stage):
         job.update(stage=stage)
         done = subprocess.run(command, capture_output=True, text=True, timeout=3600,
                               creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         if done.returncode:
-            raise RuntimeError(stage + ": " + (done.stderr or done.stdout).strip()[-500:])
+            output = (done.stderr or done.stdout).strip()
+            lines = output.splitlines()
+            raise InstallStepError(stage, output[-20000:], lines[-1].strip() if lines else f"код {done.returncode}")
 
     def _install_sync(self, package, job):
         folder, options = self.folder(package), self.options(package)
@@ -547,6 +566,7 @@ class LocalSpeech:
                                "или выберите «Процессор (CPU)»")
         (folder / "installed.json").unlink(missing_ok=True)
         folder.mkdir(parents=True, exist_ok=True)
+        (folder / "install.log").unlink(missing_ok=True)
         if not self.python(package).exists():
             self._run([sys.executable, "-m", "venv", str(folder / "venv")], job, "Создание окружения Python")
         python = str(self.python(package))

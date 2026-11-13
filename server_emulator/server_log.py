@@ -322,8 +322,9 @@ class JournalHandler(logging.Handler):
                 text = str(record.getMessage()).strip()
                 message = text.splitlines()[0] if text else "(без сообщения)"
             context = str(record.getMessage()).strip().splitlines()[0][:200] if exception is not None and str(record.getMessage()).strip() else None
+            extra = getattr(record, "journal_detail", None)  # logging extra: дополнительные поля detail
             store.log(level, logger_source(record.name), message[:MESSAGE_LIMIT], logger=record.name,
-                      context=context, where=where(exception))
+                      context=context, where=where(exception), **(extra if isinstance(extra, dict) else {}))
         except Exception:  # noqa: BLE001 — сбой логирования не должен ронять поток
             self.handleError(record)
 

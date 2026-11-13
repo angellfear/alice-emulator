@@ -89,3 +89,23 @@ async def test_repeated_close_is_noop_and_operations_raise(tmp_path):
         store.save_settings(SETTINGS_V2)
     with pytest.raises(RuntimeError):
         store.set_meta("closed", "1")
+
+
+async def test_write_from_foreign_thread_reaches_file(tmp_path, caplog):
+    """Запись из потока executor при работающем цикле попадает в файл."""
+    import asyncio
+    import sqlite3
+
+    path = tmp_path / "emulator.sqlite3"
+    store = StateStore(path)
+    store.set_meta("from_loop", "1")  # запускает воркер зеркала
+    await store.flush()
+    await asyncio.to_thread(store.set_meta, "from_thread", "1")
+    for i in range(5):  # потоки по очереди: каждый раз новый поток, цикл работает
+        await asyncio.to_thread(store.set_meta, f"k{i}", str(i))
+    await store.flush()
+    await store.close()
+    assert "запись в файл не удалась" not in caplog.text
+    with sqlite3.connect(path) as db:
+        keys = {row[0] for row in db.execute("SELECT key FROM meta")}
+    assert {"from_loop", "from_thread"} | {f"k{i}" for i in range(5)} <= keys

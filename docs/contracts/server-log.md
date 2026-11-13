@@ -28,7 +28,10 @@ self_update, auth), `message` (первая строка, на русском, �
 
 Что пишут: обработчик `logging` (WARNING+ от `aiohttp.server`/`aiohttp.access`/`asyncio`/
 `server_emulator.*`, source по имени логгера, сообщение — первая строка исключения без трейсбека —
-сюда попадают `LineTooLong` aiohttp); точечные записи там, где и `runtime.recent` (замены regexp
+сюда попадают `LineTooLong` aiohttp); вызов с `extra={"journal_detail": {...}}` добавляет эти
+поля в `detail` записи (например, голосовой стек кладёт туда полный хвост вывода неудачной
+установки — `voice_stack.LocalSpeech`, сообщение остаётся одной строкой с причиной, весь вывод
+есть и в `install.log` пакета); точечные записи там, где и `runtime.recent` (замены regexp
 сломали JSON — quasar, ошибки обработчиков эндпоинтов — scripts, сбои сценариев — scenarios,
 расхождение DeviceId — http/ws), ошибки пересылки наверх 502 (upstream, `upstream/forward.py`);
 события сервера: старт (версия, слушатели), остановка/перезапуск, откат настроек слушателей,

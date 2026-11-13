@@ -24,6 +24,8 @@ from . import check, repo
 
 UPDATE_DIR = "update"
 DEFAULT_REPO = "angellfear/alice-emulator"  # константа публичного репозитория — дефолт настройки
+ERROR_LOG_KEY = "self_update_error_logged_at"
+ERROR_LOG_MIN_INTERVAL_S = 86400  # сбой проверки — в журнал не чаще раза в сутки (рестарты не копят записи)
 
 
 class Service:
@@ -100,15 +102,29 @@ class Service:
 
     def _log_check(self, result):
         """События проверки в журнал: новая доступная версия — один раз на версию,
-        сбой проверки — при переходе в состояние ошибки (повторы склеивает журнал)."""
+        сбой проверки — не чаще раза в сутки (метка переживает рестарт сервера в state —
+        иначе каждый перезапуск при недоступном репозитории пишет ту же запись заново)."""
         release = self._available(version.current(self.root))
         if release and self._reported_release != release["version"]:
             self._reported_release = release["version"]
             log_event("info", "self_update",
                       f"Доступна новая версия {release['version']} (сейчас {version.current(self.root)['version']})")
         error = result.get("error")
-        if error and not self.last.get("error"):
+        if error and self._error_log_due():
             log_event("warning", "self_update", f"Проверка обновлений не удалась: {error}")
+            self._mark_error_logged()
+
+    def _error_log_due(self):
+        store = getattr(self.runtime, "store", None)
+        if store is None:  # нет хранилища (тесты сервиса без Runtime) — прежнее поведение, без лимита
+            return True
+        last = store.meta(ERROR_LOG_KEY)
+        return not last or time.time() - float(last) >= ERROR_LOG_MIN_INTERVAL_S
+
+    def _mark_error_logged(self):
+        store = getattr(self.runtime, "store", None)
+        if store is not None:
+            store.set_meta(ERROR_LOG_KEY, str(time.time()))
 
     def _report_last_update(self):
         """Итог последнего обновления/отката (plan.json писал updater отдельным процессом) —

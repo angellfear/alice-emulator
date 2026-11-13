@@ -6,6 +6,7 @@
 import json
 import subprocess
 import sys
+import time
 import zipfile
 from pathlib import Path
 
@@ -239,6 +240,50 @@ def test_service_plan_and_launch_mode(service, monkeypatch):
     plan = svc.plan("0.2.0", "update")
     assert plan["target_tag"] == "v0.2.0" and plan["launch"] == "manager" and plan["pid"]
     assert plan["root"] == str(work) and plan["args"] == list(sys.orig_argv[1:])
+
+
+async def test_check_failure_logged_once_per_day_across_restarts(monkeypatch, tmp_path):
+    """Сбой проверки (репозиторий не найден) — в журнал не чаще раза в сутки: метка в state
+    переживает пересоздание Service (рестарт сервера), повторный отказ сразу после не пишется."""
+    from server_emulator.self_update import ERROR_LOG_KEY
+    from server_emulator.server_log import ServerLog, install_logging
+    from server_emulator.state_store import StateStore
+    from tests.conftest import listen
+
+    store = StateStore(tmp_path / "state" / "emulator.sqlite3")
+    journal = ServerLog(tmp_path / "state" / "server_log.sqlite3")
+    install_logging(journal)
+    _, work = make_origin(tmp_path)
+    settings = {"self_update": json.loads(json.dumps(DEFAULT["self_update"]))}
+
+    runner, url = await listen(web.Application())  # без маршрутов — всегда 404 (репозиторий не найден)
+    try:
+        monkeypatch.setattr(check, "API", url)
+        runtime = FakeRuntime(settings, tmp_path / "state")
+        runtime.store = store
+        svc = Service(runtime, root=work)
+        await svc.check()
+        await journal.flush()
+        first = (await journal.query(source="self_update"))["items"]
+        assert len(first) == 1 and first[0]["count"] == 1
+
+        # «Рестарт сервера»: новый Service (self.last сброшен), та же метка в state
+        svc2 = Service(runtime, root=work)
+        await svc2.check()
+        await journal.flush()
+        second = (await journal.query(source="self_update"))["items"]
+        assert len(second) == 1 and second[0]["count"] == 1  # запись не повторилась
+
+        store.set_meta(ERROR_LOG_KEY, str(time.time() - 90000))  # «сутки назад»
+        svc3 = Service(runtime, root=work)
+        await svc3.check()
+        await journal.flush()
+        third = (await journal.query(source="self_update"))["items"]
+        assert third[0]["count"] == 2  # сутки прошли — повтор зафиксирован
+    finally:
+        await runner.cleanup()
+        await store.close()
+        await journal.close()
 
 
 async def test_manual_check_and_button_do_not_need_enabled(monkeypatch, service):

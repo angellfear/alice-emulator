@@ -220,6 +220,53 @@ async def test_ws_bridge_sends_legal_close_code_when_upstream_closes_reserved(tm
         await runtime.close()
 
 
+async def test_ws_bridge_backs_off_after_429_honoring_retry_after(tmp_path):
+    """uniproxy лимитирует подключения моста (429 на WS-handshake): следующая попытка к тому
+    же хосту ждёт Retry-After, не бьёт наверх немедленно; удачное подключение снимает лимит."""
+    import time
+
+    runtime = Runtime(tmp_path)
+    calls = []
+
+    async def ws_handler(request):
+        calls.append(time.monotonic())
+        if len(calls) == 1:
+            return web.Response(status=429, headers={"Retry-After": "0.3"})
+        ws = web.WebSocketResponse(autoping=False)
+        await ws.prepare(request)
+        await ws.close()
+        return ws
+
+    upstream = web.Application()
+    upstream.router.add_route("GET", "/uni.ws", ws_handler)
+    upstream_runner, port = await start_upstream(upstream)
+    runtime.upstream.forwarder.resolver = StubResolver()
+
+    async def bridge(request):
+        return await runtime.upstream.serve(request, f"ws://uniproxy.test:{port}/uni.ws",
+                                            host="uniproxy.alice.yandex.net")
+
+    app = web.Application()
+    app.router.add_route("GET", "/uni.ws", bridge)
+    runner, url = await listen(app)
+    try:
+        async with ClientSession() as client:
+            with pytest.raises(Exception):  # первая попытка: 429 с настоящего uniproxy
+                async with client.ws_connect(url + "/uni.ws"):
+                    pass
+            assert len(calls) == 1
+            started = time.monotonic()
+            async with client.ws_connect(url + "/uni.ws"):  # вторая: мост ждёт Retry-After сам
+                pass
+            waited = time.monotonic() - started
+        assert len(calls) == 2 and waited >= 0.25  # пауза реально была, не немедленный повтор
+        assert "uniproxy.test" not in runtime.upstream.forwarder._ws_backoff  # удачное подключение сняло лимит
+    finally:
+        await upstream_runner.cleanup()
+        await runner.cleanup()
+        await runtime.close()
+
+
 async def test_resolver_loop_protection_and_pins():
     """Петля: адрес самого сервера в пересылку не идёт; пин на чужой адрес работает."""
     own = "127.0.0.1"

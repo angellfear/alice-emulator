@@ -701,3 +701,43 @@ def test_decode_audio_reads_wav_and_resamples(tmp_path):
     assert samples[8000] == pytest.approx((1000 + 3000) / 2 / 32768, abs=0.01)
     with pytest.raises(speech_common.UserError, match="Не удалось прочитать"):
         speech_common.decode_audio("это не аудио".encode("utf-8"))
+
+
+@pytest.mark.parametrize("ident", ["gigaam", "parakeet"])
+def test_model_load_step_downloads_missing_files_into_existing_folder(packages, ident, monkeypatch, tmp_path):
+    """Папка модели уже есть (int8), а выбран fp32: onnx-asr для существующей папки работает офлайн
+    и падает на отсутствующем файле. Шаг обязан разрешать модель с offline=False — это докачает файлы."""
+    import sys
+    import types
+
+    package = packages[ident]
+    options = {**package["defaults"], "device": "cuda", "dir": str(tmp_path), "python": "python", "tools": "t"}
+    steps = [s for platform in package["platforms"].values() for device in platform.values() for s in device
+             if s.get("title") == "Загрузка модели и VAD"]
+    assert len(steps) == 4
+    for step in steps:
+        command = [fill(part, options) for part in step["run"]]
+        calls = []
+
+        class Resolver:
+            def __init__(self, kind, name, path, offline):
+                self.call = [kind, name, path, offline]
+
+            def resolve_model(self, quantization=None):
+                calls.append([*self.call, quantization])
+
+        loader = types.ModuleType("onnx_asr.loader")
+        loader.create_asr_resolver = lambda name, path, offline=None: Resolver("asr", name, path, offline)
+        loader.create_vad_resolver = lambda name, path, offline=None: Resolver("vad", name, path, offline)
+        package_module = types.ModuleType("onnx_asr")
+        package_module.load_model = lambda *args, **kwargs: calls.append(["load_model", kwargs.get("quantization")])
+        package_module.load_vad = lambda *args, **kwargs: calls.append(["load_vad"])
+        package_module.loader = loader
+        monkeypatch.setitem(sys.modules, "onnx_asr", package_module)
+        monkeypatch.setitem(sys.modules, "onnx_asr.loader", loader)
+        monkeypatch.setattr(sys, "argv", ["-c", *command[3:]])
+        exec(compile(command[2], "<run>", "exec"), {})
+        assert [c for c in calls if c[0] in ("asr", "vad")] == [
+            ["asr", command[3], command[4], False, None],  # cuda + auto = fp32
+            ["vad", "silero", command[7], False, None]]
+        assert calls.index(next(c for c in calls if c[0] == "asr")) < calls.index(["load_model", None])

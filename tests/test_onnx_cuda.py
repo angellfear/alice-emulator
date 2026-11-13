@@ -136,3 +136,25 @@ async def test_start_refuses_cuda_on_cpu_install(tmp_path):
     assert "gigaam" not in local.processes
     local.save_options(package, {"device": "cpu"})
     assert local.wrong_device(package) == ""
+
+
+async def test_failed_install_step_keeps_full_output(tmp_path, monkeypatch, caplog):
+    """Упавший шаг: полный вывод — в install.log и в записи журнала, сообщение — одна строка с причиной."""
+    from server_emulator.voice_stack import InstallStepError
+    package = asr("gigaam")
+    local = LocalSpeech(tmp_path / "speech", tmp_path / "options")
+    output = "Traceback (most recent call last):\n  File \"a.py\", line 1\nModelFileNotFoundError: нет файла"
+
+    def broken(self, package, job):
+        raise InstallStepError("Загрузка модели и VAD", output, "ModelFileNotFoundError: нет файла")
+
+    monkeypatch.setattr(LocalSpeech, "_install_sync", broken)
+    local.folder(package).mkdir(parents=True)
+    local.jobs[package["id"]] = job = {"stage": "Подготовка", "progress": 0.0, "error": None}
+    with caplog.at_level("WARNING"):
+        await local._install(package)
+    record = next(r for r in caplog.records if "не удалась" in r.getMessage())
+    assert record.getMessage().splitlines() == ["Установка gigaam не удалась: Загрузка модели и VAD: ModelFileNotFoundError: нет файла"]
+    assert record.journal_detail["output"] == output
+    assert output in (local.folder(package) / "install.log").read_text(encoding="utf-8")
+    assert job["stage"] == "error" and "ModelFileNotFoundError" in job["error"]

@@ -32,6 +32,7 @@ import collections
 import json
 import logging
 import sqlite3
+import threading
 import time
 from pathlib import Path
 
@@ -103,6 +104,7 @@ class StateStore:
         self._idle = None
         self._adb = None  # aiosqlite.Connection — зеркало файла в цикле событий
         self._file = None  # sync-соединение с файлом: загрузка при открытии и запись вне цикла
+        self._file_lock = threading.RLock()  # один писатель файла: запись зовут и из потоков
         memory = sqlite3.connect(":memory:", check_same_thread=False)
         self._file_connection().backup(memory)  # единственное чтение файла: снимок при открытии
         memory.row_factory = sqlite3.Row
@@ -110,11 +112,14 @@ class StateStore:
         self.db = _MemoryDb(memory, self._mirror)
 
     def _file_connection(self):
-        if self._file is None:
-            self._file = sqlite3.connect(self.path, timeout=10)
-            self._file.execute("PRAGMA journal_mode=WAL")  # режим хранится в файле базы
-            self._file.execute("PRAGMA foreign_keys=ON")
-        return self._file
+        with self._file_lock:
+            if self._file is None:
+                # соединение общее для потоков, доступ сериализует _file_lock
+                file = sqlite3.connect(self.path, timeout=10, check_same_thread=False)
+                file.execute("PRAGMA journal_mode=WAL")  # режим хранится в файле базы
+                file.execute("PRAGMA foreign_keys=ON")
+                self._file = file
+            return self._file
 
     def _live(self):
         if self._closed:
@@ -138,15 +143,19 @@ class StateStore:
         self._wake.set()
 
     def _drain_direct(self):
-        file = self._file_connection()
-        while self._pending:
-            ops = self._pending.popleft()
-            try:
-                with file:
-                    for sql, params in ops:
-                        file.execute(sql, params)
-            except sqlite3.Error as exc:
-                log.warning("Хранилище состояния: запись в файл не удалась: %s", exc)
+        with self._file_lock:  # транзакции применяются по одной и в порядке очереди
+            file = self._file_connection()
+            while True:
+                try:
+                    ops = self._pending.popleft()
+                except IndexError:
+                    return
+                try:
+                    with file:
+                        for sql, params in ops:
+                            file.execute(sql, params)
+                except sqlite3.Error as exc:
+                    log.warning("Хранилище состояния: запись в файл не удалась: %s", exc)
 
     async def _run(self):
         self._adb = await aiosqlite.connect(self.path, timeout=10)
@@ -342,9 +351,10 @@ class StateStore:
         if self._adb is not None:
             await self._adb.close()
             self._adb = None
-        if self._file is not None:
-            self._file.close()
-            self._file = None
+        with self._file_lock:
+            if self._file is not None:
+                self._file.close()
+                self._file = None
         self.db.close()
 
 

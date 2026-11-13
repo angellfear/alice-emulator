@@ -170,7 +170,7 @@
           "run": [
             "{python}",
             "-c",
-            "import sys, onnx_asr\nname, path, device, quant, vad = sys.argv[1:6]\nquantization = {'auto': None if device == 'cuda' else 'int8', 'int8': 'int8'}.get(quant)\ncpu = ['CPUExecutionProvider']\nonnx_asr.load_model(name, path, quantization=quantization, providers=cpu)\nonnx_asr.load_vad('silero', vad, providers=cpu)",
+            "import sys, onnx_asr\nfrom onnx_asr.loader import create_asr_resolver, create_vad_resolver\nname, path, device, quant, vad = sys.argv[1:6]\nquantization = {'auto': None if device == 'cuda' else 'int8', 'int8': 'int8'}.get(quant)\ncpu = ['CPUExecutionProvider']\ncreate_asr_resolver(name, path, offline=False).resolve_model(quantization=quantization)\ncreate_vad_resolver('silero', vad, offline=False).resolve_model()\nonnx_asr.load_model(name, path, quantization=quantization, providers=cpu)\nonnx_asr.load_vad('silero', vad, providers=cpu)",
             "gigaam-v3-{variant}",
             "{dir}/gigaam-v3-{variant}",
             "{device}",
@@ -203,7 +203,7 @@
           "run": [
             "{python}",
             "-c",
-            "import sys, onnx_asr\nname, path, device, quant, vad = sys.argv[1:6]\nquantization = {'auto': None if device == 'cuda' else 'int8', 'int8': 'int8'}.get(quant)\ncpu = ['CPUExecutionProvider']\nonnx_asr.load_model(name, path, quantization=quantization, providers=cpu)\nonnx_asr.load_vad('silero', vad, providers=cpu)",
+            "import sys, onnx_asr\nfrom onnx_asr.loader import create_asr_resolver, create_vad_resolver\nname, path, device, quant, vad = sys.argv[1:6]\nquantization = {'auto': None if device == 'cuda' else 'int8', 'int8': 'int8'}.get(quant)\ncpu = ['CPUExecutionProvider']\ncreate_asr_resolver(name, path, offline=False).resolve_model(quantization=quantization)\ncreate_vad_resolver('silero', vad, offline=False).resolve_model()\nonnx_asr.load_model(name, path, quantization=quantization, providers=cpu)\nonnx_asr.load_vad('silero', vad, providers=cpu)",
             "gigaam-v3-{variant}",
             "{dir}/gigaam-v3-{variant}",
             "{device}",
@@ -245,7 +245,7 @@
           "run": [
             "{python}",
             "-c",
-            "import sys, onnx_asr\nname, path, device, quant, vad = sys.argv[1:6]\nquantization = {'auto': None if device == 'cuda' else 'int8', 'int8': 'int8'}.get(quant)\ncpu = ['CPUExecutionProvider']\nonnx_asr.load_model(name, path, quantization=quantization, providers=cpu)\nonnx_asr.load_vad('silero', vad, providers=cpu)",
+            "import sys, onnx_asr\nfrom onnx_asr.loader import create_asr_resolver, create_vad_resolver\nname, path, device, quant, vad = sys.argv[1:6]\nquantization = {'auto': None if device == 'cuda' else 'int8', 'int8': 'int8'}.get(quant)\ncpu = ['CPUExecutionProvider']\ncreate_asr_resolver(name, path, offline=False).resolve_model(quantization=quantization)\ncreate_vad_resolver('silero', vad, offline=False).resolve_model()\nonnx_asr.load_model(name, path, quantization=quantization, providers=cpu)\nonnx_asr.load_vad('silero', vad, providers=cpu)",
             "gigaam-v3-{variant}",
             "{dir}/gigaam-v3-{variant}",
             "{device}",
@@ -278,7 +278,7 @@
           "run": [
             "{python}",
             "-c",
-            "import sys, onnx_asr\nname, path, device, quant, vad = sys.argv[1:6]\nquantization = {'auto': None if device == 'cuda' else 'int8', 'int8': 'int8'}.get(quant)\ncpu = ['CPUExecutionProvider']\nonnx_asr.load_model(name, path, quantization=quantization, providers=cpu)\nonnx_asr.load_vad('silero', vad, providers=cpu)",
+            "import sys, onnx_asr\nfrom onnx_asr.loader import create_asr_resolver, create_vad_resolver\nname, path, device, quant, vad = sys.argv[1:6]\nquantization = {'auto': None if device == 'cuda' else 'int8', 'int8': 'int8'}.get(quant)\ncpu = ['CPUExecutionProvider']\ncreate_asr_resolver(name, path, offline=False).resolve_model(quantization=quantization)\ncreate_vad_resolver('silero', vad, offline=False).resolve_model()\nonnx_asr.load_model(name, path, quantization=quantization, providers=cpu)\nonnx_asr.load_vad('silero', vad, providers=cpu)",
             "gigaam-v3-{variant}",
             "{dir}/gigaam-v3-{variant}",
             "{device}",

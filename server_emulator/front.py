@@ -23,10 +23,12 @@ ClientHello (до 32 КиБ, без расшифровки), из него — S
 
 Реальный адрес колонки сохраняется таблицей peers (исходящий сокет сплайса →
 оригинальный пир); dispatcher.client_ip получает его через runtime.client_peer.
-События — в журнал сервера: предупреждение о туннеле по домену
-(повторы склеивает журнал, адрес — в detail), предупреждение об отклонении
-непокрытого домена (режим в detail), ошибка открытия туннеля, старт
-фронта. Перенесено из реализаций фронтов прежних установок (dns_names_in_cert,
+События — в журнал сервера: туннель по домену (повторы склеивает журнал, адрес — в
+detail) — предупреждение, кроме ожидаемых потоков музыки поставщика (storage/strm:
+EXPECTED_TUNNEL_HOSTS/SUFFIXES) — для них info и общий шаблон домена в сообщении
+(strm-mar-NNN и т.п. меняется на каждый трек — иначе каждый NNN была бы своя запись),
+предупреждение об отклонении непокрытого домена (режим в detail), ошибка открытия
+туннеля, старт фронта. Перенесено из реализаций фронтов прежних установок (dns_names_in_cert,
 cert_covers, разбор ClientHello, сплайс и помпа) и переписано под запуск
 эмулятора: одна конфигурация из server.json, журнал, защиты.
 """
@@ -49,6 +51,21 @@ CONNECT_TIMEOUT_S = 10
 IDLE_TIMEOUT_S = 300  # простой туннеля/сплайса дольше пяти минут — соединение закрыто
 DEFAULT_DNS = ("8.8.8.8", "1.1.1.1")
 LOCAL_SUFFIXES = (".local", ".lan", ".home", ".localdomain")
+# Потоки музыки поставщика качаются колонкой напрямую (storage/strm) — туннель для них
+# штатный путь, не ошибка: уровень info, имя в сообщении — шаблон (strm-mar-NNN и т.п.
+# меняется на каждый трек), чтобы повторы склеивал журнал (не по записи на NNN).
+EXPECTED_TUNNEL_SUFFIXES = (".strm.yandex.net",)
+EXPECTED_TUNNEL_HOSTS = ("storage.yandex.net",)
+
+
+def _tunnel_log_name(name):
+    """Домен для сообщения журнала: ожидаемые потоковые — общий шаблон, иначе само имя."""
+    if name in EXPECTED_TUNNEL_HOSTS:
+        return name
+    for suffix in EXPECTED_TUNNEL_SUFFIXES:
+        if name.endswith(suffix):
+            return "*" + suffix
+    return name
 
 
 def dns_names_in_cert(cert_path) -> tuple:
@@ -283,7 +300,10 @@ class Front:
                           host=name, ip=ip, error=str(exc)[:200])
                 continue
             self.tunnels[name] = self.tunnels.get(name, 0) + 1
-            log_event("warning", "tls", f"Домен {name} не найден в сертификате — соединение идёт туннелем",
+            expected = name in EXPECTED_TUNNEL_HOSTS or name.endswith(EXPECTED_TUNNEL_SUFFIXES)
+            level = "info" if expected else "warning"
+            log_name = _tunnel_log_name(name)
+            log_event(level, "tls", f"Домен {log_name} не найден в сертификате — соединение идёт туннелем",
                       host=name, ip=ip)
             return reader, writer
         return None, None

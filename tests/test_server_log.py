@@ -204,3 +204,14 @@ async def test_api_filters_and_admin_only(tmp_path):
     finally:
         await runner.cleanup()
         await runtime.close()
+
+
+async def test_logging_handler_adds_journal_detail(store):
+    from server_emulator.server_log import install_logging
+    install_logging(store)
+    logging.getLogger("server_emulator.voice_stack").warning(
+        "Установка не удалась: шаг: причина", extra={"journal_detail": {"output": "Traceback\n  строка 1\nValueError: x"}})
+    await store.flush()
+    item = (await store.query())["items"][0]
+    assert item["message"] == "Установка не удалась: шаг: причина"
+    assert item["detail"]["output"].splitlines()[-1] == "ValueError: x"

@@ -32,6 +32,14 @@ IDLE_TIMEOUT_S = 60
 MAX_RESPONSE_BYTES = 32 * 1024 ** 2
 MAX_WS_MESSAGE_BYTES = 16 * 1024 ** 2
 
+# uniproxy лимитирует частоту подключений моста (HTTP 429 на WS-handshake): колонка
+# переподключается сама (её логика, вне эмулятора) — лишь бы мост не добавлял свои
+# немедленные повторы наверх, иначе каждый реконнект колонки бьёт в тот же лимит.
+# Пауза перед следующей попыткой к тому же хосту: 429 с Retry-After — пауза из
+# заголовка; без него — обычный экспоненциальный бэкофф с потолком.
+BACKOFF_START_S = 1.0
+BACKOFF_MAX_S = 60.0
+
 
 class UpstreamError(RuntimeError):
     """Пересылка не удалась (резолв, соединение, лимит) — диспетчер отвечает 502."""
@@ -113,6 +121,7 @@ class Forwarder:
         self._session = None
         # Открытые мосты WS: смена маршрута устройства закрывает и их
         self.connections = {}
+        self._ws_backoff = {}  # host → {"until": monotonic, "delay": с} — лимит 429 на WS-handshake
 
     def session(self):
         if self._session is None or self._session.closed:
@@ -126,6 +135,34 @@ class Forwarder:
         if self._session is not None and not self._session.closed:
             await self._session.close()
         self._session = None
+
+    async def _wait_ws_backoff(self, host):
+        """Пауза перед подключением моста, если недавняя попытка к этому хосту упёрлась в 429."""
+        state = self._ws_backoff.get(host)
+        if state is None:
+            return
+        remaining = state["until"] - time.monotonic()
+        if remaining > 0:
+            await asyncio.sleep(remaining)
+
+    def _note_ws_backoff(self, host, exc):
+        """429 на WS-handshake: Retry-After, если есть, иначе бэкофф 1→60 с (сбрасывается
+        при удачном подключении). Любая другая ошибка моста лимит не трогает — её причина
+        не связана с частотой подключений."""
+        status = getattr(exc, "status", None)
+        if status != 429:
+            return
+        state = self._ws_backoff.get(host) or {"delay": BACKOFF_START_S}
+        retry_after = None
+        headers = getattr(exc, "headers", None)
+        if headers:
+            try:
+                retry_after = float(headers.get("Retry-After"))
+            except (TypeError, ValueError):
+                retry_after = None
+        delay = retry_after if retry_after and retry_after > 0 else state["delay"]
+        self._ws_backoff[host] = {"until": time.monotonic() + delay,
+                                  "delay": min(state["delay"] * 2, BACKOFF_MAX_S)}
 
     async def serve(self, request, target, journal=True, **context):
         """Выполнить решение маршрута: WS — мост, HTTP — пересылка. Ответ — колонке.
@@ -191,6 +228,8 @@ class Forwarder:
         headers = forward_headers(request.headers, websocket=True)
         protocols = tuple(token.strip() for token in
                           request.headers.get("Sec-WebSocket-Protocol", "").split(",") if token.strip())
+        bridge_host = URL(target, encoded=True).host or context.get("host") or ""
+        await self._wait_ws_backoff(bridge_host)
         try:
             remote = await asyncio.wait_for(
                 self.session().ws_connect(URL(target, encoded=True), headers=CIMultiDict(headers),
@@ -198,8 +237,10 @@ class Forwarder:
                                           compress=0, max_msg_size=MAX_WS_MESSAGE_BYTES),
                 CONNECT_TIMEOUT_S)
         except Exception as exc:  # noqa: BLE001 — наверх всегда уходит UpstreamError
+            self._note_ws_backoff(bridge_host, exc)
             note_upstream_failure(context, f"{type(exc).__name__}: {exc}")
             raise UpstreamError(f"{type(exc).__name__}: {exc}"[:300]) from exc
+        self._ws_backoff.pop(bridge_host, None)  # подключение удалось — лимит снят
         local = web.WebSocketResponse(protocols=[remote.protocol] if remote.protocol else (),
                                       autoping=False, heartbeat=None, compress=False,
                                       max_msg_size=MAX_WS_MESSAGE_BYTES)

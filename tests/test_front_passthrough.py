@@ -184,6 +184,31 @@ async def test_uncovered_sni_tunnels_to_real_server(tmp_path):
         await runtime.store.close()
 
 
+async def test_strm_tunnel_logged_as_info_and_grouped_by_pattern(tmp_path):
+    """Потоки музыки (strm-mar-NNN.strm.yandex.net) — туннель штатный: info, не warning,
+    разные NNN в одном сообщении-шаблоне — журнал склеивает повторы в одну запись."""
+    runtime = Runtime(tmp_path)
+    front, runner, port, _cert = await start_front(
+        runtime, tmp_path, {"strm-mar-111.strm.yandex.net": ["127.0.0.2"],
+                            "strm-mar-222.strm.yandex.net": ["127.0.0.2"]})
+    real_server = await start_real_tls_server(tmp_path, port)
+    try:
+        for host in ("strm-mar-111.strm.yandex.net", "strm-mar-222.strm.yandex.net"):
+            body, _local = await asyncio.to_thread(tls_exchange, port, host, "/music.flac")
+            assert REAL_BODY in body
+        await runtime.server_log.flush()
+        items = (await runtime.server_log.query(source="tls"))["items"]
+        tunnel_items = [i for i in items if "туннелем" in i["message"]]
+        assert len(tunnel_items) == 1  # разные NNN склеились в одну запись
+        assert tunnel_items[0]["level"] == "info"
+        assert tunnel_items[0]["count"] == 2
+        assert "*.strm.yandex.net" in tunnel_items[0]["message"]
+    finally:
+        real_server.close()
+        await stop_front(front, runner)
+        await runtime.store.close()
+
+
 async def test_loop_address_never_tunnels(tmp_path):
     runtime = Runtime(tmp_path)
     front, runner, port, _cert = await start_front(runtime, tmp_path, {"loop.y.example.test": ["127.0.0.1"]})
