@@ -1,10 +1,15 @@
 """informers.weather.widget — служебный get_informers → update_all_informers_directive (тихо).
 
 Температура, иконка и описание для виджета главного экрана. Данные — датасет weather
-(ctx.dataset_record: свежая запись из БД, иначе плагин с таймаутом, при сбое — старая запись).
-Нет гео или нет данных — сценарий отработал без сообщений (`[]`): виджет не трогаем.
+(ctx.dataset_record: свежая запись из БД, иначе плагин, при сбое — старая запись).
+Ответ — мгновенный, как у настоящего сервера (его ответ на get_informers уходит в ту же
+секунду): при кеше обновление ждётся не дольше секунды — медленный источник дорабатывает
+в фоне, свежую запись возьмёт следующий запрос. Нет гео или нет данных — сценарий
+отработал без сообщений (`[]`): виджет не трогаем.
 Таблицы — в weather.widget.assets/tables.json. Сезон иконки — месяц в таймзоне устройства.
 """
+
+WIDGET_REFRESH_WAIT_S = 1  # кеш есть: ответ не держим дольше секунды
 
 
 def _lookup(table, key, outer=None):
@@ -35,15 +40,18 @@ async def handle(ctx):
         return []
     settings = effective.get("weather") or {}
     key = f"{location['latitude']},{location['longitude']}"
+    args = {"url": settings.get("url"), "timezone": effective.get("timezone"),
+            "query": {"latitude": location["latitude"], "longitude": location["longitude"],
+                      "current": "temperature_2m,apparent_temperature,weather_code,is_day",
+                      "hourly": "temperature_2m,weather_code,is_day",
+                      "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_max",
+                      "forecast_hours": "24", "forecast_days": "1", "timezone": "auto"}}
+    # Подглядка в кеш: запись есть — ответ не держим дольше секунды (медленный источник
+    # дорабатывает в фоне); записи нет — ждать нечего, ждём плагин целиком.
+    cached = await ctx.dataset_record("weather", key, timeout=0.1, args=args)
+    wait = WIDGET_REFRESH_WAIT_S if cached is not None else settings.get("refresh_timeout")
     record = await ctx.dataset_record(
-        "weather", key, max_age=_max_age(settings["max_age_hours"]),
-        args={"url": settings.get("url"), "timezone": effective.get("timezone"),
-              "query": {"latitude": location["latitude"], "longitude": location["longitude"],
-                        "current": "temperature_2m,apparent_temperature,weather_code,is_day",
-                        "hourly": "temperature_2m,weather_code,is_day",
-                        "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_max",
-                        "forecast_hours": "24", "forecast_days": "1", "timezone": "auto"}},
-        timeout=settings.get("refresh_timeout"))
+        "weather", key, max_age=_max_age(settings["max_age_hours"]), args=args, timeout=wait)
     if record is None:  # нет данных и плагин молчит — тихое завершение
         return []
     current = record["value"]["current"]  # устаревшая запись тоже годится (как у JSON)

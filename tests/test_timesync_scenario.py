@@ -7,8 +7,10 @@ Type=server_action Name=@@mm_typed_callback (purpose=sync_timezone, Text пус�
 set_location из params), system.service_ack (тихий ack), виджет погоды —
 informers.weather.widget, тап по виджету — informers.weather.
 """
+import asyncio
 import base64
 import datetime
+import time
 
 import pytest
 from google.protobuf import json_format
@@ -249,6 +251,51 @@ async def test_get_informers_without_data_is_silent(tmp_path):
                                                    'dlg-1', lambda data: collect(sent, data))
         assert report['handled'] and report['scenario'] == 'informers.weather.widget'
         assert not [m for m in sent if b'update_all_informers' in m]
+    finally:
+        await runtime.close()
+
+
+async def test_get_informers_answers_from_cache_without_waiting_for_plugin(tmp_path):
+    """Кеш просрочен, плагин медленный: ответ уходит сразу со старой записью (у настоящего
+    сервера ответ на get_informers — в ту же секунду), обновление дорабатывает в фоне,
+    и следующий запрос отвечает уже свежей записью."""
+    informers = load_type(ROOT / 'schemas', schema_file(ROOT / 'schemas', 'centaur'),
+                          'NAlice.TInformersCapability.TUpdateAllInformersDirective')
+    runtime = make_runtime(tmp_path)
+    runtime.store.scenario_data_set("dataset:weather", "system", "", f"{LAT},{LON}", FORECAST)
+    with runtime.store._live() as db:
+        db.execute("UPDATE scenario_data SET updated_ts=updated_ts-10800 "
+                   "WHERE scenario_id='dataset:weather'")  # 3 часа — старше max_age_hours=2
+
+    async def slow(key, args):
+        await asyncio.sleep(3)  # дольше секунды ожидания виджета
+        return {**FORECAST, "current": {**FORECAST["current"], "temperature_2m": 20.0}}
+
+    runtime.scenario_plugins["weather"] = slow
+    try:
+        sent = []
+        started = time.monotonic()
+        report = await dispatch_handle(runtime, '@@mm_typed_callback',
+                                       ctx_for(runtime, purpose='get_informers'), 'dlg-1',
+                                       lambda data: collect(sent, data))
+        assert report['handled'] and report['scenario'] == 'informers.weather.widget'
+        assert time.monotonic() - started < 2.5  # ответ не ждал медленный плагин
+        message = SERVER.FromString(sent[0][4:])
+        payload = informers.FromString(message.Event.AliceResponse.Response.Directives[0].PayloadRaw)
+        assert round(float(payload.WeatherInformerState.Temperature)) == 12  # старая запись
+        for _ in range(100):  # фоновое обновление дозревает в БД
+            record = runtime.store.scenario_data_record("dataset:weather", "system", "", f"{LAT},{LON}")
+            if record and record[0]["current"]["temperature_2m"] == 20.0:
+                break
+            await asyncio.sleep(0.1)
+        assert record[0]["current"]["temperature_2m"] == 20.0
+        sent.clear()
+        await dispatch_handle(runtime, '@@mm_typed_callback',
+                              ctx_for(runtime, purpose='get_informers'), 'dlg-1',
+                              lambda data: collect(sent, data))
+        message = SERVER.FromString(sent[0][4:])
+        payload = informers.FromString(message.Event.AliceResponse.Response.Directives[0].PayloadRaw)
+        assert round(float(payload.WeatherInformerState.Temperature)) == 20  # свежая запись
     finally:
         await runtime.close()
 

@@ -30,7 +30,7 @@ module: "server_emulator/runtime.py"
 | tts_play_placeholder | заглушка TTS-фразы | text-basic, screen-divui |
 | set_timezone, set_location, set_upper_shutter | контекст/занавес камеры | captures (не реализованы) |
 | audio_play, apply_player_playback_queue_directive, set_audio_player_sequence_state_directive | медиа-очередь Яндекса (контент и URL потока) | captures (не реализованы: своей очереди у эмулятора нет) |
-| update_all_informers_directive, update_informer_directive, rotate_teasers_directive | инфоценры/ротация тизеров | captures (не реализованы) |
+| update_all_informers_directive, update_informer_directive, rotate_teasers_directive | инфоценры/ротация тизеров: update_all_informers — тихий ответ на get_informers колонки, погода для виджета главного экрана (сценарий informers.weather.widget, ответ из кеша датасета без ожидания сети); update_informer и rotate_teasers — captures (не реализованы) | capture 2026-10-25 (ответ облака на TGetInformersTypedCallback), tests/test_timesync_scenario.py |
 | divui_hide_view, draw_animation_directive (S3 animations/player_pause), player_pause, clear_queue | пауза штатного плеера («стоп/пауза», без речи) | media-pause (tests/fixtures/directives), tests/test_media_scenarios.py; payload_raw по схеме станции |
 | iot_sync_endpoints_directive | IoT | captures (не реализован) |
 | open_screen_timer_info_directive, open_screen_timer_list_directive, open_screen_alarm_list_directive, close_screen_timer_active_directive, close_screen_alarm_active_directive | экраны «Часов» (ClockAppCapability, payload_raw по схеме станции) | timer-set / timer-list / timer-cancel / alarm-set / alarm-stop, tests/fixtures/directives |
