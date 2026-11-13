@@ -173,7 +173,10 @@ async def geocode(ctx, name):
         forecast_url = str(ctx.get("url") or "").strip()
         url = forecast_url.rsplit("/v1/", 1)[0] + "/v1/geocoding" if "/v1/" in forecast_url else ""
     query = {"name": str(name or ""), "count": "1", "language": "ru", "format": "json"}
-    data = await _get_json(url or GEOCODE_URL, query)
+    # Без явного таймаута здесь шаг ждал бы до TIMEOUT_S (10 с, сокетный таймаут
+    # urlopen) при медленном геокодере — тот же потолок, что у запроса прогноза,
+    # а не отдельный повторный простой.
+    data = await asyncio.wait_for(_get_json(url or GEOCODE_URL, query), PRIMARY_TIMEOUT)
     results = data.get("results") or []
     if not results:
         raise ValueError(f"геокодирование: {name!r} не найден")

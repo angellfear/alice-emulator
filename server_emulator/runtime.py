@@ -858,6 +858,36 @@ class Runtime:
         if manager.note_dataset_change(sid[len("dataset:"):], key):
             self.rebuild_phrase_directory()
 
+    def warm_phrase_matcher(self, delay=0):
+        """Прогрев совпадения шаблонных фраз (hassil): числовой список
+        duration_number/duration_number2 (таймер/будильник «на {число} минут»,
+        словами, диапазон 1..999) строит свою trie словоформ лениво при первом
+        распознавании, что ловит разбор чисел по-русски (declension forms) —
+        замер: ~1.3 с на первой же реплике после запуска, далее кеш в процессе
+        общий и бесплатный. Распознавание — чтение, без выполнения сценария;
+        фраза ничего не меняет, только прогревает кеш hassil для всех
+        последующих реплик, как прогрев TTS (warm_sound_cache)."""
+
+        async def run():
+            await asyncio.sleep(delay)
+            try:
+                catalog = self.dialog.scenarios()
+                # Фраза подобрана замером: она доводит распознавание до списка
+                # duration_number (1..999, словами) и строит его trie один раз
+                # на процесс; текст без расчёта чисел словами до него не доходит.
+                # Построение — чистый CPU без await внутри: в потоке, иначе прогрев
+                # сам держит event loop и задерживает параллельные запросы на то же
+                # время, которое должен был сэкономить.
+                index = self.dialog._template_index(catalog)
+                await asyncio.to_thread(index.ranked, "поставь таймер на сто минут")
+            except Exception:  # noqa: BLE001 — прогрев не должен ронять старт
+                pass
+        job = run()
+        try:
+            self.lifecycle.spawn(job)
+        except RuntimeError:  # вне цикла событий — прогреется на первой реплике
+            job.close()
+
     def warm_sound_cache(self, delay=0):
         """Фразы раздела «AI агент» звукового кеша — синтез заранее, в фоне (PCM-движок)."""
         from .tts_cache import agent_phrases
@@ -1113,6 +1143,7 @@ class Runtime:
             if self.routines is not None:
                 self.lifecycle.spawn(self.routines.start())  # планировщик и пропуски простоя
             self.warm_sound_cache(delay=20)  # локальный TTS поднимается autostart'ом
+            self.warm_phrase_matcher()
 
     def public(self):
         value = self.settings_service.public(self.settings)
