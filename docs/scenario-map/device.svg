@@ -1,0 +1,333 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1662 2885" width="1662" height="2885" font-family="Segoe UI, IBM Plex Sans, Arial, sans-serif">
+<title>Сценарии: Управление устройством</title>
+<desc>Фразы, ветвления диалога и итоговые ответы сценариев группы «Управление устройством».</desc>
+<style>
+:root{--bg:#ffffff;--fg:#18202b;--muted:#5b6676;--rule:#d5dbe3;--edge:#4a5566;--ask:#b8326b;--decl:#c0392b;--link:#2f6fd0}
+@media (prefers-color-scheme: dark){:root{--bg:#10151c;--fg:#e6ebf2;--muted:#9aa6b6;--rule:#2c3644;--edge:#9aa6b6;--ask:#e87aa5;--decl:#f0857a;--link:#7aa7f0}}
+.bg{fill:var(--bg)}
+.t{fill:var(--fg);font-family:Segoe UI, IBM Plex Sans, Arial, sans-serif}.m{fill:var(--muted);font-family:Segoe UI, IBM Plex Sans, Arial, sans-serif}.mo{fill:var(--fg);font-family:Consolas, IBM Plex Mono, Menlo, monospace}
+.b{font-weight:700}.cap{font-weight:700;letter-spacing:1.4px}
+.rule{stroke:var(--rule);fill:none}.lk{fill:var(--link);font-family:Segoe UI, IBM Plex Sans, Arial, sans-serif}
+.edge{stroke:var(--edge);fill:none;stroke-width:1.4}.ask{stroke:var(--ask);fill:none;stroke-width:1.4;stroke-dasharray:5 3}
+.decl{stroke:var(--decl);fill:none;stroke-width:1.4;stroke-dasharray:2 3}
+.mk-edge{fill:var(--edge)}.mk-ask{fill:var(--ask)}.mk-decl{fill:var(--decl)}
+.lb-decl{fill:var(--decl);font-weight:700}.lb-ask{fill:var(--ask);font-weight:700}.lb-act{fill:#6a45c9;font-weight:700}
+.lb-data{fill:var(--muted);font-weight:700}.lb-say{fill:#16855a;font-weight:700}.lb-dir{fill:#b2650b;font-weight:700}
+@media (prefers-color-scheme: dark){.lb-act{fill:#a78bec}.lb-say{fill:#4fc08a}.lb-dir{fill:#e0a050}}
+.box{stroke:var(--s);fill:var(--f);stroke-width:1.5}.dash{stroke-dasharray:4 4}
+.k-blue{--s:#2f6fd0;--f:#e8effb}
+.k-green{--s:#16855a;--f:#e5f4ec}
+.k-orange{--s:#b2650b;--f:#fbf1e2}
+.k-violet{--s:#6a45c9;--f:#f0ebfb}
+.k-pink{--s:#b8326b;--f:#fbeaf1}
+.k-red{--s:#c0392b;--f:#fdecea}
+.k-gray{--s:#4a5566;--f:#eef1f4}
+@media (prefers-color-scheme: dark){.k-blue{--s:#7aa7f0;--f:#1b2a45}.k-green{--s:#4fc08a;--f:#16342a}.k-orange{--s:#e0a050;--f:#3a2a14}.k-violet{--s:#a78bec;--f:#2a2147}.k-pink{--s:#e87aa5;--f:#3d1c2c}.k-red{--s:#f0857a;--f:#42201c}.k-gray{--s:#8b97a8;--f:#252b34}}
+</style>
+<defs><marker id="m-edge" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="mk-edge" d="M0,0 L10,5 L0,10 z"/></marker><marker id="m-ask" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="mk-ask" d="M0,0 L10,5 L0,10 z"/></marker><marker id="m-decl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="mk-decl" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<rect class="bg" width="1662" height="2885"/>
+<text class="t b" x="18.0" y="36.0" font-size="22">Сценарии: Управление устройством</text>
+<a href="../scenario-map.svg" xlink:href="../scenario-map.svg"><text class="lk" x="1644" y="34" font-size="13" text-anchor="end">← обзор карты сценариев</text></a>
+<text class="m" x="18.0" y="58.0" font-size="12.5">Громкость, плеер, Bluetooth, LED-эмоции, приложения</text>
+<text class="t" x="18.0" y="82.0" font-size="11.5"><tspan class="lb-ask">вопрос:</tspan> сценарий спрашивает, колонка слушает ответ (штриховая стрелка)</text>
+<text class="t" x="488.0" y="82.0" font-size="11.5"><tspan class="lb-decl">уступает:</tspan> None — реплика уходит следующему кандидату</text>
+<text class="t" x="848.0" y="82.0" font-size="11.5"><tspan class="lb-act">действие / данные:</tspan> эффект и источники</text>
+<text class="t" x="1108.0" y="82.0" font-size="11.5"><tspan class="lb-say">речь / директивы:</tspan> итог для колонки</text>
+<g id="device.apps.list">
+<rect class="box k-green" x="18.0" y="104.0" width="1626.0" height="252.0" rx="8"/>
+<text class="t b" x="32.0" y="130.0" font-size="16">Список приложений колонки</text>
+<text class="mo" x="284.0" y="130.0" font-size="12.5">device.apps.list</text>
+<text class="m" x="1630.0" y="130.0" font-size="11.5" text-anchor="end">приоритет 90 · встроенный · логика в коде (.py) · фраз и шаблонов: 3</text>
+<text class="m" x="32.0" y="150.0" font-size="12">«какие приложения установлены?» — перечень из списка приложений колонки в состоянии её запроса (TAppLaunchCapability.InstalledAppsList, cap 39), системные пакеты скрыты; формулировка настоящего сервера (запись .85 2026-11-10)</text>
+<line class="rule" x1="28" y1="168" x2="1634" y2="168"/>
+<text class="m b" x="32.0" y="186.0" font-size="10.5">ФРАЗЫ</text>
+<text class="m b" x="536.0" y="186.0" font-size="10.5">ЛОГИКА И ВЕТВЛЕНИЯ</text>
+<text class="m b" x="1190.0" y="186.0" font-size="10.5">ИТОГОВЫЕ ОТВЕТЫ</text>
+<text class="m b" x="32.0" y="208.0" font-size="10">ТОЧНЫЕ ФРАЗЫ</text>
+<text class="t" x="38.0" y="223.5" font-size="11.5">«какие приложения установлены»</text>
+<text class="m b" x="32.0" y="239.0" font-size="10">ШАБЛОНЫ HASSIL · 2 шт., ≈10 вариантов</text>
+<text class="mo" x="38.0" y="254.5" font-size="11">какие (приложения|программы) (установлены|есть|стоят)</text>
+<text class="mo" x="38.0" y="270.0" font-size="11">(покажи|перечисли) (список )?(приложений|программы)</text>
+<text class="m" x="38.0" y="285.5" font-size="11">примеры: «какие приложения установлены» · «покажи список приложений»</text>
+<path class="edge" d="M506.0,216.0 L532.0,216.0" marker-end="url(#m-edge)"/>
+<rect class="box k-gray" x="536.0" y="196.0" width="620.0" height="53.5" rx="7"/>
+<text class="t b" x="546.0" y="214.0" font-size="12">вход: handle</text>
+<text class="t" x="546.0" y="234.5" font-size="11.5"><tspan class="lb-data">данные:</tspan> устройство запроса</text>
+<rect class="box k-green" x="1190.0" y="196.0" width="440.0" height="66.5" rx="7"/>
+<path class="edge" d="M1158.0,210.0 L1187.0,210.0" marker-end="url(#m-edge)"/>
+<text class="t" x="1200.0" y="221.5" font-size="11.5"><tspan class="lb-say">речь:</tspan> «На колонке установлены ….»</text>
+<text class="t" x="1200.0" y="237.0" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Список приложений колонки пока не получен.»</text>
+<text class="t" x="1200.0" y="252.5" font-size="11.5"><tspan class="lb-say">речь:</tspan> «На этой колонке установлено одно приложение: ….»</text>
+<rect class="box k-gray" x="558.0" y="274.5" width="598.0" height="67.5" rx="7"/>
+<text class="t b" x="568.0" y="292.5" font-size="12">handle_names</text>
+<text class="m" x="568.0" y="306.5" font-size="11">Имена приложений для ответа (без системных пакетов, без повторов).</text>
+<text class="t" x="568.0" y="327.0" font-size="11.5"><tspan class="lb-data">данные:</tspan> состояние колонки: user_apps</text>
+<path class="edge" d="M546.0,249.5 L546.0,290.5 L556.0,290.5" marker-end="url(#m-edge)"/>
+</g>
+<g id="device.bluetooth.off">
+<rect class="box k-green" x="18.0" y="376.0" width="1626.0" height="259.0" rx="8"/>
+<text class="t b" x="32.0" y="402.0" font-size="16">Bluetooth: выключить</text>
+<text class="mo" x="236.0" y="402.0" font-size="12.5">device.bluetooth.off</text>
+<text class="m" x="1630.0" y="402.0" font-size="11.5" text-anchor="end">приоритет 90 · встроенный · JSON-сценарий (flow) · фраз и шаблонов: 4</text>
+<line class="rule" x1="28" y1="424.0" x2="1634" y2="424.0"/>
+<text class="m b" x="32.0" y="442.0" font-size="10.5">ФРАЗЫ</text>
+<text class="m b" x="536.0" y="442.0" font-size="10.5">ЛОГИКА И ВЕТВЛЕНИЯ</text>
+<text class="m b" x="1190.0" y="442.0" font-size="10.5">ИТОГОВЫЕ ОТВЕТЫ</text>
+<text class="m b" x="32.0" y="464.0" font-size="10">ТОЧНЫЕ ФРАЗЫ</text>
+<text class="t" x="38.0" y="479.5" font-size="11.5">«выключи блютуз» · «выключи bluetooth» · «выключи блютус»</text>
+<text class="m b" x="32.0" y="495.0" font-size="10">ШАБЛОНЫ HASSIL · 1 шт., ≈6 вариантов</text>
+<text class="mo" x="38.0" y="510.5" font-size="11">выключи (блютуз|bluetooth|блютус) [{query}]</text>
+<text class="m" x="38.0" y="526.0" font-size="11">примеры: «выключи блютуз»</text>
+<path class="edge" d="M506.0,472.0 L532.0,472.0" marker-end="url(#m-edge)"/>
+<rect class="box k-gray" x="536.0" y="452.0" width="620.0" height="53.5" rx="7"/>
+<text class="t b" x="546.0" y="470.0" font-size="12">шаг push · action</text>
+<text class="t" x="546.0" y="490.5" font-size="11.5"><tspan class="lb-act">действие:</tspan> device.push · stop_bluetooth</text>
+<rect class="box k-gray" x="558.0" y="517.5" width="598.0" height="38.0" rx="7"/>
+<text class="t b" x="568.0" y="535.5" font-size="12">шаг reply · compose</text>
+<rect class="box k-green" x="1190.0" y="517.5" width="440.0" height="35.5" rx="7"/>
+<path class="edge" d="M1158.0,531.5 L1187.0,531.5" marker-end="url(#m-edge)"/>
+<text class="t" x="1200.0" y="543.0" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Выключаю.»</text>
+<rect class="box k-gray" x="558.0" y="567.5" width="598.0" height="53.5" rx="7"/>
+<text class="t b" x="568.0" y="585.5" font-size="12">шаг fail · error</text>
+<text class="t" x="568.0" y="606.0" font-size="11.5"><tspan class="lb-decl">ошибка:</tspan> Не удалось передать команду Bluetooth</text>
+<path class="edge" d="M546.0,505.5 L546.0,533.5 L556.0,533.5" marker-end="url(#m-edge)"/>
+<path class="decl" d="M546.0,505.5 L546.0,583.5 L556.0,583.5" marker-end="url(#m-decl)"/>
+</g>
+<g id="device.bluetooth.on">
+<rect class="box k-green" x="18.0" y="655.0" width="1626.0" height="259.0" rx="8"/>
+<text class="t b" x="32.0" y="681.0" font-size="16">Bluetooth: включить</text>
+<text class="mo" x="226.4" y="681.0" font-size="12.5">device.bluetooth.on</text>
+<text class="m" x="1630.0" y="681.0" font-size="11.5" text-anchor="end">приоритет 90 · встроенный · JSON-сценарий (flow) · фраз и шаблонов: 4</text>
+<line class="rule" x1="28" y1="703.0" x2="1634" y2="703.0"/>
+<text class="m b" x="32.0" y="721.0" font-size="10.5">ФРАЗЫ</text>
+<text class="m b" x="536.0" y="721.0" font-size="10.5">ЛОГИКА И ВЕТВЛЕНИЯ</text>
+<text class="m b" x="1190.0" y="721.0" font-size="10.5">ИТОГОВЫЕ ОТВЕТЫ</text>
+<text class="m b" x="32.0" y="743.0" font-size="10">ТОЧНЫЕ ФРАЗЫ</text>
+<text class="t" x="38.0" y="758.5" font-size="11.5">«включи блютуз» · «включи bluetooth» · «включи блютус»</text>
+<text class="m b" x="32.0" y="774.0" font-size="10">ШАБЛОНЫ HASSIL · 1 шт., ≈6 вариантов</text>
+<text class="mo" x="38.0" y="789.5" font-size="11">включи (блютуз|bluetooth|блютус) [{query}]</text>
+<text class="m" x="38.0" y="805.0" font-size="11">примеры: «включи блютуз»</text>
+<path class="edge" d="M506.0,751.0 L532.0,751.0" marker-end="url(#m-edge)"/>
+<rect class="box k-gray" x="536.0" y="731.0" width="620.0" height="53.5" rx="7"/>
+<text class="t b" x="546.0" y="749.0" font-size="12">шаг push · action</text>
+<text class="t" x="546.0" y="769.5" font-size="11.5"><tspan class="lb-act">действие:</tspan> device.push · start_bluetooth</text>
+<rect class="box k-gray" x="558.0" y="796.5" width="598.0" height="38.0" rx="7"/>
+<text class="t b" x="568.0" y="814.5" font-size="12">шаг reply · compose</text>
+<rect class="box k-green" x="1190.0" y="796.5" width="440.0" height="35.5" rx="7"/>
+<path class="edge" d="M1158.0,810.5 L1187.0,810.5" marker-end="url(#m-edge)"/>
+<text class="t" x="1200.0" y="822.0" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Включаю.»</text>
+<rect class="box k-gray" x="558.0" y="846.5" width="598.0" height="53.5" rx="7"/>
+<text class="t b" x="568.0" y="864.5" font-size="12">шаг fail · error</text>
+<text class="t" x="568.0" y="885.0" font-size="11.5"><tspan class="lb-decl">ошибка:</tspan> Не удалось передать команду Bluetooth</text>
+<path class="edge" d="M546.0,784.5 L546.0,812.5 L556.0,812.5" marker-end="url(#m-edge)"/>
+<path class="decl" d="M546.0,784.5 L546.0,862.5 L556.0,862.5" marker-end="url(#m-decl)"/>
+</g>
+<g id="device.home">
+<rect class="box k-green" x="18.0" y="934.0" width="1626.0" height="175.5" rx="8"/>
+<text class="t b" x="32.0" y="960.0" font-size="16">Главный экран</text>
+<text class="mo" x="168.8" y="960.0" font-size="12.5">device.home</text>
+<text class="m" x="1630.0" y="960.0" font-size="11.5" text-anchor="end">приоритет 100 · встроенный · логика в коде (.py) · фраз и шаблонов: 3</text>
+<line class="rule" x1="28" y1="982.0" x2="1634" y2="982.0"/>
+<text class="m b" x="32.0" y="1000.0" font-size="10.5">ФРАЗЫ</text>
+<text class="m b" x="536.0" y="1000.0" font-size="10.5">ЛОГИКА И ВЕТВЛЕНИЯ</text>
+<text class="m b" x="1190.0" y="1000.0" font-size="10.5">ИТОГОВЫЕ ОТВЕТЫ</text>
+<text class="m b" x="32.0" y="1022.0" font-size="10">ТОЧНЫЕ ФРАЗЫ</text>
+<text class="t" x="38.0" y="1037.5" font-size="11.5">«главный экран» · «на главный экран»</text>
+<text class="m b" x="32.0" y="1053.0" font-size="10">ШАБЛОНЫ HASSIL · 1 шт., ≈12 вариантов</text>
+<text class="mo" x="38.0" y="1068.5" font-size="11">[(вернись|перейди|выйди|открой|покажи)] [на] главный экран</text>
+<text class="m" x="38.0" y="1084.0" font-size="11">примеры: «главный экран»</text>
+<path class="edge" d="M506.0,1030.0 L532.0,1030.0" marker-end="url(#m-edge)"/>
+<rect class="box k-gray" x="536.0" y="1010.0" width="620.0" height="38.0" rx="7"/>
+<text class="t b" x="546.0" y="1028.0" font-size="12">вход: handle</text>
+</g>
+<g id="device.led.emotion">
+<rect class="box k-green" x="18.0" y="1129.5" width="1626.0" height="207.0" rx="8"/>
+<text class="t b" x="32.0" y="1155.5" font-size="16">LED-эмоции</text>
+<text class="mo" x="140.0" y="1155.5" font-size="12.5">device.led.emotion</text>
+<text class="m" x="1630.0" y="1155.5" font-size="11.5" text-anchor="end">приоритет 100 · встроенный · логика в коде (.py) · фраз и шаблонов: 5</text>
+<text class="m" x="32.0" y="1175.5" font-size="12">«покажи глазки», «подмигни» → анимация на LED-матрице (модели с экраном эмоций)</text>
+<line class="rule" x1="28" y1="1193.5" x2="1634" y2="1193.5"/>
+<text class="m b" x="32.0" y="1211.5" font-size="10.5">ФРАЗЫ</text>
+<text class="m b" x="536.0" y="1211.5" font-size="10.5">ЛОГИКА И ВЕТВЛЕНИЯ</text>
+<text class="m b" x="1190.0" y="1211.5" font-size="10.5">ИТОГОВЫЕ ОТВЕТЫ</text>
+<text class="m b" x="32.0" y="1233.5" font-size="10">ТОЧНЫЕ ФРАЗЫ</text>
+<text class="t" x="38.0" y="1249.0" font-size="11.5">«глазки» · «покажи глазки» · «подмигни»</text>
+<text class="m b" x="32.0" y="1264.5" font-size="10">ШАБЛОНЫ HASSIL · 2 шт., ≈10 вариантов</text>
+<text class="mo" x="38.0" y="1280.0" font-size="11">подмигни [мне]</text>
+<text class="mo" x="38.0" y="1295.5" font-size="11">[покажи] [мне] {led_emotion}</text>
+<text class="m" x="38.0" y="1311.0" font-size="11">примеры: «подмигни» · «глазки»</text>
+<path class="edge" d="M506.0,1241.5 L532.0,1241.5" marker-end="url(#m-edge)"/>
+<rect class="box k-gray" x="536.0" y="1221.5" width="620.0" height="69.0" rx="7"/>
+<text class="t b" x="546.0" y="1239.5" font-size="12">вход: handle</text>
+<text class="t" x="546.0" y="1260.0" font-size="11.5"><tspan class="lb-data">данные:</tspan> устройство запроса</text>
+<text class="t" x="546.0" y="1275.5" font-size="11.5"><tspan class="lb-decl">ошибка:</tspan> Не понял, какую эмоцию показать</text>
+<rect class="box k-green" x="1190.0" y="1221.5" width="440.0" height="82.0" rx="7"/>
+<path class="edge" d="M1158.0,1235.5 L1187.0,1235.5" marker-end="url(#m-edge)"/>
+<text class="t" x="1200.0" y="1247.0" font-size="11.5"><tspan class="lb-say">речь:</tspan> «А вот и глазки!»</text>
+<text class="t" x="1200.0" y="1262.5" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Научилась подмигивать специально для таких случаев.»</text>
+<text class="t" x="1200.0" y="1278.0" font-size="11.5"><tspan class="lb-say">речь:</tspan> «На этой колонке нет анимаций: у модели нет LED-экрана.»</text>
+<text class="t" x="1200.0" y="1293.5" font-size="11.5"><tspan class="lb-dir">директивы:</tspan> draw_led_screen</text>
+</g>
+<g id="device.player.pause">
+<rect class="box k-green" x="18.0" y="1356.5" width="1626.0" height="299.5" rx="8"/>
+<text class="t b" x="32.0" y="1382.5" font-size="16">Пауза</text>
+<text class="mo" x="92.0" y="1382.5" font-size="12.5">device.player.pause</text>
+<text class="m" x="1630.0" y="1382.5" font-size="11.5" text-anchor="end">приоритет 100 · встроенный · логика в коде (.py) · фраз и шаблонов: 16</text>
+<line class="rule" x1="28" y1="1404.5" x2="1634" y2="1404.5"/>
+<text class="m b" x="32.0" y="1422.5" font-size="10.5">ФРАЗЫ</text>
+<text class="m b" x="536.0" y="1422.5" font-size="10.5">ЛОГИКА И ВЕТВЛЕНИЯ</text>
+<text class="m b" x="1190.0" y="1422.5" font-size="10.5">ИТОГОВЫЕ ОТВЕТЫ</text>
+<text class="m b" x="32.0" y="1444.5" font-size="10">ТОЧНЫЕ ФРАЗЫ</text>
+<text class="t" x="38.0" y="1460.0" font-size="11.5">«пауза» · «останови музыку» · «стоп музыка» · «выключи музыку» ·</text>
+<text class="t" x="38.0" y="1475.5" font-size="11.5">«подожди» · «подожди-ка»</text>
+<text class="m b" x="32.0" y="1491.0" font-size="10">ШАБЛОНЫ HASSIL · 10 шт., ≈61 вариантов</text>
+<text class="mo" x="38.0" y="1506.5" font-size="11">пауза</text>
+<text class="mo" x="38.0" y="1522.0" font-size="11">(поставь|останови) [(музыку|песню|трек|воспроизведение)] на паузу [{q…</text>
+<text class="mo" x="38.0" y="1537.5" font-size="11">останови (музыку|песню|трек|воспроизведение|аудиокнигу) [{query}]</text>
+<text class="mo" x="38.0" y="1553.0" font-size="11">(стоп|выключи|выруби) (музыку|песню|трек|воспроизведение) [{query}]</text>
+<text class="mo" x="38.0" y="1568.5" font-size="11">стоп</text>
+<text class="mo" x="38.0" y="1584.0" font-size="11">замолчи</text>
+<text class="mo" x="38.0" y="1599.5" font-size="11">хватит</text>
+<text class="m" x="38.0" y="1615.0" font-size="11">… ещё 3 шаблонов</text>
+<text class="m" x="38.0" y="1630.5" font-size="11">примеры: «пауза» · «поставь на паузу» · «останови музыку»</text>
+<path class="edge" d="M506.0,1452.5 L532.0,1452.5" marker-end="url(#m-edge)"/>
+<rect class="box k-gray" x="536.0" y="1432.5" width="620.0" height="38.0" rx="7"/>
+<text class="t b" x="546.0" y="1450.5" font-size="12">вход: handle</text>
+</g>
+<g id="device.player.rewind">
+<rect class="box k-green" x="18.0" y="1676.0" width="1626.0" height="444.5" rx="8"/>
+<text class="t b" x="32.0" y="1702.0" font-size="16">Перемотка плеера</text>
+<text class="mo" x="197.6" y="1702.0" font-size="12.5">device.player.rewind</text>
+<text class="m" x="1630.0" y="1702.0" font-size="11.5" text-anchor="end">приоритет 100 · встроенный · логика в коде (.py) · фраз и шаблонов: 10</text>
+<text class="m" x="32.0" y="1722.0" font-size="12">«перемотай на минуту вперёд», «перемотай на 30 секунд», «перемотай назад»: audio_player_rewind {amount_ms, type} — Struct-payload (protos-сообщения нет); нет длительности — уточняющий вопрос, нет слова о направлении — Forward</text>
+<line class="rule" x1="28" y1="1740.0" x2="1634" y2="1740.0"/>
+<text class="m b" x="32.0" y="1758.0" font-size="10.5">ФРАЗЫ</text>
+<text class="m b" x="536.0" y="1758.0" font-size="10.5">ЛОГИКА И ВЕТВЛЕНИЯ</text>
+<text class="m b" x="1190.0" y="1758.0" font-size="10.5">ИТОГОВЫЕ ОТВЕТЫ</text>
+<text class="m b" x="32.0" y="1780.0" font-size="10">ТОЧНЫЕ ФРАЗЫ</text>
+<text class="t" x="38.0" y="1795.5" font-size="11.5">«перемотай назад» · «перемотай вперёд» · «промотай назад» · «промотай</text>
+<text class="t" x="38.0" y="1811.0" font-size="11.5">вперёд»</text>
+<text class="m b" x="32.0" y="1826.5" font-size="10">ШАБЛОНЫ HASSIL · 6 шт., ≈167250 вариантов</text>
+<text class="mo" x="38.0" y="1842.0" font-size="11">(перемотай|промотай|переведи) [на] {duration_fixed} [{rewind_directio…</text>
+<text class="mo" x="38.0" y="1857.5" font-size="11">(перемотай|промотай|переведи) [на] {duration_number} {duration_unit}…</text>
+<text class="mo" x="38.0" y="1873.0" font-size="11">(перемотай|промотай|переведи) [на] {duration_number} {duration_unit}…</text>
+<text class="mo" x="38.0" y="1888.5" font-size="11">(перемотай|промотай|переведи) {rewind_direction} [на] {duration_fixed}</text>
+<text class="mo" x="38.0" y="1904.0" font-size="11">(перемотай|промотай|переведи) {rewind_direction} [на] {duration_numbe…</text>
+<text class="mo" x="38.0" y="1919.5" font-size="11">(перемотай|промотай|переведи) {rewind_direction}</text>
+<text class="m" x="38.0" y="1935.0" font-size="11">примеры: «перемотай полминуты» · «перемотай 1 секунд» · «перемотай 1</text>
+<text class="m" x="38.0" y="1950.5" font-size="11">секунд 1 секунд»</text>
+<path class="edge" d="M506.0,1788.0 L532.0,1788.0" marker-end="url(#m-edge)"/>
+<rect class="box k-gray" x="536.0" y="1768.0" width="620.0" height="69.0" rx="7"/>
+<text class="t b" x="546.0" y="1786.0" font-size="12">вход: handle</text>
+<text class="t" x="546.0" y="1806.5" font-size="11.5"><tspan class="lb-ask">вопрос:</tspan> «На сколько перемотать?» — слушает ответ (ShouldListen) → on_amount</text>
+<text class="t" x="546.0" y="1822.0" font-size="11.5"><tspan class="lb-decl">ошибка:</tspan> Не удалось понять направление перемотки</text>
+<rect class="box k-green" x="1190.0" y="1768.0" width="440.0" height="35.5" rx="7"/>
+<path class="edge" d="M1158.0,1782.0 L1187.0,1782.0" marker-end="url(#m-edge)"/>
+<text class="t" x="1200.0" y="1793.5" font-size="11.5"><tspan class="lb-dir">директивы:</tspan> audio_player_rewind</text>
+<rect class="box k-red" x="558.0" y="1849.0" width="598.0" height="67.5" rx="7"/>
+<text class="t b" x="568.0" y="1867.0" font-size="12">_slots_seconds</text>
+<text class="m" x="568.0" y="1881.0" font-size="11">Секунды из сущностей шаблона — как в timers.timer.set (_slots_seconds).</text>
+<text class="t" x="568.0" y="1901.5" font-size="11.5"><tspan class="lb-decl">уступает:</tspan> отказ (return None)</text>
+<rect class="box k-red" x="558.0" y="1928.5" width="598.0" height="81.5" rx="7"/>
+<text class="t b" x="568.0" y="1946.5" font-size="12">_direction</text>
+<text class="m" x="568.0" y="1960.5" font-size="11">Forward|Backward: сущность шаблона {rewind_direction}, иначе из реплики (phrase-триггеры слотов</text>
+<text class="m" x="568.0" y="1974.5" font-size="11">не дают): «назад»/«обратно» — назад, «вперед»/«наперед» — вперёд.</text>
+<text class="t" x="568.0" y="1995.0" font-size="11.5"><tspan class="lb-decl">уступает:</tspan> отказ (return None)</text>
+<rect class="box k-pink dash" x="558.0" y="2022.0" width="598.0" height="84.5" rx="7"/>
+<text class="t b" x="568.0" y="2040.0" font-size="12">ответ на вопрос: on_amount</text>
+<text class="t" x="568.0" y="2060.5" font-size="11.5"><tspan class="lb-decl">ошибка:</tspan> Не удалось понять длительность перемотки</text>
+<text class="t" x="568.0" y="2076.0" font-size="11.5"><tspan class="lb-decl">ошибка:</tspan> Не удалось понять направление перемотки</text>
+<text class="t" x="568.0" y="2091.5" font-size="11.5"><tspan class="lb-data">см. также:</tspan> _rewind</text>
+<path class="edge" d="M546.0,1837.0 L546.0,1865.0 L556.0,1865.0" marker-end="url(#m-edge)"/>
+<path class="edge" d="M546.0,1837.0 L546.0,1944.5 L556.0,1944.5" marker-end="url(#m-edge)"/>
+<path class="ask" d="M546.0,1837.0 L546.0,2038.0 L556.0,2038.0" marker-end="url(#m-ask)"/>
+</g>
+<g id="device.screen.navigation">
+<rect class="box k-green" x="18.0" y="2140.5" width="1626.0" height="207.0" rx="8"/>
+<text class="t b" x="32.0" y="2166.5" font-size="16">Листание экранов</text>
+<text class="mo" x="197.6" y="2166.5" font-size="12.5">device.screen.navigation</text>
+<text class="m" x="1630.0" y="2166.5" font-size="11.5" text-anchor="end">приоритет 100 · встроенный · логика в коде (.py) · фраз и шаблонов: 4</text>
+<text class="m" x="32.0" y="2186.5" font-size="12">«ещё» → go_forward, «назад» → go_backward: client_action с пустым Payload {}; «главный экран» → go_home — в device.home.</text>
+<line class="rule" x1="28" y1="2204.5" x2="1634" y2="2204.5"/>
+<text class="m b" x="32.0" y="2222.5" font-size="10.5">ФРАЗЫ</text>
+<text class="m b" x="536.0" y="2222.5" font-size="10.5">ЛОГИКА И ВЕТВЛЕНИЯ</text>
+<text class="m b" x="1190.0" y="2222.5" font-size="10.5">ИТОГОВЫЕ ОТВЕТЫ</text>
+<text class="m b" x="32.0" y="2244.5" font-size="10">ТОЧНЫЕ ФРАЗЫ</text>
+<text class="t" x="38.0" y="2260.0" font-size="11.5">«ещё» · «назад»</text>
+<text class="m b" x="32.0" y="2275.5" font-size="10">ШАБЛОНЫ HASSIL · 2 шт., ≈2 вариантов</text>
+<text class="mo" x="38.0" y="2291.0" font-size="11">еще</text>
+<text class="mo" x="38.0" y="2306.5" font-size="11">назад</text>
+<text class="m" x="38.0" y="2322.0" font-size="11">примеры: «еще» · «назад»</text>
+<path class="edge" d="M506.0,2252.5 L532.0,2252.5" marker-end="url(#m-edge)"/>
+<rect class="box k-red" x="536.0" y="2232.5" width="620.0" height="53.5" rx="7"/>
+<text class="t b" x="546.0" y="2250.5" font-size="12">вход: handle</text>
+<text class="t" x="546.0" y="2271.0" font-size="11.5"><tspan class="lb-decl">уступает:</tspan> отказ (return None)</text>
+</g>
+<g id="device.volume">
+<rect class="box k-green" x="18.0" y="2367.5" width="1626.0" height="271.5" rx="8"/>
+<text class="t b" x="32.0" y="2393.5" font-size="16">Громкость</text>
+<text class="mo" x="130.4" y="2393.5" font-size="12.5">device.volume</text>
+<text class="m" x="1630.0" y="2393.5" font-size="11.5" text-anchor="end">приоритет 100 · встроенный · логика в коде (.py) · фраз и шаблонов: 10</text>
+<text class="m" x="32.0" y="2413.5" font-size="12">«громкость 5/на семь» — тихий ответ директивой образца sound_set_level{new_level, new_percent_level}; шкала 0–10, MaxLevel для процента — из состояния колонки; число вне шкалы — фраза уходит дальше по кандидатам (образца ответа н…</text>
+<line class="rule" x1="28" y1="2431.5" x2="1634" y2="2431.5"/>
+<text class="m b" x="32.0" y="2449.5" font-size="10.5">ФРАЗЫ</text>
+<text class="m b" x="536.0" y="2449.5" font-size="10.5">ЛОГИКА И ВЕТВЛЕНИЯ</text>
+<text class="m b" x="1190.0" y="2449.5" font-size="10.5">ИТОГОВЫЕ ОТВЕТЫ</text>
+<text class="m b" x="32.0" y="2471.5" font-size="10">ТОЧНЫЕ ФРАЗЫ</text>
+<text class="t" x="38.0" y="2487.0" font-size="11.5">«громкость» · «громче» · «тише» · «выключи звук» · «максимальная</text>
+<text class="t" x="38.0" y="2502.5" font-size="11.5">громкость»</text>
+<text class="m b" x="32.0" y="2518.0" font-size="10">ШАБЛОНЫ HASSIL · 5 шт., ≈49 вариантов</text>
+<text class="mo" x="38.0" y="2533.5" font-size="11">громкость [на] {level}</text>
+<text class="mo" x="38.0" y="2549.0" font-size="11">(сделай|сделать) {volume_mode}</text>
+<text class="mo" x="38.0" y="2564.5" font-size="11">громкость {volume_mode}</text>
+<text class="mo" x="38.0" y="2580.0" font-size="11">{volume_mode}</text>
+<text class="mo" x="38.0" y="2595.5" font-size="11">{volume_fixed}</text>
+<text class="m" x="38.0" y="2611.0" font-size="11">примеры: «громкость 0» · «сделай громче» · «громкость громче»</text>
+<path class="edge" d="M506.0,2479.5 L532.0,2479.5" marker-end="url(#m-edge)"/>
+<rect class="box k-gray" x="536.0" y="2459.5" width="620.0" height="100.0" rx="7"/>
+<text class="t b" x="546.0" y="2477.5" font-size="12">вход: handle</text>
+<text class="t" x="546.0" y="2498.0" font-size="11.5"><tspan class="lb-decl">уступает:</tspan> число вне шкалы 0..10 (образца ответа нет) — уступаем</text>
+<text class="t" x="546.0" y="2513.5" font-size="11.5"><tspan class="lb-decl">уступает:</tspan> «громкость» без числа и режима — уступаем следующему кандидату</text>
+<text class="t" x="546.0" y="2529.0" font-size="11.5"><tspan class="lb-decl">уступает:</tspan> число вне шкалы — уступаем: реплика уходит следующему кандидату</text>
+<text class="t" x="546.0" y="2544.5" font-size="11.5"><tspan class="lb-data">данные:</tspan> громкость колонки</text>
+<rect class="box k-green" x="1190.0" y="2459.5" width="440.0" height="97.5" rx="7"/>
+<path class="edge" d="M1158.0,2473.5 L1187.0,2473.5" marker-end="url(#m-edge)"/>
+<text class="t" x="1200.0" y="2485.0" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Звук выключен.»</text>
+<text class="t" x="1200.0" y="2500.5" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Максимальная громкость.»</text>
+<text class="t" x="1200.0" y="2516.0" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Громче.»</text>
+<text class="t" x="1200.0" y="2531.5" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Тише.»</text>
+<text class="t" x="1200.0" y="2547.0" font-size="11.5"><tspan class="lb-dir">директивы:</tspan> sound_set_level</text>
+<rect class="box k-gray" x="558.0" y="2571.5" width="598.0" height="53.5" rx="7"/>
+<text class="t b" x="568.0" y="2589.5" font-size="12">push</text>
+<text class="t" x="568.0" y="2610.0" font-size="11.5"><tspan class="lb-act">действие:</tspan> device.push</text>
+<path class="edge" d="M546.0,2559.5 L546.0,2587.5 L556.0,2587.5" marker-end="url(#m-edge)"/>
+</g>
+<g id="device.app.open">
+<rect class="box k-green" x="18.0" y="2659.0" width="1626.0" height="206.0" rx="8"/>
+<text class="t b" x="32.0" y="2685.0" font-size="16">Открыть приложение</text>
+<text class="mo" x="216.8" y="2685.0" font-size="12.5">device.app.open</text>
+<text class="m" x="1630.0" y="2685.0" font-size="11.5" text-anchor="end">приоритет 200 · встроенный · логика в коде (.py) · фраз и шаблонов: 3</text>
+<text class="m" x="32.0" y="2705.0" font-size="12">«открой ютуб», «запусти …» → поиск в приложениях колонки из состояния запроса (TAppLaunchCapability.InstalledAppsList, cap 39); системные экраны (Браузер, Настройки) — именованные директивы открытия; прочие приложения из списка —…</text>
+<line class="rule" x1="28" y1="2723.0" x2="1634" y2="2723.0"/>
+<text class="m b" x="32.0" y="2741.0" font-size="10.5">ФРАЗЫ</text>
+<text class="m b" x="536.0" y="2741.0" font-size="10.5">ЛОГИКА И ВЕТВЛЕНИЯ</text>
+<text class="m b" x="1190.0" y="2741.0" font-size="10.5">ИТОГОВЫЕ ОТВЕТЫ</text>
+<text class="m b" x="32.0" y="2763.0" font-size="10">ТОЧНЫЕ ФРАЗЫ</text>
+<text class="t" x="38.0" y="2778.5" font-size="11.5">«открой» · «запусти»</text>
+<text class="m b" x="32.0" y="2794.0" font-size="10">ШАБЛОНЫ HASSIL · 1 шт., ≈2 вариантов</text>
+<text class="mo" x="38.0" y="2809.5" font-size="11">(открой|запусти) {app}</text>
+<text class="m" x="38.0" y="2825.0" font-size="11">примеры: «открой …»</text>
+<path class="edge" d="M506.0,2771.0 L532.0,2771.0" marker-end="url(#m-edge)"/>
+<rect class="box k-gray" x="536.0" y="2751.0" width="620.0" height="100.0" rx="7"/>
+<text class="t b" x="546.0" y="2769.0" font-size="12">вход: handle</text>
+<text class="t" x="546.0" y="2789.5" font-size="11.5"><tspan class="lb-data">данные:</tspan> состояние колонки: user_apps</text>
+<text class="t" x="546.0" y="2805.0" font-size="11.5"><tspan class="lb-data">данные:</tspan> будильники колонки</text>
+<text class="t" x="546.0" y="2820.5" font-size="11.5"><tspan class="lb-data">данные:</tspan> устройство запроса</text>
+<text class="t" x="546.0" y="2836.0" font-size="11.5"><tspan class="lb-decl">ошибка:</tspan> Не понял, какое приложение открыть</text>
+<rect class="box k-green" x="1190.0" y="2751.0" width="440.0" height="66.5" rx="7"/>
+<path class="edge" d="M1158.0,2765.0 L1187.0,2765.0" marker-end="url(#m-edge)"/>
+<text class="t" x="1200.0" y="2776.5" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Список приложений колонки пока не получен.»</text>
+<text class="t" x="1200.0" y="2792.0" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Приложения «…» нет среди установленных на этой колонке.»</text>
+<text class="t" x="1200.0" y="2807.5" font-size="11.5"><tspan class="lb-dir">директивы:</tspan> launch_app, open_screen_alarm_list_directive</text>
+</g>
+</svg>

@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1662 300" width="1662" height="300" font-family="Segoe UI, IBM Plex Sans, Arial, sans-serif">
+<title>Сценарии: Игры</title>
+<desc>Фразы, ветвления диалога и итоговые ответы сценариев группы «Игры».</desc>
+<style>
+:root{--bg:#ffffff;--fg:#18202b;--muted:#5b6676;--rule:#d5dbe3;--edge:#4a5566;--ask:#b8326b;--decl:#c0392b;--link:#2f6fd0}
+@media (prefers-color-scheme: dark){:root{--bg:#10151c;--fg:#e6ebf2;--muted:#9aa6b6;--rule:#2c3644;--edge:#9aa6b6;--ask:#e87aa5;--decl:#f0857a;--link:#7aa7f0}}
+.bg{fill:var(--bg)}
+.t{fill:var(--fg);font-family:Segoe UI, IBM Plex Sans, Arial, sans-serif}.m{fill:var(--muted);font-family:Segoe UI, IBM Plex Sans, Arial, sans-serif}.mo{fill:var(--fg);font-family:Consolas, IBM Plex Mono, Menlo, monospace}
+.b{font-weight:700}.cap{font-weight:700;letter-spacing:1.4px}
+.rule{stroke:var(--rule);fill:none}.lk{fill:var(--link);font-family:Segoe UI, IBM Plex Sans, Arial, sans-serif}
+.edge{stroke:var(--edge);fill:none;stroke-width:1.4}.ask{stroke:var(--ask);fill:none;stroke-width:1.4;stroke-dasharray:5 3}
+.decl{stroke:var(--decl);fill:none;stroke-width:1.4;stroke-dasharray:2 3}
+.mk-edge{fill:var(--edge)}.mk-ask{fill:var(--ask)}.mk-decl{fill:var(--decl)}
+.lb-decl{fill:var(--decl);font-weight:700}.lb-ask{fill:var(--ask);font-weight:700}.lb-act{fill:#6a45c9;font-weight:700}
+.lb-data{fill:var(--muted);font-weight:700}.lb-say{fill:#16855a;font-weight:700}.lb-dir{fill:#b2650b;font-weight:700}
+@media (prefers-color-scheme: dark){.lb-act{fill:#a78bec}.lb-say{fill:#4fc08a}.lb-dir{fill:#e0a050}}
+.box{stroke:var(--s);fill:var(--f);stroke-width:1.5}.dash{stroke-dasharray:4 4}
+.k-blue{--s:#2f6fd0;--f:#e8effb}
+.k-green{--s:#16855a;--f:#e5f4ec}
+.k-orange{--s:#b2650b;--f:#fbf1e2}
+.k-violet{--s:#6a45c9;--f:#f0ebfb}
+.k-pink{--s:#b8326b;--f:#fbeaf1}
+.k-red{--s:#c0392b;--f:#fdecea}
+.k-gray{--s:#4a5566;--f:#eef1f4}
+@media (prefers-color-scheme: dark){.k-blue{--s:#7aa7f0;--f:#1b2a45}.k-green{--s:#4fc08a;--f:#16342a}.k-orange{--s:#e0a050;--f:#3a2a14}.k-violet{--s:#a78bec;--f:#2a2147}.k-pink{--s:#e87aa5;--f:#3d1c2c}.k-red{--s:#f0857a;--f:#42201c}.k-gray{--s:#8b97a8;--f:#252b34}}
+</style>
+<defs><marker id="m-edge" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="mk-edge" d="M0,0 L10,5 L0,10 z"/></marker><marker id="m-ask" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="mk-ask" d="M0,0 L10,5 L0,10 z"/></marker><marker id="m-decl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="mk-decl" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<rect class="bg" width="1662" height="300"/>
+<text class="t b" x="18.0" y="36.0" font-size="22">Сценарии: Игры</text>
+<a href="../scenario-map.svg" xlink:href="../scenario-map.svg"><text class="lk" x="1644" y="34" font-size="13" text-anchor="end">← обзор карты сценариев</text></a>
+<text class="m" x="18.0" y="58.0" font-size="12.5">Простые игры: шар судьбы, монетка, кубик</text>
+<text class="t" x="18.0" y="82.0" font-size="11.5"><tspan class="lb-ask">вопрос:</tspan> сценарий спрашивает, колонка слушает ответ (штриховая стрелка)</text>
+<text class="t" x="488.0" y="82.0" font-size="11.5"><tspan class="lb-decl">уступает:</tspan> None — реплика уходит следующему кандидату</text>
+<text class="t" x="848.0" y="82.0" font-size="11.5"><tspan class="lb-act">действие / данные:</tspan> эффект и источники</text>
+<text class="t" x="1108.0" y="82.0" font-size="11.5"><tspan class="lb-say">речь / директивы:</tspan> итог для колонки</text>
+<g id="games.games">
+<rect class="box k-green" x="18.0" y="104.0" width="1626.0" height="176.0" rx="8"/>
+<text class="t b" x="32.0" y="130.0" font-size="16">Простые игры</text>
+<text class="mo" x="159.2" y="130.0" font-size="12.5">games.games</text>
+<text class="m" x="1630.0" y="130.0" font-size="11.5" text-anchor="end">приоритет 90 · плагин builtin.games · логика в коде (.py) · фраз и шаблонов: 11</text>
+<text class="m" x="32.0" y="150.0" font-size="12">«шар судьбы», «подбрось монетку», «брось кубик» — случайный ответ (захват 2026-11-02); остальные игры справки остаются промахами.</text>
+<line class="rule" x1="28" y1="168" x2="1634" y2="168"/>
+<text class="m b" x="32.0" y="186.0" font-size="10.5">ФРАЗЫ</text>
+<text class="m b" x="536.0" y="186.0" font-size="10.5">ЛОГИКА И ВЕТВЛЕНИЯ</text>
+<text class="m b" x="1190.0" y="186.0" font-size="10.5">ИТОГОВЫЕ ОТВЕТЫ</text>
+<text class="m b" x="32.0" y="208.0" font-size="10">СПРАВОЧНИК ПЛАГИНА games · games</text>
+<text class="mo" x="38.0" y="223.5" font-size="11">(подбрось|сбрось|брось) монетку</text>
+<text class="mo" x="38.0" y="239.0" font-size="11">(сбрось|брось|кинь) кубик</text>
+<text class="m" x="38.0" y="254.5" font-size="11">… ещё 9</text>
+<path class="edge" d="M506.0,216.0 L532.0,216.0" marker-end="url(#m-edge)"/>
+<rect class="box k-gray" x="536.0" y="196.0" width="620.0" height="38.0" rx="7"/>
+<text class="t b" x="546.0" y="214.0" font-size="12">вход: handle</text>
+<rect class="box k-green" x="1190.0" y="196.0" width="440.0" height="35.5" rx="7"/>
+<path class="edge" d="M1158.0,210.0 L1187.0,210.0" marker-end="url(#m-edge)"/>
+<text class="t" x="1200.0" y="221.5" font-size="11.5"><tspan class="lb-say">речь:</tspan> «На кубике выпало ….»</text>
+</g>
+</svg>

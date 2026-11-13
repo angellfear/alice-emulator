@@ -1,0 +1,361 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1800 2010" width="1800" height="2010" font-family="Segoe UI, IBM Plex Sans, Arial, sans-serif">
+<title>Карта сценариев эмулятора Алисы</title>
+<desc>Порядок выбора сценария, поставщики ответа и группы сценариев со ссылками на страницы групп.</desc>
+<style>
+:root{--bg:#ffffff;--fg:#18202b;--muted:#5b6676;--rule:#d5dbe3;--edge:#4a5566;--ask:#b8326b;--decl:#c0392b;--link:#2f6fd0}
+@media (prefers-color-scheme: dark){:root{--bg:#10151c;--fg:#e6ebf2;--muted:#9aa6b6;--rule:#2c3644;--edge:#9aa6b6;--ask:#e87aa5;--decl:#f0857a;--link:#7aa7f0}}
+.bg{fill:var(--bg)}
+.t{fill:var(--fg);font-family:Segoe UI, IBM Plex Sans, Arial, sans-serif}.m{fill:var(--muted);font-family:Segoe UI, IBM Plex Sans, Arial, sans-serif}.mo{fill:var(--fg);font-family:Consolas, IBM Plex Mono, Menlo, monospace}
+.b{font-weight:700}.cap{font-weight:700;letter-spacing:1.4px}
+.rule{stroke:var(--rule);fill:none}.lk{fill:var(--link);font-family:Segoe UI, IBM Plex Sans, Arial, sans-serif}
+.edge{stroke:var(--edge);fill:none;stroke-width:1.4}.ask{stroke:var(--ask);fill:none;stroke-width:1.4;stroke-dasharray:5 3}
+.decl{stroke:var(--decl);fill:none;stroke-width:1.4;stroke-dasharray:2 3}
+.mk-edge{fill:var(--edge)}.mk-ask{fill:var(--ask)}.mk-decl{fill:var(--decl)}
+.lb-decl{fill:var(--decl);font-weight:700}.lb-ask{fill:var(--ask);font-weight:700}.lb-act{fill:#6a45c9;font-weight:700}
+.lb-data{fill:var(--muted);font-weight:700}.lb-say{fill:#16855a;font-weight:700}.lb-dir{fill:#b2650b;font-weight:700}
+@media (prefers-color-scheme: dark){.lb-act{fill:#a78bec}.lb-say{fill:#4fc08a}.lb-dir{fill:#e0a050}}
+.box{stroke:var(--s);fill:var(--f);stroke-width:1.5}.dash{stroke-dasharray:4 4}
+.k-blue{--s:#2f6fd0;--f:#e8effb}
+.k-green{--s:#16855a;--f:#e5f4ec}
+.k-orange{--s:#b2650b;--f:#fbf1e2}
+.k-violet{--s:#6a45c9;--f:#f0ebfb}
+.k-pink{--s:#b8326b;--f:#fbeaf1}
+.k-red{--s:#c0392b;--f:#fdecea}
+.k-gray{--s:#4a5566;--f:#eef1f4}
+@media (prefers-color-scheme: dark){.k-blue{--s:#7aa7f0;--f:#1b2a45}.k-green{--s:#4fc08a;--f:#16342a}.k-orange{--s:#e0a050;--f:#3a2a14}.k-violet{--s:#a78bec;--f:#2a2147}.k-pink{--s:#e87aa5;--f:#3d1c2c}.k-red{--s:#f0857a;--f:#42201c}.k-gray{--s:#8b97a8;--f:#252b34}}
+</style>
+<defs><marker id="m-edge" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="mk-edge" d="M0,0 L10,5 L0,10 z"/></marker><marker id="m-ask" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="mk-ask" d="M0,0 L10,5 L0,10 z"/></marker><marker id="m-decl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="mk-decl" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<rect class="bg" width="1800" height="2010"/>
+<text class="t b" x="24.0" y="38.0" font-size="22">Карта сценариев эмулятора Алисы</text>
+<text class="m" x="24.0" y="60.0" font-size="12.5">36 сценариев в 10 группах · 337 фраз и шаблонов · собрана генератором tools/scenario_map.py из реальных файлов; страницы групп — по ссылкам</text>
+<text class="m b" x="24.0" y="96.0" font-size="12">1 · ПОРЯДОК ВЫБОРА СЦЕНАРИЯ</text>
+<line class="rule" x1="24" y1="106" x2="1776" y2="106"/>
+<rect class="box k-blue" x="24.0" y="124.0" width="262.0" height="138.0" rx="8"/>
+<text class="t b" x="36.0" y="148.0" font-size="13.5">Реплика</text>
+<text class="m" x="36.0" y="168.0" font-size="11.5">VoiceInput или TextInput; ASR даёт</text>
+<text class="m" x="36.0" y="184.0" font-size="11.5">текст. Нормализация снимает «Алиса»,</text>
+<text class="m" x="36.0" y="200.0" font-size="11.5">«пожалуйста», ё, склейки; при пустом</text>
+<text class="m" x="36.0" y="216.0" font-size="11.5">результате пробуются нечёткие</text>
+<text class="m" x="36.0" y="232.0" font-size="11.5">варианты (однобуквенные огрехи ASR).</text>
+<rect class="box k-pink" x="318.0" y="124.0" width="262.0" height="138.0" rx="8"/>
+<text class="t b" x="330.0" y="148.0" font-size="13.5">Ждёт ответа?</text>
+<text class="m" x="330.0" y="168.0" font-size="11.5">Если сценарий задал вопрос (ask),</text>
+<text class="m" x="330.0" y="184.0" font-size="11.5">реплика уходит ему — раньше роутера.</text>
+<text class="m" x="330.0" y="200.0" font-size="11.5">Фраза со словом активации сбрасывает</text>
+<text class="m" x="330.0" y="216.0" font-size="11.5">ожидание; TTL истёк — реплика идёт</text>
+<text class="m" x="330.0" y="232.0" font-size="11.5">обычным путём.</text>
+<path class="edge" d="M288.0,154.0 L316.0,154.0" marker-end="url(#m-edge)"/>
+<rect class="box k-orange" x="612.0" y="124.0" width="262.0" height="138.0" rx="8"/>
+<text class="t b" x="624.0" y="148.0" font-size="13.5">Кандидаты</text>
+<text class="m" x="624.0" y="168.0" font-size="11.5">Два слоя: пользовательские и плагины,</text>
+<text class="m" x="624.0" y="184.0" font-size="11.5">затем встроенные. В слое: шаблон</text>
+<text class="m" x="624.0" y="200.0" font-size="11.5">hassil (по точности) → phrase</text>
+<text class="m" x="624.0" y="216.0" font-size="11.5">(точная, вхождение, маска) → записи</text>
+<text class="m" x="624.0" y="232.0" font-size="11.5">справочников фраз плагинов (ручной</text>
+<text class="m" x="624.0" y="248.0" font-size="11.5">порядок phrase_order).</text>
+<path class="edge" d="M582.0,154.0 L610.0,154.0" marker-end="url(#m-edge)"/>
+<rect class="box k-violet" x="906.0" y="124.0" width="262.0" height="138.0" rx="8"/>
+<text class="t b" x="918.0" y="148.0" font-size="13.5">Зависимости и guard</text>
+<text class="m" x="918.0" y="168.0" font-size="11.5">Нет скрипта или зависимости —</text>
+<text class="m" x="918.0" y="184.0" font-size="11.5">кандидат пропущен. Guard (право</text>
+<text class="m" x="918.0" y="200.0" font-size="11.5">отказа) не сошёлся — следующий.</text>
+<text class="m" x="918.0" y="216.0" font-size="11.5">Одинаковый способ совпадения у двух</text>
+<text class="m" x="918.0" y="232.0" font-size="11.5">не встроенных — неоднозначность</text>
+<text class="m" x="918.0" y="248.0" font-size="11.5">(tie).</text>
+<path class="edge" d="M876.0,154.0 L904.0,154.0" marker-end="url(#m-edge)"/>
+<rect class="box k-green" x="1200.0" y="124.0" width="262.0" height="138.0" rx="8"/>
+<text class="t b" x="1212.0" y="148.0" font-size="13.5">Исполнение</text>
+<text class="m" x="1212.0" y="168.0" font-size="11.5">Первый кандидат. Вернул None</text>
+<text class="m" x="1212.0" y="184.0" font-size="11.5">(уступает) — исполняется следующий;</text>
+<text class="m" x="1212.0" y="200.0" font-size="11.5">все уступили — реплика идёт дальше.</text>
+<text class="m" x="1212.0" y="216.0" font-size="11.5">ask: вопрос с ShouldListen — колонка</text>
+<text class="m" x="1212.0" y="232.0" font-size="11.5">слушает ответ без «Алиса».</text>
+<path class="edge" d="M1170.0,154.0 L1198.0,154.0" marker-end="url(#m-edge)"/>
+<rect class="box k-green" x="1494.0" y="124.0" width="262.0" height="138.0" rx="8"/>
+<text class="t b" x="1506.0" y="148.0" font-size="13.5">Ответ</text>
+<text class="m" x="1506.0" y="168.0" font-size="11.5">Речь (TTS) + директивы колонки +</text>
+<text class="m" x="1506.0" y="184.0" font-size="11.5">карточка → AliceResponse.</text>
+<text class="m" x="1506.0" y="200.0" font-size="11.5">HasVoiceResponse поднимается, только</text>
+<text class="m" x="1506.0" y="216.0" font-size="11.5">когда аудио реально синтезировано.</text>
+<path class="edge" d="M1464.0,154.0 L1492.0,154.0" marker-end="url(#m-edge)"/>
+<rect class="box k-pink" x="24.0" y="318.0" width="262.0" height="170.0" rx="8"/>
+<text class="t b" x="36.0" y="342.0" font-size="13.5">Ступень поиска</text>
+<text class="m" x="36.0" y="362.0" font-size="11.5">Записи справочника с search:</text>
+<text class="m" x="36.0" y="378.0" font-size="11.5">свободный хвост «включи {X}» —</text>
+<text class="m" x="36.0" y="394.0" font-size="11.5">параллельный опрос каталогов</text>
+<text class="m" x="36.0" y="410.0" font-size="11.5">поставщиков музыки с таймаутом. Нашёл</text>
+<text class="m" x="36.0" y="426.0" font-size="11.5">— отвечает media.music; никто — «Не</text>
+<text class="m" x="36.0" y="442.0" font-size="11.5">нашла «X»» (режим «Простой») или</text>
+<text class="m" x="36.0" y="458.0" font-size="11.5">дальше.</text>
+<rect class="box k-blue" x="318.0" y="318.0" width="262.0" height="170.0" rx="8"/>
+<text class="t b" x="330.0" y="342.0" font-size="13.5">«Вместе»</text>
+<text class="m" x="330.0" y="362.0" font-size="11.5">Маршрут устройства hybrid: голосовой</text>
+<text class="m" x="330.0" y="378.0" font-size="11.5">ход релеится настоящему Яндексу,</text>
+<text class="m" x="330.0" y="394.0" font-size="11.5">сценарии музыки и «недоступно»</text>
+<text class="m" x="330.0" y="410.0" font-size="11.5">уступают сами.</text>
+<path class="edge" d="M288.0,348.0 L316.0,348.0" marker-end="url(#m-edge)"/>
+<rect class="box k-gray" x="612.0" y="318.0" width="262.0" height="170.0" rx="8"/>
+<text class="t b" x="624.0" y="342.0" font-size="13.5">«Без ответа»</text>
+<text class="m" x="624.0" y="362.0" font-size="11.5">Фраза без сценария попадает в очередь</text>
+<text class="m" x="624.0" y="378.0" font-size="11.5">«Эмулятор → Без ответа» в любом</text>
+<text class="m" x="624.0" y="394.0" font-size="11.5">режиме — по ней потом пишется</text>
+<text class="m" x="624.0" y="410.0" font-size="11.5">сценарий.</text>
+<path class="edge" d="M582.0,348.0 L610.0,348.0" marker-end="url(#m-edge)"/>
+<rect class="box k-pink" x="906.0" y="318.0" width="332.0" height="170.0" rx="8"/>
+<text class="t b" x="918.0" y="342.0" font-size="13.5">Режим «Интеллект»</text>
+<text class="m" x="918.0" y="362.0" font-size="11.5">scenarios: «Я пока этого не умею.» (стандартный</text>
+<text class="m" x="918.0" y="378.0" font-size="11.5">ответ not_understood), модель не вызывается.</text>
+<text class="m" x="918.0" y="394.0" font-size="11.5">model: один вызов LLM с историей, без</text>
+<text class="m" x="918.0" y="410.0" font-size="11.5">инструментов.</text>
+<text class="m" x="918.0" y="426.0" font-size="11.5">agent: агент LangGraph с инструментами (каталог</text>
+<text class="m" x="918.0" y="442.0" font-size="11.5">сценариев: scenario_list/get/probe/run; действия</text>
+<text class="m" x="918.0" y="458.0" font-size="11.5">alice_action).</text>
+<text class="m" x="918.0" y="474.0" font-size="11.5">ext:&lt;id&gt;: режим расширения (modes/*.py).</text>
+<path class="edge" d="M876.0,348.0 L904.0,348.0" marker-end="url(#m-edge)"/>
+<rect class="box k-gray dash" x="1270.0" y="318.0" width="332.0" height="170.0" rx="8"/>
+<text class="t b" x="1282.0" y="342.0" font-size="13.5">Служебные события</text>
+<text class="m" x="1282.0" y="362.0" font-size="11.5">Колбэки колонки (informers.requested,</text>
+<text class="m" x="1282.0" y="378.0" font-size="11.5">timesync.requested, music.stack_next,</text>
+<text class="m" x="1282.0" y="394.0" font-size="11.5">callbacks.ack…) — отдельный путь: первый</text>
+<text class="m" x="1282.0" y="410.0" font-size="11.5">сценарий с provide-триггером этого события в</text>
+<text class="m" x="1282.0" y="426.0" font-size="11.5">порядке каталога; нет — тихое подтверждение.</text>
+<text class="m" x="1282.0" y="442.0" font-size="11.5">Пользовательский сценарий с тем же событием</text>
+<text class="m" x="1282.0" y="458.0" font-size="11.5">перекрывает встроенный.</text>
+<path class="decl" d="M1331.0,262.0 L1331.0,284.0 L155.0,284.0 L155.0,316.0" marker-end="url(#m-decl)"/>
+<text class="m" x="163.0" y="280.0" font-size="11">если сценария нет: нет кандидата или все уступили</text>
+<text class="m b" x="24.0" y="522.0" font-size="12">2 · ПРИОРИТЕТ В КАТАЛОГЕ: слой 1 выше слоя 2; внутри — fallback последними, затем priority (меньше — раньше), затем id</text>
+<line class="rule" x1="24" y1="532.0" x2="1776" y2="532.0"/>
+<text class="m b" x="24.0" y="554.0" font-size="11.5">слой 1 · плагины и пользовательские</text>
+<a href="scenario-map/smart_home.svg" xlink:href="scenario-map/smart_home.svg"><g><rect class="box k-violet" x="24.0" y="566.0" width="145.4" height="22" rx="11"/><text class="mo" x="34.0" y="581.0" font-size="11">80 smart_home.light</text></g></a>
+<a href="scenario-map/chat.svg" xlink:href="scenario-map/chat.svg"><g><rect class="box k-blue" x="177.4" y="566.0" width="99.2" height="22" rx="11"/><text class="mo" x="187.4" y="581.0" font-size="11">90 chat.chat</text></g></a>
+<a href="scenario-map/games.svg" xlink:href="scenario-map/games.svg"><g><rect class="box k-green" x="284.6" y="566.0" width="112.4" height="22" rx="11"/><text class="mo" x="294.6" y="581.0" font-size="11">90 games.games</text></g></a>
+<a href="scenario-map/knowledge.svg" xlink:href="scenario-map/knowledge.svg"><g><rect class="box k-violet" x="405.0" y="566.0" width="165.2" height="22" rx="11"/><text class="mo" x="415.0" y="581.0" font-size="11">90 knowledge.knowledge</text></g></a>
+<a href="scenario-map/lists.svg" xlink:href="scenario-map/lists.svg"><g><rect class="box k-orange" x="578.2" y="566.0" width="132.2" height="22" rx="11"/><text class="mo" x="588.2" y="581.0" font-size="11">95 lists.shopping</text></g></a>
+<text class="m b" x="24.0" y="610.0" font-size="11.5">слой 2 · встроенные</text>
+<a href="scenario-map/system.svg" xlink:href="scenario-map/system.svg"><g><rect class="box k-gray" x="24.0" y="622.0" width="145.4" height="22" rx="11"/><text class="mo" x="34.0" y="637.0" font-size="11">10 system.agent_say</text></g></a>
+<a href="scenario-map/system.svg" xlink:href="scenario-map/system.svg"><g><rect class="box k-gray" x="177.4" y="622.0" width="138.8" height="22" rx="11"/><text class="mo" x="187.4" y="637.0" font-size="11">10 system.push_tts</text></g></a>
+<a href="scenario-map/system.svg" xlink:href="scenario-map/system.svg"><g><rect class="box k-gray" x="324.2" y="622.0" width="138.8" height="22" rx="11"/><text class="mo" x="334.2" y="637.0" font-size="11">10 system.timesync</text></g></a>
+<a href="scenario-map/informers.svg" xlink:href="scenario-map/informers.svg"><g><rect class="box k-blue" x="471.0" y="622.0" width="198.2" height="22" rx="11"/><text class="mo" x="481.0" y="637.0" font-size="11">50 informers.weather.widget</text></g></a>
+<a href="scenario-map/timers.svg" xlink:href="scenario-map/timers.svg"><g><rect class="box k-orange" x="677.2" y="622.0" width="165.2" height="22" rx="11"/><text class="mo" x="687.2" y="637.0" font-size="11">80 timers.ringing.stop</text></g></a>
+<a href="scenario-map/device.svg" xlink:href="scenario-map/device.svg"><g><rect class="box k-green" x="850.4" y="622.0" width="145.4" height="22" rx="11"/><text class="mo" x="860.4" y="637.0" font-size="11">90 device.apps.list</text></g></a>
+<a href="scenario-map/device.svg" xlink:href="scenario-map/device.svg"><g><rect class="box k-green" x="1003.8" y="622.0" width="171.8" height="22" rx="11"/><text class="mo" x="1013.8" y="637.0" font-size="11">90 device.bluetooth.off</text></g></a>
+<a href="scenario-map/device.svg" xlink:href="scenario-map/device.svg"><g><rect class="box k-green" x="1183.6" y="622.0" width="165.2" height="22" rx="11"/><text class="mo" x="1193.6" y="637.0" font-size="11">90 device.bluetooth.on</text></g></a>
+<a href="scenario-map/timers.svg" xlink:href="scenario-map/timers.svg"><g><rect class="box k-orange" x="1356.8" y="622.0" width="165.2" height="22" rx="11"/><text class="mo" x="1366.8" y="637.0" font-size="11">90 timers.alarm.cancel</text></g></a>
+<a href="scenario-map/timers.svg" xlink:href="scenario-map/timers.svg"><g><rect class="box k-orange" x="1530.0" y="622.0" width="165.2" height="22" rx="11"/><text class="mo" x="1540.0" y="637.0" font-size="11">90 timers.timer.cancel</text></g></a>
+<a href="scenario-map/timers.svg" xlink:href="scenario-map/timers.svg"><g><rect class="box k-orange" x="24.0" y="650.0" width="158.6" height="22" rx="11"/><text class="mo" x="34.0" y="665.0" font-size="11">90 timers.timer.pause</text></g></a>
+<a href="scenario-map/timers.svg" xlink:href="scenario-map/timers.svg"><g><rect class="box k-orange" x="190.6" y="650.0" width="165.2" height="22" rx="11"/><text class="mo" x="200.6" y="665.0" font-size="11">90 timers.timer.resume</text></g></a>
+<a href="scenario-map/timers.svg" xlink:href="scenario-map/timers.svg"><g><rect class="box k-orange" x="363.8" y="650.0" width="152.0" height="22" rx="11"/><text class="mo" x="373.8" y="665.0" font-size="11">95 timers.timer.list</text></g></a>
+<a href="scenario-map/device.svg" xlink:href="scenario-map/device.svg"><g><rect class="box k-green" x="523.8" y="650.0" width="119.0" height="22" rx="11"/><text class="mo" x="533.8" y="665.0" font-size="11">100 device.home</text></g></a>
+<a href="scenario-map/device.svg" xlink:href="scenario-map/device.svg"><g><rect class="box k-green" x="650.8" y="650.0" width="165.2" height="22" rx="11"/><text class="mo" x="660.8" y="665.0" font-size="11">100 device.led.emotion</text></g></a>
+<a href="scenario-map/device.svg" xlink:href="scenario-map/device.svg"><g><rect class="box k-green" x="824.0" y="650.0" width="171.8" height="22" rx="11"/><text class="mo" x="834.0" y="665.0" font-size="11">100 device.player.pause</text></g></a>
+<a href="scenario-map/device.svg" xlink:href="scenario-map/device.svg"><g><rect class="box k-green" x="1003.8" y="650.0" width="178.4" height="22" rx="11"/><text class="mo" x="1013.8" y="665.0" font-size="11">100 device.player.rewind</text></g></a>
+<a href="scenario-map/device.svg" xlink:href="scenario-map/device.svg"><g><rect class="box k-green" x="1190.2" y="650.0" width="204.8" height="22" rx="11"/><text class="mo" x="1200.2" y="665.0" font-size="11">100 device.screen.navigation</text></g></a>
+<a href="scenario-map/device.svg" xlink:href="scenario-map/device.svg"><g><rect class="box k-green" x="1403.0" y="650.0" width="132.2" height="22" rx="11"/><text class="mo" x="1413.0" y="665.0" font-size="11">100 device.volume</text></g></a>
+<a href="scenario-map/informers.svg" xlink:href="scenario-map/informers.svg"><g><rect class="box k-blue" x="1543.2" y="650.0" width="145.4" height="22" rx="11"/><text class="mo" x="1553.2" y="665.0" font-size="11">100 informers.clock</text></g></a>
+<a href="scenario-map/informers.svg" xlink:href="scenario-map/informers.svg"><g><rect class="box k-blue" x="24.0" y="678.0" width="178.4" height="22" rx="11"/><text class="mo" x="34.0" y="693.0" font-size="11">100 informers.clock.date</text></g></a>
+<a href="scenario-map/informers.svg" xlink:href="scenario-map/informers.svg"><g><rect class="box k-blue" x="210.4" y="678.0" width="138.8" height="22" rx="11"/><text class="mo" x="220.4" y="693.0" font-size="11">100 informers.news</text></g></a>
+<a href="scenario-map/informers.svg" xlink:href="scenario-map/informers.svg"><g><rect class="box k-blue" x="357.2" y="678.0" width="158.6" height="22" rx="11"/><text class="mo" x="367.2" y="693.0" font-size="11">100 informers.weather</text></g></a>
+<a href="scenario-map/media.svg" xlink:href="scenario-map/media.svg"><g><rect class="box k-pink" x="523.8" y="678.0" width="119.0" height="22" rx="11"/><text class="mo" x="533.8" y="693.0" font-size="11">100 media.video</text></g></a>
+<a href="scenario-map/system.svg" xlink:href="scenario-map/system.svg"><g><rect class="box k-gray" x="650.8" y="678.0" width="171.8" height="22" rx="11"/><text class="mo" x="660.8" y="693.0" font-size="11">100 system.dialog.reset</text></g></a>
+<a href="scenario-map/timers.svg" xlink:href="scenario-map/timers.svg"><g><rect class="box k-orange" x="830.6" y="678.0" width="152.0" height="22" rx="11"/><text class="mo" x="840.6" y="693.0" font-size="11">100 timers.alarm.set</text></g></a>
+<a href="scenario-map/timers.svg" xlink:href="scenario-map/timers.svg"><g><rect class="box k-orange" x="990.6" y="678.0" width="152.0" height="22" rx="11"/><text class="mo" x="1000.6" y="693.0" font-size="11">100 timers.timer.set</text></g></a>
+<a href="scenario-map/media.svg" xlink:href="scenario-map/media.svg"><g><rect class="box k-pink" x="1150.6" y="678.0" width="119.0" height="22" rx="11"/><text class="mo" x="1160.6" y="693.0" font-size="11">120 media.music</text></g></a>
+<a href="scenario-map/system.svg" xlink:href="scenario-map/system.svg"><g><rect class="box k-gray" x="1277.6" y="678.0" width="165.2" height="22" rx="11"/><text class="mo" x="1287.6" y="693.0" font-size="11">150 system.unavailable</text></g></a>
+<a href="scenario-map/device.svg" xlink:href="scenario-map/device.svg"><g><rect class="box k-green" x="1450.8" y="678.0" width="145.4" height="22" rx="11"/><text class="mo" x="1460.8" y="693.0" font-size="11">200 device.app.open</text></g></a>
+<a href="scenario-map/system.svg" xlink:href="scenario-map/system.svg"><g><rect class="box k-gray" x="24.0" y="706.0" width="178.4" height="22" rx="11"/><text class="mo" x="34.0" y="721.0" font-size="11">1000f system.service_ack</text></g></a>
+<text class="m" x="24.0" y="738.0" font-size="11">f — fallback-сценарий (ловит всё, что не взяли другие); цвет — группа; шаблон точнее — раньше при равных слоях</text>
+<text class="m b" x="24.0" y="766.0" font-size="12">3 · ОТКУДА БЕРЁТСЯ ОТВЕТ: поставщики и плагины</text>
+<line class="rule" x1="24" y1="776.0" x2="1776" y2="776.0"/>
+<rect class="box k-violet" x="24.0" y="794.0" width="420.0" height="154.0" rx="8"/>
+<text class="t b" x="36.0" y="818.0" font-size="13.5">Новости</text>
+<text class="m" x="36.0" y="838.0" font-size="11.5">Поставщик вида «news»: Новости (заглушка) (builtin.news-stub).</text>
+<text class="m" x="36.0" y="854.0" font-size="11.5">Фразы ведут в сценарий: informers.news.</text>
+<text class="m" x="36.0" y="870.0" font-size="11.5">Выбранный поставщик вида идёт первым в споре записей</text>
+<text class="m" x="36.0" y="886.0" font-size="11.5">(settings.phrase_order).</text>
+<rect class="box k-violet" x="468.0" y="794.0" width="420.0" height="154.0" rx="8"/>
+<text class="t b" x="480.0" y="818.0" font-size="13.5">Погода</text>
+<text class="m" x="480.0" y="838.0" font-size="11.5">Поставщик вида «weather»: Open-Meteo (builtin.open-meteo).</text>
+<text class="m" x="480.0" y="854.0" font-size="11.5">Фразы ведут в сценарий: informers.weather.</text>
+<text class="m" x="480.0" y="870.0" font-size="11.5">Выбранный поставщик вида идёт первым в споре записей</text>
+<text class="m" x="480.0" y="886.0" font-size="11.5">(settings.phrase_order).</text>
+<rect class="box k-violet" x="912.0" y="794.0" width="420.0" height="154.0" rx="8"/>
+<text class="t b" x="924.0" y="818.0" font-size="13.5">Музыка</text>
+<text class="m" x="924.0" y="838.0" font-size="11.5">Поставщик вида «music»: Spotify (builtin.spotify); Яндекс</text>
+<text class="m" x="924.0" y="854.0" font-size="11.5">Музыка (builtin.yandex-music).</text>
+<text class="m" x="924.0" y="870.0" font-size="11.5">Фразы ведут в сценарий: media.music.</text>
+<text class="m" x="924.0" y="886.0" font-size="11.5">Выбранный поставщик вида идёт первым в споре записей</text>
+<text class="m" x="924.0" y="902.0" font-size="11.5">(settings.phrase_order).</text>
+<text class="m" x="924.0" y="918.0" font-size="11.5">Возможности: audiobooks, catalog_search, fairy_tales,</text>
+<text class="m" x="924.0" y="934.0" font-size="11.5">podcasts.</text>
+<rect class="box k-violet" x="1356.0" y="794.0" width="420.0" height="154.0" rx="8"/>
+<text class="t b" x="1368.0" y="818.0" font-size="13.5">Видео</text>
+<text class="m" x="1368.0" y="838.0" font-size="11.5">Поставщик вида «video»: Видео (каталог ссылок)</text>
+<text class="m" x="1368.0" y="854.0" font-size="11.5">(builtin.video-links).</text>
+<text class="m" x="1368.0" y="870.0" font-size="11.5">Фразы ведут в сценарий: media.video.</text>
+<text class="m" x="1368.0" y="886.0" font-size="11.5">Выбранный поставщик вида идёт первым в споре записей</text>
+<text class="m" x="1368.0" y="902.0" font-size="11.5">(settings.phrase_order).</text>
+<rect class="box k-violet" x="24.0" y="968.0" width="420.0" height="138.0" rx="8"/>
+<text class="t b" x="36.0" y="992.0" font-size="13.5">Болталка</text>
+<text class="m" x="36.0" y="1012.0" font-size="11.5">Плагин builtin.chat: Болталка (встроенная): «как дела», «кто</text>
+<text class="m" x="36.0" y="1028.0" font-size="11.5">тебя создал», «что ты умеешь», скороговорки, стихи, тосты,</text>
+<text class="m" x="36.0" y="1044.0" font-size="11.5">кричалки, «повтори за мной …» — ответы своими слова…</text>
+<text class="m" x="36.0" y="1060.0" font-size="11.5">Сценарии плагина: chat.chat.</text>
+<rect class="box k-violet" x="468.0" y="968.0" width="420.0" height="138.0" rx="8"/>
+<text class="t b" x="480.0" y="992.0" font-size="13.5">Простые игры</text>
+<text class="m" x="480.0" y="1012.0" font-size="11.5">Плагин builtin.games: Простые игры (встроенные): «шар судьбы»,</text>
+<text class="m" x="480.0" y="1028.0" font-size="11.5">«подбрось монетку», «брось кубик» — случайные ответы. Фразы —</text>
+<text class="m" x="480.0" y="1044.0" font-size="11.5">в справочнике плагина, сценарий тоже плагина; в…</text>
+<text class="m" x="480.0" y="1060.0" font-size="11.5">Сценарии плагина: games.games.</text>
+<rect class="box k-violet" x="912.0" y="968.0" width="420.0" height="138.0" rx="8"/>
+<text class="t b" x="924.0" y="992.0" font-size="13.5">Home Assistant</text>
+<text class="m" x="924.0" y="1012.0" font-size="11.5">Плагин builtin.home-assistant: Home Assistant (встроенный):</text>
+<text class="m" x="924.0" y="1028.0" font-size="11.5">свет умного дома из устройств HA («включи свет на кухне»,</text>
+<text class="m" x="924.0" y="1044.0" font-size="11.5">список ламп из GET /api/states), действие ha.call_service для</text>
+<text class="m" x="924.0" y="1060.0" font-size="11.5">с…</text>
+<text class="m" x="924.0" y="1076.0" font-size="11.5">Сценарии плагина: smart_home.light.</text>
+<text class="m" x="924.0" y="1092.0" font-size="11.5">Действия: ha.* (вызов из сценария ctx.action).</text>
+<rect class="box k-violet" x="1356.0" y="968.0" width="420.0" height="138.0" rx="8"/>
+<text class="t b" x="1368.0" y="992.0" font-size="13.5">Знания</text>
+<text class="m" x="1368.0" y="1012.0" font-size="11.5">Плагин builtin.knowledge: Знания (встроенные): факты, перевод,</text>
+<text class="m" x="1368.0" y="1028.0" font-size="11.5">курсы и цены, места рядом, маршруты, пробки, ТВ-программа,</text>
+<text class="m" x="1368.0" y="1044.0" font-size="11.5">рецепты. Фразы — в справочнике плагина, сценарий тоже…</text>
+<text class="m" x="1368.0" y="1060.0" font-size="11.5">Сценарии плагина: knowledge.knowledge.</text>
+<rect class="box k-violet" x="24.0" y="1126.0" width="420.0" height="106.0" rx="8"/>
+<text class="t b" x="36.0" y="1150.0" font-size="13.5">Список покупок</text>
+<text class="m" x="36.0" y="1170.0" font-size="11.5">Плагин builtin.shopping-list: Список покупок (встроенный):</text>
+<text class="m" x="36.0" y="1186.0" font-size="11.5">«добавь в список покупок …», «что в списке покупок», «удали из</text>
+<text class="m" x="36.0" y="1202.0" font-size="11.5">списка покупок …», «очисти список покупок». Фразы — в спра…</text>
+<text class="m" x="36.0" y="1218.0" font-size="11.5">Сценарии плагина: lists.shopping.</text>
+<rect class="box k-violet" x="468.0" y="1126.0" width="420.0" height="106.0" rx="8"/>
+<text class="t b" x="480.0" y="1150.0" font-size="13.5">Нет поставщика</text>
+<text class="m" x="480.0" y="1170.0" font-size="11.5">Сценарий данных без плагина-источника: «Простой» — стандартный</text>
+<text class="m" x="480.0" y="1186.0" font-size="11.5">ответ no_data_source («Для этого нет источника данных.»);</text>
+<text class="m" x="480.0" y="1202.0" font-size="11.5">«Модель/Агент» — отказ, фразу забирает модель; «Вместе» —</text>
+<text class="m" x="480.0" y="1218.0" font-size="11.5">Яндекс.</text>
+<rect class="box k-violet" x="912.0" y="1126.0" width="420.0" height="106.0" rx="8"/>
+<text class="t b" x="924.0" y="1150.0" font-size="13.5">Колонка сама</text>
+<text class="m" x="924.0" y="1170.0" font-size="11.5">Таймеры, будильники, плеер, громкость, подсветку ведёт</text>
+<text class="m" x="924.0" y="1186.0" font-size="11.5">колонка. Сценарий отдаёт те же директивы, что настоящий сервер</text>
+<text class="m" x="924.0" y="1202.0" font-size="11.5">на эту фразу; состояние берёт из сообщений колонки</text>
+<text class="m" x="924.0" y="1218.0" font-size="11.5">(ctx.timers, ctx.player, ctx.volume).</text>
+<text class="m b" x="24.0" y="1262.0" font-size="12">4 · ГРУППЫ СЦЕНАРИЕВ (клик по сценарию — страница группы: фразы, ветвления, ответы)</text>
+<line class="rule" x1="24" y1="1272.0" x2="1776" y2="1272.0"/>
+<rect class="box k-gray" x="24.0" y="1290.0" width="568.0" height="220.0" rx="8"/>
+<a href="scenario-map/system.svg" xlink:href="scenario-map/system.svg"><text class="lk b" x="36" y="1314.0" font-size="14">Системные → system</text></a>
+<text class="m" x="580.0" y="1314.0" font-size="11.5" text-anchor="end">6 сц. · 53 фраз</text>
+<text class="m" x="36.0" y="1336.0" font-size="11.5">Служебные колбэки станции, синхронизация времени, сброс диалога</text>
+<a href="scenario-map/system.svg#system.agent_say" xlink:href="scenario-map/system.svg#system.agent_say"><text class="lk" x="36" y="1378.0" font-size="12">Сообщение агента<tspan class="m" font-size="11"> system.agent_say</tspan></text></a>
+<text class="m" x="580.0" y="1378.0" font-size="11" text-anchor="end">0 фраз</text>
+<a href="scenario-map/system.svg#system.push_tts" xlink:href="scenario-map/system.svg#system.push_tts"><text class="lk" x="36" y="1400.0" font-size="12">Произнести текст<tspan class="m" font-size="11"> system.push_tts</tspan></text></a>
+<text class="m" x="580.0" y="1400.0" font-size="11" text-anchor="end">0 фраз</text>
+<a href="scenario-map/system.svg#system.timesync" xlink:href="scenario-map/system.svg#system.timesync"><text class="lk" x="36" y="1422.0" font-size="12">Синхронизация времени<tspan class="m" font-size="11"> system.timesync</tspan></text></a>
+<text class="m" x="580.0" y="1422.0" font-size="11" text-anchor="end">0 фраз</text>
+<a href="scenario-map/system.svg#system.dialog.reset" xlink:href="scenario-map/system.svg#system.dialog.reset"><text class="lk" x="36" y="1444.0" font-size="12">Сброс диалога<tspan class="m" font-size="11"> system.dialog.reset</tspan></text></a>
+<text class="m" x="580.0" y="1444.0" font-size="11" text-anchor="end">8 фраз</text>
+<a href="scenario-map/system.svg#system.unavailable" xlink:href="scenario-map/system.svg#system.unavailable"><text class="lk" x="36" y="1466.0" font-size="12">Функция недоступна<tspan class="m" font-size="11"> system.unavailable</tspan></text></a>
+<text class="m" x="580.0" y="1466.0" font-size="11" text-anchor="end">45 фраз</text>
+<a href="scenario-map/system.svg#system.service_ack" xlink:href="scenario-map/system.svg#system.service_ack"><text class="lk" x="36" y="1488.0" font-size="12">Тихое подтверждение служебных событий<tspan class="m" font-size="11"> system.service_ack</tspan></text></a>
+<text class="m" x="580.0" y="1488.0" font-size="11" text-anchor="end">0 фраз</text>
+<rect class="box k-blue" x="616.0" y="1290.0" width="568.0" height="198.0" rx="8"/>
+<a href="scenario-map/informers.svg" xlink:href="scenario-map/informers.svg"><text class="lk b" x="628" y="1314.0" font-size="14">Информеры → informers</text></a>
+<text class="m" x="1172.0" y="1314.0" font-size="11.5" text-anchor="end">5 сц. · 36 фраз</text>
+<text class="m" x="628.0" y="1336.0" font-size="11.5">Погода (голос, виджет, тап по виджету), время</text>
+<a href="scenario-map/informers.svg#informers.weather.widget" xlink:href="scenario-map/informers.svg#informers.weather.widget"><text class="lk" x="628" y="1378.0" font-size="12">Виджет погоды на главном экране<tspan class="m" font-size="11"> informers.weather.widget</tspan></text></a>
+<text class="m" x="1172.0" y="1378.0" font-size="11" text-anchor="end">0 фраз</text>
+<a href="scenario-map/informers.svg#informers.clock" xlink:href="scenario-map/informers.svg#informers.clock"><text class="lk" x="628" y="1400.0" font-size="12">Который час<tspan class="m" font-size="11"> informers.clock</tspan></text></a>
+<text class="m" x="1172.0" y="1400.0" font-size="11" text-anchor="end">14 фраз</text>
+<a href="scenario-map/informers.svg#informers.clock.date" xlink:href="scenario-map/informers.svg#informers.clock.date"><text class="lk" x="628" y="1422.0" font-size="12">Дата и дни недели<tspan class="m" font-size="11"> informers.clock.date</tspan></text></a>
+<text class="m" x="1172.0" y="1422.0" font-size="11" text-anchor="end">15 фраз</text>
+<a href="scenario-map/informers.svg#informers.news" xlink:href="scenario-map/informers.svg#informers.news"><text class="lk" x="628" y="1444.0" font-size="12">Новости<tspan class="m" font-size="11"> informers.news</tspan></text></a>
+<text class="m" x="1172.0" y="1444.0" font-size="11" text-anchor="end">4 фраз</text>
+<a href="scenario-map/informers.svg#informers.weather" xlink:href="scenario-map/informers.svg#informers.weather"><text class="lk" x="628" y="1466.0" font-size="12">Погода<tspan class="m" font-size="11"> informers.weather</tspan></text></a>
+<text class="m" x="1172.0" y="1466.0" font-size="11" text-anchor="end">3 фраз</text>
+<rect class="box k-green" x="1208.0" y="1290.0" width="568.0" height="308.0" rx="8"/>
+<a href="scenario-map/device.svg" xlink:href="scenario-map/device.svg"><text class="lk b" x="1220" y="1314.0" font-size="14">Управление устройством → device</text></a>
+<text class="m" x="1764.0" y="1314.0" font-size="11.5" text-anchor="end">10 сц. · 62 фраз</text>
+<text class="m" x="1220.0" y="1336.0" font-size="11.5">Громкость, плеер, Bluetooth, LED-эмоции, приложения</text>
+<a href="scenario-map/device.svg#device.apps.list" xlink:href="scenario-map/device.svg#device.apps.list"><text class="lk" x="1220" y="1378.0" font-size="12">Список приложений колонки<tspan class="m" font-size="11"> device.apps.list</tspan></text></a>
+<text class="m" x="1764.0" y="1378.0" font-size="11" text-anchor="end">3 фраз</text>
+<a href="scenario-map/device.svg#device.bluetooth.off" xlink:href="scenario-map/device.svg#device.bluetooth.off"><text class="lk" x="1220" y="1400.0" font-size="12">Bluetooth: выключить<tspan class="m" font-size="11"> device.bluetooth.off</tspan></text></a>
+<text class="m" x="1764.0" y="1400.0" font-size="11" text-anchor="end">4 фраз</text>
+<a href="scenario-map/device.svg#device.bluetooth.on" xlink:href="scenario-map/device.svg#device.bluetooth.on"><text class="lk" x="1220" y="1422.0" font-size="12">Bluetooth: включить<tspan class="m" font-size="11"> device.bluetooth.on</tspan></text></a>
+<text class="m" x="1764.0" y="1422.0" font-size="11" text-anchor="end">4 фраз</text>
+<a href="scenario-map/device.svg#device.home" xlink:href="scenario-map/device.svg#device.home"><text class="lk" x="1220" y="1444.0" font-size="12">Главный экран<tspan class="m" font-size="11"> device.home</tspan></text></a>
+<text class="m" x="1764.0" y="1444.0" font-size="11" text-anchor="end">3 фраз</text>
+<a href="scenario-map/device.svg#device.led.emotion" xlink:href="scenario-map/device.svg#device.led.emotion"><text class="lk" x="1220" y="1466.0" font-size="12">LED-эмоции<tspan class="m" font-size="11"> device.led.emotion</tspan></text></a>
+<text class="m" x="1764.0" y="1466.0" font-size="11" text-anchor="end">5 фраз</text>
+<a href="scenario-map/device.svg#device.player.pause" xlink:href="scenario-map/device.svg#device.player.pause"><text class="lk" x="1220" y="1488.0" font-size="12">Пауза<tspan class="m" font-size="11"> device.player.pause</tspan></text></a>
+<text class="m" x="1764.0" y="1488.0" font-size="11" text-anchor="end">16 фраз</text>
+<a href="scenario-map/device.svg#device.player.rewind" xlink:href="scenario-map/device.svg#device.player.rewind"><text class="lk" x="1220" y="1510.0" font-size="12">Перемотка плеера<tspan class="m" font-size="11"> device.player.rewind</tspan></text></a>
+<text class="m" x="1764.0" y="1510.0" font-size="11" text-anchor="end">10 фраз</text>
+<a href="scenario-map/device.svg#device.screen.navigation" xlink:href="scenario-map/device.svg#device.screen.navigation"><text class="lk" x="1220" y="1532.0" font-size="12">Листание экранов<tspan class="m" font-size="11"> device.screen.navigation</tspan></text></a>
+<text class="m" x="1764.0" y="1532.0" font-size="11" text-anchor="end">4 фраз</text>
+<a href="scenario-map/device.svg#device.volume" xlink:href="scenario-map/device.svg#device.volume"><text class="lk" x="1220" y="1554.0" font-size="12">Громкость<tspan class="m" font-size="11"> device.volume</tspan></text></a>
+<text class="m" x="1764.0" y="1554.0" font-size="11" text-anchor="end">10 фраз</text>
+<a href="scenario-map/device.svg#device.app.open" xlink:href="scenario-map/device.svg#device.app.open"><text class="lk" x="1220" y="1576.0" font-size="12">Открыть приложение<tspan class="m" font-size="11"> device.app.open</tspan></text></a>
+<text class="m" x="1764.0" y="1576.0" font-size="11" text-anchor="end">3 фраз</text>
+<rect class="box k-violet" x="616.0" y="1506.0" width="568.0" height="110.0" rx="8"/>
+<a href="scenario-map/smart_home.svg" xlink:href="scenario-map/smart_home.svg"><text class="lk b" x="628" y="1530.0" font-size="14">Умный дом → smart_home</text></a>
+<text class="m" x="1172.0" y="1530.0" font-size="11.5" text-anchor="end">1 сц. · 1 фраз</text>
+<text class="m" x="628.0" y="1552.0" font-size="11.5">Свет и устройства дома</text>
+<a href="scenario-map/smart_home.svg#smart_home.light" xlink:href="scenario-map/smart_home.svg#smart_home.light"><text class="lk" x="628" y="1594.0" font-size="12">Свет<tspan class="m" font-size="11"> smart_home.light · плагин</tspan></text></a>
+<text class="m" x="1172.0" y="1594.0" font-size="11" text-anchor="end">1 фраз</text>
+<rect class="box k-orange" x="24.0" y="1528.0" width="568.0" height="264.0" rx="8"/>
+<a href="scenario-map/timers.svg" xlink:href="scenario-map/timers.svg"><text class="lk b" x="36" y="1552.0" font-size="14">Таймеры и будильники → timers</text></a>
+<text class="m" x="580.0" y="1552.0" font-size="11.5" text-anchor="end">8 сц. · 54 фраз</text>
+<text class="m" x="36.0" y="1574.0" font-size="11.5">Таймеры, будильники, отмена</text>
+<a href="scenario-map/timers.svg#timers.ringing.stop" xlink:href="scenario-map/timers.svg#timers.ringing.stop"><text class="lk" x="36" y="1616.0" font-size="12">Выключить сигнал таймера/будильника<tspan class="m" font-size="11"> timers.ringing.stop</tspan></text></a>
+<text class="m" x="580.0" y="1616.0" font-size="11" text-anchor="end">9 фраз</text>
+<a href="scenario-map/timers.svg#timers.alarm.cancel" xlink:href="scenario-map/timers.svg#timers.alarm.cancel"><text class="lk" x="36" y="1638.0" font-size="12">Отменить будильник<tspan class="m" font-size="11"> timers.alarm.cancel</tspan></text></a>
+<text class="m" x="580.0" y="1638.0" font-size="11" text-anchor="end">7 фраз</text>
+<a href="scenario-map/timers.svg#timers.timer.cancel" xlink:href="scenario-map/timers.svg#timers.timer.cancel"><text class="lk" x="36" y="1660.0" font-size="12">Отменить таймер<tspan class="m" font-size="11"> timers.timer.cancel</tspan></text></a>
+<text class="m" x="580.0" y="1660.0" font-size="11" text-anchor="end">5 фраз</text>
+<a href="scenario-map/timers.svg#timers.timer.pause" xlink:href="scenario-map/timers.svg#timers.timer.pause"><text class="lk" x="36" y="1682.0" font-size="12">Таймер на паузу<tspan class="m" font-size="11"> timers.timer.pause</tspan></text></a>
+<text class="m" x="580.0" y="1682.0" font-size="11" text-anchor="end">6 фраз</text>
+<a href="scenario-map/timers.svg#timers.timer.resume" xlink:href="scenario-map/timers.svg#timers.timer.resume"><text class="lk" x="36" y="1704.0" font-size="12">Продолжить таймер<tspan class="m" font-size="11"> timers.timer.resume</tspan></text></a>
+<text class="m" x="580.0" y="1704.0" font-size="11" text-anchor="end">4 фраз</text>
+<a href="scenario-map/timers.svg#timers.timer.list" xlink:href="scenario-map/timers.svg#timers.timer.list"><text class="lk" x="36" y="1726.0" font-size="12">Состояние таймеров<tspan class="m" font-size="11"> timers.timer.list</tspan></text></a>
+<text class="m" x="580.0" y="1726.0" font-size="11" text-anchor="end">10 фраз</text>
+<a href="scenario-map/timers.svg#timers.alarm.set" xlink:href="scenario-map/timers.svg#timers.alarm.set"><text class="lk" x="36" y="1748.0" font-size="12">Поставить будильник<tspan class="m" font-size="11"> timers.alarm.set</tspan></text></a>
+<text class="m" x="580.0" y="1748.0" font-size="11" text-anchor="end">7 фраз</text>
+<a href="scenario-map/timers.svg#timers.timer.set" xlink:href="scenario-map/timers.svg#timers.timer.set"><text class="lk" x="36" y="1770.0" font-size="12">Поставить таймер<tspan class="m" font-size="11"> timers.timer.set</tspan></text></a>
+<text class="m" x="580.0" y="1770.0" font-size="11" text-anchor="end">6 фраз</text>
+<rect class="box k-gray" x="1208.0" y="1616.0" width="568.0" height="110.0" rx="8"/>
+<text class="t b" x="1220" y="1640.0" font-size="14">Пользовательские</text>
+<text class="m" x="1764.0" y="1640.0" font-size="11.5" text-anchor="end">0 сц. · 0 фраз</text>
+<text class="m" x="1220.0" y="1662.0" font-size="11.5">Сценарии, созданные в панели</text>
+<text class="m" x="1220.0" y="1704.0" font-size="11.5">встроенных нет: сюда попадают пользовательские сценарии</text>
+<rect class="box k-pink" x="616.0" y="1634.0" width="568.0" height="132.0" rx="8"/>
+<a href="scenario-map/media.svg" xlink:href="scenario-map/media.svg"><text class="lk b" x="628" y="1658.0" font-size="14">Медиа → media</text></a>
+<text class="m" x="1172.0" y="1658.0" font-size="11.5" text-anchor="end">2 сц. · 59 фраз</text>
+<text class="m" x="628.0" y="1680.0" font-size="11.5">Музыка, сказки и радио из локальной библиотеки; управление плеером</text>
+<a href="scenario-map/media.svg#media.video" xlink:href="scenario-map/media.svg#media.video"><text class="lk" x="628" y="1722.0" font-size="12">Видео (выдача ссылок)<tspan class="m" font-size="11"> media.video</tspan></text></a>
+<text class="m" x="1172.0" y="1722.0" font-size="11" text-anchor="end">3 фраз</text>
+<a href="scenario-map/media.svg#media.music" xlink:href="scenario-map/media.svg#media.music"><text class="lk" x="628" y="1744.0" font-size="12">Музыка (поставщик)<tspan class="m" font-size="11"> media.music</tspan></text></a>
+<text class="m" x="1172.0" y="1744.0" font-size="11" text-anchor="end">56 фраз</text>
+<rect class="box k-blue" x="1208.0" y="1744.0" width="568.0" height="110.0" rx="8"/>
+<a href="scenario-map/chat.svg" xlink:href="scenario-map/chat.svg"><text class="lk b" x="1220" y="1768.0" font-size="14">Болталка → chat</text></a>
+<text class="m" x="1764.0" y="1768.0" font-size="11.5" text-anchor="end">1 сц. · 26 фраз</text>
+<text class="m" x="1220.0" y="1790.0" font-size="11.5">Разговорные фразы: «как дела», «кто тебя создал», скороговорки, тосты</text>
+<a href="scenario-map/chat.svg#chat.chat" xlink:href="scenario-map/chat.svg#chat.chat"><text class="lk" x="1220" y="1832.0" font-size="12">Болталка<tspan class="m" font-size="11"> chat.chat · плагин</tspan></text></a>
+<text class="m" x="1764.0" y="1832.0" font-size="11" text-anchor="end">26 фраз</text>
+<rect class="box k-green" x="616.0" y="1784.0" width="568.0" height="110.0" rx="8"/>
+<a href="scenario-map/games.svg" xlink:href="scenario-map/games.svg"><text class="lk b" x="628" y="1808.0" font-size="14">Игры → games</text></a>
+<text class="m" x="1172.0" y="1808.0" font-size="11.5" text-anchor="end">1 сц. · 11 фраз</text>
+<text class="m" x="628.0" y="1830.0" font-size="11.5">Простые игры: шар судьбы, монетка, кубик</text>
+<a href="scenario-map/games.svg#games.games" xlink:href="scenario-map/games.svg#games.games"><text class="lk" x="628" y="1872.0" font-size="12">Простые игры<tspan class="m" font-size="11"> games.games · плагин</tspan></text></a>
+<text class="m" x="1172.0" y="1872.0" font-size="11" text-anchor="end">11 фраз</text>
+<rect class="box k-violet" x="24.0" y="1810.0" width="568.0" height="126.0" rx="8"/>
+<a href="scenario-map/knowledge.svg" xlink:href="scenario-map/knowledge.svg"><text class="lk b" x="36" y="1834.0" font-size="14">Знания → knowledge</text></a>
+<text class="m" x="580.0" y="1834.0" font-size="11.5" text-anchor="end">1 сц. · 27 фраз</text>
+<text class="m" x="36.0" y="1856.0" font-size="11.5">Факты, перевод, цены, места, маршруты, пробки, новости, ТВ, рецепты — данные из базы</text>
+<text class="m" x="36.0" y="1872.0" font-size="11.5">через плагины</text>
+<a href="scenario-map/knowledge.svg#knowledge.knowledge" xlink:href="scenario-map/knowledge.svg#knowledge.knowledge"><text class="lk" x="36" y="1914.0" font-size="12">Знания<tspan class="m" font-size="11"> knowledge.knowledge · плагин</tspan></text></a>
+<text class="m" x="580.0" y="1914.0" font-size="11" text-anchor="end">27 фраз</text>
+<rect class="box k-orange" x="1208.0" y="1872.0" width="568.0" height="110.0" rx="8"/>
+<a href="scenario-map/lists.svg" xlink:href="scenario-map/lists.svg"><text class="lk b" x="1220" y="1896.0" font-size="14">Списки → lists</text></a>
+<text class="m" x="1764.0" y="1896.0" font-size="11.5" text-anchor="end">1 сц. · 8 фраз</text>
+<text class="m" x="1220.0" y="1918.0" font-size="11.5">Список покупок: добавить, показать, удалить, очистить</text>
+<a href="scenario-map/lists.svg#lists.shopping" xlink:href="scenario-map/lists.svg#lists.shopping"><text class="lk" x="1220" y="1960.0" font-size="12">Список покупок<tspan class="m" font-size="11"> lists.shopping · плагин</tspan></text></a>
+<text class="m" x="1764.0" y="1960.0" font-size="11" text-anchor="end">8 фраз</text>
+</svg>

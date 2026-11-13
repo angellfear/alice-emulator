@@ -1,0 +1,363 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1662 3205" width="1662" height="3205" font-family="Segoe UI, IBM Plex Sans, Arial, sans-serif">
+<title>Сценарии: Таймеры и будильники</title>
+<desc>Фразы, ветвления диалога и итоговые ответы сценариев группы «Таймеры и будильники».</desc>
+<style>
+:root{--bg:#ffffff;--fg:#18202b;--muted:#5b6676;--rule:#d5dbe3;--edge:#4a5566;--ask:#b8326b;--decl:#c0392b;--link:#2f6fd0}
+@media (prefers-color-scheme: dark){:root{--bg:#10151c;--fg:#e6ebf2;--muted:#9aa6b6;--rule:#2c3644;--edge:#9aa6b6;--ask:#e87aa5;--decl:#f0857a;--link:#7aa7f0}}
+.bg{fill:var(--bg)}
+.t{fill:var(--fg);font-family:Segoe UI, IBM Plex Sans, Arial, sans-serif}.m{fill:var(--muted);font-family:Segoe UI, IBM Plex Sans, Arial, sans-serif}.mo{fill:var(--fg);font-family:Consolas, IBM Plex Mono, Menlo, monospace}
+.b{font-weight:700}.cap{font-weight:700;letter-spacing:1.4px}
+.rule{stroke:var(--rule);fill:none}.lk{fill:var(--link);font-family:Segoe UI, IBM Plex Sans, Arial, sans-serif}
+.edge{stroke:var(--edge);fill:none;stroke-width:1.4}.ask{stroke:var(--ask);fill:none;stroke-width:1.4;stroke-dasharray:5 3}
+.decl{stroke:var(--decl);fill:none;stroke-width:1.4;stroke-dasharray:2 3}
+.mk-edge{fill:var(--edge)}.mk-ask{fill:var(--ask)}.mk-decl{fill:var(--decl)}
+.lb-decl{fill:var(--decl);font-weight:700}.lb-ask{fill:var(--ask);font-weight:700}.lb-act{fill:#6a45c9;font-weight:700}
+.lb-data{fill:var(--muted);font-weight:700}.lb-say{fill:#16855a;font-weight:700}.lb-dir{fill:#b2650b;font-weight:700}
+@media (prefers-color-scheme: dark){.lb-act{fill:#a78bec}.lb-say{fill:#4fc08a}.lb-dir{fill:#e0a050}}
+.box{stroke:var(--s);fill:var(--f);stroke-width:1.5}.dash{stroke-dasharray:4 4}
+.k-blue{--s:#2f6fd0;--f:#e8effb}
+.k-green{--s:#16855a;--f:#e5f4ec}
+.k-orange{--s:#b2650b;--f:#fbf1e2}
+.k-violet{--s:#6a45c9;--f:#f0ebfb}
+.k-pink{--s:#b8326b;--f:#fbeaf1}
+.k-red{--s:#c0392b;--f:#fdecea}
+.k-gray{--s:#4a5566;--f:#eef1f4}
+@media (prefers-color-scheme: dark){.k-blue{--s:#7aa7f0;--f:#1b2a45}.k-green{--s:#4fc08a;--f:#16342a}.k-orange{--s:#e0a050;--f:#3a2a14}.k-violet{--s:#a78bec;--f:#2a2147}.k-pink{--s:#e87aa5;--f:#3d1c2c}.k-red{--s:#f0857a;--f:#42201c}.k-gray{--s:#8b97a8;--f:#252b34}}
+</style>
+<defs><marker id="m-edge" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="mk-edge" d="M0,0 L10,5 L0,10 z"/></marker><marker id="m-ask" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="mk-ask" d="M0,0 L10,5 L0,10 z"/></marker><marker id="m-decl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="mk-decl" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<rect class="bg" width="1662" height="3205"/>
+<text class="t b" x="18.0" y="36.0" font-size="22">Сценарии: Таймеры и будильники</text>
+<a href="../scenario-map.svg" xlink:href="../scenario-map.svg"><text class="lk" x="1644" y="34" font-size="13" text-anchor="end">← обзор карты сценариев</text></a>
+<text class="m" x="18.0" y="58.0" font-size="12.5">Таймеры, будильники, отмена</text>
+<text class="t" x="18.0" y="82.0" font-size="11.5"><tspan class="lb-ask">вопрос:</tspan> сценарий спрашивает, колонка слушает ответ (штриховая стрелка)</text>
+<text class="t" x="488.0" y="82.0" font-size="11.5"><tspan class="lb-decl">уступает:</tspan> None — реплика уходит следующему кандидату</text>
+<text class="t" x="848.0" y="82.0" font-size="11.5"><tspan class="lb-act">действие / данные:</tspan> эффект и источники</text>
+<text class="t" x="1108.0" y="82.0" font-size="11.5"><tspan class="lb-say">речь / директивы:</tspan> итог для колонки</text>
+<g id="timers.ringing.stop">
+<rect class="box k-orange" x="18.0" y="104.0" width="1626.0" height="222.5" rx="8"/>
+<text class="t b" x="32.0" y="130.0" font-size="16">Выключить сигнал таймера/будильника</text>
+<text class="mo" x="380.0" y="130.0" font-size="12.5">timers.ringing.stop</text>
+<text class="m" x="1630.0" y="130.0" font-size="11.5" text-anchor="end">приоритет 80 · встроенный · логика в коде (.py) · фраз и шаблонов: 9</text>
+<text class="m" x="32.0" y="150.0" font-size="12">«хватит», «выключи сигнал», когда у колонки звенит будильник или таймер (CurrentlyPlaying в её состоянии)</text>
+<line class="rule" x1="28" y1="168" x2="1634" y2="168"/>
+<text class="m b" x="32.0" y="186.0" font-size="10.5">ФРАЗЫ</text>
+<text class="m b" x="536.0" y="186.0" font-size="10.5">ЛОГИКА И ВЕТВЛЕНИЯ</text>
+<text class="m b" x="1190.0" y="186.0" font-size="10.5">ИТОГОВЫЕ ОТВЕТЫ</text>
+<text class="m b" x="32.0" y="208.0" font-size="10">ТОЧНЫЕ ФРАЗЫ</text>
+<text class="t" x="38.0" y="223.5" font-size="11.5">«хватит» · «достаточно» · «прекрати» · «выключи сигнал» · «останови</text>
+<text class="t" x="38.0" y="239.0" font-size="11.5">сигнал» · «выключи будильник» · «отключи будильник»</text>
+<text class="m b" x="32.0" y="254.5" font-size="10">ШАБЛОНЫ HASSIL · 2 шт., ≈11 вариантов</text>
+<text class="mo" x="38.0" y="270.0" font-size="11">(хватит|достаточно|прекрати)</text>
+<text class="mo" x="38.0" y="285.5" font-size="11">(выключи|останови|отключи|убери) (сигнал|будильник)</text>
+<text class="m" x="38.0" y="301.0" font-size="11">примеры: «хватит» · «выключи сигнал»</text>
+<path class="edge" d="M506.0,216.0 L532.0,216.0" marker-end="url(#m-edge)"/>
+<rect class="box k-gray" x="536.0" y="196.0" width="620.0" height="100.0" rx="7"/>
+<text class="t b" x="546.0" y="214.0" font-size="12">вход: handle</text>
+<text class="t" x="546.0" y="234.5" font-size="11.5"><tspan class="lb-decl">уступает:</tspan> у колонки не звенит — «хватит» остаётся медиа-паузе</text>
+<text class="t" x="546.0" y="250.0" font-size="11.5"><tspan class="lb-data">данные:</tspan> состояние колонки: ringing</text>
+<text class="t" x="546.0" y="265.5" font-size="11.5"><tspan class="lb-data">данные:</tspan> таймеры колонки</text>
+<text class="t" x="546.0" y="281.0" font-size="11.5"><tspan class="lb-data">данные:</tspan> будильники колонки</text>
+<rect class="box k-green" x="1190.0" y="196.0" width="440.0" height="82.0" rx="7"/>
+<path class="edge" d="M1158.0,210.0 L1187.0,210.0" marker-end="url(#m-edge)"/>
+<text class="t" x="1200.0" y="221.5" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Будильник выключил.»</text>
+<text class="t" x="1200.0" y="237.0" font-size="11.5"><tspan class="lb-dir">директивы:</tspan> alarm_stop_directive,</text>
+<text class="t" x="1200.0" y="252.5" font-size="11.5">close_screen_alarm_active_directive, tts_play_placeholder,</text>
+<text class="t" x="1200.0" y="268.0" font-size="11.5">timer_stop_directive, close_screen_timer_active_directive</text>
+</g>
+<g id="timers.alarm.cancel">
+<rect class="box k-orange" x="18.0" y="346.5" width="1626.0" height="488.5" rx="8"/>
+<text class="t b" x="32.0" y="372.5" font-size="16">Отменить будильник</text>
+<text class="mo" x="216.8" y="372.5" font-size="12.5">timers.alarm.cancel</text>
+<text class="m" x="1630.0" y="372.5" font-size="11.5" text-anchor="end">приоритет 90 · встроенный · логика в коде (.py) · фраз и шаблонов: 7</text>
+<text class="m" x="32.0" y="392.5" font-size="12">«отмени будильник на 7 утра»: alarm_cancel_directive (TAlarmCancelDirective по protos) для будильника из состояния колонки, время — из фразы; несколько совпадающих — уточняющий вопрос; «отмени/удали все будильники» — по директиве…</text>
+<line class="rule" x1="28" y1="410.5" x2="1634" y2="410.5"/>
+<text class="m b" x="32.0" y="428.5" font-size="10.5">ФРАЗЫ</text>
+<text class="m b" x="536.0" y="428.5" font-size="10.5">ЛОГИКА И ВЕТВЛЕНИЯ</text>
+<text class="m b" x="1190.0" y="428.5" font-size="10.5">ИТОГОВЫЕ ОТВЕТЫ</text>
+<text class="m b" x="32.0" y="450.5" font-size="10">ТОЧНЫЕ ФРАЗЫ</text>
+<text class="t" x="38.0" y="466.0" font-size="11.5">«отмени будильник» · «удали будильник» · «отмени все будильники» · «удали</text>
+<text class="t" x="38.0" y="481.5" font-size="11.5">все будильники»</text>
+<text class="m b" x="32.0" y="497.0" font-size="10">ШАБЛОНЫ HASSIL · 3 шт., ≈11764272 вариантов</text>
+<text class="mo" x="38.0" y="512.5" font-size="11">(отмени|удали) [{ordinal} ](будильник|будильники) [на|в] ({hour} [{mi…</text>
+<text class="mo" x="38.0" y="528.0" font-size="11">(отмени|удали) {ordinal} (будильник|будильники)</text>
+<text class="mo" x="38.0" y="543.5" font-size="11">(отмени|удали) все (будильник|будильники)</text>
+<text class="m" x="38.0" y="559.0" font-size="11">примеры: «отмени будильник 0» · «отмени первый будильник» · «отмени все</text>
+<text class="m" x="38.0" y="574.5" font-size="11">будильник»</text>
+<path class="edge" d="M506.0,458.5 L532.0,458.5" marker-end="url(#m-edge)"/>
+<rect class="box k-gray" x="536.0" y="438.5" width="620.0" height="84.5" rx="7"/>
+<text class="t b" x="546.0" y="456.5" font-size="12">вход: handle</text>
+<text class="t" x="546.0" y="477.0" font-size="11.5"><tspan class="lb-ask">вопрос:</tspan> «Какой будильник отменить? Скажите номер или время.» — слушает ответ (ShouldListen) →</text>
+<text class="t" x="546.0" y="492.5" font-size="11.5">on_pick</text>
+<text class="t" x="546.0" y="508.0" font-size="11.5"><tspan class="lb-data">данные:</tspan> будильники колонки</text>
+<rect class="box k-green" x="1190.0" y="438.5" width="440.0" height="128.5" rx="7"/>
+<path class="edge" d="M1158.0,452.5 L1187.0,452.5" marker-end="url(#m-edge)"/>
+<text class="t" x="1200.0" y="464.0" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Будильников нет.»</text>
+<text class="t" x="1200.0" y="479.5" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Такого будильника нет.»</text>
+<text class="t" x="1200.0" y="495.0" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Будильника на … нет.»</text>
+<text class="t" x="1200.0" y="510.5" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Хорошо, удалила все будильники.»</text>
+<text class="t" x="1200.0" y="526.0" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Будильник отменила.»</text>
+<text class="t" x="1200.0" y="541.5" font-size="11.5"><tspan class="lb-dir">директивы:</tspan> alarm_cancel_directive,</text>
+<text class="t" x="1200.0" y="557.0" font-size="11.5">open_screen_alarm_list_directive</text>
+<rect class="box k-red" x="558.0" y="579.0" width="598.0" height="81.5" rx="7"/>
+<text class="t b" x="568.0" y="597.0" font-size="12">_slots_time</text>
+<text class="m" x="568.0" y="611.0" font-size="11">«ЧЧ:ММ» из сущностей шаблона — как в timers.alarm.set (сценарии самодостаточны): {time_word}</text>
+<text class="m" x="568.0" y="625.0" font-size="11">(«полночь») или {hour} [{minute}] [{day_period}]; дневной период после полудня +12, «утра/ночи»…</text>
+<text class="t" x="568.0" y="645.5" font-size="11.5"><tspan class="lb-decl">уступает:</tspan> отказ (return None)</text>
+<rect class="box k-pink dash" x="558.0" y="672.5" width="598.0" height="69.0" rx="7"/>
+<text class="t b" x="568.0" y="690.5" font-size="12">ответ на вопрос: on_pick</text>
+<text class="t" x="568.0" y="711.0" font-size="11.5"><tspan class="lb-decl">ошибка:</tspan> Не удалось понять, какой будильник отменить</text>
+<text class="t" x="568.0" y="726.5" font-size="11.5"><tspan class="lb-data">см. также:</tspan> _cancel</text>
+<rect class="box k-red" x="580.0" y="753.5" width="576.0" height="67.5" rx="7"/>
+<text class="t b" x="590.0" y="771.5" font-size="12">_picked</text>
+<text class="m" x="590.0" y="785.5" font-size="11">Будильник из ответа: номер («первый», «два») или время («семь утра»).</text>
+<text class="t" x="590.0" y="806.0" font-size="11.5"><tspan class="lb-decl">уступает:</tspan> отказ (return None)</text>
+<path class="edge" d="M546.0,523.0 L546.0,595.0 L556.0,595.0" marker-end="url(#m-edge)"/>
+<path class="ask" d="M546.0,523.0 L546.0,688.5 L556.0,688.5" marker-end="url(#m-ask)"/>
+<path class="edge" d="M568.0,741.5 L568.0,769.5 L578.0,769.5" marker-end="url(#m-edge)"/>
+</g>
+<g id="timers.timer.cancel">
+<rect class="box k-orange" x="18.0" y="855.0" width="1626.0" height="218.5" rx="8"/>
+<text class="t b" x="32.0" y="881.0" font-size="16">Отменить таймер</text>
+<text class="mo" x="188.0" y="881.0" font-size="12.5">timers.timer.cancel</text>
+<text class="m" x="1630.0" y="881.0" font-size="11.5" text-anchor="end">приоритет 90 · встроенный · логика в коде (.py) · фраз и шаблонов: 5</text>
+<line class="rule" x1="28" y1="903.0" x2="1634" y2="903.0"/>
+<text class="m b" x="32.0" y="921.0" font-size="10.5">ФРАЗЫ</text>
+<text class="m b" x="536.0" y="921.0" font-size="10.5">ЛОГИКА И ВЕТВЛЕНИЯ</text>
+<text class="m b" x="1190.0" y="921.0" font-size="10.5">ИТОГОВЫЕ ОТВЕТЫ</text>
+<text class="m b" x="32.0" y="943.0" font-size="10">ТОЧНЫЕ ФРАЗЫ</text>
+<text class="t" x="38.0" y="958.5" font-size="11.5">«отмени таймер» · «отключи таймер» · «стоп таймер»</text>
+<text class="m b" x="32.0" y="974.0" font-size="10">ШАБЛОНЫ HASSIL · 2 шт., ≈130 вариантов</text>
+<text class="mo" x="38.0" y="989.5" font-size="11">(отмени|отключи|выключи|удали|стоп) ({ordinal} (таймер|таймеры)|(тайм…</text>
+<text class="mo" x="38.0" y="1005.0" font-size="11">(отмени|отключи|выключи|удали|стоп) все (таймер|таймеры)</text>
+<text class="m" x="38.0" y="1020.5" font-size="11">примеры: «отмени первый таймер» · «отмени все таймер»</text>
+<path class="edge" d="M506.0,951.0 L532.0,951.0" marker-end="url(#m-edge)"/>
+<rect class="box k-gray" x="536.0" y="931.0" width="620.0" height="69.0" rx="7"/>
+<text class="t b" x="546.0" y="949.0" font-size="12">вход: handle</text>
+<text class="t" x="546.0" y="969.5" font-size="11.5"><tspan class="lb-data">данные:</tspan> состояние колонки: active_timers</text>
+<text class="t" x="546.0" y="985.0" font-size="11.5"><tspan class="lb-data">данные:</tspan> таймеры колонки</text>
+<rect class="box k-green" x="1190.0" y="931.0" width="440.0" height="128.5" rx="7"/>
+<path class="edge" d="M1158.0,945.0 L1187.0,945.0" marker-end="url(#m-edge)"/>
+<text class="t" x="1200.0" y="956.5" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Хорошо, удалила все таймеры.»</text>
+<text class="t" x="1200.0" y="972.0" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Таймер отменён.»</text>
+<text class="t" x="1200.0" y="987.5" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Пока не отменяю таймер на другой колонке — только на</text>
+<text class="t" x="1200.0" y="1003.0" font-size="11.5">этой.»</text>
+<text class="t" x="1200.0" y="1018.5" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Активных таймеров нет.»</text>
+<text class="t" x="1200.0" y="1034.0" font-size="11.5"><tspan class="lb-dir">директивы:</tspan> open_screen_timer_list_directive,</text>
+<text class="t" x="1200.0" y="1049.5" font-size="11.5">timer_cancel_directive</text>
+</g>
+<g id="timers.timer.pause">
+<rect class="box k-orange" x="18.0" y="1093.5" width="1626.0" height="366.5" rx="8"/>
+<text class="t b" x="32.0" y="1119.5" font-size="16">Таймер на паузу</text>
+<text class="mo" x="188.0" y="1119.5" font-size="12.5">timers.timer.pause</text>
+<text class="m" x="1630.0" y="1119.5" font-size="11.5" text-anchor="end">приоритет 90 · встроенный · логика в коде (.py) · фраз и шаблонов: 6</text>
+<text class="m" x="32.0" y="1139.5" font-size="12">«поставь таймер на паузу»: timer_pause_directive (TTimerPauseDirective по protos) для активного таймера из состояния колонки; несколько — уточняющий вопрос</text>
+<line class="rule" x1="28" y1="1157.5" x2="1634" y2="1157.5"/>
+<text class="m b" x="32.0" y="1175.5" font-size="10.5">ФРАЗЫ</text>
+<text class="m b" x="536.0" y="1175.5" font-size="10.5">ЛОГИКА И ВЕТВЛЕНИЯ</text>
+<text class="m b" x="1190.0" y="1175.5" font-size="10.5">ИТОГОВЫЕ ОТВЕТЫ</text>
+<text class="m b" x="32.0" y="1197.5" font-size="10">ТОЧНЫЕ ФРАЗЫ</text>
+<text class="t" x="38.0" y="1213.0" font-size="11.5">«поставь таймер на паузу» · «таймер на паузу» · «таймер на паузе» ·</text>
+<text class="t" x="38.0" y="1228.5" font-size="11.5">«пауза таймера»</text>
+<text class="m b" x="32.0" y="1244.0" font-size="10">ШАБЛОНЫ HASSIL · 2 шт., ≈182 вариантов</text>
+<text class="mo" x="38.0" y="1259.5" font-size="11">(поставь|поставить|переведи) [(активный|запущенный) ](таймер|таймеры)…</text>
+<text class="mo" x="38.0" y="1275.0" font-size="11">пауза (таймера|таймеров)</text>
+<text class="m" x="38.0" y="1290.5" font-size="11">примеры: «поставь таймер паузу» · «пауза таймера»</text>
+<path class="edge" d="M506.0,1205.5 L532.0,1205.5" marker-end="url(#m-edge)"/>
+<rect class="box k-gray" x="536.0" y="1185.5" width="620.0" height="100.0" rx="7"/>
+<text class="t b" x="546.0" y="1203.5" font-size="12">вход: handle</text>
+<text class="t" x="546.0" y="1224.0" font-size="11.5"><tspan class="lb-ask">вопрос:</tspan> «Какой таймер поставить на паузу? Скажите номер.» — слушает ответ (ShouldListen) →</text>
+<text class="t" x="546.0" y="1239.5" font-size="11.5">on_pick</text>
+<text class="t" x="546.0" y="1255.0" font-size="11.5"><tspan class="lb-data">данные:</tspan> состояние колонки: active_timers</text>
+<text class="t" x="546.0" y="1270.5" font-size="11.5"><tspan class="lb-data">данные:</tspan> таймеры колонки</text>
+<rect class="box k-green" x="1190.0" y="1185.5" width="440.0" height="82.0" rx="7"/>
+<path class="edge" d="M1158.0,1199.5 L1187.0,1199.5" marker-end="url(#m-edge)"/>
+<text class="t" x="1200.0" y="1211.0" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Активных таймеров нет.»</text>
+<text class="t" x="1200.0" y="1226.5" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Таймер поставила на паузу.»</text>
+<text class="t" x="1200.0" y="1242.0" font-size="11.5"><tspan class="lb-dir">директивы:</tspan> open_screen_timer_list_directive,</text>
+<text class="t" x="1200.0" y="1257.5" font-size="11.5">timer_pause_directive</text>
+<rect class="box k-pink dash" x="558.0" y="1297.5" width="598.0" height="69.0" rx="7"/>
+<text class="t b" x="568.0" y="1315.5" font-size="12">ответ на вопрос: on_pick</text>
+<text class="t" x="568.0" y="1336.0" font-size="11.5"><tspan class="lb-decl">ошибка:</tspan> Не удалось понять, какой таймер поставить на паузу</text>
+<text class="t" x="568.0" y="1351.5" font-size="11.5"><tspan class="lb-data">см. также:</tspan> _pause</text>
+<rect class="box k-red" x="580.0" y="1378.5" width="576.0" height="67.5" rx="7"/>
+<text class="t b" x="590.0" y="1396.5" font-size="12">_picked</text>
+<text class="m" x="590.0" y="1410.5" font-size="11">Номер таймера из ответа («первый», «два»): в порядку списка из уточнения.</text>
+<text class="t" x="590.0" y="1431.0" font-size="11.5"><tspan class="lb-decl">уступает:</tspan> отказ (return None)</text>
+<path class="ask" d="M546.0,1285.5 L546.0,1313.5 L556.0,1313.5" marker-end="url(#m-ask)"/>
+<path class="edge" d="M568.0,1366.5 L568.0,1394.5 L578.0,1394.5" marker-end="url(#m-edge)"/>
+</g>
+<g id="timers.timer.resume">
+<rect class="box k-orange" x="18.0" y="1480.0" width="1626.0" height="348.5" rx="8"/>
+<text class="t b" x="32.0" y="1506.0" font-size="16">Продолжить таймер</text>
+<text class="mo" x="207.2" y="1506.0" font-size="12.5">timers.timer.resume</text>
+<text class="m" x="1630.0" y="1506.0" font-size="11.5" text-anchor="end">приоритет 90 · встроенный · логика в коде (.py) · фраз и шаблонов: 4</text>
+<text class="m" x="32.0" y="1526.0" font-size="12">«продолжи таймер», «сними таймер с паузы»: timer_resume_directive (TTimerResumeDirective по protos) для таймера на паузе из состояния колонки; несколько — уточняющий вопрос</text>
+<line class="rule" x1="28" y1="1544.0" x2="1634" y2="1544.0"/>
+<text class="m b" x="32.0" y="1562.0" font-size="10.5">ФРАЗЫ</text>
+<text class="m b" x="536.0" y="1562.0" font-size="10.5">ЛОГИКА И ВЕТВЛЕНИЯ</text>
+<text class="m b" x="1190.0" y="1562.0" font-size="10.5">ИТОГОВЫЕ ОТВЕТЫ</text>
+<text class="m b" x="32.0" y="1584.0" font-size="10">ТОЧНЫЕ ФРАЗЫ</text>
+<text class="t" x="38.0" y="1599.5" font-size="11.5">«продолжи таймер» · «возобнови таймер»</text>
+<text class="m b" x="32.0" y="1615.0" font-size="10">ШАБЛОНЫ HASSIL · 2 шт., ≈16 вариантов</text>
+<text class="mo" x="38.0" y="1630.5" font-size="11">(продолжи|возобнови) [(этот|тот) ](таймер|таймеры)</text>
+<text class="mo" x="38.0" y="1646.0" font-size="11">сними (таймер|таймеры) [с] паузы</text>
+<text class="m" x="38.0" y="1661.5" font-size="11">примеры: «продолжи таймер» · «сними таймер паузы»</text>
+<path class="edge" d="M506.0,1592.0 L532.0,1592.0" marker-end="url(#m-edge)"/>
+<rect class="box k-gray" x="536.0" y="1572.0" width="620.0" height="69.0" rx="7"/>
+<text class="t b" x="546.0" y="1590.0" font-size="12">вход: handle</text>
+<text class="t" x="546.0" y="1610.5" font-size="11.5"><tspan class="lb-ask">вопрос:</tspan> «Какой таймер продолжить? Скажите номер.» — слушает ответ (ShouldListen) → on_pick</text>
+<text class="t" x="546.0" y="1626.0" font-size="11.5"><tspan class="lb-data">данные:</tspan> таймеры колонки</text>
+<rect class="box k-green" x="1190.0" y="1572.0" width="440.0" height="82.0" rx="7"/>
+<path class="edge" d="M1158.0,1586.0 L1187.0,1586.0" marker-end="url(#m-edge)"/>
+<text class="t" x="1200.0" y="1597.5" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Таймеров на паузе нет.»</text>
+<text class="t" x="1200.0" y="1613.0" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Таймер запустила.»</text>
+<text class="t" x="1200.0" y="1628.5" font-size="11.5"><tspan class="lb-dir">директивы:</tspan> open_screen_timer_list_directive,</text>
+<text class="t" x="1200.0" y="1644.0" font-size="11.5">timer_resume_directive</text>
+<rect class="box k-pink dash" x="558.0" y="1666.0" width="598.0" height="69.0" rx="7"/>
+<text class="t b" x="568.0" y="1684.0" font-size="12">ответ на вопрос: on_pick</text>
+<text class="t" x="568.0" y="1704.5" font-size="11.5"><tspan class="lb-decl">ошибка:</tspan> Не удалось понять, какой таймер продолжить</text>
+<text class="t" x="568.0" y="1720.0" font-size="11.5"><tspan class="lb-data">см. также:</tspan> _resume</text>
+<rect class="box k-red" x="580.0" y="1747.0" width="576.0" height="67.5" rx="7"/>
+<text class="t b" x="590.0" y="1765.0" font-size="12">_picked</text>
+<text class="m" x="590.0" y="1779.0" font-size="11">Номер таймера из ответа («первый», «два»): в порядку списка из уточнения.</text>
+<text class="t" x="590.0" y="1799.5" font-size="11.5"><tspan class="lb-decl">уступает:</tspan> отказ (return None)</text>
+<path class="ask" d="M546.0,1641.0 L546.0,1682.0 L556.0,1682.0" marker-end="url(#m-ask)"/>
+<path class="edge" d="M568.0,1735.0 L568.0,1763.0 L578.0,1763.0" marker-end="url(#m-edge)"/>
+</g>
+<g id="timers.timer.list">
+<rect class="box k-orange" x="18.0" y="1848.5" width="1626.0" height="267.5" rx="8"/>
+<text class="t b" x="32.0" y="1874.5" font-size="16">Состояние таймеров</text>
+<text class="mo" x="216.8" y="1874.5" font-size="12.5">timers.timer.list</text>
+<text class="m" x="1630.0" y="1874.5" font-size="11.5" text-anchor="end">приоритет 95 · встроенный · логика в коде (.py) · фраз и шаблонов: 10</text>
+<text class="m" x="32.0" y="1894.5" font-size="12">«сколько осталось до таймера», «какие таймеры установлены» — по состоянию колонки в запросе</text>
+<line class="rule" x1="28" y1="1912.5" x2="1634" y2="1912.5"/>
+<text class="m b" x="32.0" y="1930.5" font-size="10.5">ФРАЗЫ</text>
+<text class="m b" x="536.0" y="1930.5" font-size="10.5">ЛОГИКА И ВЕТВЛЕНИЯ</text>
+<text class="m b" x="1190.0" y="1930.5" font-size="10.5">ИТОГОВЫЕ ОТВЕТЫ</text>
+<text class="m b" x="32.0" y="1952.5" font-size="10">ТОЧНЫЕ ФРАЗЫ</text>
+<text class="t" x="38.0" y="1968.0" font-size="11.5">«какие таймеры установлены» · «какие таймеры активны» · «сколько осталось</text>
+<text class="t" x="38.0" y="1983.5" font-size="11.5">до таймера» · «сколько до конца таймера» · «сколько осталось до сигнала»</text>
+<text class="t" x="38.0" y="1999.0" font-size="11.5">· «посмотри таймеры» · «покажи таймеры»</text>
+<text class="m b" x="32.0" y="2014.5" font-size="10">ШАБЛОНЫ HASSIL · 3 шт., ≈329 вариантов</text>
+<text class="mo" x="38.0" y="2030.0" font-size="11">(сколько осталось|сколько ещё осталось|сколько осталось ещё) [до [(ко…</text>
+<text class="mo" x="38.0" y="2045.5" font-size="11">какие [(активные|установленные)] таймеры [(установлены|активны)]</text>
+<text class="mo" x="38.0" y="2061.0" font-size="11">(покажи|посмотри) [(список )](таймеры|таймеров)</text>
+<text class="m" x="38.0" y="2076.5" font-size="11">примеры: «сколько осталось таймера» · «какие таймеры» · «покажи таймеры»</text>
+<path class="edge" d="M506.0,1960.5 L532.0,1960.5" marker-end="url(#m-edge)"/>
+<rect class="box k-gray" x="536.0" y="1940.5" width="620.0" height="69.0" rx="7"/>
+<text class="t b" x="546.0" y="1958.5" font-size="12">вход: handle</text>
+<text class="t" x="546.0" y="1979.0" font-size="11.5"><tspan class="lb-data">данные:</tspan> состояние колонки: active_timers</text>
+<text class="t" x="546.0" y="1994.5" font-size="11.5"><tspan class="lb-data">данные:</tspan> таймеры колонки</text>
+<rect class="box k-green" x="1190.0" y="1940.5" width="440.0" height="82.0" rx="7"/>
+<path class="edge" d="M1158.0,1954.5 L1187.0,1954.5" marker-end="url(#m-edge)"/>
+<text class="t" x="1200.0" y="1966.0" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Активных таймеров нет.»</text>
+<text class="t" x="1200.0" y="1981.5" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Осталось …»</text>
+<text class="t" x="1200.0" y="1997.0" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Активных таймеров …, до ближайшего — ….»</text>
+<text class="t" x="1200.0" y="2012.5" font-size="11.5"><tspan class="lb-dir">директивы:</tspan> open_screen_timer_list_directive</text>
+<rect class="box k-red" x="558.0" y="2034.5" width="598.0" height="67.5" rx="7"/>
+<text class="t b" x="568.0" y="2052.5" font-size="12">_pick</text>
+<text class="m" x="568.0" y="2066.5" font-size="11">Таймер по порядковому слоту шаблона («до второго таймера»), иначе ближайший.</text>
+<text class="t" x="568.0" y="2087.0" font-size="11.5"><tspan class="lb-decl">уступает:</tspan> отказ (return None)</text>
+<path class="edge" d="M546.0,2009.5 L546.0,2050.5 L556.0,2050.5" marker-end="url(#m-edge)"/>
+</g>
+<g id="timers.alarm.set">
+<rect class="box k-orange" x="18.0" y="2136.0" width="1626.0" height="538.5" rx="8"/>
+<text class="t b" x="32.0" y="2162.0" font-size="16">Поставить будильник</text>
+<text class="mo" x="226.4" y="2162.0" font-size="12.5">timers.alarm.set</text>
+<text class="m" x="1630.0" y="2162.0" font-size="11.5" text-anchor="end">приоритет 100 · встроенный · логика в коде (.py) · фраз и шаблонов: 7</text>
+<text class="m" x="32.0" y="2182.0" font-size="12">«будильник на 7:30», «поставь будильник через 5 минут», «поставь будильник на дуо 32 на 7 утра» (на другой колонке владельца).</text>
+<line class="rule" x1="28" y1="2200.0" x2="1634" y2="2200.0"/>
+<text class="m b" x="32.0" y="2218.0" font-size="10.5">ФРАЗЫ</text>
+<text class="m b" x="536.0" y="2218.0" font-size="10.5">ЛОГИКА И ВЕТВЛЕНИЯ</text>
+<text class="m b" x="1190.0" y="2218.0" font-size="10.5">ИТОГОВЫЕ ОТВЕТЫ</text>
+<text class="m b" x="32.0" y="2240.0" font-size="10">ТОЧНЫЕ ФРАЗЫ</text>
+<text class="t" x="38.0" y="2255.5" font-size="11.5">«поставь будильник» · «разбуди меня» · «заведи будильник»</text>
+<text class="m b" x="32.0" y="2271.0" font-size="10">ШАБЛОНЫ HASSIL · 4 шт., ≈898658 вариантов</text>
+<text class="mo" x="38.0" y="2286.5" font-size="11">(поставь|заведи) будильник</text>
+<text class="mo" x="38.0" y="2302.0" font-size="11">(поставь|заведи) будильник [на|в] ({hour} [{minute}] [{day_period}]|{…</text>
+<text class="mo" x="38.0" y="2317.5" font-size="11">будильник [на|в] ({hour} [{minute}] [{day_period}]|{time_word}) [({da…</text>
+<text class="mo" x="38.0" y="2333.0" font-size="11">разбуди меня [в] ({hour} [{minute}] [{day_period}]|{time_word}) [({da…</text>
+<text class="m" x="38.0" y="2348.5" font-size="11">примеры: «поставь будильник» · «поставь будильник 0» · «будильник 0»</text>
+<path class="edge" d="M506.0,2248.0 L532.0,2248.0" marker-end="url(#m-edge)"/>
+<rect class="box k-gray" x="536.0" y="2228.0" width="620.0" height="53.5" rx="7"/>
+<text class="t b" x="546.0" y="2246.0" font-size="12">вход: handle</text>
+<text class="t" x="546.0" y="2266.5" font-size="11.5"><tspan class="lb-ask">вопрос:</tspan> «На какое время поставить будильник?» — слушает ответ (ShouldListen) → on_time</text>
+<rect class="box k-red" x="558.0" y="2293.5" width="598.0" height="67.5" rx="7"/>
+<text class="t b" x="568.0" y="2311.5" font-size="12">_slots_time</text>
+<text class="m" x="568.0" y="2325.5" font-size="11">«ЧЧ:ММ» из сущностей шаблона: {time_word} («полночь») или {hour} [{minute}] [{day_period}].</text>
+<text class="t" x="568.0" y="2346.0" font-size="11.5"><tspan class="lb-decl">уступает:</tspan> отказ (return None)</text>
+<rect class="box k-red" x="558.0" y="2373.0" width="598.0" height="81.5" rx="7"/>
+<text class="t b" x="568.0" y="2391.0" font-size="12">_relative_time</text>
+<text class="m" x="568.0" y="2405.0" font-size="11">«через пять минут» → «ЧЧ:ММ» от текущего времени колонки (вверх до минуты, чтобы будильник был</text>
+<text class="m" x="568.0" y="2419.0" font-size="11">в будущем); без «через» или без длительности — None.</text>
+<text class="t" x="568.0" y="2439.5" font-size="11.5"><tspan class="lb-decl">уступает:</tspan> отказ (return None)</text>
+<rect class="box k-gray" x="558.0" y="2466.5" width="598.0" height="53.5" rx="7"/>
+<text class="t b" x="568.0" y="2484.5" font-size="12">_start</text>
+<text class="t" x="568.0" y="2505.0" font-size="11.5"><tspan class="lb-data">данные:</tspan> параметры пользователя</text>
+<rect class="box k-green" x="1190.0" y="2466.5" width="440.0" height="113.0" rx="7"/>
+<path class="edge" d="M1158.0,2480.5 L1187.0,2480.5" marker-end="url(#m-edge)"/>
+<text class="t" x="1200.0" y="2492.0" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Будильник на … поставил….»</text>
+<text class="t" x="1200.0" y="2507.5" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Пока не ставлю будильник на другой колонке — только на</text>
+<text class="t" x="1200.0" y="2523.0" font-size="11.5">этой.»</text>
+<text class="t" x="1200.0" y="2538.5" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Будильник на конкретный день недели пока не ставлю —</text>
+<text class="t" x="1200.0" y="2554.0" font-size="11.5">только на ближайшие дни.»</text>
+<text class="t" x="1200.0" y="2569.5" font-size="11.5"><tspan class="lb-dir">директивы:</tspan> open_screen_alarm_list_directive, alarm_add_directive</text>
+<rect class="box k-pink dash" x="558.0" y="2591.5" width="598.0" height="69.0" rx="7"/>
+<text class="t b" x="568.0" y="2609.5" font-size="12">ответ на вопрос: on_time</text>
+<text class="t" x="568.0" y="2630.0" font-size="11.5"><tspan class="lb-decl">ошибка:</tspan> Не удалось понять время будильника</text>
+<text class="t" x="568.0" y="2645.5" font-size="11.5"><tspan class="lb-data">см. также:</tspan> _relative_time, _start</text>
+<path class="edge" d="M546.0,2281.5 L546.0,2309.5 L556.0,2309.5" marker-end="url(#m-edge)"/>
+<path class="edge" d="M546.0,2281.5 L546.0,2389.0 L556.0,2389.0" marker-end="url(#m-edge)"/>
+<path class="edge" d="M546.0,2281.5 L546.0,2482.5 L556.0,2482.5" marker-end="url(#m-edge)"/>
+<path class="ask" d="M546.0,2281.5 L546.0,2607.5 L556.0,2607.5" marker-end="url(#m-ask)"/>
+</g>
+<g id="timers.timer.set">
+<rect class="box k-orange" x="18.0" y="2694.5" width="1626.0" height="490.5" rx="8"/>
+<text class="t b" x="32.0" y="2720.5" font-size="16">Поставить таймер</text>
+<text class="mo" x="197.6" y="2720.5" font-size="12.5">timers.timer.set</text>
+<text class="m" x="1630.0" y="2720.5" font-size="11.5" text-anchor="end">приоритет 100 · встроенный · логика в коде (.py) · фраз и шаблонов: 6</text>
+<text class="m" x="32.0" y="2740.5" font-size="12">«таймер на 5 минут», «поставь таймер на дуо 32 на минуту» (на другой колонке владельца)</text>
+<line class="rule" x1="28" y1="2758.5" x2="1634" y2="2758.5"/>
+<text class="m b" x="32.0" y="2776.5" font-size="10.5">ФРАЗЫ</text>
+<text class="m b" x="536.0" y="2776.5" font-size="10.5">ЛОГИКА И ВЕТВЛЕНИЯ</text>
+<text class="m b" x="1190.0" y="2776.5" font-size="10.5">ИТОГОВЫЕ ОТВЕТЫ</text>
+<text class="m b" x="32.0" y="2798.5" font-size="10">ТОЧНЫЕ ФРАЗЫ</text>
+<text class="t" x="38.0" y="2814.0" font-size="11.5">«поставь таймер» · «таймер на» · «установи таймер» · «заведи таймер»</text>
+<text class="m b" x="32.0" y="2829.5" font-size="10">ШАБЛОНЫ HASSIL · 2 шт., ≈16494 вариантов</text>
+<text class="mo" x="38.0" y="2845.0" font-size="11">(поставь|установи|заведи) таймер</text>
+<text class="mo" x="38.0" y="2860.5" font-size="11">(поставь|установи|заведи) таймер на ({duration_fixed}|{duration_numbe…</text>
+<text class="m" x="38.0" y="2876.0" font-size="11">примеры: «поставь таймер» · «поставь таймер на полминуты»</text>
+<path class="edge" d="M506.0,2806.5 L532.0,2806.5" marker-end="url(#m-edge)"/>
+<rect class="box k-gray" x="536.0" y="2786.5" width="620.0" height="53.5" rx="7"/>
+<text class="t b" x="546.0" y="2804.5" font-size="12">вход: handle</text>
+<text class="t" x="546.0" y="2825.0" font-size="11.5"><tspan class="lb-ask">вопрос:</tspan> «На сколько поставить таймер?» — слушает ответ (ShouldListen) → on_duration</text>
+<rect class="box k-red" x="558.0" y="2852.0" width="598.0" height="81.5" rx="7"/>
+<text class="t b" x="568.0" y="2870.0" font-size="12">_slots_seconds</text>
+<text class="m" x="568.0" y="2884.0" font-size="11">Секунды из сущностей шаблона: fixed («полчаса» → 1800) или {число} {единица} (пара и добавка «2</text>
+<text class="m" x="568.0" y="2898.0" font-size="11">часа 15 минут»).</text>
+<text class="t" x="568.0" y="2918.5" font-size="11.5"><tspan class="lb-decl">уступает:</tspan> отказ (return None)</text>
+<rect class="box k-gray" x="558.0" y="2945.5" width="598.0" height="38.0" rx="7"/>
+<text class="t b" x="568.0" y="2963.5" font-size="12">_start</text>
+<rect class="box k-green" x="1190.0" y="2945.5" width="440.0" height="51.0" rx="7"/>
+<path class="edge" d="M1158.0,2959.5 L1187.0,2959.5" marker-end="url(#m-edge)"/>
+<text class="t" x="1200.0" y="2971.0" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Хорошо. …. Отсчёт пошёл.»</text>
+<text class="t" x="1200.0" y="2986.5" font-size="11.5"><tspan class="lb-say">речь:</tspan> «Пока не ставлю таймер на другой колонке — только на этой.»</text>
+<rect class="box k-gray" x="580.0" y="3008.5" width="576.0" height="81.5" rx="7"/>
+<text class="t b" x="590.0" y="3026.5" font-size="12">set_directives</text>
+<text class="m" x="590.0" y="3040.5" font-size="11">Директивы установки таймера по образцу: сначала экран — закрытие списка (ForceAutoClose),</text>
+<text class="m" x="590.0" y="3054.5" font-size="11">если у колонки открыт экран «Часов», иначе экран нового таймера…</text>
+<text class="t" x="590.0" y="3075.0" font-size="11.5"><tspan class="lb-data">данные:</tspan> экраны колонки</text>
+<rect class="box k-green" x="1190.0" y="3008.5" width="440.0" height="51.0" rx="7"/>
+<path class="edge" d="M1158.0,3022.5 L1187.0,3022.5" marker-end="url(#m-edge)"/>
+<text class="t" x="1200.0" y="3034.0" font-size="11.5"><tspan class="lb-dir">директивы:</tspan> timer_set_directive, open_screen_timer_list_directive,</text>
+<text class="t" x="1200.0" y="3049.5" font-size="11.5">open_screen_timer_info_directive</text>
+<rect class="box k-pink dash" x="558.0" y="3102.0" width="598.0" height="69.0" rx="7"/>
+<text class="t b" x="568.0" y="3120.0" font-size="12">ответ на вопрос: on_duration</text>
+<text class="t" x="568.0" y="3140.5" font-size="11.5"><tspan class="lb-decl">ошибка:</tspan> Не удалось понять длительность таймера</text>
+<text class="t" x="568.0" y="3156.0" font-size="11.5"><tspan class="lb-data">см. также:</tspan> _start</text>
+<path class="edge" d="M546.0,2840.0 L546.0,2868.0 L556.0,2868.0" marker-end="url(#m-edge)"/>
+<path class="edge" d="M546.0,2840.0 L546.0,2961.5 L556.0,2961.5" marker-end="url(#m-edge)"/>
+<path class="edge" d="M568.0,2983.5 L568.0,3024.5 L578.0,3024.5" marker-end="url(#m-edge)"/>
+<path class="ask" d="M546.0,2840.0 L546.0,3118.0 L556.0,3118.0" marker-end="url(#m-ask)"/>
+</g>
+</svg>
