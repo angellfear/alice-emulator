@@ -559,9 +559,12 @@ handle.spawn(run_forever(handle))       # из async-контекста (имп�
 - **Кеш на соединение** — {state, attributes} сущности: снимок заполняет, дельты сливают,
   устройство реестра считается от кеша; офлайн — состояние `unavailable`/`unknown`.
   Реконнект с бэкоффом 1→60 с, снимок восполняет пропущенное.
-- **Комнаты** — REST-реестры HA (`/api/config/entity_registry/list`: entity_id → area_id,
-  `/api/config/area_registry/list`: area_id → имя): устройство несёт `room` = area_id,
-  имена комнат — `smart_home_set_rooms({area_id: имя})`.
+- **Комнаты** — WS-команды config-реестров HA по тому же соединению
+  (`config/entity_registry/list`: entity_id → area_id, `config/area_registry/list`:
+  area_id → имя; REST `/api/config/*` с версии HA 2026.5 отвечает 404, WS-команды
+  есть везде, где есть `subscribe_entities`): устройство несёт `room` = area_id,
+  имена комнат — `smart_home_set_rooms({area_id: имя})`; сбой команд — устройства
+  без комнат и предупреждение в журнал.
 - **Запуск** — ленивый: при первой активности колонки (наблюдатель `RequestStat`,
   объявлен в `permissions.aapi`) или при действии карточки; не настроено (токен пуст) —
   задача тихо завершается; выключение плагина останавливает её через `hooks.on_disable`.

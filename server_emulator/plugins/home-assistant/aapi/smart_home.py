@@ -9,9 +9,10 @@
 ("+" частичен, "-" удаляет ключи атрибутов), удаление сущности
 `{"event": {"r": [entity_ids]}}` → офлайн. Состояние сущностей — локальный кеш
 {state, attributes} на соединение: снимок его заполняет, дельты сливают в него,
-устройства реестра считаются от кеша. Комнаты — REST-реестры HA
-(`/api/config/entity_registry/list`: entity_id → area_id;
-`/api/config/area_registry/list`: area_id → имя): устройство несёт room = area_id,
+устройства реестра считаются от кеша. Комнаты — WS-команды config-реестров HA
+(`config/entity_registry/list`: entity_id → area_id;
+`config/area_registry/list`: area_id → имя; REST `/api/config/*` с HA 2026.5
+отвечает 404): устройство несёт room = area_id,
 имена комнат — sdk.smart_home_set_rooms({area_id: имя}). Действие карточки с
 колонки → REST POST /api/services/<домен>/<сервис> (entity_id) — новое состояние
 возвращается событием WS. Реконнект — бэкофф 1→60 с; настройки читаются свежими
@@ -45,11 +46,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import time
 
 import aiohttp
 
 from server_emulator import sdk
+
+log = logging.getLogger(__name__)
 
 EXT_ID = "builtin.home-assistant"
 BACKOFF_START_S = 1.0
@@ -160,32 +164,32 @@ class _Client:
         self._id += 1
         return self._id
 
-    async def _rooms(self, session, base, token):
-        """Комнаты HA (REST): entity_id → area_id и {area_id: имя}; сбой — пусто
-        (устройства без комнат). Имена комнат — sdk.smart_home_set_rooms."""
-        headers = {"Authorization": "Bearer " + token}
-        areas: dict[str, str] = {}
+    async def _rooms(self, ws):
+        """Комнаты HA — WS-команды config-реестров: entity_id → area_id и
+        {area_id: имя}; REST `/api/config/*` с версии HA 2026.5 отвечает 404,
+        WS-команды есть везде, где есть subscribe_entities. Сбой — пусто
+        (устройства без комнат) и предупреждение в журнал."""
+        async def command(payload):
+            identifier = self._next_id()
+            await ws.send_json({"id": identifier, **payload})
+            while True:
+                message = json.loads((await ws.receive()).data)
+                if message.get("id") == identifier and message.get("type") == "result":
+                    if not message.get("success", True):
+                        raise ValueError(f"HA WS: команда {payload['type']} отклонена")
+                    return message.get("result") or []
         try:
-            async with session.get(base + "/api/config/area_registry/list",
-                                   headers=headers) as response:
-                if response.status == 200:
-                    areas = {str(item["area_id"]): str(item.get("name") or item["area_id"])
-                             for item in await response.json()
-                             if isinstance(item, dict) and item.get("area_id")}
-        except Exception:  # noqa: BLE001 — комнаты не критичны для реестра
-            pass
-        entities: dict[str, str] = {}
-        try:
-            async with session.get(base + "/api/config/entity_registry/list",
-                                   headers=headers) as response:
-                if response.status == 200:
-                    entities = {str(item["entity_id"]): str(item["area_id"])
-                                for item in await response.json()
-                                if isinstance(item, dict)
-                                and item.get("entity_id") and item.get("area_id")}
-        except Exception:  # noqa: BLE001 — комнаты не критичны для реестра
-            pass
-        return entities, areas
+            areas = {str(item["area_id"]): str(item.get("name") or item["area_id"])
+                     for item in await command({"type": "config/area_registry/list"})
+                     if isinstance(item, dict) and item.get("area_id")}
+            entities = {str(item["entity_id"]): str(item["area_id"])
+                        for item in await command({"type": "config/entity_registry/list"})
+                        if isinstance(item, dict)
+                        and item.get("entity_id") and item.get("area_id")}
+            return entities, areas
+        except Exception as exc:  # noqa: BLE001 — комнаты не критичны для реестра
+            log.warning("Комнаты HA недоступны (%s) — устройства без комнат", exc)
+            return {}, {}
 
     async def _cycle(self):
         """Одно соединение: auth → подписка → события. Исключения — реконнект снаружи.
@@ -197,10 +201,6 @@ class _Client:
             return False  # не настроено — тихо (перезапуск: новый spawn после настройки)
         ws_base = base.replace("http", "ws", 1)
         async with aiohttp.ClientSession() as session:
-            entity_areas, area_names = await self._rooms(session, base, token)
-            self._areas = entity_areas
-            if area_names:  # комнаты реестра: {area_id: имя}
-                sdk.smart_home_set_rooms(area_names, self.ctx)
             async with session.ws_connect(ws_base + "/api/websocket") as ws:
                 required = json.loads((await ws.receive()).data)  # auth_required
                 if required.get("type") != "auth_required":
@@ -209,6 +209,10 @@ class _Client:
                 verdict = json.loads((await ws.receive()).data)
                 if verdict.get("type") != "auth_ok":
                     raise ValueError("HA WS: токен отклонён (auth_invalid)")
+                entity_areas, area_names = await self._rooms(ws)
+                self._areas = entity_areas
+                if area_names:  # комнаты реестра: {area_id: имя}
+                    sdk.smart_home_set_rooms(area_names, self.ctx)
                 identifier = self._next_id()
                 await ws.send_json({"id": identifier, "type": "subscribe_entities"})
                 self._cache = {}  # кеш — на соединение: снимок его восполняет

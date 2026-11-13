@@ -1,12 +1,13 @@
 """Плагин Home Assistant: точки умного дома (SDK 2.8.0 extension_runtime) и сущности HA в реестре.
 
 Поддельный HA — локальные WS/REST серверы (настоящий из тестов не дёргается):
-WS /api/websocket — auth_required → auth (test-token) → auth_ok → подписка
-subscribe_entities в проводном формате HA (ack result; снимок event "a" {s, a, c, lc};
-дельты event "c" — "+" частичен, "-" удаляет ключи атрибутов; удаление "r"); REST
-/api/services/<домен>/<сервис> пишет вызовы в список, /api/config/{entity,area}_registry/list —
-комнаты. Настройка url плагина — адрес локальной заглушки; фикстуры обезличены:
-токен test-token, документные адреса — 192.0.2.0/24.
+WS /api/websocket — auth_required → auth (test-token) → auth_ok → команды config-реестров
+(комнаты) → подписка subscribe_entities в проводном формате HA (ack result; снимок
+event "a" {s, a, c, lc}; дельты event "c" — "+" частичен, "-" удаляет ключи атрибутов;
+удаление "r"); REST /api/services/<домен>/<сервис> пишет вызовы в список; REST-реестры
+`/api/config/*` не обслуживаются — настоящий HA с версии 2026.5 отвечает на них 404,
+комнаты берутся WS-командами. Настройка url плагина — адрес локальной заглушки;
+фикстуры обезличены: токен test-token, документные адреса — 192.0.2.0/24.
 """
 import asyncio
 import json
@@ -37,11 +38,12 @@ def load_smart_home():
     return module
 
 
-async def fake_ha(requests, events, release=None):
-    """Поддельный HA: WS (auth → подписка → ack result + снимок "a" → события теста),
-    REST сервисов и реестров комнат. events — полезные нагрузки event ({"c": …},
-    {"r": …}); release — сигнал теста: держим снимок, пока не выставлен (первая
-    проверка видит снимок)."""
+async def fake_ha(requests, events, release=None, registries_ok=True):
+    """Поддельный HA: WS (auth → команды config-реестров → подписка → ack result +
+    снимок "a" → события теста), REST сервисов. events — полезные нагрузки event
+    ({"c": …}, {"r": …}); release — сигнал теста: держим снимок, пока не выставлен
+    (первая проверка видит снимок); registries_ok=False — config-команды отклонены
+    (degradation: комнаты недоступны)."""
     async def ws_handler(request):
         ws = web.WebSocketResponse()
         await ws.prepare(request)
@@ -51,19 +53,28 @@ async def fake_ha(requests, events, release=None):
             await ws.send_json({"type": "auth_invalid"})
             return ws
         await ws.send_json({"type": "auth_ok"})
-        subscribed = json.loads((await ws.receive()).data)
-        identifier = subscribed.get("id")
-        # как у настоящего HA: подписка подтверждается result (null), данные — событиями
-        await ws.send_json({"id": identifier, "type": "result", "success": True, "result": None})
+        registries = {
+            "config/area_registry/list": [{"area_id": AREA, "name": "Кухня"}],
+            "config/entity_registry/list": [{"entity_id": ENTITY, "area_id": AREA}],
+        }
         snapshot = {ENTITY: {"s": "on", "a": {"friendly_name": "Кухня свет", "brightness": 127},
                              "c": "ctx-1", "lc": 1000.0}}
-        await ws.send_json({"id": identifier, "type": "event", "event": {"a": snapshot}})
-        if release is not None:
-            await release.wait()
-        for event in events:  # тест управляет моментом/содержимым событий
-            await ws.send_json({"id": identifier, "type": "event", "event": event})
-        async for _ in ws:  # держим соединение до отмены клиента
-            pass
+        async for message in ws:  # команды клиента по порядку: реестры, подписка
+            command = json.loads(message.data)
+            kind = command.get("type")
+            if kind == "subscribe_entities":
+                identifier = command.get("id")
+                # как у настоящего HA: подписка подтверждается result (null), данные — событиями
+                await ws.send_json({"id": identifier, "type": "result", "success": True, "result": None})
+                await ws.send_json({"id": identifier, "type": "event", "event": {"a": snapshot}})
+                if release is not None:
+                    await release.wait()
+                for event in events:  # тест управляет моментом/содержимым событий
+                    await ws.send_json({"id": identifier, "type": "event", "event": event})
+                continue
+            await ws.send_json({"id": command.get("id"), "type": "result",
+                                "success": bool(registries_ok),
+                                "result": registries.get(kind, [])})
         return ws
 
     async def service(request):
@@ -72,14 +83,8 @@ async def fake_ha(requests, events, release=None):
                          "data": await request.json()})
         return web.json_response([])
 
-    async def registry(request):
-        if request.match_info["table"] == "entity_registry":
-            return web.json_response([{"entity_id": ENTITY, "area_id": AREA}])
-        return web.json_response([{"area_id": AREA, "name": "Кухня"}])
-
     app = web.Application()
     app.router.add_get("/api/websocket", ws_handler)
-    app.router.add_get("/api/config/{table}/list", registry)
     app.router.add_post("/api/services/{domain}/{service}", service)
     return await listen(app)
 
@@ -151,6 +156,7 @@ async def test_ha_entities_fill_registry_and_actions(tmp_path):
     try:
         await handle.spawn(module._run_forever(handle, asyncio.Event()))
         await asyncio.sleep(0.4)  # снимок сущностей → реестр
+        # комнаты — WS-командами (REST-реестров у заглушки нет, как у HA 2026.5);
         # SDK префиксует id устройства расширением-источником; комната — area_id HA
         device = registry_map(runtime).get(f"{EXT_ID}:{ENTITY}")
         assert device is not None and device["type"] == "LightDeviceType"
@@ -176,6 +182,31 @@ async def test_ha_entities_fill_registry_and_actions(tmp_path):
     finally:
         handle.stop()  # сначала клиент (WS-соединение закрывается), затем заглушка —
         await asyncio.sleep(0.1)  # иначе cleanup ждёт завершения её ws_handler с живым клиентом
+        await ha_runner.cleanup()
+        await runtime.close()
+
+
+async def test_ha_rooms_unavailable_still_registers(tmp_path):
+    # config-команды комнат отклонены: сущности в реестре без комнат,
+    # соединение живёт (комнаты не критичны для реестра)
+    runtime = Runtime(tmp_path)
+    requests = []
+    ha_runner, ha_url = await fake_ha(requests, [], registries_ok=False)
+    await runtime.extensions.set_values("builtin.home-assistant",
+                                        {"url": ha_url, "token": TOKEN})
+    module = load_smart_home()
+    handle = sdk.extension_runtime("builtin.home-assistant")
+    try:
+        await handle.spawn(module._run_forever(handle, asyncio.Event()))
+        await asyncio.sleep(0.4)
+        device = registry_map(runtime).get(f"{EXT_ID}:{ENTITY}")
+        assert device is not None and device["online"] is True
+        assert device.get("room") is None
+        assert sdk.smart_home_devices()["rooms"] == {}
+        assert handle.alive  # сбой комнат не рвёт соединение
+    finally:
+        handle.stop()
+        await asyncio.sleep(0.1)
         await ha_runner.cleanup()
         await runtime.close()
 
