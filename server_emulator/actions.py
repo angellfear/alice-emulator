@@ -15,6 +15,7 @@ CATALOG = [
     {'id':'stop_bluetooth','name':'Выключить Bluetooth','parameters':{}},
     {'id':'push_update_config','name':'Обновить конфигурацию','parameters':{}},
     {'id':'draw_led_screen','name':'Показать анимацию (LED)','parameters':{'animation':'id или URL'}},
+    {'id':'draw_animation','name':'Проиграть анимацию (родной формат)','parameters':{'animation':'id, base64+gzip'}},
     {'id':'player_pause','name':'Пауза плеера','parameters':{}},
     {'id':'clear_queue','name':'Очистить очередь','parameters':{}},
     {'id':'push_tts','name':'Произнести текст','parameters':{'text':'строка'}},
@@ -98,6 +99,54 @@ def push_message(server_type, action, arguments):
         directive.Type='client_action'
         directive.IsLedSilent=True
         json_format.ParseDict(payload,directive.Payload,descriptor_pool=server_type.DESCRIPTOR.file.pool)
+        output.Timings.SendingTime.seconds=int(time.time())
+        return output
+
+    if action=='draw_animation':
+        """Родная директива draw_animation с BinaryAnimation (base64+gzip).
+        Аргументы: {base64_value: str, compression_type: 'Gzip'|None, name?: str}
+        Собирается через существующие схемы эмулятора (proto_schemas.encode_message).
+        """
+        if not isinstance(arguments, dict):
+            raise ValueError('Анимация: объект с base64_value и compression_type')
+        base64_value = arguments.get('base64_value')
+        compression_type = arguments.get('compression_type')
+        anim_name = arguments.get('name') or 'animation'
+        if not isinstance(base64_value, str) or not base64_value:
+            raise ValueError('base64_value: непустая строка')
+        if compression_type is not None and compression_type not in ('Gzip', None):
+            raise ValueError("compression_type: 'Gzip' или null")
+
+        from .proto_schemas import encode_message
+        directive_body = {
+            "Name": "draw_animation_directive",
+            "Animations": [
+                {
+                    "BinaryAnimation": {
+                        "Base64EncodedValue": base64_value,
+                    }
+                }
+            ]
+        }
+        if compression_type == "Gzip":
+            directive_body["Animations"][0]["BinaryAnimation"]["Compression"] = "Gzip"
+
+        payload_raw = encode_message(
+            "NAlice.TAnimationCapability.TDrawAnimationDirective",
+            directive_body,
+        )
+
+        output=server_type()
+        output.Event.Header.MessageId=uuid.uuid4().hex
+        output.Event.Header.Ack=int(time.time()*1000)
+        push=output.Event.Push
+        push.DeduplicationPushId=uuid.uuid4().hex
+        push.PushIds.append(uuid.uuid4().hex)
+        directive=push.Directives.add()
+        directive.Name='draw_animation'
+        directive.Type='client_action'
+        directive.IsLedSilent=True
+        directive.PayloadRaw = bytes(payload_raw)
         output.Timings.SendingTime.seconds=int(time.time())
         return output
     if not isinstance(arguments,dict) or set(arguments)-({'level'} if action=='sound_set_level' else set()):

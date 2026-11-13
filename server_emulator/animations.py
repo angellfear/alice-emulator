@@ -68,6 +68,82 @@ def display_of_device(device):
     platform = platform_of({**(device or {}), "model": ""})
     return PLATFORM_DISPLAY.get(platform, DEFAULT_DISPLAY)
 
+
+# --- Реестр платформ и их дисплеев для раздела «Анимации» ---------------------
+
+# kind → описание, формат кадров, размер дисплея, частота fps
+PLATFORM_DISPLAYS: dict[str, list[dict]] = {
+    "yandexstation_2": [
+        {"kind": "frontal", "title": "Фронтальный дисплей (глазки)",
+         "size": [25, 16], "fps": 30, "format": "gif",
+         "note": "GIF 25×16, Push draw_led_screen (animation_sequence)"},
+        {"kind": "ring", "title": "Кольцо верха",
+         "size": [24], "fps": 30, "format": "led",
+         "note": ".led текст/бинарник, 24 LED"},
+    ],
+    "yandexmidi": [
+        {"kind": "panel", "title": "Световая панель",
+         "size": [15, 13], "fps": 30, "format": "led",
+         "note": ".led текст/бинарник, 84 LED (15×13)"},
+        {"kind": "oknix", "title": "Окникс (окно)",
+         "size": [5], "fps": 30, "format": "led",
+         "note": ".led текст/бинарник, 5 цветов на кадр"},
+    ],
+    "yandexmini_2": [
+        {"kind": "ring", "title": "Кольцо верха",
+         "size": [6], "fps": 30, "format": "led",
+         "note": ".led текст/бинарник, 6 LED"},
+        {"kind": "clock", "title": "Часы 7-сегмент",
+         "size": [32], "fps": 30, "format": "scled",
+         "note": ".scled текст/бинарник, 32 сегмента (4 цифры × 7 + индикаторы)"},
+    ],
+    "yandexstation": [
+        {"kind": "ring", "title": "Кольцо верха",
+         "size": [24], "fps": 30, "format": "led",
+         "note": ".led текст/бинарник, 24 LED"},
+    ],
+    "yandexmini": [
+        {"kind": "ring", "title": "Кольцо верха",
+         "size": [24], "fps": 30, "format": "led",
+         "note": ".led текст/бинарник, 24 LED"},
+    ],
+    "chiron": [],  # без дисплея — анимаций нет
+}
+
+
+def list_platforms() -> list[dict]:
+    """Список всех платформ с их дисплеями для API «какие платформы доступны».
+
+    Каждый элемент: {platform, title, displays: [{kind, title, size, fps, format, note}]}.
+    Платформы без дисплеев (chiron) возвращаются с пустым списком дисплеев.
+    """
+    titles = {
+        "yandexstation_2": "Станция Макс",
+        "yandexmidi": "Станция Миди",
+        "yandexmini_2": "Станция Мини 2",
+        "yandexstation": "Станция",
+        "yandexmini": "Станция Мини",
+        "chiron": "ДуоМакс",
+    }
+    result = []
+    for platform, displays in PLATFORM_DISPLAYS.items():
+        result.append({
+            "platform": platform,
+            "title": titles.get(platform, platform),
+            "displays": displays,
+        })
+    return result
+
+
+def platform_has_displays(platform: str) -> bool:
+    """Есть ли у платформе хоть один дисплей с анимациями."""
+    return bool(PLATFORM_DISPLAYS.get(platform))
+
+
+def platform_displays(platform: str) -> list[dict]:
+    """Дисплеи платформы (список, возможно пустой)."""
+    return list(PLATFORM_DISPLAYS.get(platform, []))
+
 CAPTURED = [
     ("builtin.led.joy", "Глазки (радость)", "emotions/v3/joy.gif"),
     ("builtin.led.wink", "Подмигнуть", "emotions/v3/wink.gif"),

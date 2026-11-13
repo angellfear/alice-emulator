@@ -253,6 +253,8 @@ class Runtime:
         from .animations import AnimationStore
         self.animations = AnimationStore(self.directory / 'animations',  # animations/ расширений
                                          extension_dirs=lambda: self._extension_layers("animations"))
+        from .animation_storage import AnimationProjectStore
+        self.animation_projects = AnimationProjectStore(self.directory / 'animations')
         from . import screen_templates
         screen_templates.configure(self.directory / screen_templates.STATE_DIRNAME)  # шаблоны директив: пользовательские и переопределения
         from .behavior import set_extension_layers  # replies/ расширений
