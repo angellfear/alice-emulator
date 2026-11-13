@@ -354,6 +354,7 @@ def test_tts_app_returns_float32_pcm_with_headers():
     app = speech_common.tts_app(fake.synth, 24000, {"engine": "fake", "voice": "v", "state": {"model_loaded": True}})
 
     async def scenario(client):
+    fake.calls.clear()  # прогрев при создании приложения — в test_tts_app_warms_up_before_serving
         response = await client.post("/v1/audio/speech", json={"input": " Привет ", "voice": "a", "model": "x"})
         assert response.status == 200
         assert response.headers["X-Audio-Format"] == "f32le" and response.headers["X-Audio-Sample-Rate"] == "24000"
@@ -371,6 +372,19 @@ def test_tts_app_returns_float32_pcm_with_headers():
 
 def test_tts_app_streams_chunks_and_rate_may_be_a_function():
     fake = FakeVoice()
+def test_tts_app_warms_up_before_serving():
+    """Холодный движок (CUDA) первым синтезом платит секунды — дольше ожидания озвучки ответа.
+    Прогон происходит при создании приложения, до открытия порта; сбой прогрева запуск не ломает."""
+    fake = FakeVoice()
+    speech_common.tts_app(fake.synth, 24000, {"engine": "fake"})
+    assert fake.calls == [(speech_common.WARMUP_TEXT, None)]
+
+    def broken(text, voice=None):
+        raise RuntimeError("нужен голос")
+    app = speech_common.tts_app(broken, 24000, {"engine": "fake"})  # исключения нет
+    assert app is not None
+
+
     rate = {"value": 24000}
     app = speech_common.tts_app(fake.synth, lambda: rate["value"], {"engine": "fake"}, stream=fake.stream)
 

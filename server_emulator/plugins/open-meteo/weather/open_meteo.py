@@ -35,7 +35,8 @@ PROVIDER = {"id": "builtin.open-meteo", "title": "Open-Meteo"}
 DEFAULT_URL = "https://api.open-meteo.com/v1/forecast"
 OPEN_METEO_URL = DEFAULT_URL  # константа для подмены в тестах; настройка url сильнее
 GEOCODE_URL = "https://api.open-meteo.com/v1/geocoding"
-PRIMARY_TIMEOUT = 4  # секунд на Open-Meteo, затем met.no
+PRIMARY_TIMEOUT = 4  # секунд на Open-Meteo целиком
+HEDGE_DELAY = 1.0    # Open-Meteo молчит дольше — резерв met.no стартует параллельно, побеждает первый ответ
 TIMEOUT_S = 10
 MET_NO_URL = "https://api.met.no/weatherapi/locationforecast/2.0/complete"
 MET_NO_AGENT = "alice-station-emulator/1.0 (local)"  # met.no требует User-Agent с контактом
@@ -193,18 +194,42 @@ async def forecast(ctx, location):
         location = {"latitude": found["latitude"], "longitude": found["longitude"],
                     "timezone": found.get("timezone"), "city": found["name"]}
     query = _query(location)
-    try:  # короткая попытка: резерв должен успеть до таймаута ожидания сценария
-        data = await asyncio.wait_for(_get_json(url or OPEN_METEO_URL, query), PRIMARY_TIMEOUT)
-        data["source"] = "open-meteo"
-        if location.get("city"):
-            data["city"] = location["city"]  # имя города от геокодера (nominative)
-        return data
-    except Exception as first:
-        if location.get("city"):  # города met.no не геокодирует — честный отказ
+    if location.get("city"):  # города met.no не геокодирует — резерва нет
+        try:
+            data = await asyncio.wait_for(_get_json(url or OPEN_METEO_URL, query), PRIMARY_TIMEOUT)
+        except Exception as first:
             raise ValueError(f"геокодирование недоступно: {first}") from first
-        params = {"lat": query.get("latitude", ""), "lon": query.get("longitude", "")}
-        try:  # резерв api.met.no — тот же таймаут потока, ответ в форме Open-Meteo
-            payload = await asyncio.to_thread(_http_json, MET_NO_URL, params)
-            return met_no_to_open_meteo(payload, location.get("timezone"))
-        except Exception as exc:
-            raise ValueError(f"open-meteo: {type(first).__name__}; met.no: {exc}") from exc
+        data["source"] = "open-meteo"
+        data["city"] = location["city"]  # имя города от геокодера (nominative)
+        return data
+    return await _first_source(url or OPEN_METEO_URL, query, location.get("timezone"))
+
+
+async def _first_source(url, query, timezone):
+    """Open-Meteo, а при сбое или молчании дольше HEDGE_DELAY — параллельно резерв api.met.no
+    (форма Open-Meteo). Берётся первый успешный ответ, при готовности обоих — Open-Meteo.
+    Недоступный Open-Meteo (соединение висит) стоит секунду, а не весь PRIMARY_TIMEOUT."""
+    primary = asyncio.ensure_future(asyncio.wait_for(_get_json(url, query), PRIMARY_TIMEOUT))
+    params = {"lat": query.get("latitude", ""), "lon": query.get("longitude", "")}
+    backup = None
+    try:
+        await asyncio.wait({primary}, timeout=HEDGE_DELAY)
+        if not (primary.done() and primary.exception() is None):
+            backup = asyncio.ensure_future(asyncio.to_thread(_http_json, MET_NO_URL, params))
+        while True:
+            if primary.done() and primary.exception() is None:
+                data = primary.result()
+                data["source"] = "open-meteo"
+                return data
+            if backup is not None and backup.done() and backup.exception() is None:
+                return met_no_to_open_meteo(backup.result(), timezone)
+            pending = {task for task in (primary, backup) if task is not None and not task.done()}
+            if not pending:
+                raise ValueError(f"open-meteo: {type(primary.exception()).__name__}; met.no: {backup.exception()}")
+            await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+    finally:
+        for task in (primary, backup):
+            if task is not None and not task.done():
+                task.cancel()
+            elif task is not None and not task.cancelled():
+                task.exception()  # результат проигравшего не нужен; ошибка прочитана — без предупреждения цикла

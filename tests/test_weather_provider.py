@@ -7,8 +7,10 @@ api.open-meteo.com и api.met.no из тестов не вызываются —
 подменяются на локальный подменный HTTP; сценарные тесты — на заглушке-поставщике
 в реестре (механика как в tests/golden).
 """
+import asyncio
 import datetime
 import importlib.util
+import time
 import json
 from pathlib import Path
 
@@ -65,10 +67,12 @@ def provider():
 async def fake_http(provider, monkeypatch):
     """Локальный подменный HTTP: /forecast (Open-Meteo) и /metno (мет-резерв)."""
     state = {"open_meteo_status": 200, "metno_status": 200,
-             "metno_payload": MET_NO_TIMESERIES, "calls": []}
+             "metno_payload": MET_NO_TIMESERIES, "calls": [], "release": asyncio.Event()}
 
     async def forecast(request):
         state["calls"].append(("open-meteo", dict(request.query)))
+        if state.get("open_meteo_hang"):  # соединение принято, ответа нет (как недоступный хост)
+            await state["release"].wait()
         if state["open_meteo_status"] != 200:
             return web.json_response({"error": "x"}, status=state["open_meteo_status"])
         return web.json_response(OPEN_METEO_RESPONSE)
@@ -91,6 +95,7 @@ async def fake_http(provider, monkeypatch):
     monkeypatch.setattr(provider, "MET_NO_URL", base + "/metno")
     state["base"] = base
     yield state
+    state["release"].set()  # зависшие обработчики отпускаем: cleanup не ждёт их
     await runner.cleanup()
 
 
@@ -129,6 +134,17 @@ async def test_forecast_falls_back_to_met_no(provider, fake_http):
     assert result["current"]["weather_code"] == 2  # partlycloudy → WMO 2
     assert [kind for kind, _ in fake_http["calls"]] == ["open-meteo", "met.no"]
     assert fake_http["calls"][1][1]["lat"] == "55.755826"
+
+
+async def test_forecast_hanging_primary_does_not_hold_the_answer(provider, fake_http):
+    """Open-Meteo не отвечает: резерв стартует через HEDGE_DELAY и отдаёт ответ, не дожидаясь
+    PRIMARY_TIMEOUT (недоступный хост не должен задерживать «какая погода» на секунды)."""
+    fake_http["open_meteo_hang"] = True
+    started = time.monotonic()
+    result = await provider.forecast(ExtCtx(), LOCATION)
+    elapsed = time.monotonic() - started
+    assert result["source"] == "met.no"
+    assert elapsed < provider.HEDGE_DELAY + 1.0 < provider.PRIMARY_TIMEOUT
 
 
 async def test_forecast_both_sources_down(provider, fake_http):

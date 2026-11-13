@@ -270,3 +270,51 @@ async def test_client_no_speech_close_gets_retry_prompt(tmp_path):
                if x.startswith(b'AAPI') and server_type.FromString(x[4:]).Event.WhichOneof('Event') == 'AliceResponse']
     assert any('не расслышала' in r.Response.Cards[0].Text for r in replies)
     await conversation.shutdown()
+
+
+def test_timing_stages_from_events(monkeypatch):
+    """Этапы хода считаются по событиям: пауза до конца фразы, финал ASR, сценарий, TTS, отправка."""
+    from server_emulator import speech_trace
+    clock = {'now': 0.0}
+    monkeypatch.setattr(speech_trace.time, 'monotonic', lambda: clock['now'])
+    trace = SpeechTrace(lambda record: None)
+    for name, moment in (('voice_input_start', 0), ('asr_partial', 2400), ('endpoint', 4000), ('asr_final', 4010),
+                         ('scenario_start', 4060), ('scenario_done', 7760), ('tts_start', 7770),
+                         ('tts_done', 7880), ('scenario_handled', 7890), ('tts_audio', 7950)):
+        clock['now'] = moment / 1000
+        trace.event(name, 's2c' if name == 'asr_partial' else 'server')
+    assert trace.timing() == {'endpoint': 1600.0, 'asr': 10.0, 'scenario': 3700.0, 'tts': 110.0, 'send': 70.0,
+                              'reply': 3890.0}
+    done = trace.report()
+    assert done[1] == 'scenario'  # самый долгий этап работы сервера
+    assert speech_trace.timing_message(done[0]).startswith('Медленный ответ через 3.9 с: пауза до конца фразы 1.6 с')
+
+
+async def test_turn_timing_event_and_journal_line(tmp_path):
+    """Ход с ответом модели оставляет turn_timing в трассе и строку в журнале сервера:
+    этап «модель» измерен, медленный этап назван."""
+    runtime = Runtime(tmp_path)
+    runtime.settings['aapi_model'] = True
+
+    async def chat(text, history=None, **context):
+        await asyncio.sleep(0.05)
+        return {'text': 'ok', 'tool_calls': []}
+    runtime.chat = chat
+
+    async def send(data):
+        pass
+    client, server = types()
+    session = Conversation(runtime, server, send)
+    text = client()
+    text.Event.Header.MessageId = 'text'
+    text.Event.TextInput.Request.Event.Text = 'hi'
+    await session.receive(text, 'TextInput')
+    await asyncio.wait_for(session.task, 2)
+    await session.shutdown()
+    event = next(e for e in runtime.speech_log if e['name'] == 'turn_timing')
+    assert event['model_ms'] >= 50 and event['reply_ms'] >= event['model_ms']
+    assert event['slowest'] == max(('scenario', 'model'), key=lambda stage: event.get(stage + '_ms', 0))
+    await runtime.server_log.flush()
+    entries = (await runtime.server_log.query(source='ws'))['items']
+    line = next(item for item in entries if item['message'].startswith('Ответ через'))
+    assert 'модель' in line['message'] and line['level'] in ('info', 'warning')

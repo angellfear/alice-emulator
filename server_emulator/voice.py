@@ -31,7 +31,7 @@ from . import voice_response
 
 from .voice_response import failure_phrases, failure_speech, failure_text
 
-from .speech_trace import SpeechTrace, reason_name
+from .speech_trace import SLOW_REPLY_MS, SpeechTrace, reason_name, timing_message
 
 from . import aapi_handlers
 from .scenario_engine.router import EVENT_FILTERS
@@ -542,6 +542,18 @@ class Conversation:
         return False
 
 
+
+    def _log_timing(self, trace):
+        """Этапы хода — событие turn_timing в трассе и строка в журнале сервера (медленный ответ — warning)."""
+        done = trace.report() if trace else None
+        if done is None:
+            return
+        stages, slowest = done
+        journal = getattr(self.runtime, 'server_log', None)
+        if journal is not None:
+            journal.log('warning' if stages['reply'] >= SLOW_REPLY_MS else 'info', 'ws',
+                        timing_message(stages), device_sn=self.trace_context.get('sn'),
+                        slowest=slowest, **{name + '_ms': ms for name, ms in stages.items()})
 
     @aapi_handler('CancelRequest')
 
@@ -1533,7 +1545,15 @@ class Conversation:
 
                 stage = 'scenario'
 
+                if trace:
+
+                    trace.event('scenario_start', 'server')
+
                 report = await dialog.handle_text(text, ctx, dialog_id, self.send, deliver=False)
+
+                if trace:
+
+                    trace.event('scenario_done', 'server', handled=bool(report.get('handled')))
 
                 if report.get('handled'):
 
@@ -1619,6 +1639,10 @@ class Conversation:
 
             stage = 'model'
 
+            if trace:
+
+                trace.event('model_start', 'server')
+
             self.pending_speech = None
 
             def first_sentence(spoken):
@@ -1690,6 +1714,8 @@ class Conversation:
                 pass
 
         finally:
+
+            self._log_timing(trace)
 
             pending = getattr(self, 'pending_speech', None)
 

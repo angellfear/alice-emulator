@@ -9,7 +9,8 @@ ASR  POST /v1/audio/transcriptions   multipart: file, model, language, response_
 TTS  POST /v1/audio/speech            JSON: input, voice, response_format (pcm_f32le | wav)
      → float32 PCM потоком (X-Audio-Format: f32le, X-Audio-Sample-Rate), как у builder_tts.py
 Оба: GET /health → {"status": "ok", "engine", "model", "voice", "state": {"model_loaded": …}, …};
-порт открывается только после загрузки модели, поэтому живой /health = «запущен».
+порт открывается только после загрузки и прогрева модели, поэтому живой /health = «запущен», а первый
+запрос не платит за холодный старт (CUDA-ядра, ленивая инициализация: на видеокарте это секунды).
 
 Ошибки — JSON {"error": {"message", "type"}} с понятным русским текстом, без трейсбеков.
 """
@@ -20,6 +21,7 @@ import io
 import json
 import logging
 import os
+import time
 import wave
 
 import numpy as np
@@ -32,6 +34,7 @@ AUDIO_LIMIT = 64 * 1024 ** 2   # байт на один запрос распо�
 TEXT_LIMIT = 2000              # символов на один запрос синтеза
 QUEUE_LIMIT = 8                # ожидающих запросов, дальше — 429
 SPEECH_FORMATS = ("pcm_f32le", "wav")
+WARMUP_TEXT = "Проверка связи. Это пробный синтез речи для прогрева."  # два предложения: движки со стримингом режут текст по предложениям
 
 
 class UserError(Exception):
@@ -251,10 +254,24 @@ def asr_app(transcribe, info, capacity=1):
     return app
 
 
+def warm_up(synth):
+    """Один синтез до открытия порта: первый настоящий запрос не ждёт инициализацию движка
+    (на CUDA она занимает секунды — дольше ожидания озвучки ответа). Сбой прогрева не мешает
+    запуску: движок, которому нужен голос или параметры, прогреется первым запросом."""
+    started = time.monotonic()
+    try:
+        synth(WARMUP_TEXT, None)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Прогрев синтеза не удался (%s): первый запрос будет медленным", exc)
+        return
+    print("Прогрев синтеза: %.1f с" % (time.monotonic() - started), flush=True)
+
+
 def tts_app(synth, rate, info, stream=None, capacity=1):
     """synth(text, voice | None) → float32 моно целиком; stream(text, voice | None) → итератор кусков float32
     (необязательно; потоком идёт pcm_f32le). rate — частота дискретизации (число или функция: некоторые модели
     узнают её только после первого синтеза). Блокирующие функции вызываются в потоке."""
+    warm_up(synth)
     gate = Gate(capacity)
 
     def current_rate():
