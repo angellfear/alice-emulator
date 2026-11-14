@@ -126,9 +126,7 @@ async def test_account_status_and_token_login(tmp_path, fake):
             assert await response.json() == {"login": True, "login_name": "tester"}
         stored = (runtime.directory / "account" / "sessions" / "u1.json").read_text(encoding="utf-8")
         assert json.loads(stored)["x_token"] == "test-x-token"  # секрет в state/, не в ответе
-        assert json.loads(stored)["uid"] == 1130000012345678  # настоящий uid short_info — для oauth_stubs
         assert json.loads(stored)["user_id"] == "u1"  # пользователь внутри файла — коллизии имён видны
-        assert account.AccountSession(runtime, "u1").uid() == 1130000012345678
         async with runtime.lifecycle.client_session().post(
                 f"{url}/emulator/api/account", headers=headers_write(),
                 json={"op": "logout", "user": "u1"}) as response:
@@ -164,7 +162,7 @@ async def test_account_api_requires_user(tmp_path, fake):
 
 
 async def test_two_users_separate_sessions(tmp_path, fake):
-    """Два пользователя — два входа одновременно: разные x_token/uid в разных файлах
+    """Два пользователя — два входа одновременно: разные x_token в разных файлах
     sessions/, сессии не путаются; забытый вход первого не трогает второй."""
     runtime = make_runtime(tmp_path)
     runtime.identities.mutate({"operation": "user", "id": "u2", "name": "Тест 2"})
@@ -173,11 +171,9 @@ async def test_two_users_separate_sessions(tmp_path, fake):
         second = account.AccountSession(runtime, "u2")
         await first.login_token("test-x-token-1")
         await second.login_token("test-x-token-2")
-        assert first.uid() == 1130000012345001 and second.uid() == 1130000012345002
         stored1 = json.loads((runtime.directory / "account" / "sessions" / "u1.json").read_text("utf-8"))
         stored2 = json.loads((runtime.directory / "account" / "sessions" / "u2.json").read_text("utf-8"))
-        assert stored1["x_token"] == "test-x-token-1" and stored1["uid"] == 1130000012345001
-        assert stored2["x_token"] == "test-x-token-2" and stored2["uid"] == 1130000012345002
+        assert stored1["x_token"] == "test-x-token-1" and stored2["x_token"] == "test-x-token-2"
         linked = account.linked_sessions(runtime)
         assert [s.user_id for s in linked] == ["u1", "u2"]  # обе сессии, в порядке реестра
         first.forget()

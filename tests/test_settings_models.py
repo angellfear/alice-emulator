@@ -2,16 +2,7 @@
 import pytest
 
 from server_emulator.runtime import Runtime
-from server_emulator.settings_models import FetchStateSettings, OAuthSettings, checked_section
-
-
-def test_oauth_section():
-    assert checked_section({"mode": "upstream"}, OAuthSettings, "oauth") == {"mode": "upstream"}
-    assert checked_section({}, OAuthSettings, "oauth") == {"mode": "auto"}  # умолчание модели
-    with pytest.raises(ValueError, match="oauth.mode"):
-        checked_section({"mode": "bogus"}, OAuthSettings, "oauth")
-    with pytest.raises(ValueError, match="oauth.oops"):
-        checked_section({"mode": "auto", "oops": 1}, OAuthSettings, "oauth")  # extra="forbid"
+from server_emulator.settings_models import FetchStateSettings, checked_section
 
 
 def test_fetch_state_section():
@@ -92,20 +83,21 @@ def test_secrets_do_not_leak():
 
 
 async def test_validate_uses_models(tmp_path):
-    """Ручные проверки oauth/fetch_state заменены моделями: 4xx с именем поля,
-    умолчания модели доливаются в раздел, разделы без формы — из current."""
+    """Проверки разделов форм моделями: 4xx с именем поля, умолчания модели
+    доливаются в раздел, разделы без формы — из current; лишний ключ верхнего
+    уровня в сохранённых настройках загрузку не роняет."""
     runtime = Runtime(tmp_path)
     try:
         current = runtime.settings
-        form = dict(current, oauth={}, fetch_state={"min_interval_s": None})
+        form = dict(current, fetch_state={"min_interval_s": None})
         saved = runtime.settings_service.validate(form, current)
-        assert saved["oauth"] == {"mode": "auto"}
         assert saved["fetch_state"] == {"min_interval_s": 10.0}
-        with pytest.raises(ValueError, match="oauth.mode"):
-            runtime.settings_service.validate(dict(current, oauth={"mode": "bogus"}), runtime.settings)
         with pytest.raises(ValueError, match="fetch_state.min_interval_s"):
             runtime.settings_service.validate(dict(current, fetch_state={"min_interval_s": "abc"}), runtime.settings)
         saved = runtime.settings_service.validate(dict(current), current)
-        assert saved["oauth"] == current["oauth"] and saved["fetch_state"] == current["fetch_state"]
+        assert saved["fetch_state"] == current["fetch_state"]
+        # настройки, сохранённые прежней версией сервера с ключом oauth, загружаются как есть
+        runtime.store.save_settings(dict(current, oauth={"mode": "auto"}))
+        assert runtime.settings_service.load()["oauth"] == {"mode": "auto"}
     finally:
         await runtime.store.close()

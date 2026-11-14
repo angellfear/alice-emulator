@@ -137,7 +137,7 @@
         return note;
       })(),
       make('p', { className: 'hint' }, [version, 'Сейчас: ' + (listeners || '—') + (notes.length ? ' ' + notes.join(' ') : '')].filter(Boolean).join(' · ')),
-      form, selfUpdatePanel(), oauthPanel(), journalPanel(), protocolPanel(), appearancePanel());
+      form, selfUpdatePanel(), journalPanel(), protocolPanel(), appearancePanel());
   }
 
   // Домены, которые должен покрывать сертификат для HTTPS (cert_domains из GET api/server):
@@ -279,43 +279,6 @@
     return form;
   }
 
-  // OAuth / Passport: режим двух хостов (oauth.yandex.ru, mobileproxy.passport.yandex.net) —
-  // настройки эмулятора: GET api/settings, правка oauth.mode, PUT. Читается живьём — без
-  // перезапуска сервера; следующее обращение колонки уже по новому режиму.
-  function oauthPanel() {
-    const modes = [['auto', 'Авто', 'по маршруту устройства: эмуляция — заглушки, прозрачно — настоящий сервер'],
-                   ['emulate', 'Эмуляция', 'всегда заглушки эмулятора'],
-                   ['upstream', 'Напрямую', 'всегда настоящий сервер']];
-    const current = (state.oauth || {}).mode || 'auto';
-    const radios = {};
-    const rows = modes.map(([value, label, hint]) => {
-      const input = make('input', { type: 'radio', name: 'oauth-mode', value: value, checked: current === value });
-      radios[value] = input;
-      return make('label', { className: 'srv-check' }, input,
-        make('span', {}, label, make('small', { className: 'hint' }, ' — ' + hint)));
-    });
-    const error = make('p', { className: 'sc-err', hidden: true, role: 'alert' });
-    const save = make('button', { type: 'submit' }, 'Сохранить');
-    const form = make('form', { className: 'panel' },
-      make('h3', {}, 'OAuth / Passport'),
-      make('p', { className: 'hint' }, 'Как эмулятор отвечает колонке на авторизацию (oauth.yandex.ru) и профиль аккаунта (mobileproxy.passport.yandex.net). Применяется сразу, без перезапуска сервера.'),
-      ...rows, error, make('div', { className: 'actions' }, save));
-    form.onsubmit = async event => {
-      event.preventDefault();
-      if (busy) return;
-      error.hidden = true;
-      busy = true; save.disabled = true;
-      try {
-        const settings = await apiSettings();
-        settings.oauth = { ...(settings.oauth || {}), mode: modes.find(([value]) => radios[value].checked)[0] };
-        await apiSettings('PUT', settings);
-        notify('Режим OAuth сохранён');
-      } catch (e) { error.textContent = e.message; error.hidden = false; }
-      finally { busy = false; save.disabled = false; }
-    };
-    return form;
-  }
-
   // Alice Pro: служебные поля EffectiveSettings/TrialState в каждом AliceResponse — как у
   // quasar-server (settings.alice2_settings, читается живьём, выключено по умолчанию).
   function protocolPanel() {
@@ -397,7 +360,7 @@
       state = await call('GET');
       try { state.front_policy = await callFront('GET'); } catch (e) { /* блок политики не покажется */ }
       try { state.self_update = (await apiSettings()).self_update; } catch (e) { /* блок просто не покажется */ }
-      try { const s = await apiSettings(); state.oauth = s.oauth; state.alice2_settings = s.alice2_settings; state.journal = (s.upstream || {}).journal; } catch (e) { /* блок просто не покажется */ }
+      try { const s = await apiSettings(); state.alice2_settings = s.alice2_settings; state.journal = (s.upstream || {}).journal; } catch (e) { /* блок просто не покажется */ }
       render();
     } catch (e) { section.replaceChildren(make('h2', {}, 'Сервер'), make('p', { className: 'sc-err' }, e.message)); }
   }

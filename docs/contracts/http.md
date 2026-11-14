@@ -107,11 +107,10 @@ meta `record_migration`); `record` как значение `route_mode` — 400.
 реестр (resolve-only, без регистрации); расхождение источников журналируется в `handle()` после
 повторного сбора; цель строит `upstream.target_for`
 (канонический хост из алиасов, https/wss; алиас может задавать полный `http://…` upstream —
-тесты). У хостов авторизации (oauth.yandex.ru, mobileproxy.passport.yandex.net) — свой
-переключатель `settings["oauth"]["mode"]` (`auto` — по режиму маршрута устройства: emulate/hybrid →
-заглушки эмулятора, proxy → туннель; `emulate` — всегда заглушки; `upstream` — всегда туннель),
-решение принимается сразу после `route_mode_for`, до остальных обработчиков
-(см. `endpoints.md`, «OAuth и Passport»). API: `PUT /api/route_mode {sn, mode}` (`mode`: `emulate` | `hybrid` | `proxy`, `null` — снять
+тесты). Хосты авторизации (паспорт и oauth, см. `endpoints.md`, «Хосты авторизации»)
+при любом маршруте пересылаются настоящему Яндексу — на TLS-порте их всегда туннелирует
+фронт, при выключенном фронте диспетчер пересылает наверх; решение принимается сразу после
+`route_mode_for`, до остальных обработчиков. API: `PUT /api/route_mode {sn, mode}` (`mode`: `emulate` | `hybrid` | `proxy`, `null` — снять
 свой маршрут, то есть `emulate`) → `{sn, mode, disconnected}` — смена маршрута устройства сразу, без
 ожидания колонки. WS устройства закрываются (1012, в фоне; `disconnected` — число закрываемых)
 только при переходе в `proxy` или из него: `emulate` ↔ `hybrid` WS не рвёт, HTTP маршрутизируется

@@ -100,6 +100,45 @@ async def test_http_modes_answer_and_journal(tmp_path):
         await runtime.close()
 
 
+async def test_auth_hosts_go_upstream_in_any_mode(tmp_path):
+    """Хосты авторизации — всегда настоящий Яндекс при любом маршруте устройства
+    (фронт туннелирует их на TLS-порте; здесь — выключенный фронт, TLS терминирует
+    aiohttp): ответ upstream даже в «Эмуляции», запись — по опции «Запись»."""
+    runtime = Runtime(tmp_path)
+    registry(runtime, "SN-A", "a-id")
+    calls = []
+    upstream_runner, port = await start_upstream(calls)
+    runtime.settings["aliases"] = {host: f"http://127.0.0.1:{port}" for host in
+                                   ("oauth.yandex.ru", "mobileproxy.passport.yandex.net")}
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        async with ClientSession() as client:
+            # «Эмуляция»: авторизация всё равно уходит наверх
+            async with client.post(url + "/token", headers={"Host": "oauth.yandex.ru",
+                                                            "X-YaQuasarDeviceId": "a-id"},
+                                   data={"grant_type": "authorization_code", "code": "c"}) as response:
+                assert await response.json() == {"from": "upstream", "path": "/token"}
+            # мобильный паспорт, устройство неопознанное: путь тот же — настоящий Яндекс
+            async with client.get(url + "/1/bundle/account/short_info",
+                                  headers={"Host": "mobileproxy.passport.yandex.net"}) as response:
+                assert await response.json() == {"from": "upstream", "path": "/1/bundle/account/short_info"}
+            assert calls == [("http", "/token"), ("http", "/1/bundle/account/short_info")]
+            # запись выключена — журнала нет; «Включено» — обмен записан с устройством
+            assert (await runtime.upstream.journal.list())["total"] == 0
+            runtime.identities.mutate({"operation": "record", "sn": "SN-A", "mode": "on"})
+            async with client.post(url + "/token", headers={"Host": "oauth.yandex.ru",
+                                                            "X-YaQuasarDeviceId": "a-id"},
+                                   data={"grant_type": "x-token"}) as response:
+                assert (await response.json())["from"] == "upstream"
+            await runtime.upstream.journal.flush()
+            items = (await runtime.upstream.journal.list(device="SN-A"))["items"]
+            assert len(items) == 1 and items[0]["path"] == "/token" and items[0]["source"] == "upstream"
+    finally:
+        await runner.cleanup()
+        await upstream_runner.cleanup()
+        await runtime.close()
+
+
 async def test_hybrid_handled_stays_local_miss_goes_upstream(tmp_path):
     runtime = Runtime(tmp_path)
     registry(runtime, "SN-H", "h-id")

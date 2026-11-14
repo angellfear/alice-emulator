@@ -9,10 +9,7 @@ docs/LICENSE-NOTICE.md.
 
 Секреты (x_token) живут в state/account/sessions/<пользователь>.json — вход свой у
 каждого пользователя, наружу API отдаёт только статус; в журналы и тексты ошибок
-значения не попадают. Пароля клиент не спрашивает и не хранит. Настоящий uid из
-short_info тоже сохраняется (AccountSession.uid()) —
-им пользуется oauth_stubs для колонки в «Эмуляции»: тому же локальному владельцу
-отдаётся тот же uid, что дал бы реальный Яндекс, вместо синтетического номера.
+значения не попадают. Пароля клиент не спрашивает и не хранит.
 
 Второй источник значений — журнал трафика (get_sync_info настоящего облака, ответы
 записаны при проходе наверх): то, что колонка уже сообщила аккаунту, — wifi_hash,
@@ -72,17 +69,11 @@ class AccountSession:
             return {}
         return data if isinstance(data, dict) and data.get("x_token") else {}
 
-    def _save(self, x_token, display_login, uid=None):
+    def _save(self, x_token, display_login):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.path.write_text(json.dumps({"user_id": self.user_id, "x_token": x_token,
-                                         "display_login": display_login, "uid": uid},
+                                         "display_login": display_login},
                                         ensure_ascii=False), encoding="utf-8")
-
-    def uid(self):
-        """Настоящий uid аккаунта (из short_info при входе) или None — для oauth_stubs:
-        колонке в «Эмуляции» отдаём тот же uid, что реальный Яндекс дал бы этому владельцу."""
-        value = self.load().get("uid")
-        return int(value) if isinstance(value, (int, str)) and str(value).lstrip("-").isdigit() else None
 
     def forget(self):
         try:
@@ -99,7 +90,7 @@ class AccountSession:
     async def login_token(self, x_token):
         """Вход готовым x_token: проверка short_info, токен — в state/."""
         info = await self._validate_token(x_token)
-        self._save(x_token, info.get("display_login") or "", info.get("uid"))
+        self._save(x_token, info.get("display_login") or "")
         return self.status()
 
     async def login_cookies(self, cookies=""):
@@ -136,7 +127,7 @@ class AccountSession:
         if not x_token:
             raise AccountError("Яндекс не выдал токен по cookies (проверьте срок сессии)")
         info = await self._validate_token(x_token)
-        self._save(x_token, info.get("display_login") or "", info.get("uid"))
+        self._save(x_token, info.get("display_login") or "")
         return self.status()
 
     async def _validate_token(self, x_token):

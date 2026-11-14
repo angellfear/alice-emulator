@@ -27,10 +27,11 @@ DEFAULTS = {"host": "0.0.0.0", "port": 443, "ssl": True, "cert": "", "key": "", 
             "speech_dir": ""}  # папка пакетов голосового стека; пусто — data/speech внутри проекта (voice_stack.resolve_speech_dir)
 # Домены, которые колонка открывает по HTTPS и на которые отвечает эмулятор: их должен покрывать
 # сертификат (к ним добавляется local_domain). Голос на local_domain идёт по ws:// без TLS.
+# Хосты авторизации (паспорт/oauth) здесь не нужны: эмулятор на них не отвечает — фронт
+# всегда туннелирует их настоящему Яндексу (front.py).
 CERT_DOMAINS = ("quasar.yandex.net", "uniproxy.alice.yandex.net", "rpc.alice.yandex.net", "push.yandex.ru",
-                "oauth.yandex.ru", "mobileproxy.passport.yandex.net", "iot.quasar.yandex.ru",
-                "scbh.yandex.net", "clck.yandex.net", "report.appmetrica.yandex.net",
-                "startup.mobile.yandex.net")
+                "iot.quasar.yandex.ru", "scbh.yandex.net", "clck.yandex.net",
+                "report.appmetrica.yandex.net", "startup.mobile.yandex.net")
 # Применяются без перезапуска: фронт читает их из файла на каждое соединение (front.py::_policy).
 FRONT_MODES = ("tunnel", "allowlist", "block")
 _DOMAIN_LABEL = r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"

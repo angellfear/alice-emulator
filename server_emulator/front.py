@@ -8,6 +8,11 @@ ClientHello (до 32 КиБ, без расшифровки), из него — S
   (публично не резолвится) — соединение целиком передаётся внутреннему
   aiohttp-слушателю с тем же ssl_context (сплайс, накопленные байты идут
   первыми, ничего не теряется);
+- хосты авторизации (passport.yandex.ru, oauth.yandex.ru, суффиксы
+  .passport.yandex.ru/.passport.yandex.net) — всегда слепой туннель в Яндекс,
+  до проверки сертификата и независимо от front_uncovered (даже block/allowlist):
+  вход и привязка аккаунта идут только в настоящий Яндекс — экран входа на колонке
+  WebView паспорта, Chromium отвергает наш сертификат (net_error -213);
 - иначе (домен не покрыт — например strm-хосты музыки) — по настроенному
   front_uncovered (режим и лист читаются живьём из server.json на каждое
   соединение, применяются без перезапуска): "tunnel" (по умолчанию) — слепой TCP-туннель
@@ -27,6 +32,7 @@ ClientHello (до 32 КиБ, без расшифровки), из него — S
 detail) — предупреждение, кроме ожидаемых потоков музыки поставщика (storage/strm:
 EXPECTED_TUNNEL_HOSTS/SUFFIXES) — для них info и общий шаблон домена в сообщении
 (strm-mar-NNN и т.п. меняется на каждый трек — иначе каждый NNN была бы своя запись),
+хосты авторизации — тоже info (ожидаемый туннель в Яндекс),
 предупреждение об отклонении непокрытого домена (режим в detail), ошибка открытия
 туннеля, старт фронта. Перенесено из реализаций фронтов прежних установок (dns_names_in_cert,
 cert_covers, разбор ClientHello, сплайс и помпа) и переписано под запуск
@@ -56,6 +62,17 @@ LOCAL_SUFFIXES = (".local", ".lan", ".home", ".localdomain")
 # меняется на каждый трек), чтобы повторы склеивал журнал (не по записи на NNN).
 EXPECTED_TUNNEL_SUFFIXES = (".strm.yandex.net",)
 EXPECTED_TUNNEL_HOSTS = ("storage.yandex.net",)
+# Хосты авторизации — всегда слепой туннель в Яндекс, до проверки сертификата и
+# независимо от front_uncovered (даже block/allowlist): экран входа на колонке —
+# WebView паспорта, Chromium отвергает наш сертификат (net_error -213) — подменить
+# эти хосты нельзя, эмулятор в авторизацию не вмешивается.
+AUTH_HOSTS = ("passport.yandex.ru", "oauth.yandex.ru")
+AUTH_SUFFIXES = (".passport.yandex.ru", ".passport.yandex.net")
+
+
+def is_auth_host(name):
+    """Хост авторизации (паспорт/oauth) — соединение всегда идёт настоящему Яндексу."""
+    return name in AUTH_HOSTS or name.endswith(AUTH_SUFFIXES)
 
 
 def _tunnel_log_name(name):
@@ -225,7 +242,10 @@ class Front:
                     peer_key = (outgoing[0], outgoing[1], self.internal_port)
                     self.peers[peer_key] = original  # реальный адрес колонки для dispatcher.client_ip
             else:
-                self._note_seen(name)
+                if not is_auth_host(name):
+                    # хосты авторизации обходят политику (туннель всегда) — «вне
+                    # сертификата» их не отмечаем: в лист front_allow их добавлять не нужно
+                    self._note_seen(name)
                 upstream_reader, upstream_writer = await self._tunnel(name)
                 if upstream_writer is None:
                     return  # причина уже в журнале
@@ -267,6 +287,8 @@ class Front:
             pass
         if name.endswith(LOCAL_SUFFIXES) or name == self.local_domain:
             return "splice"
+        if is_auth_host(name):
+            return "tunnel"  # хосты авторизации — всегда настоящий Яндекс
         if not self.sans or cert_covers(name, self.sans):
             return "splice"  # сертификат не читается (всё сплайсом) или имя покрыто
         if mode == "allowlist":
@@ -300,6 +322,10 @@ class Front:
                           host=name, ip=ip, error=str(exc)[:200])
                 continue
             self.tunnels[name] = self.tunnels.get(name, 0) + 1
+            if is_auth_host(name):  # ожидаемый туннель: политика/сертификат тут ни при чём
+                log_event("info", "tls", f"Домен {name} — хост авторизации: соединение идёт настоящему Яндексу",
+                          host=name, ip=ip)
+                return reader, writer
             expected = name in EXPECTED_TUNNEL_HOSTS or name.endswith(EXPECTED_TUNNEL_SUFFIXES)
             level = "info" if expected else "warning"
             log_name = _tunnel_log_name(name)

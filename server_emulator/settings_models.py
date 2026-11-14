@@ -25,13 +25,6 @@ def _http_url(value: str) -> str:
     return value
 
 
-class OAuthSettings(_Strict):
-    """OAuth/Passport: auto — по маршруту устройства (emulate/hybrid — заглушки,
-    proxy — туннель), emulate — всегда заглушки, upstream — всегда туннель."""
-
-    mode: Literal["auto", "emulate", "upstream"] = "auto"
-
-
 class FetchStateSettings(_Strict):
     """Опрос состояния колонки (кнопка «Опросить»): минимальный интервал между
     опросами одного устройства в секундах, 0 — без лимита."""

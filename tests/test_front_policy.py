@@ -88,6 +88,36 @@ def test_decision_table(tmp_path):
     assert front._decision("other.y.example.test", "allowlist", allow) == "block"
     assert front._decision("x.y.example.test", "tunnel", ()) == "tunnel"
     assert front._decision("x.y.example.test", "block", ()) == "block"
+    # хосты авторизации — всегда туннель в Яндекс, независимо от режима
+    assert front._decision("oauth.yandex.ru", "block", ()) == "tunnel"
+    assert front._decision("passport.yandex.ru", "allowlist", ()) == "tunnel"
+    assert front._decision("mobileproxy.passport.yandex.net", "block", ()) == "tunnel"
+    front.sans = ("oauth.yandex.ru", "*.passport.yandex.net")
+    assert front._decision("oauth.yandex.ru", "block", ()) == "tunnel"          # даже покрытые сертификатом
+    assert front._decision("mobileproxy.passport.yandex.net", "block", ()) == "tunnel"
+
+
+async def test_auth_hosts_tunnel_regardless_of_policy(tmp_path):
+    """Хосты авторизации — всегда туннель настоящему Яндексу: режим «block» их не
+    отклоняет, покрытие сертификатом не делает их эмулятором (вход на колонке —
+    WebView паспорта, Chromium отвергает наш сертификат). Политика их не отмечает
+    в «Доменах вне сертификата» — в лист front_allow их добавлять не нужно."""
+    runtime = Runtime(tmp_path)
+    set_policy(tmp_path, "block")
+    front, runner, port, _cert = await start_front(runtime, tmp_path,
+                                                   {"passport.yandex.ru": ["127.0.0.2"],
+                                                    "oauth.yandex.ru": ["127.0.0.2"]})
+    real_server = await start_real_tls_server(tmp_path, port)
+    try:
+        for name in ("passport.yandex.ru", "oauth.yandex.ru"):
+            body, _local = await asyncio.to_thread(tls_exchange, port, name, "/music.flac")
+            assert REAL_BODY in body  # настоящий сервер ответил, несмотря на block
+        assert "passport.yandex.ru" not in runtime.front_observed
+        assert "oauth.yandex.ru" not in runtime.front_observed
+    finally:
+        real_server.close()
+        await stop_front(front, runner)
+        await runtime.store.close()
 
 
 def test_front_policy_validation(tmp_path):
