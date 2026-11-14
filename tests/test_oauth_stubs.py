@@ -59,8 +59,10 @@ async def test_stubs_emulate_all_routes(tmp_path):
         assert body["token_type"] == "bearer"
         status, body = await post_form(url, "/token", OAUTH,
                                        "grant_type=x-token&access_token=test-token")
+        # uid — число: SDK паспорта колонки разбирает его как long, строка роняет разбор
         assert status == 200 and body == {"access_token": "test-token", "expires_in": 315360000,
-                                          "token_type": "bearer", "uid": "u1"}
+                                          "token_type": "bearer", "uid": oauth_stubs.numeric_uid("u1")}
+        assert isinstance(body["uid"], int) and body["uid"] > 0
         status, body = await post_form(url, "/token", OAUTH, "grant_type=bogus")
         assert status == 400 and body == {"error": "unsupported_grant_type"}
         status, body = await post_form(url, "/1/token", PASSPORT,
@@ -71,7 +73,9 @@ async def test_stubs_emulate_all_routes(tmp_path):
         assert body["status"] == "ok" and len(body["access_token"]) == 68
         status, body = await get_json(url, "/1/bundle/account/short_info", PASSPORT)
         assert status == 200 and body["status"] == "ok"
-        assert body["uid"] == "u1" and body["master_uid"] == "u1"  # владелец из реестра
+        # uid/master_uid — число (SDK паспорта разбирает long), детерминированное из реестра
+        assert body["uid"] == oauth_stubs.numeric_uid("u1") == body["master_uid"] == \
+            body["master_members"][0]["uid"]
         assert body["display_name"] == "Аня" and body["display_login"] == "Аня"
         assert body["x_token_client_id"] and body["partitions"] == ["default"]  # каркас образца
         for path, key in (("/1/am/sso/config.json", "allowed_sso_apps"),
@@ -95,7 +99,28 @@ async def test_short_info_fallback_first_owner(tmp_path):
     runner, url = await listen(create_app(runtime=runtime))
     try:
         status, body = await get_json(url, "/1/bundle/account/short_info", PASSPORT)
-        assert status == 200 and body["uid"] == "u1" and body["display_name"] == "Аня"
+        assert status == 200 and body["uid"] == oauth_stubs.numeric_uid("u1") \
+            and body["display_name"] == "Аня"
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
+@pytest.mark.asyncio
+async def test_numeric_uid_deterministic_per_user(tmp_path):
+    """uid заглушек — число, детерминированное по id пользователя: SDK паспорта колонки
+    разбирает его как long, строка роняет разбор ответа — сессия не восстанавливается."""
+    runtime = Runtime(tmp_path)
+    registry(runtime)
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        status, first = await post_form(url, "/token", OAUTH,
+                                        "grant_type=x-token&access_token=test-token")
+        status, second = await post_form(url, "/token", OAUTH,
+                                         "grant_type=x-token&access_token=test-token")
+        assert status == 200
+        assert first["uid"] == second["uid"] == oauth_stubs.numeric_uid("u1")
+        assert oauth_stubs.numeric_uid("u1") != oauth_stubs.numeric_uid("u2")  # пользователи различимы
     finally:
         await runner.cleanup()
         await runtime.close()
@@ -221,7 +246,7 @@ async def test_mode_switch_applies_live(tmp_path):
     try:
         status, body = await post_form(url, "/token", OAUTH,
                                        "grant_type=x-token&access_token=test-token")
-        assert status == 200 and body["uid"] == "u1"  # auto + emulate — заглушка
+        assert status == 200 and body["uid"] == oauth_stubs.numeric_uid("u1")  # auto + emulate — заглушка
         async with ClientSession() as client:
             async with client.get(url + "/emulator/api/settings",
                                   headers={"X-Emulator": "1"}) as response:
@@ -244,7 +269,7 @@ async def test_mode_switch_applies_live(tmp_path):
                 assert response.status == 200
         status, body = await post_form(url, "/token", OAUTH,
                                        "grant_type=x-token&access_token=test-token")
-        assert status == 200 and body["uid"] == "u1" and len(calls) == 1
+        assert status == 200 and body["uid"] == oauth_stubs.numeric_uid("u1") and len(calls) == 1
         async with ClientSession() as client:
             async with client.put(url + "/emulator/api/settings", headers={"X-Emulator": "1"},
                                   json={"oauth": {"mode": "bogus"}}) as response:

@@ -159,12 +159,15 @@ capability уступают каталогу). Подписка в состоя�
   400 `{"error": "unsupported_grant_type"}` (RFC 6749 §5.2). Токены детерминированные,
   нигде не хранятся и не проверяются — как в образце (quasar-server, oauth.yandex.ru.ts);
   префиксы VAT./VRT. — маркер заглушки: `music.note_token` их не захватывает, настоящий
-  токен аккаунта в кеше поставщика музыки не затирается.
+  токен аккаунта в кеше поставщика музыки не затирается. `uid` — число, детерминированное
+  по id пользователя реестра (sha256, первые 4 байта): SDK паспорта колонки разбирает
+  его как long, строковый идентификатор роняет разбор ответа — сессия аккаунта не
+  восстанавливается, и после перезагрузки колонка остаётся на сплэше загрузки.
 - `POST /1/bundle/oauth/token_by_sessionid` → `{access_token: "VAT."+hex(32), expires_in,
   status: "ok", token_type: "bearer"}`.
 - `GET /1/bundle/account/short_info` → каркас полей из образца, персональное — из реестра:
-  владелец устройства, иначе первый владелец users; uid/master_uid — id пользователя,
-  display_name/имя/логин — из users.
+  владелец устройства, иначе первый владелец users; uid/master_uid и uid в master_members —
+  то же детерминированное число, display_name/имя/логин — из users.
 - `GET /1/am/sso/config.json`, `/1/am/config.json`, `/1/badges-specification.json` — статика
   из образца (`oauth_static/`, MIT — NOTICE.md).
 

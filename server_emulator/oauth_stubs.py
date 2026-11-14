@@ -4,10 +4,13 @@
 токены детерминированные («VAT.» + sha256-hex от 'access'/'refresh' + code + device_id;
 token_by_sessionid — «VAT.» + случайный hex 32 байта), нигде не хранятся и не проверяются.
 Персональное в short_info — из реестра эмулятора: владелец устройства, иначе первый
-владелец users (uid/master_uid — id пользователя, имя/логин — из users); остальной каркас
-полей — из образца. Неизвестный grant_type — 400 unsupported_grant_type (RFC 6749 §5.2),
+владелец users (имя/логин — из users); остальной каркас полей — из образца.
+Неизвестный grant_type — 400 unsupported_grant_type (RFC 6749 §5.2),
 не 500 переписанного upstream. Токены заглушек note_token музыки не захватывает
-(префиксы VAT./VRT. — только у заглушек, у настоящего токена их нет).
+(префиксы VAT./VRT. — только у заглушек, у настоящего токена их нет). uid в ответах —
+число: SDK паспорта колонки разбирает его как long, строковый идентификатор реестра
+роняет разбор ответа (Failed to parse literal … as a long value) — колонка не
+восстанавливает сессию аккаунта и после перезагрузки остаётся на сплэше загрузки.
 """
 import hashlib
 import json
@@ -58,6 +61,15 @@ def _uid(runtime, device):
     return (user or {}).get("id") or ""
 
 
+def numeric_uid(user_id):
+    """Числовой uid для ответов заглушек: SDK паспорта колонки разбирает uid как long
+    (образец настоящего ответа — число), строковый id реестра туда не годится.
+    Число детерминированное — стабильное для одного пользователя между перезапусками."""
+    if not user_id:
+        return 0
+    return int.from_bytes(hashlib.sha256(str(user_id).encode()).digest()[:4], "big")
+
+
 def _token_pair(form):
     code = str(form.get("code") or "").encode()
     device_id = str(form.get("device_id") or "").encode()
@@ -75,9 +87,11 @@ def _x_token(form, uid):
 
 
 def _short_info(runtime, device):
-    """Профиль аккаунта: каркас полей из образца, персональное — из реестра."""
+    """Профиль аккаунта: каркас полей из образца, персональное — из реестра.
+    uid/master_uid и в master_members — число (numeric_uid): SDK паспорта колонки
+    разбирает их как long, строковый id реестра роняет разбор ответа."""
     user = _owner(runtime, device) or {}
-    uid = user.get("id") or ""
+    uid = numeric_uid(user.get("id"))
     name = str(user.get("name") or "Пользователь")
     return {
         "avatar_url": "https://avatars.mds.yandex.net/get-yapic/53031/0s-5/islands-300",
@@ -134,7 +148,7 @@ def _oauth_token(form, runtime, device):
     if grant == "authorization_code":
         return 200, _token_pair(form)
     if grant == "x-token":
-        return 200, _x_token(form, _uid(runtime, device))
+        return 200, _x_token(form, numeric_uid(_uid(runtime, device)))
     return 400, {"error": "unsupported_grant_type"}  # RFC 6749 §5.2
 
 
