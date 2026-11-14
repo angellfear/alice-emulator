@@ -127,6 +127,29 @@ async def test_numeric_uid_deterministic_per_user(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_linked_real_account_uid_wins_over_synthetic(tmp_path):
+    """Привязанный через «Подтянуть из аккаунта» настоящий Яндекс-аккаунт — его uid
+    приоритетнее синтетического: колонка в «Эмуляции» видит тот же uid, что от
+    настоящего Яндекса, не придуманный по id реестра."""
+    from server_emulator import account
+    runtime = Runtime(tmp_path)
+    registry(runtime)
+    account.AccountSession(runtime)._save("real-x-token", "tester", 1130000012345678)
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        status, body = await post_form(url, "/token", OAUTH,
+                                       "grant_type=x-token&access_token=test-token")
+        assert status == 200 and body["uid"] == 1130000012345678
+        assert body["uid"] != oauth_stubs.numeric_uid("u1")
+        status, info = await get_json(url, "/1/bundle/account/short_info", PASSPORT)
+        assert status == 200 and info["uid"] == info["master_uid"] == \
+            info["master_members"][0]["uid"] == 1130000012345678
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
+@pytest.mark.asyncio
 async def test_auto_mode_emulate_device_gets_stubs(tmp_path):
     """auto (по умолчанию) + устройство в эмуляции — заглушки, наверх не ходим."""
     calls = []

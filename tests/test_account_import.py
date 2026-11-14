@@ -60,7 +60,7 @@ class FakeYandex:
         if path == "/1/bundle/oauth/token_by_sessionid":
             return web.json_response({"access_token": "test-x-token"})
         if path.startswith("/1/bundle/account/short_info"):
-            return web.json_response({"status": "ok", "display_login": "tester"})
+            return web.json_response({"status": "ok", "display_login": "tester", "uid": 1130000012345678})
         if path == "/1/bundle/auth/x_token/":
             return web.json_response({"status": "ok", "passport_host": self.base, "track_id": "track-3"})
         if path == "/auth/session/":
@@ -120,6 +120,8 @@ async def test_account_status_and_token_login(tmp_path, fake):
             assert await response.json() == {"login": True, "login_name": "tester"}
         stored = (runtime.directory / "account" / "session.json").read_text(encoding="utf-8")
         assert json.loads(stored)["x_token"] == "test-x-token"  # секрет в state/, не в ответе
+        assert json.loads(stored)["uid"] == 1130000012345678  # настоящий uid short_info — для oauth_stubs
+        assert account.AccountSession(runtime).uid() == 1130000012345678
         async with runtime.lifecycle.client_session().post(
                 f"{url}/emulator/api/account", headers=headers_write(),
                 json={"op": "logout"}) as response:

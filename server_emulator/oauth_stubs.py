@@ -11,6 +11,9 @@ token_by_sessionid — «VAT.» + случайный hex 32 байта), ниг�
 число: SDK паспорта колонки разбирает его как long, строковый идентификатор реестра
 роняет разбор ответа (Failed to parse literal … as a long value) — колонка не
 восстанавливает сессию аккаунта и после перезагрузки остаётся на сплэше загрузки.
+Если через «Подтянуть из аккаунта» (account.AccountSession) привязан настоящий
+Яндекс-аккаунт — uid берётся настоящий (resolve_uid), иначе детерминированный
+синтетический от id пользователя реестра (numeric_uid).
 """
 import hashlib
 import json
@@ -70,6 +73,15 @@ def numeric_uid(user_id):
     return int.from_bytes(hashlib.sha256(str(user_id).encode()).digest()[:4], "big")
 
 
+def resolve_uid(runtime, user_id):
+    """Настоящий uid привязанного через «Подтянуть из аккаунта» Яндекс-аккаунта
+    (AccountSession.uid()) приоритетнее синтетического: колонка в «Эмуляции» видит
+    тот же uid, что дал бы реальный Яндекс этому владельцу. Нет привязки — numeric_uid."""
+    from .account import AccountSession
+    real = AccountSession(runtime).uid()
+    return real if real is not None else numeric_uid(user_id)
+
+
 def _token_pair(form):
     code = str(form.get("code") or "").encode()
     device_id = str(form.get("device_id") or "").encode()
@@ -88,10 +100,11 @@ def _x_token(form, uid):
 
 def _short_info(runtime, device):
     """Профиль аккаунта: каркас полей из образца, персональное — из реестра.
-    uid/master_uid и в master_members — число (numeric_uid): SDK паспорта колонки
-    разбирает их как long, строковый id реестра роняет разбор ответа."""
+    uid/master_uid и в master_members — число (resolve_uid): настоящий uid привязанного
+    аккаунта, иначе детерминированный синтетический — SDK паспорта колонки разбирает
+    их как long, строковый id реестра роняет разбор ответа."""
     user = _owner(runtime, device) or {}
-    uid = numeric_uid(user.get("id"))
+    uid = resolve_uid(runtime, user.get("id"))
     name = str(user.get("name") or "Пользователь")
     return {
         "avatar_url": "https://avatars.mds.yandex.net/get-yapic/53031/0s-5/islands-300",
@@ -148,7 +161,7 @@ def _oauth_token(form, runtime, device):
     if grant == "authorization_code":
         return 200, _token_pair(form)
     if grant == "x-token":
-        return 200, _x_token(form, numeric_uid(_uid(runtime, device)))
+        return 200, _x_token(form, resolve_uid(runtime, _uid(runtime, device)))
     return 400, {"error": "unsupported_grant_type"}  # RFC 6749 §5.2
 
 
