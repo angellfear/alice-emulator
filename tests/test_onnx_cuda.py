@@ -72,7 +72,36 @@ def test_problem_probes_a_real_session(monkeypatch, tmp_path):
     assert onnx_cuda.problem(str(tmp_path)) is None
     fake_runtime(monkeypatch, tmp_path, ["CPUExecutionProvider"], ["CPUExecutionProvider"], CPU_ONLY)
     assert "onnxruntime 1.31.1" in onnx_cuda.problem(str(tmp_path))
-    assert onnx_cuda.smallest_model(str(tmp_path)).endswith("small.onnx")
+    samples = onnx_cuda.sample_models(str(tmp_path))
+    assert [Path(p).name for p in samples] == ["small.onnx", "big.onnx"]
+
+
+def test_sample_models_skips_large_files(tmp_path):
+    (tmp_path / "decoder.onnx").write_bytes(b"0" * 10)
+    (tmp_path / "encoder.onnx").write_bytes(b"0" * (onnx_cuda.SAMPLE_SIZE_LIMIT + 1))
+    samples = onnx_cuda.sample_models(str(tmp_path))
+    assert [Path(p).name for p in samples] == ["decoder.onnx"]
+
+
+def test_problem_catches_failure_in_a_larger_sample_not_just_the_smallest(monkeypatch, tmp_path):
+    """joint.onnx (маленький) проходит на CUDA, decoder.onnx (RNN, чуть крупнее) — нет: проверка одного
+    самого маленького файла эту ошибку бы не заметила (прежний баг)."""
+    class Session:
+        def __init__(self, path, providers):
+            self.path = path
+
+        def get_providers(self):
+            return ["CPUExecutionProvider"] if "decoder" in self.path else [onnx_cuda.CUDA, "CPUExecutionProvider"]
+
+    module = types.SimpleNamespace(get_available_providers=lambda: [onnx_cuda.CUDA], preload_dlls=lambda: None,
+                                   InferenceSession=Session)
+    monkeypatch.setitem(sys.modules, "onnxruntime", module)
+    monkeypatch.setattr(onnx_cuda, "distributions", lambda: GPU_ONLY)
+    monkeypatch.setattr(onnx_cuda, "driver_version", lambda: "581.80")
+    (tmp_path / "joint.onnx").write_bytes(b"0" * 10)
+    (tmp_path / "decoder.onnx").write_bytes(b"0" * 20)
+    reason = onnx_cuda.problem(str(tmp_path))
+    assert reason is not None and "не смог загрузить" in reason
 
 
 def test_server_refuses_cuda_with_the_reason(monkeypatch, tmp_path):

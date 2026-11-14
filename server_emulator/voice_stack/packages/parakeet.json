@@ -171,7 +171,7 @@
             "soundfile==0.14.0",
             "soxr==1.1.0",
             "onnxruntime-gpu[cuda,cudnn]==1.24.4",
-            "nvidia-cublas-cu12==12.8.4.1"
+            "nvidia-cublas-cu12==12.9.2.10"
           ]
         },
         {
@@ -246,7 +246,7 @@
             "soundfile==0.14.0",
             "soxr==1.1.0",
             "onnxruntime-gpu[cuda,cudnn]==1.24.4",
-            "nvidia-cublas-cu12==12.8.4.1"
+            "nvidia-cublas-cu12==12.9.2.10"
           ]
         },
         {

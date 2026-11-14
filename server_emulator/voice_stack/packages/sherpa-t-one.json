@@ -117,7 +117,7 @@
             "aiohttp",
             "soxr",
             "nvidia-cuda-runtime-cu12==12.8.90",
-            "nvidia-cublas-cu12==12.8.4.1",
+            "nvidia-cublas-cu12==12.9.2.10",
             "nvidia-cudnn-cu12==9.8.0.87",
             "nvidia-cufft-cu12==11.3.3.83"
           ],
@@ -147,7 +147,7 @@
             "aiohttp",
             "soxr",
             "nvidia-cuda-runtime-cu12==12.8.90",
-            "nvidia-cublas-cu12==12.8.4.1",
+            "nvidia-cublas-cu12==12.9.2.10",
             "nvidia-cudnn-cu12==9.8.0.87",
             "nvidia-cufft-cu12==11.3.3.83"
           ],

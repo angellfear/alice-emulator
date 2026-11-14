@@ -6,6 +6,12 @@
 
 ORT при сбое загрузки CUDA молча уходит на процессор, поэтому «есть CUDAExecutionProvider в списке»
 мало: настоящая проверка — сессия на небольшой модели, у которой первым провайдером должна остаться CUDA.
+
+Многокомпонентные модели (GigaAM: encoder/decoder/joint) держат архитектурно разный ONNX-граф в
+каждом файле — RNN-операции (cudnnSetDropoutDescriptor и т.п.) есть только в decoder.onnx, а не в
+маленьком joint.onnx. Проверка самого маленького файла может молча пропустить именно ту часть, что
+падает на CUDA (например, RNN-декодер на GPU старой архитектуры, где cuDNN 9 рвётся отдельно от
+остальных операций) — поэтому проверяются все файлы до разумного предела размера, а не один.
 """
 import glob
 import os
@@ -14,6 +20,7 @@ import sys
 
 MIN_DRIVER = 525  # onnxruntime-gpu под CUDA 12.x: драйвер NVIDIA 525+ (Linux) / 528+ (Windows)
 CUDA = "CUDAExecutionProvider"
+SAMPLE_SIZE_LIMIT = 50 * 1024 * 1024  # байт: крупный encoder пропускаем — долго грузить, суть не в нём
 
 
 def distributions():
@@ -66,9 +73,12 @@ def explain(available, versions, driver, loaded=None):
     return None
 
 
-def smallest_model(folder):
+def sample_models(folder):
+    """Все *.onnx до SAMPLE_SIZE_LIMIT, от меньшего к большему — не только самый маленький
+    (у многокомпонентных моделей разные файлы держат разные операции, см. docstring модуля)."""
     files = glob.glob(os.path.join(folder, "**", "*.onnx"), recursive=True) if folder else []
-    return min(files, key=os.path.getsize) if files else None
+    small = [f for f in files if os.path.getsize(f) <= SAMPLE_SIZE_LIMIT]
+    return sorted(small, key=os.path.getsize)
 
 
 def problem(model_dir=None):
@@ -85,13 +95,20 @@ def problem(model_dir=None):
         pass
     versions, driver, available = distributions(), driver_version(), onnxruntime.get_available_providers()
     reason = explain(available, versions, driver)
-    if reason or (path := smallest_model(model_dir)) is None:
+    if reason:
         return reason
-    try:
-        session = onnxruntime.InferenceSession(path, providers=[CUDA, "CPUExecutionProvider"])
-    except Exception as exc:  # noqa: BLE001 — сообщение ORT говорит, какой именно DLL нет
-        return explain(available, versions, driver, loaded=[]) + f" Ошибка onnxruntime: {str(exc)[:300]}"
-    return explain(available, versions, driver, loaded=session.get_providers())
+    paths = sample_models(model_dir)
+    if not paths:
+        return None
+    for path in paths:
+        try:
+            session = onnxruntime.InferenceSession(path, providers=[CUDA, "CPUExecutionProvider"])
+        except Exception as exc:  # noqa: BLE001 — сообщение ORT говорит, какой именно DLL нет
+            return explain(available, versions, driver, loaded=[]) + f" Ошибка onnxruntime ({os.path.basename(path)}): {str(exc)[:300]}"
+        reason = explain(available, versions, driver, loaded=session.get_providers())
+        if reason:
+            return reason
+    return None
 
 
 if __name__ == "__main__":
