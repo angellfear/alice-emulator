@@ -211,13 +211,38 @@
           previewErr.hidden = false;
           return;
         }
+        if (/webview/i.test(String(body.Div2Card.CardName || ''))) {
+          // webview-карта (ютуб): содержимое рисует нативный webview колонки,
+          // в sandbox-iframe браузера DivKit её не показывает
+          frameWrap.hidden = true;
+          frame.srcdoc = '';
+          previewErr.textContent = 'Webview-карта («' + String(body.Div2Card.CardName)
+            + '») в предпросмотре не рисуется: содержимое — webview колонки.';
+          previewErr.hidden = false;
+          return;
+        }
         frameWrap.hidden = false;
-        try {
-          frame.srcdoc = previewDoc(previewCard(body, values()));
-        } catch (e) {
+        divkitSourceReady.then(() => {
+          try {
+            cardH = 0;
+            clearTimeout(cardTimer);
+            frame.srcdoc = previewDoc(previewCard(body, values()));
+            // чёрная панель без ответа — ошибка, которую надо видеть: если iframe
+            // не сообщил высоту за 2.5 с, показываем таймаут вместо тишины
+            cardTimer = setTimeout(() => {
+              if (!cardH) {
+                previewErr.textContent = 'Предпросмотр: DivKit не ответил — подробности в консоли браузера.';
+                previewErr.hidden = false;
+              }
+            }, 2500);
+          } catch (e) {
+            previewErr.textContent = e.message;
+            previewErr.hidden = false;
+          }
+        }, e => {
           previewErr.textContent = e.message;
           previewErr.hidden = false;
-        }
+        });
       }
       cm.on('change', schedule);
 
@@ -226,14 +251,18 @@
       // целиком, масштаб по меньшей стороне, без прокрутки и обрезки. Первый рендер —
       // после раскладки диалога: DivKit измеряет target при старте, рендер в
       // неразложенный диалог даёт схлопнутый контейнер (1px)
-      let cardH = 0;
+      let cardH = 0, cardTimer = 0;
       const onCardSize = e => {
         if (e.source !== frame.contentWindow || !e.data || e.data.type !== 'tpl-card-size') return;
         cardH = Math.max(360, Math.min(1280, Math.round(e.data.height) || 0));
+        clearTimeout(cardTimer);
         fit();
       };
       window.addEventListener('message', onCardSize);
-      const dismiss = () => { window.removeEventListener('message', onCardSize); dismissEditor(); };
+      const dismiss = () => {
+        clearTimeout(cardTimer);
+        window.removeEventListener('message', onCardSize); dismissEditor();
+      };
       close.onclick = dismiss;
       cancel.onclick = dismiss;
       let laidOut = false;
@@ -278,39 +307,73 @@
   }
 
   // DivKit-карточка из тела шаблона: StringBody (строка или объект) → {templates, card}.
-  // Глобальные шаблоны иконок (GlobalTemplates) карточки идут в templates — без них
-  // рендер падает. {{name}} — значениями из формы; пустое значение — имя переменной
-  // (превью всегда видно), {{...имя шаблона...}} — первое имя из GlobalTemplates,
+  // Глобальные шаблоны (GlobalTemplates) — {"имя": {"StringBody": "{\"имя\": <определение>"}}:
+  // разбирать StringBody и сливать определения. Подмешивать обёртки как есть нельзя —
+  // DivKit не находит определение по type=<имя шаблона> и рисует пустую карточку.
+  // {{name}} — значениями из формы; пустое значение — имя переменной
+  // (превью всегда видно), {{...имя шаблона...}} — первое имя из шаблонов,
   // чтобы ссылка на шаблон иконки разрешалась. <uuid> — пробный uuid
   function previewCard(body, values) {
     const card = body.Div2Card || {};
     let inner = card.StringBody;
     if (typeof inner === 'string') inner = JSON.parse(inner);
     inner = JSON.parse(JSON.stringify(inner));
+    const templates = {...(inner.templates || {})};
     const globals = (card.GlobalTemplates && typeof card.GlobalTemplates === 'object')
       ? card.GlobalTemplates : {};
-    inner.templates = { ...(inner.templates || {}), ...globals };
-    const templateNames = Object.keys(globals);
+    for (const entry of Object.values(globals)) {
+      if (!entry || typeof entry.StringBody !== 'string') continue;
+      try {
+        Object.assign(templates, JSON.parse(entry.StringBody));
+      } catch (e) { /* битый глобальный шаблон: остальные продолжают работать */ }
+    }
+    inner.templates = templates;
+    const templateNames = Object.keys(templates);
     const filled = JSON.stringify(inner)
       .replace(/\{\{([a-z0-9_]+)\}\}/g, (m, name) => {
         if (values && values[name] !== undefined) return values[name];
         return /template|icon/i.test(name) && templateNames.length ? templateNames[0] : name;
       })
       .replace(/<uuid>/g, '00000000-0000-4000-8000-000000000000');
-    return JSON.parse(filled);
+    const out = JSON.parse(filled);
+    // Плейсхолдер переменной не годится адресом картинки: браузер ходит за ним
+    // и получает 404 в консоли. Картинки без настоящего адреса — прозрачный пиксель.
+    const stub = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    const visit = node => {
+      if (Array.isArray(node)) { node.forEach(visit); return; }
+      if (!node || typeof node !== 'object') return;
+      for (const [key, val] of Object.entries(node)) {
+        if ((key === 'image_url' || key === 'image_url_lowres') && typeof val === 'string'
+            && !/^(https?:|data:|blob:)/i.test(val)) node[key] = stub;
+        else visit(val);
+      }
+    };
+    visit(out.card);
+    return out;
   }
 
+  // Бандл DivKit для предпросмотра. Iframe с непрозрачным origin (sandbox без
+  // allow-same-origin) в части движков не загружает внешние скрипты вовсе —
+  // ни по относительному, ни по абсолютному адресу. Поэтому iframe не ходит в сеть:
+  // родитель получает текст бандла один раз (fetch, кэш в модуле) и встраивает
+  // инлайн в srcdoc. '</script' в тексте бандла экранируется: в строках, шаблонах
+  // и regex '<\/script' равно '</script', парсер HTML внешний <script> не обрывает.
+  let divkitSource = null;
+  const divkitSourceReady = fetch('vendor/divkit.min.js?v=33')
+    .then(r => { if (!r.ok) throw Error('DivKit: HTTP ' + r.status); return r.text(); })
+    .then(t => { divkitSource = t.replace(/<\/script/gi, '<\\/script'); });
+
   function previewDoc(card) {
+    if (divkitSource == null) throw Error('Бандл DivKit ещё загружается');
     // скрипты — в конце body: на момент их исполнения document.body существует
-    // (в head ещё нет — target получал undefined, рендер падал). ?v=33 — кэш:
-    // URL сменился вместе с бандлом (браузерная сборка вместо CommonJS).
+    // (в head ещё нет — target получал undefined, рендер падал).
     // overflow:hidden — прокрутка внутри iframe не нужна: высоту карточки панель
     // узнаёт через postMessage и масштабирует канву сама
     return '<!doctype html><html><head><meta charset="utf-8"><style>'
       + 'html,body{margin:0;height:100%;background:#0b0f14;color:#e6eef9;'
       + 'font-family:Inter,system-ui,sans-serif;overflow:hidden}'
       + '</style></head><body>'
-      + '<script src="vendor/divkit.min.js?v=33"><\/script>'
+      + '<script>' + divkitSource + '<\/script>'
       + '<script>try{window.Ya.DivKit.render({id:"preview",target:document.body,json:'
       + JSON.stringify(card).replace(/</g, '\\u003c') + '});'
       + 'var __tell=function(){var el=document.body.lastElementChild;'
