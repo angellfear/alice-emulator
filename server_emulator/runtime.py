@@ -1279,8 +1279,8 @@ class Runtime:
     def asr_streaming(self):
         return self.provider_manager.asr_streaming(self)
 
-    async def recognize_stream(self, chunks, fmt, on_partial=None):
-        return await self.provider_manager.recognize_stream(self, chunks, fmt, on_partial)
+    async def recognize_stream(self, chunks, fmt, on_partial=None, trace=None):
+        return await self.provider_manager.recognize_stream(self, chunks, fmt, on_partial, trace=trace)
 
     def tts_streaming(self):
         return self.provider_manager.tts_streaming(self)

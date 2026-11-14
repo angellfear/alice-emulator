@@ -6,9 +6,12 @@ import struct
 import wave
 from pathlib import Path
 
+import numpy as np
 import pytest
 from aiohttp import ClientSession
 
+from server_emulator import asr_pseudo_stream
+from server_emulator.provider_manager import ProviderManager
 from server_emulator.runtime import Runtime
 from server_emulator.schema import load_type
 from server_emulator.server import create_app
@@ -308,6 +311,71 @@ async def test_client_no_speech_close_with_audio_still_recognizes(tmp_path):
     assert 'stt' in calls  # буфер ушёл в распознавание, не выброшен
     assert asr and asr[-1].Event.AsrResult.EndOfUtt
     assert asr[-1].Event.AsrResult.AggregatedRecognition.RecognizedText == 'включи свет'
+    replies = [m.Event.AliceResponse for m in events if m.Event.WhichOneof('Event') == 'AliceResponse']
+    assert replies  # реплика прошла обычный ход — не «не расслышала»
+    assert not any('не расслышала' in r.Response.Cards[0].Text for r in replies)
+    await conversation.shutdown()
+    await runtime.close()
+
+
+async def test_client_no_speech_close_drains_pseudo_stream(tmp_path, monkeypatch):
+    """Страховка эмуляции потока: колонка закрыла микрофон NO_SPEECH, а эмуляция
+    ещё не решила конец фразы (речь накоплена) — накопленное уходит на полный ход:
+    финальный AsrResult с текстом и реплика, не asr_abandoned и не «не расслышала»."""
+    runtime = Runtime(tmp_path)
+    runtime.settings['aapi_voice'] = True
+    runtime.settings['stt'] = {'adapter': 'openai', 'pseudo_stream': 'yes'}
+
+    class _LoudVad:
+        """Речь по громкости кадра — окно модели 576 сэмплов (64 контекст + 512)."""
+        def __init__(self, path):
+            assert path.is_file()
+        def probabilities(self, frames, state):
+            rms = np.sqrt(np.mean(np.asarray(frames, dtype=np.float32) ** 2, axis=1))
+            return [0.9 if r > 0.05 else 0.0 for r in rms], state
+
+    (tmp_path / 'silero_vad.onnx').write_bytes(b'stub')
+    monkeypatch.setattr(asr_pseudo_stream, 'enabled', lambda runtime: True)
+    monkeypatch.setattr(asr_pseudo_stream, 'vad_model', lambda runtime: tmp_path / 'silero_vad.onnx')
+    monkeypatch.setattr(asr_pseudo_stream, '_Vad', _LoudVad)
+
+    async def transcribe(self, runtime, audio, filename='input.wav'):
+        return 'включи свет'
+    monkeypatch.setattr(ProviderManager, '_transcribe_audio', transcribe)
+
+    async def provider(kind, payload=None, audio=None, filename=None):
+        return json.dumps({"text": "включи свет"}, ensure_ascii=False).encode(), 'application/json'
+    runtime.provider = provider
+    sent = []
+
+    async def send(data):
+        sent.append(data)
+    client, server = types()
+    conversation = Conversation(runtime, server, send)
+    incoming = client()
+    incoming.Event.Header.MessageId = 'm'
+    incoming.Event.Header.StreamId = 3
+    incoming.Event.VoiceInput.Header.RequestId = 'r'
+    incoming.Event.VoiceInput.Format = 'audio/x-pcm;bit=16;rate=16000;channels=1'
+    close = client()
+    close.StreamControl.StreamId = 3
+    close.StreamControl.Close.Reason = 5
+    await conversation.receive(incoming, 'VoiceInput')
+    rate = 16000
+    t = np.arange(int(0.3 * rate)) / rate
+    pcm = (0.3 * np.sin(2 * np.pi * 440 * t) * 32767).astype('<i2').tobytes()
+    for pos in range(0, len(pcm), 1200):
+        await conversation.receive_audio(struct.pack('>I', 3) + pcm[pos:pos + 1200])
+    await conversation.receive(close, 'StreamControl')
+    await asyncio.wait_for(conversation.task, 3)
+    server_type = load_type(ROOT, 'alice-api.pb', 'NAlice.NAliceApi.TServerMessage')
+    events = [server_type.FromString(x[4:]) for x in sent if x.startswith(b'AAPI')]
+    asr = [m for m in events if m.Event.WhichOneof('Event') == 'AsrResult']
+    assert asr and asr[-1].Event.AsrResult.EndOfUtt  # финальный AsrResult дошёл
+    assert asr[-1].Event.AsrResult.AggregatedRecognition.RecognizedText == 'включи свет'
+    log_names = [(e['name'], e['direction']) for e in runtime.speech_log]
+    assert ('asr_final', 's2c') in log_names
+    assert ('asr_abandoned', 'server') not in log_names
     replies = [m.Event.AliceResponse for m in events if m.Event.WhichOneof('Event') == 'AliceResponse']
     assert replies  # реплика прошла обычный ход — не «не расслышала»
     assert not any('не расслышала' in r.Response.Cards[0].Text for r in replies)

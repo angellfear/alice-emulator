@@ -944,6 +944,16 @@ class VoiceStack:
         shutil.rmtree(self.state_dir / "presets" / service / identifier, ignore_errors=True)  # эталоны пресета
 
     # --- активный источник -------------------------------------------------------
+    def active_streaming(self, service):
+        """Активный адаптер сервиса умеет настоящий поток (recognize_stream): у ASR
+        это решает, показывать ли «Эмуляцию потокового режима» (нужна только batch-STT)."""
+        try:
+            module = adapter_registry.resolve(SETTINGS_KEY[service],
+                                              self.runtime.settings.get(SETTINGS_KEY[service]))
+        except ValueError:
+            return False
+        return hasattr(module, "recognize_stream")
+
     def active(self, service):
         """Применённый источник; ссылка на удалённый пресет/пакет считается пустой
         (в том числе пресет выключившегося расширения — см. unavailable_source)."""
@@ -996,6 +1006,9 @@ class VoiceStack:
 
     async def save_source(self, service, ref, config):
         settings = copy.deepcopy(self.runtime.settings)
+        previous = settings.get(SETTINGS_KEY[service]) or {}
+        if "pseudo_stream" in previous:  # галочка «Эмуляция потокового режима» живёт поверх
+            config = {**config, "pseudo_stream": previous["pseudo_stream"]}  # источника: применение пресета/пакета её не сбрасывает
         settings[SETTINGS_KEY[service]] = config
         settings["voice_stack"] = {**(settings.get("voice_stack") or {}), service: ref}
         await self.runtime.save_settings(settings)
@@ -1069,9 +1082,11 @@ class VoiceStack:
                               **({"voice_modes": voice_modes(spec)} if voice_modes(spec) else {}),
                               **({"bake": {**(spec.get("bake") or {}), "available": callable(getattr(module, "bake_voice", None))}}
                                  if "baked" in voice_modes(spec) else {}),
-                              "voices": callable(getattr(module, "voices", None)), "test": hasattr(module, "synth_pcm")})
+                              "voices": callable(getattr(module, "voices", None)), "test": hasattr(module, "synth_pcm"),
+                              "stream": hasattr(module, "recognize_stream")})
             kinds.sort(key=lambda kind: kind["title"].lower())
-            entry = {"presets": presets, "packages": items, "adapters": kinds, "active": self.active(service)}
+            entry = {"presets": presets, "packages": items, "adapters": kinds, "active": self.active(service),
+                     "streaming": self.active_streaming(service)}
             unavailable = self.unavailable_source(service)
             if unavailable:
                 entry["warning"] = unavailable  # понятная ошибка в карточке, не падение

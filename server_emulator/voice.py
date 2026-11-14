@@ -19,6 +19,7 @@ from .agent import engine as agent_engine
 from google.protobuf import json_format
 
 from . import async_reply
+from . import asr_pseudo_stream
 from .audio_buffer import (AudioBuffer, InputLimit, MAX_INPUT_BYTES, MAX_INPUT_SECONDS,
                             MAX_INPUT_STREAMS, collect_pages, input_audio, ogg_pages,
                             pcm_opus_pages, streaming_source, synthesize, synthesize_cached,
@@ -713,7 +714,8 @@ class Conversation:
 
             async def recognize():
 
-                result = await self.runtime.recognize_stream(chunks(), incoming.Event.VoiceInput.Format, partial)
+                result = await self.runtime.recognize_stream(chunks(), incoming.Event.VoiceInput.Format,
+                                                             partial, trace=trace)
 
                 if self.channels.get(channel) is state:
 
@@ -822,6 +824,22 @@ class Conversation:
         # адаптер (например локальный gigaam) их не даёт — колонка закрывает микрофон
         # по тайм-ауту ~5 с. В буфере может быть фраза: распознаём его как обычную
         # реплику (проход ниже), а не выбрасываем.
+
+        if (reason_code == 5 and state['size'] and state.get('asr_task')
+                and asr_pseudo_stream.enabled(self.runtime)):
+            # Эмуляция потока жива — в накоплении может быть реплика: закрыть поток
+            # чанков (сентинел) и отдать накопленное на полный путь run(), а не
+            # отменять задачу и терять фразу. run() распознаёт накопленное, шлёт
+            # финальный AsrResult и реплику (пустой текст — повтор-подсказка).
+            if trace:
+                trace.event('client_close_no_speech', 'server', decision='drain_asr')
+            if state.get('queue'):
+                await asyncio.wait_for(state['queue'].put(None), timeout=5)
+            request_id = state['incoming'].Event.VoiceInput.Header.RequestId or state['incoming'].Event.Header.MessageId
+            self.completed.add(request_id)
+            self.task = self.runtime.lifecycle.spawn(
+                self.run(state['incoming'], 'VoiceInput', b'\0', state['asr_task'], trace=trace))
+            return True
 
         if (reason_code == 5 or not state['size']) and not (
                 reason_code == 5 and state['size'] and not state.get('asr_task')):
@@ -1305,7 +1323,7 @@ class Conversation:
 
                 else:
 
-                    body, filename = await input_audio(audio, request.Format)
+                    body, filename = await input_audio(audio, request.Format, level=True)
 
                     raw, _ = await self.runtime.provider('stt', audio=body, filename=filename)
 

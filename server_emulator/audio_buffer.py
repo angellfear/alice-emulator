@@ -30,17 +30,20 @@ class InputLimit(Exception):
     """Превышен лимит длительности или размера входного аудио."""
 
 
-async def input_audio(data, fmt):
+async def input_audio(data, fmt, level=False):
     """Фрейм входного аудио → (данные для ASR, имя файла): PCM s16le → WAV,
     Opus в Ogg — декодированный WAV: буфер колонки — транспорт, а не
     самодостаточный файл (слово активации и реплика идут в нём разными
     логическими потоками, EOS обрывается), строгие декодеры HTTP-сервисов STT
-    такой буфер не читают. Иначе ValueError (формат не поддерживается)."""
+    такой буфер не читают. level — звук микрофона колонки: уровень выравнивает
+    audio_gain.AutoGain. Иначе ValueError (формат не поддерживается)."""
     match = re.fullmatch(r'audio/x-pcm;bit=16;rate=(\d+);channels=(\d+)', fmt)
     if match:
         rate, channels = map(int, match.groups())
         if not MIN_SAMPLE_RATE <= rate <= MAX_SAMPLE_RATE or not 1 <= channels <= MAX_PCM_CHANNELS or len(data) % (channels * 2):
             raise ValueError('Некорректные параметры PCM или неполный сэмпл')
+        if level:
+            data = _level(data, rate * channels)
         buffer = io.BytesIO()
         with wave.open(buffer, 'wb') as wav:
             wav.setnchannels(channels)
@@ -63,10 +66,21 @@ async def input_audio(data, fmt):
             wav.setsampwidth(2)
             wav.setframerate(48000)
             if samples:
-                pcm = np.concatenate(samples)
-                wav.writeframes((np.clip(pcm, -1.0, 1.0) * 32767).astype('<i2').tobytes())
+                pcm = (np.clip(np.concatenate(samples), -1.0, 1.0) * 32767).astype('<i2').tobytes()
+                wav.writeframes(_level(pcm, 48000) if level else pcm)
         return buffer.getvalue(), 'input.wav'
     raise ValueError('Поддержаны PCM s16le и Opus в Ogg-контейнере')
+
+
+def _level(pcm, rate):
+    """PCM s16le → тот же PCM с выровненным уровнем (audio_gain.AutoGain)."""
+    import numpy as np
+
+    from .audio_gain import AutoGain
+    gain = AutoGain(rate)
+    samples = (np.frombuffer(pcm, dtype='<i2').astype(np.float32) / 32768).astype('<f4').tobytes()
+    out = np.frombuffer(gain.process(samples) + gain.flush(), dtype='<f4')
+    return (np.clip(out, -1.0, 32767 / 32768) * 32768).astype('<i2').tobytes()
 
 
 def ogg_pages(data):

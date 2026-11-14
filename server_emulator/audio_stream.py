@@ -7,8 +7,9 @@ class NativeCodecUnavailable(ValueError):
     pass
 
 
-async def transcode(chunks, source, target):
-    """Stateful in-process conversion for declared PCM and Ogg/Opus."""
+async def transcode(chunks, source, target, level=False):
+    """Stateful in-process conversion for declared PCM and Ogg/Opus. level — звук микрофона
+    колонки перед распознаванием: уровень выравнивает audio_gain.AutoGain (pcm16/f32_8000)."""
     import numpy as np
     from .native_audio import decode_opus, encode_opus, resample
     match=re.fullmatch(r'audio/x-pcm;bit=(16|32);rate=(\d+);channels=(\d+)(;float=1)?',source)
@@ -89,9 +90,16 @@ async def transcode(chunks, source, target):
         async for page in encode_opus(resample(audio,rate,48000)):yield page
     else:
         if target not in ('pcm16','f32_8000'):raise ValueError('Unsupported audio target')
-        async for x in resample(audio,rate,8000 if target=='f32_8000' else 16000):
-            if target=='pcm16':yield (np.clip(x,-1,32767/32768)*32768).astype('<i2').tobytes()
-            else:yield x.astype('<f4').tobytes()
+        out_rate=8000 if target=='f32_8000' else 16000
+        from .audio_gain import AutoGain
+        gain=AutoGain(out_rate) if level else None
+        def encode(x):
+            if target=='pcm16':return (np.clip(x,-1,32767/32768)*32768).astype('<i2').tobytes()
+            return x.astype('<f4').tobytes()
+        async for x in resample(audio,rate,out_rate):
+            if gain:x=np.frombuffer(gain.process(x.astype('<f4').tobytes()),dtype='<f4')
+            if len(x):yield encode(x)
+        if gain and (rest:=gain.flush()):yield encode(np.frombuffer(rest,dtype='<f4'))
 
 
 async def ogg_pages(chunks):

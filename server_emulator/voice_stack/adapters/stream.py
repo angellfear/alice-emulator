@@ -15,7 +15,7 @@ SERVICES = {
                    {"key": "normalize", "label": "Нормализация громкости", "type": "select", "options": YES_NO,
                     "group": "advanced", "help": "Микрофон колонки тихий: перед распознаванием звук усиливается до ровного уровня"}],
         "defaults": {"url": "http://127.0.0.1:5003/asr/stream", "model": "t-one-russian", "language": "ru",
-                     "normalize": "no"},
+                     "normalize": "yes"},
     },
 }
 MATCH = {"asr": r"/asr/stream$"}
@@ -26,21 +26,15 @@ async def transcribe(runtime, config, audio, filename):
 
 
 async def _recognize_one(runtime, config, chunks, fmt, on_partial=None):
-    from ...audio_gain import AutoGain
     from ...audio_stream import transcode
     async with asyncio.timeout(120):
         async with runtime.lifecycle.client_session().ws_connect(config['url'], heartbeat=20, max_msg_size=65536) as ws:
             async def upload():
-                gain = AutoGain() if config.get('normalize', 'no') == 'yes' else None
                 try:
-                    async for chunk in transcode(chunks, fmt, 'f32_8000'):
-                        if gain:
-                            chunk = gain.process(chunk)
+                    async for chunk in transcode(chunks, fmt, 'f32_8000', level=config.get('normalize', 'yes') == 'yes'):
                         # Bound frame size independently of provider callback size.
                         for pos in range(0,len(chunk),3200):
                             await ws.send_bytes(chunk[pos:pos+3200])
-                    if gain and (rest := gain.flush()):
-                        await ws.send_bytes(rest)
                     await ws.send_str('Done')
                 except BaseException:
                     await ws.close()

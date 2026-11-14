@@ -1,7 +1,7 @@
 """Нормализация громкости звука колонки перед распознаванием."""
 import numpy as np
 
-from server_emulator.audio_gain import AutoGain, FRAME
+from server_emulator.audio_gain import AutoGain
 
 
 def tone(amplitude, seconds):
@@ -32,4 +32,14 @@ def test_loud_audio_is_limited_and_state_survives_chunks():
     out = np.frombuffer(b"".join(parts) + gain.flush(), dtype="<f4")
     assert len(out) == len(samples)
     assert np.abs(out).max() <= 0.62
-    assert FRAME == 80
+    assert gain.frame == 80  # кадр 10 мс при 8 кГц
+
+
+def test_rate_sets_ten_ms_frame_and_raises_quiet_16k():
+    """16 кГц (детектор пауз эмуляции потока): кадр 10 мс = 160 сэмплов, тихая речь
+    колонки (пик около −55 dBFS) поднимается до целевого уровня."""
+    gain = AutoGain(16000)
+    assert gain.frame == 160
+    t = np.arange(32000) / 16000
+    out = run(gain, (np.sin(2 * np.pi * 300 * t) * 0.0018).astype("<f4"))
+    assert len(out) == 32000 and 0.4 < np.abs(out[-3200:]).max() < 0.55

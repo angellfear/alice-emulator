@@ -99,7 +99,7 @@ async def recognize_stream(runtime, config, chunks, fmt, on_partial=None):
                                           max_msg_size=0, heartbeat=20) as ws:
                 async def upload():
                     try:
-                        async for chunk in transcode(chunks, fmt, "pcm16"):
+                        async for chunk in transcode(chunks, fmt, "pcm16", level=True):
                             await ws.send_bytes(chunk)
                         await ws.send_str(json.dumps({"type": "CloseStream"}))
                     except BaseException:

@@ -489,6 +489,29 @@
     return box;
   };
 
+  // «Эмуляция потокового режима» (settings["stt"].pseudo_stream): batch-STT не отдаёт
+  // частичные результаты — детектор пауз (Silero VAD) распознаёт накопленное по ходу
+  // речи, колонка закрывает микрофон в конце фразы, а не по тайм-ауту. Видна только
+  // когда активный STT не умеет настоящий поток (streaming === false); сохранение —
+  // общие настройки с _rev, как в «Режимах вывода ответа».
+  function pseudoBlock() {
+    const box = make('div', 'vs-output');
+    const label = make('label', 'vs-flag'), check = make('input');
+    check.type = 'checkbox'; check.checked = (cfg?.stt || {}).pseudo_stream === 'yes';
+    label.append(check, make('span', null, 'Эмуляция потокового режима'));
+    check.onchange = async () => {
+      check.disabled = true;
+      try {
+        const fresh = await api('settings');
+        fresh.stt = { ...(fresh.stt || {}), pseudo_stream: check.checked ? 'yes' : 'no' };
+        await api('settings', 'PUT', fresh);
+        cfg = fresh;
+      } catch (e) { check.checked = !check.checked; say(e.message, true) } finally { check.disabled = false }
+    };
+    box.append(label, make('small', 'vs-help', 'Пакетный движок распознаёт по паузам в речи: текст приходит по ходу, колонка закрывает микрофон в конце фразы, а не по тайм-ауту. Выключено — распознавание целиком после закрытия микрофона.'));
+    return box;
+  }
+
   function card(s, title) {
     const block = data[s], el = make('section', 'vs-card');
     el.append(make('h3', null, title));
@@ -512,6 +535,7 @@
       const pkg = kind === 'k' && block.packages.find(p => p.id === id);
       if (preset) presetView(s, preset, el); else if (pkg) packageView(s, pkg, el);
     }
+    if (s === 'asr' && block.streaming === false) el.append(pseudoBlock());
     return el;
   }
 

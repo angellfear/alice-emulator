@@ -14,6 +14,7 @@ dependencies = [
   "androguard>=4.1,<5",
   "numpy>=2,<3",
   "soxr>=1,<2",
+  "onnxruntime>=1.20,<2",
   "PyOgg==0.6.14a1",
   "langchain>=1.4,<2",
   "litellm>=1.109.0,!=1.82.7,!=1.82.8,<2",

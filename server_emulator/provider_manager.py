@@ -16,6 +16,8 @@ import json
 import logging
 import time
 
+from . import asr_pseudo_stream
+
 log = logging.getLogger(__name__)
 
 
@@ -46,16 +48,31 @@ class ProviderManager:
         return json.dumps(await call_adapter(adapter.complete, runtime, cfg, payload), ensure_ascii=False).encode(), "application/json"
 
     def asr_streaming(self, runtime):
-        """Распознавание потоком (частичные результаты) — если адаптер ASR это умеет."""
+        """Распознавание потоком (частичные результаты): адаптер ASR умеет
+        recognize_stream (настоящий поток) или включена эмуляция потока для
+        batch-STT — детектор пауз Silero VAD (asr_pseudo_stream)."""
         try:
-            return hasattr(self.adapter(runtime, "stt"), "recognize_stream")
+            adapter = self.adapter(runtime, "stt")
         except ValueError:
             return False
+        return hasattr(adapter, "recognize_stream") or asr_pseudo_stream.enabled(runtime)
 
-    async def recognize_stream(self, runtime, chunks, fmt, on_partial=None):
+    async def recognize_stream(self, runtime, chunks, fmt, on_partial=None, trace=None):
+        adapter = self.adapter(runtime, "stt")
+        if hasattr(adapter, "recognize_stream"):
+            from .voice_stack import call_adapter
+            return await call_adapter(adapter.recognize_stream, runtime, runtime.settings["stt"],
+                                      chunks, fmt, on_partial)
+        # эмуляция потока: тот же batch-STT распознаёт сегменты между паузами
+        return await asr_pseudo_stream.recognize_stream(runtime, self._transcribe_audio,
+                                                        chunks, fmt, on_partial, trace=trace)
+
+    async def _transcribe_audio(self, runtime, audio, filename="input.wav"):
+        """batch-STT: WAV → текст адаптера — сегменты эмуляции потока им же и теми
+        же настройками, что и распознавание целиком."""
         from .voice_stack import call_adapter
-        return await call_adapter(self.adapter(runtime, "stt").recognize_stream, runtime, runtime.settings["stt"],
-                                  chunks, fmt, on_partial)
+        cfg = copy.deepcopy(runtime.settings["stt"])
+        return await call_adapter(self.adapter(runtime, "stt").transcribe, runtime, cfg, audio, filename)
 
     def tts_streaming(self, runtime):
         """Синтез потоком Ogg-страниц — если адаптер TTS умеет это для текущей конфигурации."""

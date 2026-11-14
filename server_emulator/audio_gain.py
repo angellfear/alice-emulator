@@ -7,8 +7,7 @@
 регулировка своя — около тридцати строк numpy."""
 import numpy as np
 
-RATE = 8000                    # частота потока в ASR
-FRAME = RATE // 100            # кадр 10 мс
+RATE = 8000                    # частота потока в ASR по умолчанию (T-one)
 TARGET_PEAK = 0.5              # целевой пик огибающей (−6 dBFS)
 MAX_GAIN = 300.0               # потолок усиления (~+50 dB): тишина не раздувается до шума
 RELEASE = 0.5 ** (1 / 300)     # огибающая убывает вдвое за 3 с
@@ -18,21 +17,22 @@ NOISE_PEAK = 0.0005            # ниже этого пика кадр — ти�
 class AutoGain:
     """Потоковая нормализация float32-кадров: process(bytes) → bytes той же длины."""
 
-    def __init__(self):
+    def __init__(self, rate=RATE):
+        self.frame = rate // 100  # кадр 10 мс: RELEASE отсчитан в кадрах по 10 мс
         self.level = 0.0
         self.tail = np.empty(0, np.float32)
 
     def process(self, data):
         samples = np.concatenate((self.tail, np.frombuffer(data, dtype="<f4")))
-        whole = len(samples) // FRAME * FRAME
+        whole = len(samples) // self.frame * self.frame
         self.tail = samples[whole:].copy()
         out = np.empty(whole, np.float32)
-        for start in range(0, whole, FRAME):
-            frame = samples[start:start + FRAME]
+        for start in range(0, whole, self.frame):
+            frame = samples[start:start + self.frame]
             peak = float(np.abs(frame).max())
             self.level = max(peak if peak >= NOISE_PEAK else 0.0, self.level * RELEASE)
             gain = min(MAX_GAIN, TARGET_PEAK / self.level) if self.level else 1.0
-            out[start:start + FRAME] = frame * gain
+            out[start:start + self.frame] = frame * gain
         return np.tanh(out).astype("<f4").tobytes()
 
     def flush(self):
