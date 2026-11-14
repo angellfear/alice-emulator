@@ -2,13 +2,15 @@
    отправлять просто будет некуда, редактор это не блокирует), у каждой — каталог проектов,
    редактор кадров в родном виде дисплея и плеер предпросмотра. Кадры хранятся как у колонки:
    ring/panel/oknix — цвета LED (.led), clock — яркости 32 сегментов (.scled),
-   frontal — пиксели 25×16, монохромные (GIF). API: animations-platforms/-projects/-import/-export/-play. */
+   frontal — пиксели 25×16, только вкл/выкл (GIF). Проигрывание на колонке: clock,
+   frontal и ring (у ring кнопка работает, когда у платформы есть колонка в «Эмуляции»).
+   API: animations-platforms/-projects/-import/-export/-play. */
 (() => {
   const root = $('animations');
   if (!root) return;
   const NS = 'http://www.w3.org/2000/svg';
   const ID_RE = /^[a-z0-9_.-]{1,64}$/;
-  const PLAYABLE = ['clock', 'frontal'];
+  const PLAYABLE = ['clock', 'frontal', 'ring'];
   const SWATCHES = ['#ff0000', '#ff8000', '#ffd000', '#00c040', '#00c0ff', '#2040ff', '#a030ff', '#ffffff'];
   const KIND_TITLES = {ring: 'Кольцо', panel: 'Панель', oknix: 'Окно', clock: 'Часы', frontal: 'Матрица'};
 
@@ -74,6 +76,8 @@
       const rows = Math.ceil((kind === 'frontal' ? size[0] * size[1] : size[0]) / cols);
       const step = kind === 'oknix' ? 40 : 14, cell = step - 2;
       svg.setAttribute('viewBox', `0 0 ${cols * step} ${rows * step}`);
+      if (kind === 'frontal')  // дисплей чёрный: фон холста — чёрный, выключенный пиксель сливается с ним
+        svg.append(svgEl('rect', {x: 0, y: 0, width: cols * step, height: rows * step, fill: '#000'}));
       for (let i = 0; i < cols * rows; i++) {
         add(svgEl('rect', {x: (i % cols) * step, y: Math.floor(i / cols) * step, width: cell, height: cell, rx: 2}));
       }
@@ -87,6 +91,9 @@
         const v = frame.brightnesses[i] | 0;
         cell.style.fill = v > 0 ? 'var(--live)' : '';
         cell.style.fillOpacity = v > 0 ? String(0.25 + (0.75 * v) / 255) : '';
+      } else if (surface.kind === 'frontal') {
+        cell.style.fill = (frame.colors[i][0] | 0) > 0 ? '#fff' : '#000';
+        cell.style.fillOpacity = '';
       } else {
         const [r, g, b, w = 0] = frame.colors[i];
         cell.style.fill = r | g | b | w ? `rgb(${Math.min(255, r + w)},${Math.min(255, g + w)},${Math.min(255, b + w)})` : '';
@@ -252,7 +259,6 @@
   function editorPanel() {
     const w = state.work;
     const isClock = w.kind === 'clock';
-    const isMono = isClock || w.kind === 'frontal';   // клетки без цвета — только яркость белого
     const idInput = el('input', {id: 'anim-id', value: w.id, readonly: !state.isNew, pattern: ID_RE.source, maxlength: '64',
       oninput: (ev) => { w.id = ev.target.value.trim(); touch(); }});
     const titleInput = el('input', {id: 'anim-title', value: w.title, oninput: (ev) => { w.title = ev.target.value; touch(); }});
@@ -260,7 +266,7 @@
     canvas = {box: el('div', {class: 'anim-canvas'})};
     strip = el('div', {class: 'anim-strip'});
 
-    const tools = isMono
+    const tools = isClock
       ? el('div', {class: 'anim-tools'},
         el('label', {text: 'Яркость сегмента'},
           el('input', {id: 'anim-level', type: 'range', min: '0', max: '255', value: String(state.level),
@@ -268,6 +274,11 @@
           el('output', {id: 'anim-level-out', text: String(state.level)})),
         el('div', {class: 'anim-tool-row'}, secondary('Погасить', () => setLevel(0)), secondary('Полная', () => setLevel(255)),
           secondary('Залить кадр', () => fillFrame())))
+      : w.kind === 'frontal'
+      ? el('div', {class: 'anim-tools'},
+        el('div', {class: 'anim-tool-row'}, secondary('Залить кадр', () => fillFrame()),
+          secondary('Очистить кадр', () => clearFrame())),
+        el('p', {class: 'hint', text: 'Левая кнопка мыши — включить пиксель, правая — выключить.'}))
       : el('div', {class: 'anim-tools'},
         el('div', {class: 'anim-tool-row'},
           el('input', {id: 'anim-color', type: 'color', value: rgb2hex(state.rgb), 'aria-label': 'Цвет',
@@ -359,24 +370,34 @@
 
   function attachPainting(surface) {
     const svg = surface.svg;
-    let down = false, last = -1;
+    let down = false, last = -1, on = true;
     const apply = (ev) => {
       const target = document.elementFromPoint(ev.clientX, ev.clientY);
       const cell = target && target.closest ? target.closest('.anim-cell') : null;
       if (!cell || !svg.contains(cell) || +cell.dataset.i === last) return;
       last = +cell.dataset.i;
-      setCell(last);
+      setCell(last, on);
     };
-    svg.addEventListener('pointerdown', (ev) => { down = true; last = -1; svg.setPointerCapture(ev.pointerId); apply(ev); ev.preventDefault(); });
+    if (surface.kind === 'frontal') svg.addEventListener('contextmenu', (ev) => ev.preventDefault());
+    svg.addEventListener('pointerdown', (ev) => {
+      // frontal: левая кнопка включает пиксель, правая выключает; остальным кистям — только левая
+      if (ev.button !== 0 && (surface.kind !== 'frontal' || ev.button !== 2)) return;
+      down = true;
+      on = ev.button === 0;
+      last = -1;
+      svg.setPointerCapture(ev.pointerId);
+      apply(ev);
+      ev.preventDefault();
+    });
     svg.addEventListener('pointermove', (ev) => { if (down) apply(ev); });
     for (const type of ['pointerup', 'pointercancel']) svg.addEventListener(type, () => { down = false; });
   }
 
-  function setCell(i) {
+  function setCell(i, on = true) {
     const f = frame();
     const kind = state.work.kind;
     if (kind === 'clock') f.brightnesses[i] = state.level;
-    else if (kind === 'frontal') f.colors[i] = [state.level, state.level, state.level];
+    else if (kind === 'frontal') f.colors[i] = on ? [255, 255, 255] : [0, 0, 0];
     else f.colors[i] = [...state.rgb, 0];
     touch();
     paint(canvas.surface, f);
@@ -387,8 +408,16 @@
     const f = frame();
     const kind = state.work.kind;
     if (kind === 'clock') f.brightnesses = Array(32).fill(state.level);
-    else if (kind === 'frontal') f.colors = f.colors.map(() => [state.level, state.level, state.level]);
+    else if (kind === 'frontal') f.colors = f.colors.map(() => [255, 255, 255]);
     else f.colors = f.colors.map(() => [...state.rgb, 0]);
+    touch();
+    refreshCanvas();
+    repaintThumb();
+  }
+
+  function clearFrame() {
+    const f = frame();
+    f.colors = f.colors.map(() => [0, 0, 0]);   // кнопка только у frontal
     touch();
     refreshCanvas();
     repaintThumb();

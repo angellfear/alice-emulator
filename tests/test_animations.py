@@ -4,6 +4,7 @@
 import base64
 import gzip
 import io
+from pathlib import Path
 
 import pytest
 from aiohttp import ClientSession
@@ -17,6 +18,7 @@ from server_emulator.animations import (
 from server_emulator.runtime import Runtime
 from server_emulator.server import create_app
 from server_emulator.scenario_engine.bindings import BindingError, evaluate
+from server_emulator.scenario_engine.proto_build import message_class
 from tests.conftest import listen
 
 GIF = b"GIF89a" + b"\x00" * 40
@@ -292,6 +294,13 @@ def test_project_validation(tmp_path):
     assert store.put("yandexstation", _project(frames=[ring3]))["frames"][0]["colors"][0] == [1, 2, 3, 0]
     assert store.put("yandexstation", _project(frames=[_ring(delay=600000)]))["frames"][0]["delayMs"] == 600000
     assert store.put("yandexmini_2", _project(kind="clock", frames=[_scled(0, 65535)]))["frames"][0]["delayMs"] == 65535
+    # frontal бинарный: ненулевой монохромный пиксель — включён (255), нулевой — выключен
+    frontal_on = store.put("yandexstation_2", _project(kind="frontal",
+                                                       frames=[{"colors": [[50, 50, 50]] * 400, "delayMs": 100}]))
+    assert frontal_on["frames"][0]["colors"][0] == [255, 255, 255]
+    frontal_off = store.put("yandexstation_2", _project(kind="frontal",
+                                                        frames=[{"colors": [[0, 0, 0]] * 400, "delayMs": 100}]))
+    assert frontal_off["frames"][0]["colors"][0] == [0, 0, 0]
     with pytest.raises(ValueError):                                  # у clock предел uint16 — 65535
         store.put("yandexmini_2", _project(kind="clock", frames=[_scled(0, 65536)]))
 
@@ -324,11 +333,13 @@ def test_frontal_gif_import_render_and_export(tmp_path):
     data = _gif_bytes([(200, 200, 200), (10, 10, 10)])
     project = store.import_file("yandexstation_2", "eyes", "Глаза", "frontal", data, "eyes.gif")
     assert len(project["frames"]) == 2 and len(project["frames"][0]["colors"]) == 400
-    assert project["frames"][0]["colors"][0] == [200, 200, 200] and project["frames"][0]["delayMs"] == 100
+    assert project["frames"][0]["colors"][0] == [255, 255, 255] and project["frames"][0]["delayMs"] == 100
+    dark = store.import_file("yandexstation_2", "dark", "t", "frontal", _gif_bytes([(60, 60, 60)]), "d.gif")
+    assert dark["frames"][0]["colors"][0] == [0, 0, 0]                  # тёмный пиксель — выключен
     big = store.import_file("yandexstation_2", "big", "t", "frontal", _gif_bytes([(0, 255, 0)], size=(50, 32)), "b.gif")
     assert len(big["frames"][0]["colors"]) == 400                       # масштаб к 25×16
     color = big["frames"][0]["colors"][0]
-    assert color[0] == color[1] == color[2]                             # цветной GIF — в градации серого
+    assert color[0] == color[1] == color[2] and color[0] in (0, 255)    # цветной GIF — порогом в ч/б
     name = store.publish_gif(project)
     with Image.open(store.media / name) as gif:
         assert gif.size == (25, 16) and gif.n_frames == 2
@@ -408,12 +419,18 @@ async def test_api_platforms_projects_import_export(tmp_path):
 async def test_api_play_project(tmp_path, monkeypatch):
     runtime = await _runtime_with_devices(tmp_path)
     sent = []
+    pushes = []
 
     async def push_action(sn, action, arguments):
         sent.append((sn, action, arguments))
         return {'action': action, 'delivery': 'sent', 'execution': 'unconfirmed'}
 
+    async def send_message(sn, message):
+        pushes.append((sn, message))
+        return True
+
     monkeypatch.setattr(runtime, 'push_action', push_action)
+    monkeypatch.setattr(runtime, 'send_message', send_message)
     store = runtime.animation_projects
     store.put('yandexmini_2', {'id': 'c', 'title': 'c', 'kind': 'clock', 'loop_from': -1, 'frames': [_scled(5, 40)]})
     store.put('yandexmini_2', {'id': 'r', 'title': 'r', 'kind': 'ring', 'loop_from': -1, 'frames': [_ring(6)]})
@@ -421,6 +438,7 @@ async def test_api_play_project(tmp_path, monkeypatch):
                                   'frames': [{'colors': [[50, 50, 50]] * 400, 'delayMs': 100}]})
     runner, url = await listen(create_app(runtime=runtime))
     play = url + '/emulator/api/animations-play'
+    schemas = Path(__file__).resolve().parent.parent / 'server_emulator' / 'schemas'
     try:
         async with ClientSession() as client:
             async def post(**value):
@@ -431,18 +449,38 @@ async def test_api_play_project(tmp_path, monkeypatch):
             sn, action, arguments = sent[-1]
             assert (sn, action) == ('M00T10001B6SAK', 'draw_scled_animations')
             assert arguments['animations'][0]['compression_type'] == 'Gzip'
-            assert 'error' in await post(platform='yandexmini_2', id='r', sn='M00T10001B6SAK')        # кольцо не играется
+            # кольцо: draw_animation_directive (PayloadRaw, S3Directory на эмулятор); файл раздаёт маршрут animations-ring
+            assert (await post(platform='yandexmini_2', id='r', sn='M00T10001B6SAK'))['delivery'] == 'sent'
+            sn, message = pushes[-1]
+            directive = message.Event.Push.Directives[0]
+            assert directive.Name == 'draw_animation_directive' and directive.Type == 'client_action' and directive.IsLedSilent
+            body = message_class(schemas, 'NAlice.TAnimationCapability.TDrawAnimationDirective', 'centaur')\
+                .FromString(directive.PayloadRaw)
+            directory = body.Animations[0].S3Directory
+            assert directory.Bucket == 'https://alica.lan'   # local_domain из server.json (по умолчанию alica.lan)
+            assert directory.Path == 'emulator/api/animations-ring/yandexmini_2/r'
+            assert body.SpeakingAnimationPolicy == 1          # PlaySpeakingEndOfTts — форма настоящего сервера
+            async with client.get(url + '/emulator/api/animations-ring/yandexmini_2/r/firmware-name.led') as response:
+                assert response.status == 200 and (await response.text()).startswith('name r')
             assert 'платформа' in (await post(platform='yandexmini_2', id='c', sn='X00T10001B6SAK'))['error']
             assert 'не найден' in (await post(platform='yandexmini_2', id='zz', sn='M00T10001B6SAK'))['error']
+            # фронтальный дисплей: GIF по адресу local_domain (сертификат эмулятора ему выдан)
+            async with client.post(play, json={'platform': 'yandexstation_2', 'id': 'f', 'sn': 'X00T10001B6SAK'},
+                                   headers=HEADERS) as response:
+                assert (await response.json())['delivery'] == 'sent'
+            sn, action, arguments = sent[-1]
+            assert action == 'draw_led_screen'
+            assert arguments['frames'][0] == 'https://alica.lan/emulator/api/animations-media?file=project.yandexstation_2.f.gif'
+            async with client.get(url + '/emulator/api/animations-media?file=project.yandexstation_2.f.gif') as response:
+                assert response.status == 200 and (await response.read()).startswith(b'GIF8')
+            # без local_domain адрес — из запроса интерфейса: localhost отсекается, сетевой — уходит
+            (tmp_path / 'server.json').write_text('{"local_domain": ""}', encoding='utf-8')
             assert 'localhost' in (await post(platform='yandexstation_2', id='f', sn='X00T10001B6SAK'))['error']
             async with client.post(play, json={'platform': 'yandexstation_2', 'id': 'f', 'sn': 'X00T10001B6SAK'},
                                    headers={**HEADERS, 'Host': '192.0.2.10:8090'}) as response:
                 assert (await response.json())['delivery'] == 'sent'
             sn, action, arguments = sent[-1]
-            assert action == 'draw_led_screen'
             assert arguments['frames'][0] == 'http://192.0.2.10:8090/emulator/api/animations-media?file=project.yandexstation_2.f.gif'
-            async with client.get(url + '/emulator/api/animations-media?file=project.yandexstation_2.f.gif') as response:
-                assert response.status == 200 and (await response.read()).startswith(b'GIF8')
     finally:
         await runner.cleanup()
         await runtime.close()

@@ -1539,5 +1539,16 @@ def mount_ui(app, runtime, prefix="/emulator"):
     app.router.add_route("DELETE", prefix + "/api/catalog/apps/{id}", guarded(runtime.catalog.delete))
     from .ui.api import me as me_api  # кабинет пользователя: /me и /api/me/*
     me_api.mount(app, runtime, prefix)
+    # Файл кольца для draw_animation_directive: колонка качает его сама, без guard и
+    # без заголовков интерфейса; платформа/проект — сегменты пути, хвост (имя файла
+    # внутри S3Directory у прошивки своё) игнорируется.
+    async def ring_led(request):
+        name, content_type, data = runtime.animation_projects.export(
+            request.match_info["platform"], request.match_info["project_id"])
+        return web.Response(body=data, content_type=content_type.split(";")[0],
+                            charset="utf-8" if "charset" in content_type else None,
+                            headers={"Cache-Control": "no-cache"})
+
+    app.router.add_get(prefix + "/api/animations-ring/{platform}/{project_id}/{tail:.*}", ring_led)
     app.router.add_route("*", prefix + "/api/{action}", api)
     app.router.add_get(prefix + "/{file:.*}", static)

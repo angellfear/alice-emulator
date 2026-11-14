@@ -103,10 +103,11 @@ PLATFORM_TITLES = {
     "yandexstation_2": "Станция Макс", "yandexmidi": "Станция Миди", "yandexmini_2": "Станция Мини 2",
     "yandexstation": "Станция", "yandexmini": "Станция Мини",
 }
-# Дисплеи, на которые эмулятор умеет отправить анимацию: часы Мини 2 (draw_scled_animations)
-# и фронтальная матрица (GIF + draw_led_screen). Для остальных директивы прошивки
-# с нужной нагрузкой нет — анимацию можно редактировать, импортировать и экспортировать.
-PLAYABLE_KINDS = {"clock", "frontal"}
+# Дисплеи, на которые эмулятор умеет отправить анимацию: часы Мини 2 (draw_scled_animations),
+# фронтальная матрица (GIF + draw_led_screen) и кольцо (draw_animation_directive с
+# S3Directory — образцы плеера, «включи музыку»). Панель и окно: директивы прошивки с
+# такой нагрузкой нет — анимацию можно редактировать, импортировать и экспортировать.
+PLAYABLE_KINDS = {"clock", "frontal", "ring"}
 
 
 def platform_displays(platform: str) -> list[dict]:
@@ -355,11 +356,29 @@ async def play_on_device(runtime, identifier, sn):
     return await runtime.push_action(sn, "draw_led_screen", {"frames": urls})
 
 
-async def play_project(runtime, platform, project_id, sn, base_url):
+ROOT = Path(__file__).resolve().parent  # каталог пакета — schemas рядом
+
+
+def device_base_url(runtime, request_base):
+    """Адрес эмулятора, доступный колонке: local_domain из server.json (имя резолвится
+    в DNS сети, сертификат эмулятора ему выдан); домен не задан — адрес интерфейса
+    из запроса (localhost в play_project отсекается — колонка его не достанет)."""
+    from . import server_config
+    config = server_config.load(runtime.directory)
+    domain = str(config.get("local_domain") or "").strip()
+    if domain:
+        return f"{'https' if config.get('ssl') else 'http'}://{domain}"
+    return request_base
+
+
+async def play_project(runtime, platform, project_id, sn, request_base):
     """Проект анимации — на колонку SN. Часы Мини 2 — Push draw_scled_animations (бинарный
     .scled, gzip, base64); фронтальная матрица — GIF проекта в media и Push draw_led_screen
-    с URL base_url (адрес эмулятора, доступный колонке). Кольцо, панель и окно не играются:
-    директивы прошивки с такой нагрузкой нет."""
+    (payload по капче 2026-10-24); кольцо — draw_animation_directive с S3Directory на
+    эмулятор (образцы плеера: «включи музыку» → S3Directory animations/player_play),
+    файл кольца раздаёт /emulator/api/animations-ring/<платформа>/<проект>/<хвост>.
+    Адрес колонке — device_base_url (local_domain из server.json, иначе адрес запроса).
+    Панель и окно не играются: директивы прошивки с такой нагрузкой нет."""
     project = runtime.animation_projects.get(platform, project_id)
     if project is None:
         raise ValueError("Проект не найден")
@@ -375,9 +394,22 @@ async def play_project(runtime, platform, project_id, sn, base_url):
         from .animation_formats import build_scled_animation_payload
         payload = build_scled_animation_payload(project["id"], project["frames"], project["loop_from"])
         return await runtime.push_action(sn, "draw_scled_animations", payload)
+    base_url = device_base_url(runtime, request_base)
     from urllib.parse import urlsplit
     if urlsplit(base_url).hostname in ("localhost", "127.0.0.1", "::1"):
-        raise ValueError("Колонка не достанет GIF по адресу localhost: откройте интерфейс по адресу сервера в сети")
-    name = runtime.animation_projects.publish_gif(project)
-    return await runtime.push_action(sn, "draw_led_screen",
-                                     {"frames": [f"{base_url}/emulator/api/animations-media?file={name}"]})
+        raise ValueError("Колонка не достанет файл по адресу localhost: задайте local_domain в настройках сервера")
+    if kind == "frontal":
+        name = runtime.animation_projects.publish_gif(project)
+        return await runtime.push_action(sn, "draw_led_screen",
+                                         {"frames": [f"{base_url}/emulator/api/animations-media?file={name}"]})
+    # кольцо: draw_animation_directive (PayloadRaw по схеме станции) + файл с эмулятора;
+    # SpeakingAnimationPolicy — из формы настоящего сервера (образцы плеера, см. контракт)
+    from . import clock_directives
+    from .screen_templates import ANIMATION_PROTO
+    item = {"name": "draw_animation_directive", "proto": ANIMATION_PROTO,
+            "fields": {"Name": "draw_animation_directive",
+                       "Animations": [{"S3Directory": {"Bucket": base_url,
+                                                       "Path": f"emulator/api/animations-ring/{platform}/{project_id}"}}],
+                       "SpeakingAnimationPolicy": "PlaySpeakingEndOfTts"}}
+    message = clock_directives.push_message(ROOT / "schemas", [item])
+    return {"delivery": "sent" if await runtime.send_message(sn, message) else "no_session"}

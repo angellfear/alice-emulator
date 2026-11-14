@@ -14,13 +14,13 @@ module: "server_emulator/animations.py, animation_formats.py, animation_storage.
 
 | Платформа | Дисплей (`kind`) | Размер | Родной формат | Отправка на колонку |
 |---|---|---|---|---|
-| yandexstation_2 | `frontal` | 25×16 пикселей, монохромный (яркость белого) | GIF | да |
-| yandexstation_2 | `ring` | 24 LED | .led | нет |
+| yandexstation_2 | `frontal` | 25×16 пикселей, чёрно-белый (пиксель вкл/выкл) | GIF | да |
+| yandexstation_2 | `ring` | 24 LED | .led | да |
 | yandexmidi | `panel` | 84 LED | .led | нет |
 | yandexmidi | `oknix` | 5 LED | .led | нет |
-| yandexmini_2 | `ring` | 6 LED | .led | нет |
+| yandexmini_2 | `ring` | 6 LED | .led | да |
 | yandexmini_2 | `clock` | 32 сегмента | .scled | да |
-| yandexstation, yandexmini | `ring` | 24 LED | .led | нет |
+| yandexstation, yandexmini | `ring` | 24 LED | .led | да |
 
 `GET api/animations-platforms` → `{platforms: [{platform, title, displays: [{kind, title, size, format}], devices: [{sn, name, model}]}]}`: все платформы реестра, в его порядке; `devices` — колонки пользователя этой платформы (для списка «Проиграть»), пустой список — колонок нет.
 
@@ -40,7 +40,7 @@ module: "server_emulator/animations.py, animation_formats.py, animation_storage.
 - Кадров от 1 до 500. Задержка `delayMs`: целое, у `clock` до 65535 мс, у `frontal` не меньше 20 мс, у остальных до 600000.
 - `ring`/`panel`/`oknix`: `{colors: [[r,g,b,w] × N], delayMs}`; цвета RGB без W дополняются нулём.
 - `clock`: `{brightnesses: [0..255 × 32], delayMs}`. Порядок: 4 цифры × сегменты A–G (индексы 0–27), затем PLUS1, PLUS2, MINUS, DEGREE.
-- `frontal`: `{colors: [[v,v,v] × 400], delayMs}`; дисплей монохромный (только яркость белого, без RGB) — r=g=b, иначе кадр отклоняется; GIF 25×16 строится из кадров при экспорте и отправке, импортированный цветной GIF переводится в градации серого.
+- `frontal`: `{colors: [[v,v,v] × 400], delayMs}`; дисплей чёрно-белый, градаций нет — пиксель либо включён (`[255,255,255]`), либо выключен (`[0,0,0]`); ненулевое значение сохраняется как включённое, цвет (r≠g или g≠b) отклоняется. GIF 25×16 строится из кадров при экспорте и отправке, импортированный GIF переводится в ч/б порогом (127).
 
 ## 3. Родные форматы (`animation_formats.py`)
 
@@ -53,10 +53,13 @@ module: "server_emulator/animations.py, animation_formats.py, animation_storage.
 `POST api/animations-play {platform, id, sn}` (`play_project`). Колонка должна быть той же платформы, что проект.
 
 - `clock` — Push `draw_scled_animations` (имя и разбор нагрузки — `DrawSegmentAnimationParser` прошивки Мини 2): `{animations: [{name, base64_encoded_value, compression_type: "Gzip"}], animation_stop_policy}`; политика `RepeatLastTillNextDirective`, если задан цикл, иначе `PlayOnce`. Образца этой директивы в журнале нет, на колонке не проверена.
-- `frontal` — GIF проекта кладётся в `state/animations/media/project.<platform>.<id>.gif`, Push `draw_led_screen` с URL `<схема>://<host запроса>/emulator/api/animations-media?file=…`. Форма — как у настоящего сервера: `{animation_sequence: [{frontal_led_image: URL}, …], till_end_of_speech: false}` в конверте `client_action` + `IsLedSilent`; погода идёт парой кадров (температура + явление), эмоции — одним кадром. Интерфейс нужно открыть по адресу сервера в сети: с `localhost` колонка GIF не достанет, API отвечает ошибкой.
-- `ring`, `panel`, `oknix` — не отправляются: у настоящего сервера кольцо анимируется `draw_animation_directive` с `PayloadRaw` `NAlice.TAnimationCapability.TDrawAnimationDirective` — `{Animations: [{S3Directory: {Bucket: "https://quasar.s3.yandex.net", Path: "animations/…"}}]}`, `SpeakingAnimationPolicy: "PlaySpeakingEndOfTts"`, для анимаций на время реплики ещё `AnimationStopPolicy: "RepeatTillScreenAlive"` (сборщики сценариев `music.py` и `weather.py` строят ту же форму), но ветку `BinaryAnimation` прошивка кольца не реализует, а раздача своих файлов через `S3Directory` требует знания, какой файл прошивка запрашивает внутри пути — такой записи нет. Редактор, импорт и экспорт работают.
+- `frontal` — GIF проекта кладётся в `state/animations/media/project.<platform>.<id>.gif`, Push `draw_led_screen` с URL `<адрес эмулятора>/emulator/api/animations-media?file=…`. Форма — как у настоящего сервера: `{animation_sequence: [{frontal_led_image: URL}, …], till_end_of_speech: false}` в конверте `client_action` + `IsLedSilent`; погода идёт парой кадров (температура + явление), эмоции — одним кадром.
+- `ring` — Push `draw_animation_directive` с `PayloadRaw` `NAlice.TAnimationCapability.TDrawAnimationDirective` — `{Name: "draw_animation_directive", Animations: [{S3Directory: {Bucket: <адрес эмулятора>, Path: "emulator/api/animations-ring/<платформа>/<проект>"}}], SpeakingAnimationPolicy: "PlaySpeakingEndOfTts"}` (форма — как у анимаций плеера настоящего сервера: там `Bucket: "https://quasar.s3.yandex.net"`, `Path: "animations/…"`; `AnimationStopPolicy: "RepeatTillScreenAlive"` — только для анимаций на время реплики, при разовом запуске не ставится). Файл кольца отдаёт `GET /emulator/api/animations-ring/<платформа>/<проект>/<хвост>` — экспорт `.led` на любой хвост, потому что имя файла, которое прошивка запрашивает внутри пути `S3Directory`, не наблюдено; без guard — колонка качает сама. Станция декларирует `supports_directive_payload_raw`; исполнение разового запуска на колонке подтверждается владельцем (скачивания файла пушем в журнале не было).
+- `panel`, `oknix` — не отправляются: директивы прошивки с такой нагрузкой нет. Редактор, импорт и экспорт работают.
 
-Доставка — `runtime.push_action`: живая сессия или мостовое соединение («Прозрачно»); экран колонки не подтверждается (`sent/unconfirmed`).
+Адрес эмулятора для ссылок в директивах (`device_base_url`) — `local_domain` из `server.json` (`https://alica.lan` по умолчанию: имя резолвится в DNS сети, сертификат эмулятора ему выдан); домен не задан — схема и хост запроса интерфейса, тогда `localhost`/`127.0.0.1` отсекаются с ошибкой: колонка по ним файл не достанет.
+
+Доставка — `runtime.push_action` (clock, frontal) или `runtime.send_message` с собранным Push (`ring`): живая сессия или мостовое соединение («Прозрачно»); экран колонки не подтверждается (`sent/unconfirmed`).
 
 ## 5. API
 
@@ -70,13 +73,14 @@ module: "server_emulator/animations.py, animation_formats.py, animation_storage.
 | `animations-export` | GET `?platform=&id=` | файл в родном формате: `.led`, `.scled` или `.gif` |
 | `animations-play` | POST | отправка на колонку (раздел 4) |
 | `animations-media` | GET `?file=` | GIF каталога и проектов |
+| `animations-ring` | GET `/<платформа>/<проект>/<хвост>` | файл `.led` кольца для `draw_animation_directive`; без `X-Emulator` — запрос колонки |
 | `animations` | GET/PUT/DELETE/POST | каталог GIF-кадров станций; POST — Push `draw_led_screen` |
 
 Запись — только с заголовком `X-Emulator: 1`. GIF строится и читается через Pillow (основная зависимость).
 
 ## 6. UI
 
-Раздел «Анимации» группы «Эмулятор» (после «Каталога приложений») доступен всегда, даже без единой колонки — посылать анимацию будет некуда, но редактор, каталог, импорт и экспорт не блокируются. Подвкладки — все платформы реестра; при двух дисплеях — переключатель дисплея. На вкладке: каталог проектов (предпросмотр первого кадра миниатюрой — SVG-рендер кадра, у кольца/панели/окна/часов, маленький кадр GIF-матрицы у фронтального дисплея), редактор (SVG-холст под дисплей: сетка, кольцо, 7-сегментные часы; палитра RGB — кольцо/панель/окно, яркость белого — часы и фронтальная матрица, заливка, лента кадров, дубль/перемещение/удаление, задержка кадра, начало цикла), плеер предпросмотра, сохранение, экспорт, удаление. Для проигрываемых дисплеев (часы, фронтальная матрица) — выбор колонки и «Проиграть»; нет подключённой колонки этой платформы — список неактивен, рядом одна короткая пояснительная строка (не на каждый клик). Импорт — файлом или вставленным текстом.
+Раздел «Анимации» группы «Эмулятор» (после «Каталога приложений») доступен всегда, даже без единой колонки — посылать анимацию будет некуда, но редактор, каталог, импорт и экспорт не блокируются. Подвкладки — все платформы реестра; при двух дисплеях — переключатель дисплея. На вкладке: каталог проектов (предпросмотр первого кадра миниатюрой — SVG-рендер кадра, у кольца/панели/окна/часов, маленький кадр GIF-матрицы у фронтального дисплея), редактор (SVG-холст под дисплей: сетка, кольцо, 7-сегментные часы; фронтальный холст чёрный — как дисплей, пиксель включается левой кнопкой мыши и выключается правой (контекстное меню подавлено), у часов — выбор яркости сегмента и «Погасить»/«Полная», у кольца/панели/окна — палитра RGB с ластиком, у фронтального дисплея и часов «Заливка кадра»; лента кадров, дубль/перемещение/удаление, задержка кадра, начало цикла), плеер предпросмотра, сохранение, экспорт, удаление. Для проигрываемых дисплеев (часы, фронтальная матрица, кольцо) — выбор колонки и «Проиграть на колонке»; нет подключённой колонки этой платформы — список неактивен, рядом одна короткая пояснительная строка (не на каждый клик). Импорт — файлом или вставленным текстом.
 
 ## 7. Добыча файлов анимаций
 
