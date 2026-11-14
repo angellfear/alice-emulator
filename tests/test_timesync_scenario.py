@@ -300,6 +300,32 @@ async def test_get_informers_answers_from_cache_without_waiting_for_plugin(tmp_p
         await runtime.close()
 
 
+async def test_widget_refresh_passes_location_to_plugin(tmp_path):
+    """Виджет передаёт диспетчеру плагина координаты дома (args["location"], как карточка
+    погоды): без них плагин падает на пустых координатах — запись не обновляется, а при
+    пустом датасете виджет молчит и держит заглушку вместо температуры."""
+    seen = {}
+
+    async def plugin(key, args):
+        seen["key"], seen["args"] = key, args
+        return FORECAST
+
+    runtime = make_runtime(tmp_path)
+    runtime.scenario_plugins["weather"] = plugin
+    try:
+        sent = []
+        report = await dispatch_handle(runtime, '@@mm_typed_callback', ctx_for(runtime, purpose='get_informers'),
+                                       'dlg-1', lambda data: collect(sent, data))
+        assert report['handled'] and report['scenario'] == 'informers.weather.widget'
+        assert seen["key"] == f"{LAT},{LON}"
+        location = seen["args"]["location"]
+        assert (location["latitude"], location["longitude"]) == (LAT, LON)
+        assert isinstance(location.get("timezone"), str) and location["timezone"]
+        assert [m for m in sent if b'update_all_informers' in m]  # директива ушла, не тишина
+    finally:
+        await runtime.close()
+
+
 async def test_weather_informer_tap_shows_weather_card(tmp_path):
     """Тап по виджету (@@mm_semantic_frame, purpose=weather_informer_tap_action) → карточка погоды."""
     runtime = make_runtime(tmp_path)

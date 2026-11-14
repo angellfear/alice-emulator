@@ -40,12 +40,10 @@ async def handle(ctx):
         return []
     settings = effective.get("weather") or {}
     key = f"{location['latitude']},{location['longitude']}"
-    args = {"url": settings.get("url"), "timezone": effective.get("timezone"),
-            "query": {"latitude": location["latitude"], "longitude": location["longitude"],
-                      "current": "temperature_2m,apparent_temperature,weather_code,is_day",
-                      "hourly": "temperature_2m,weather_code,is_day",
-                      "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_max",
-                      "forecast_hours": "24", "forecast_days": "1", "timezone": "auto"}}
+    # форма args — как у карточки погоды: диспетчер плагина читает location
+    # (координаты и таймзона дома); остальное он берёт из настроек поставщика
+    args = {"location": {"latitude": location["latitude"], "longitude": location["longitude"],
+                         "timezone": effective.get("timezone")}}
     # Подглядка в кеш: запись есть — ответ не держим дольше секунды (медленный источник
     # дорабатывает в фоне); записи нет — ждать нечего, ждём плагин целиком.
     cached = await ctx.dataset_record("weather", key, timeout=0.1, args=args)
