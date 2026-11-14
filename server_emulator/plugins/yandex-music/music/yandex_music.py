@@ -6,14 +6,17 @@
 (стек виджета) собирает ядро server_emulator/music.py — здесь только поиск, очередь и
 навигация.
 
-Авторизация: **OAuth-токен аккаунта не вводится** — его захватывает эмулятор из реальных
-обращений колонки к Яндексу (заголовок `Authorization: OAuth …` на HTTP и
+Авторизация: **OAuth-токен аккаунта не вводится**. Основной источник — токен аккаунта
+владельца колонки из привязанной сессии (ядро: account.AccountSession.service_token,
+обмен x_token на oauth.mobile.yandex.net); не привязан — токен, захваченный эмулятором
+из реальных обращений колонки к Яндексу (заголовок `Authorization: OAuth …` на HTTP и
 `X-UPRX-OAUTH-TOKEN` в WS-handshake; диспетчер/runtime вызывают `music.note_token`) и
-хранит в БД состояния (meta `yandex_oauth`). Ядро передаёт токен поставщику как
-системное значение вызова (`captured_oauth` в ctx.extension) — по признаку сервиса
+хранённый в БД состояния (meta `yandex_oauth`). Ядро передаёт токен поставщику как
+системное значение вызова (`yandex_oauth` в ctx.extension) — по признаку сервиса
 `PROVIDER["service"] = "yandex-music"`, а не по id: встроенный (builtin.yandex-music)
 и внешний (`yandex-music`) поставщики — разные записи реестра с одним сервисом.
-До первого обращения колонки — честный отказ с объяснением.
+Сервис ответил 401 — ядро обменивает токен заново (отметка `token_expired`) и повторяет
+вызов; повторный 401 — честный отказ с объяснением.
 
 Поиск (search(ctx, query, kind)): `Client.search(text, type_="track")` → Track
 (id/title/artist/album/duration_ms/cover), первые QUEUE_LIMIT (30) результатов в порядке
@@ -60,6 +63,7 @@ import time
 
 import requests
 from yandex_music import Client
+from yandex_music.exceptions import UnauthorizedError
 
 PROVIDER = {"id": "builtin.yandex-music", "title": "Яндекс Музыка",
             "service": "yandex-music"}
@@ -81,8 +85,10 @@ STATE = {}  # владелец → {"queue": [Track], "current": int}
 LINKS = {}  # владелец → {track_id: {"url", "format", "ts"}} — кеш ссылок потока (TTL LINK_TTL_S)
 _PREFETCH = set()  # фоновые задачи предзагрузки ссылок (сами завершаются; тесты ждут prefetch_wait)
 
-NOTE_NO_TOKEN = ("Токен Яндекс.Музыки ещё не захвачен: дождитесь обращения колонки к Яндексу "
-                 "(или скажите колонке любую фразу) и повторите.")
+NOTE_NO_TOKEN = ("Токен Яндекс.Музыки недоступен: не привязан аккаунт владельца "
+                 "(кнопка «Яндекс» у пользователя) и ещё не захвачено обращение колонки "
+                 "к Яндексу.")
+NOTE_TOKEN_EXPIRED = "Токен Яндекс.Музыки не принят — не удалось обновить."
 NOTE_SEARCH_FAIL = "Не удалось выполнить поиск в Яндекс.Музыке."
 NOTE_NO_PLAYABLE = "У этого трека нет проигрываемой версии."
 NOTE_WHAT = "Что включить?"
@@ -96,11 +102,12 @@ def _owner(ctx):
     return str((getattr(ctx, "device", None) or {}).get("sn") or getattr(ctx, "sn", "") or "owner")
 
 
-def _captured_token(ctx):
-    """OAuth-токен аккаунта: ядро инжектирует захваченное в ExtensionContext вызова
-    (captured_oauth) — стандартный доступ поставщика к настройкам вызова."""
+def _yandex_token(ctx):
+    """OAuth-токен аккаунта (владельца колонки из привязанной сессии или захваченный):
+    ядро инжектирует его в ExtensionContext вызова (yandex_oauth) — стандартный доступ
+    поставщика к настройкам вызова."""
     ext = getattr(ctx, "extension", None)
-    return str(ext.get("captured_oauth") or "") if ext is not None else ""
+    return str(ext.get("yandex_oauth") or "") if ext is not None else ""
 
 
 def _language(ctx):
@@ -183,7 +190,7 @@ def _prefetch(ctx, owner, track_ids, loop):
     снимаются до старта: ctx живёт только в обработчике запроса. Позицию очереди
     не двигает; сбой — просто нет кеша. loop — цикл вызывающего запроса: из
     рабочего потока задачи не создаются, поэтому scheduling через него."""
-    token = _captured_token(ctx)
+    token = _yandex_token(ctx)
     ids = [str(tid) for tid in track_ids if tid and not _fresh_link(owner, tid)]
     if not token or not ids or loop is None:
         return
@@ -256,7 +263,7 @@ def _with_stream(ctx, owner, track, timeout=None):
     if fresh is not None:
         track["stream"] = fresh
         return track
-    client = _client(_captured_token(ctx), _language(ctx), timeout)
+    client = _client(_yandex_token(ctx), _language(ctx), timeout)
     track["stream"] = {"url": _download_link(client, track["id"]), "format": "mp3"}
     _remember_link(owner, track["id"], track["stream"]["url"])
     return track
@@ -296,7 +303,7 @@ async def search(ctx, query, kind="music"):
 
 
 def _search_sync(ctx, query, kind, loop):
-    token = _captured_token(ctx)
+    token = _yandex_token(ctx)
     if not token:
         return {"tracks": [], "note": NOTE_NO_TOKEN}
     owner = _owner(ctx)
@@ -319,6 +326,10 @@ def _search_sync(ctx, query, kind, loop):
         tracks[0] = _with_stream(ctx, owner, tracks[0])  # ссылку первого — сразу (сбой — note)
     except MusicError as exc:
         return {"tracks": [], "note": str(exc)}
+    except UnauthorizedError:
+        # сервис ответил 401 — ядро обменивает токен заново (отметка token_expired) и
+        # повторяет вызов; повторный 401 доходит пользователю честной репликой
+        return {"tracks": [], "note": NOTE_TOKEN_EXPIRED, "token_expired": True}
     except Exception as exc:  # сеть/API библиотеки — честный отказ с типом ошибки
         return {"tracks": [], "note": f"{NOTE_SEARCH_FAIL} ({type(exc).__name__})"}
     _save_queue(ctx, owner, tracks, 0, loop)
@@ -396,7 +407,7 @@ async def neighbor(ctx, track_id, context, step):
 
 
 def _neighbor_sync(ctx, track_id, step, loop):
-    token = _captured_token(ctx)
+    token = _yandex_token(ctx)
     if not token:
         return None
     owner = _owner(ctx)
@@ -452,7 +463,7 @@ async def rate(ctx, track_id, like):
 
 
 def _rate_sync(ctx, track_id, like):
-    token = _captured_token(ctx)
+    token = _yandex_token(ctx)
     if not token or not track_id:
         return None
     client = _client(token, _language(ctx))

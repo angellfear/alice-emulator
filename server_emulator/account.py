@@ -8,8 +8,9 @@ core/yandex_quasar.py): QR-вход (pwl-yandex magic-код), обмен cookie
 docs/LICENSE-NOTICE.md.
 
 Секреты (x_token) живут в state/account/sessions/<пользователь>.json — вход свой у
-каждого пользователя, наружу API отдаёт только статус; в журналы и тексты ошибок
-значения не попадают. Пароля клиент не спрашивает и не хранит.
+каждого пользователя, наружу API отдаёт только статус; там же кешируются токены
+сервисов (service_token — обмен x_token на oauth.mobile.yandex.net). В журналы и
+тексты ошибок значения не попадают. Пароля клиент не спрашивает и не хранит.
 
 Второй источник значений — журнал трафика (get_sync_info настоящего облака, ответы
 записаны при проходе наверх): то, что колонка уже сообщила аккаунту, — wifi_hash,
@@ -27,11 +28,16 @@ log = logging.getLogger(__name__)
 
 PASSPORT = "https://passport.yandex.ru"
 MOBILEPROXY = "https://mobileproxy.passport.yandex.net/1/bundle"
+MOBILE_OAUTH = "https://oauth.mobile.yandex.net/1/token"
 IOT = "https://iot.quasar.yandex.ru"
 IOT_PAGE = "https://yandex.ru/iot"  # страница iot — источник CSRF браузерной сессии
 # Публичные идентификаторы клиента Яндекса из YandexStation (MIT) — обмен cookies на токен.
 COOKIE_CLIENT_ID = "c0ebe342af7d48fbbbfcf2d2eedb8f9e"
 COOKIE_CLIENT_SECRET = "ad0a908f0aa341a182a37ecd75bc319e"
+# Публичные идентификаторы приложений сервисов (YandexStation, MIT —
+# core/yandex_session.py::get_music_token; они же ссылаются на MarshalX/yandex-music-api;
+# происхождение — docs/LICENSE-NOTICE.md): обмен x_token на токен сервиса.
+SERVICE_CLIENTS = {"music": ("23cabbbdc6cd418abb4b39c32c41195d", "53bc75238f0c4d08a118e51fe9203300")}
 QR_POLL_TIMEOUT_S = 120
 
 # Пути значений в ответе get_sync_info настоящего облака (журнал upstream).
@@ -76,11 +82,57 @@ class AccountSession:
                                         ensure_ascii=False), encoding="utf-8")
 
     def forget(self):
+        """Выход: файл сессии удаляется целиком — x_token и кеш токенов сервисов
+        уходят вместе с ним."""
         try:
             self.path.unlink(missing_ok=True)
         except OSError:
             pass
         self._qr = None
+
+    async def service_token(self, service, refresh=False):
+        """Токен сервиса Яндекса из x_token сессии (обмен grant_type=x-token на
+        oauth.mobile.yandex.net с client_id/secret приложения сервиса). Кеш — в файле
+        сессии (service_tokens), повторный обмен — только без кеша (refresh=False) или
+        когда сервис ответил 401 (вызывающий запрашивает refresh=True); неудачный
+        обмен кеш не трогает. Ошибки — AccountError без секретов."""
+        client = SERVICE_CLIENTS.get(service)
+        if client is None:
+            raise AccountError(f"Неизвестный сервис: {service}")
+        data = self.load()
+        if not data:
+            raise AccountError("Вход в аккаунт не выполнен")
+        cached = (data.get("service_tokens") or {}).get(service)
+        if not refresh and isinstance(cached, dict) and cached.get("token"):
+            return str(cached["token"])
+        client_id, client_secret = client
+        try:
+            async with self._session().post(
+                    MOBILE_OAUTH,
+                    data={"client_id": client_id, "client_secret": client_secret,
+                          "grant_type": "x-token", "access_token": data["x_token"]},
+                    timeout=aiohttp.ClientTimeout(total=30)) as response:
+                body = await response.json()
+        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as exc:
+            raise AccountError(f"Яндекс недоступен ({type(exc).__name__})") from exc
+        token = body.get("access_token")
+        if not token:
+            raise AccountError("Яндекс не выдал токен сервиса — проверьте вход аккаунта")
+        self._cache_service_token(service, token)
+        return str(token)
+
+    def _cache_service_token(self, service, token):
+        """Кеш токена сервиса в файле сессии (рядом с x_token); сбой записи не роняет
+        вызов — токен обменяется заново при следующем запросе без кеша."""
+        try:
+            data = json.loads(self.path.read_text(encoding="utf-8"))
+            tokens = data.get("service_tokens")
+            tokens = tokens if isinstance(tokens, dict) else {}
+            tokens[service] = {"token": token, "ts": time.time()}
+            data["service_tokens"] = tokens
+            self.path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        except (OSError, ValueError):
+            pass
 
     def status(self):
         data = self.load()

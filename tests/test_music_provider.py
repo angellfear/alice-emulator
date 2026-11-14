@@ -105,6 +105,42 @@ PROVIDER = {{"id": "{provider_id}", "title": "Поставщик для тест
 '''
 
 
+def _yandex_token_provider_module(marker):
+    """Поставщик с service=yandex-music: в маркер — токен, полученный от ядра
+    (yandex_oauth в ExtensionContext вызова), и поведение при token_expired."""
+    path = str(marker).replace("\\", "/")
+    first = json.dumps(TRACKS[0], ensure_ascii=False)
+    return f'''import json
+from pathlib import Path
+MARKER = Path("{path}")
+TRACK = {first}
+
+def _note(event):
+    calls = json.loads(MARKER.read_text(encoding="utf-8")) if MARKER.exists() else []
+    calls.append(event)
+    MARKER.write_text(json.dumps(calls, ensure_ascii=False), encoding="utf-8")
+
+def _token(ctx):
+    ext = getattr(ctx, "extension", None)
+    return str(ext.get("yandex_oauth") or "") if ext is not None else ""
+
+async def search(ctx, query, kind):
+    token = _token(ctx)
+    calls = json.loads(MARKER.read_text(encoding="utf-8")) if MARKER.exists() else []
+    if len([c for c in calls if c[0] == "search"]) == 0 and query == "expired":
+        _note(["search", token, "token_expired"])
+        return {{"tracks": [], "note": "токен не принят", "token_expired": True}}
+    _note(["search", token])
+    return {{"tracks": [TRACK], "start": 0, "context": {{}}}}
+
+async def neighbor(ctx, track_id, context, step):
+    _note(["neighbor", _token(ctx)])
+    return None
+
+PROVIDER = {{"id": "fake-ya", "title": "Фейк Яндекс.Музыки", "service": "yandex-music"}}
+'''
+
+
 MUSIC_PHRASES = {"entries": [
     {"id": "play", "sentences": ["включи музыку [{query}]", "(включи|поставь|запусти) музыку [{query}]",
                                  "давай послушаем музыку [{query}]", "(включи|поставь) (песню|трек) {query}"],
@@ -763,8 +799,8 @@ async def test_captured_oauth_from_ws_handshake_of_known_device(tmp_path):
 
 
 async def test_captured_oauth_only_for_yandex_provider(tmp_path):
-    """Захваченный OAuth видит только поставщик Яндекс.Музыки: другой поставщик
-    получает обычный ExtensionContext без captured_oauth."""
+    """OAuth-токен аккаунта видит только поставщик Яндекс.Музыки (системное значение
+    yandex_oauth, передаётся ядром): другой поставщик получает обычный ExtensionContext."""
     runtime = Runtime(tmp_path)
     make_music_extension(runtime, ext_id="fake-ext",
                          files={"music/fake.py": _provider_module(tmp_path / "fake.json")},
@@ -788,11 +824,12 @@ async def test_captured_oauth_only_for_yandex_provider(tmp_path):
 
         ctx = _Ctx(runtime)
         fake = music.extension_context(ctx, {"id": "fake", "ext_id": "fake-ext"})
-        yandex = music.extension_context(ctx, {"id": "yandex-music", "ext_id": "yandex-ext"})
+        yandex = music.extension_context(ctx, {"id": "yandex-music", "ext_id": "yandex-ext"},
+                                         token=token)
         assert not isinstance(fake, music._WithSystemValues)
-        assert fake.get("captured_oauth") in (None, "")  # другой поставщик токена не видит
+        assert fake.get("yandex_oauth") in (None, "")  # другой поставщик токена не видит
         assert isinstance(yandex, music._WithSystemValues)
-        assert yandex.get("captured_oauth") == token
+        assert yandex.get("yandex_oauth") == token
     finally:
         await runtime.close()
 
@@ -825,12 +862,13 @@ async def test_builtin_and_external_yandex_both_get_token(tmp_path):
                 return self._rt
 
         ctx = _Ctx(runtime)
+        token = music.captured_oauth()
         for record_id in ("builtin.yandex-music", "yandex-music"):
             record = records[record_id]
             assert music.is_yandex_music(record)
-            got = music.extension_context(ctx, record)
+            got = music.extension_context(ctx, record, token=token)
             assert isinstance(got, music._WithSystemValues)
-            assert got.get("captured_oauth") == music.captured_oauth()
+            assert got.get("yandex_oauth") == token
         spotify = music.extension_context(ctx, records["builtin.spotify"])
         assert not isinstance(spotify, music._WithSystemValues)
     finally:
@@ -1209,3 +1247,116 @@ async def test_tracks_without_stream_stay_in_queue(tmp_path):
     assert found["start"] == 1 and "stream" not in found["tracks"][0]
     assert music.normalize_result({"tracks": [{"id": "a", "title": "А"}]}, provider) is None
     assert music.normalize_track({"id": "a", "title": "А"}) is None  # воспроизведение — только со ссылкой
+
+
+# --- токен Яндекс.Музыки владельца колонки (service=yandex-music) ---------------
+
+async def _link_exchange(monkeypatch, tokens):
+    """Подменный oauth.mobile.yandex.net/1/token: обмен x_token → токен сервиса
+    (tokens — выдача по порядку обменов); x_token=dead-token — 401 (мёртвый токен)."""
+    from server_emulator import account
+    from aiohttp import web as _web
+    from aiohttp.test_utils import unused_port
+
+    async def handler(request):
+        form = await request.post()
+        x = form.get("access_token") or ""
+        if x == "dead-token":
+            return _web.json_response({"error": "expired"}, status=401)
+        return _web.json_response({"access_token": tokens.pop(0) if tokens else "fallback"})
+
+    app = _web.Application()
+    app.router.add_post("/1/token", handler)
+    runner = _web.AppRunner(app)
+    await runner.setup()
+    port = unused_port()
+    await _web.TCPSite(runner, "127.0.0.1", port).start()
+    monkeypatch.setattr(account, "MOBILE_OAUTH", f"http://127.0.0.1:{port}/1/token")
+    return runner
+
+
+def _link_owner(runtime, user_id="u1", x_token="test-x-token"):
+    """Колонка SN-M за владельцем user_id и привязанный аккаунт (сессия с x_token)."""
+    from server_emulator import account
+    runtime.identities.mutate({"operation": "user", "id": user_id, "name": "Хозяин"})
+    runtime.identities.mutate({"operation": "device", "sn": "SN-M", "user_id": user_id,
+                               "device_ids": ["id-1"]})
+    session = account.AccountSession(runtime, user_id)
+    session.path.parent.mkdir(parents=True, exist_ok=True)
+    session.path.write_text(json.dumps({"user_id": user_id, "x_token": x_token,
+                                        "display_login": "tester"}), encoding="utf-8")
+    return session
+
+
+def _token_provider_runtime(tmp_path, marker):
+    runtime = Runtime(tmp_path)
+    make_music_extension(runtime, files={"music/fake.py": _yandex_token_provider_module(marker)},
+                         phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
+    return runtime
+
+
+async def test_yandex_music_token_of_linked_owner(tmp_path, monkeypatch):
+    """Владелец привязал аккаунт — поставщик получает токен его аккаунта (обмен x_token)."""
+    runner = await _link_exchange(monkeypatch, ["owner-token-music"])
+    marker = tmp_path / "marker.json"
+    runtime = _token_provider_runtime(tmp_path, marker)
+    try:
+        _link_owner(runtime, "u1")
+        report = await say(runtime, "включи музыку")
+        assert report["handled"], report
+        calls = json.loads(marker.read_text(encoding="utf-8"))
+        assert calls[0] == ["search", "owner-token-music"]
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
+async def test_yandex_music_token_unlinked_uses_captured(tmp_path, monkeypatch):
+    """Без привязки — как раньше: захваченный из трафика токен."""
+    marker = tmp_path / "marker.json"
+    runtime = _token_provider_runtime(tmp_path, marker)
+    try:
+        music.note_token(runtime, "y0_" + "c" * 30)
+        report = await say(runtime, "включи музыку")
+        assert report["handled"], report
+        calls = json.loads(marker.read_text(encoding="utf-8"))
+        assert calls[0] == ["search", "y0_" + "c" * 30]
+    finally:
+        await runtime.close()
+
+
+async def test_yandex_music_retry_on_token_expired(tmp_path, monkeypatch):
+    """Сервис ответил 401 (token_expired) — ядро обменивает токен заново и повторяет
+    вызов: второй вызов видит свежий токен."""
+    runner = await _link_exchange(monkeypatch, ["stale-token", "fresh-token"])
+    marker = tmp_path / "marker.json"
+    runtime = _token_provider_runtime(tmp_path, marker)
+    try:
+        _link_owner(runtime, "u1")
+        report = await say(runtime, "включи музыку expired")
+        assert report["handled"], report
+        calls = json.loads(marker.read_text(encoding="utf-8"))
+        searches = [c for c in calls if c[0] == "search"]
+        assert searches == [["search", "stale-token", "token_expired"], ["search", "fresh-token"]]
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
+async def test_yandex_music_token_isolated_per_owner(tmp_path, monkeypatch):
+    """Привязанный владелец с мёртвым x_token: обмен не удался — пустой токен
+    (честный отказ поставщика), чужой захваченный подменять нельзя."""
+    runner = await _link_exchange(monkeypatch, [])
+    marker = tmp_path / "marker.json"
+    runtime = _token_provider_runtime(tmp_path, marker)
+    try:
+        _link_owner(runtime, "u1", x_token="dead-token")
+        music.note_token(runtime, "y0_" + "c" * 30)  # чужой захваченный в кеше
+        report = await say(runtime, "включи музыку")
+        assert report["handled"], report
+        calls = json.loads(marker.read_text(encoding="utf-8"))
+        assert calls[0] == ["search", ""]
+    finally:
+        await runner.cleanup()
+        await runtime.close()

@@ -41,6 +41,7 @@ class FakeYandex:
 
     def __init__(self):
         self.seen = []  # (path, заголовки интереса)
+        self.exchanges = []  # формы /1/token (обмен x_token на токен сервиса)
 
     async def route(self, request):
         path = request.path
@@ -65,6 +66,13 @@ class FakeYandex:
                    "test-x-token-1": 1130000012345001,
                    "test-x-token-2": 1130000012345002}.get(token, 1130000012345678)
             return web.json_response({"status": "ok", "display_login": "tester", "uid": uid})
+        if path == "/1/token":
+            form = dict(await request.post())
+            self.exchanges.append(form)
+            x = form.get("access_token") or ""
+            if x == "dead-token":
+                return web.json_response({"error": "expired token"}, status=401)
+            return web.json_response({"access_token": f"music-token-{len(self.exchanges)}-of-{x}"})
         if path == "/1/bundle/auth/x_token/":
             return web.json_response({"status": "ok", "passport_host": self.base, "track_id": "track-3"})
         if path == "/auth/session/":
@@ -92,6 +100,7 @@ async def fake(monkeypatch):
     fy.base = f"http://127.0.0.1:{port}"
     monkeypatch.setattr(account, "PASSPORT", fy.base)
     monkeypatch.setattr(account, "MOBILEPROXY", fy.base + "/1/bundle")
+    monkeypatch.setattr(account, "MOBILE_OAUTH", fy.base + "/1/token")
     monkeypatch.setattr(account, "IOT", fy.base)
     monkeypatch.setattr(account, "IOT_PAGE", fy.base + "/iot")
     yield fy
@@ -301,5 +310,104 @@ async def test_import_iot_without_login_is_400(tmp_path, fake):
                 assert "Вход в аккаунт не выполнен" in (await response.json())["error"]
         finally:
             await runner.cleanup()
+    finally:
+        await runtime.close()
+
+
+# --- токены сервисов из привязанного аккаунта -----------------------------------
+
+async def _logged_session(runtime, user_id="u1", x_token="test-x-token"):
+    """Сессия с выполненным входом (short_info по test-* токенам известен фикстуре)."""
+    session = account.AccountSession(runtime, user_id)
+    await session.login_token(x_token)
+    return session
+
+
+async def test_service_token_exchange_and_cache(tmp_path, fake):
+    runtime = make_runtime(tmp_path)
+    try:
+        session = await _logged_session(runtime)
+        token = await session.service_token("music")
+        assert token == f"music-token-1-of-test-x-token"
+        assert len(fake.exchanges) == 1
+        form = fake.exchanges[0]
+        assert form["grant_type"] == "x-token" and form["access_token"] == "test-x-token"
+        assert form["client_id"] == account.SERVICE_CLIENTS["music"][0]
+        assert form["client_secret"] == account.SERVICE_CLIENTS["music"][1]
+        # повторный вызов — из кеша в файле сессии, обмена нет
+        assert await session.service_token("music") == token
+        assert len(fake.exchanges) == 1
+        stored = json.loads(session.path.read_text(encoding="utf-8"))
+        assert stored["service_tokens"]["music"]["token"] == token
+        # сервис ответил 401 — вызывающий просит refresh=True: обмен заново и кеш свежий
+        assert await session.service_token("music", refresh=True) == "music-token-2-of-test-x-token"
+        assert len(fake.exchanges) == 2
+        stored = json.loads(session.path.read_text(encoding="utf-8"))
+        assert stored["service_tokens"]["music"]["token"] == "music-token-2-of-test-x-token"
+    finally:
+        await runtime.close()
+
+
+async def test_service_token_without_login_and_unknown_service(tmp_path, fake):
+    runtime = make_runtime(tmp_path)
+    try:
+        session = account.AccountSession(runtime, "u1")
+        with pytest.raises(account.AccountError):
+            await session.service_token("music")  # вход не выполнен
+        assert fake.exchanges == []
+        logged = await _logged_session(runtime)
+        with pytest.raises(account.AccountError):
+            await logged.service_token("video")  # сервис не заведён
+        assert fake.exchanges == []
+    finally:
+        await runtime.close()
+
+
+async def test_service_token_exchange_failure_keeps_cache(tmp_path, fake):
+    runtime = make_runtime(tmp_path)
+    try:
+        session = await _logged_session(runtime)
+        token = await session.service_token("music")
+        # сессия с мёртвым x_token не обменяется: честная ошибка, кеш не тронут
+        # (другой файл сессии — свой у каждого пользователя)
+        dead = account.AccountSession(runtime, "u2")
+        dead.path.write_text(json.dumps({"user_id": "u2", "x_token": "dead-token",
+                                         "display_login": "tester"}), encoding="utf-8")
+        with pytest.raises(account.AccountError):
+            await dead.service_token("music")
+        assert len(fake.exchanges) == 2  # первая — удачный, вторая — 401 от Яндекса
+        assert json.loads(session.path.read_text(encoding="utf-8"))["service_tokens"]["music"]["token"] == token
+    finally:
+        await runtime.close()
+
+
+async def test_service_token_forget_drops_cache(tmp_path, fake):
+    runtime = make_runtime(tmp_path)
+    try:
+        session = await _logged_session(runtime)
+        await session.service_token("music")
+        session.forget()
+        assert not session.path.exists()
+        with pytest.raises(account.AccountError):
+            await session.service_token("music")
+        assert len(fake.exchanges) == 1  # после forget — только первый обмен
+    finally:
+        await runtime.close()
+
+
+async def test_service_token_per_user(tmp_path, fake):
+    runtime = make_runtime(tmp_path)
+    try:
+        runtime.identities.mutate({"operation": "user", "id": "u2", "name": "Вторая"})
+        first = await _logged_session(runtime, "u1", "test-x-token-1")
+        second = await _logged_session(runtime, "u2", "test-x-token-2")
+        token1 = await first.service_token("music")
+        token2 = await second.service_token("music")
+        assert token1.endswith("of-test-x-token-1") and token2.endswith("of-test-x-token-2")
+        assert token1 != token2
+        # кеш у каждого пользователя свой
+        assert await first.service_token("music") == token1
+        assert await second.service_token("music") == token2
+        assert len(fake.exchanges) == 2
     finally:
         await runtime.close()

@@ -66,6 +66,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
+import logging
 import re
 import time
 import uuid
@@ -93,7 +94,8 @@ PROVIDER_KEYS = {YANDEX_PROVIDER_ID: "MUSIC_PROVIDER_YANDEX_MUSIC"}
 
 # OAuth-токен аккаунта, захваченный из реальных обращений колонки к Яндексу:
 # заголовок Authorization: OAuth … (HTTP к quasar и др.) или X-UPRX-OAUTH-TOKEN (WS-handshake).
-# Кеш модуля для поставщика Яндекс.Музыки (captured_oauth), персистентность — StateStore meta.
+# Запасной источник для поставщика Яндекс.Музыки (основной — токен владельца из
+# привязанного аккаунта), персистентность — StateStore meta.
 _CAPTURED = {}
 
 
@@ -179,7 +181,7 @@ def is_yandex_music(provider):
 
 
 class _WithSystemValues:
-    """ExtensionContext + системные значения вызова (captured_oauth), только чтение."""
+    """ExtensionContext + системные значения вызова (yandex_oauth), только чтение."""
 
     def __init__(self, base, values):
         self._base = base
@@ -197,8 +199,10 @@ class _WithSystemValues:
         return self._values.get(key, self._base.get(key, default))
 
 
-def extension_context(ctx, provider):
-    """ExtensionContext расширения-поставщика на этот вызов (настройки свежие) или None."""
+def extension_context(ctx, provider, token=None):
+    """ExtensionContext расширения-поставщика на этот вызов (настройки свежие) или None.
+    token — OAuth-токен аккаунта для поставщика Яндекс.Музыки (токен владельца колонки
+    из привязанного аккаунта или захваченный из трафика; пусто — не передавать)."""
     runtime = ctx._services_runtime()
     manager = getattr(runtime, "extensions", None)
     build = getattr(manager, "context", None)
@@ -206,20 +210,59 @@ def extension_context(ctx, provider):
     if base is None:
         return None
     if not is_yandex_music(provider):
-        return base  # захваченный OAuth аккаунта Яндекса — только поставщику Яндекс.Музыки
-    token = _CAPTURED.get("oauth")  # захваченный OAuth — поставщику как системное значение вызова
-    return _WithSystemValues(base, {"captured_oauth": token}) if token else base
+        return base  # OAuth аккаунта Яндекса — только поставщику Яндекс.Музыки
+    return _WithSystemValues(base, {"yandex_oauth": token}) if token else base
+
+
+async def _oauth_token(ctx, provider):
+    """(токен, обновить) для поставщика: у Яндекс.Музыки — токен аккаунта владельца
+    колонки из привязанной сессии (account.AccountSession.service_token), иначе
+    захваченный из трафика. refresh — обмен заново мимо кеша (сервис ответил 401);
+    сессии нет или обмен не удался — пустой токен, чужой захваченный подменять нельзя.
+    Остальным поставщикам — (None, None)."""
+    if not is_yandex_music(provider):
+        return None, None
+    captured = _CAPTURED.get("oauth")
+    user = getattr(ctx, "user", None) or {}
+    user_id = str((user or {}).get("id") or "").strip()
+    if not user_id:
+        return str(captured or ""), None
+    from . import account
+    session = account.AccountSession(ctx._services_runtime(), user_id)
+    if not session.status()["login"]:
+        return str(captured or ""), None
+
+    async def refresh():
+        try:
+            return await session.service_token("music", refresh=True)
+        except account.AccountError as exc:  # обмен не удался — пустой токен, честный отказ
+            logging.getLogger(__name__).warning("Токен сервиса аккаунта %s: %s", user_id, exc)
+            return ""
+
+    try:
+        return await session.service_token("music"), refresh
+    except account.AccountError as exc:
+        logging.getLogger(__name__).warning("Токен сервиса аккаунта %s: %s", user_id, exc)
+        return "", None
 
 
 async def _call(ctx, provider, function, *args):
     """Вызов функции поставщика: его расширение — ctx.extension на время вызова
-    (как у режимов «Интеллекта»; прежнее значение восстанавливается)."""
+    (как у режимов «Интеллекта»; прежнее значение восстанавливается). Поставщику
+    Яндекс.Музыки — токен аккаунта (владельца колонки или захваченный); его отметка
+    token_expired (сервис ответил 401) — обмен заново один раз и повтор вызова."""
     previous = ctx.extension
-    ctx.extension = extension_context(ctx, provider)
+    token, refresh = await _oauth_token(ctx, provider)
+    ctx.extension = extension_context(ctx, provider, token)
     try:
         result = function(*args)
         if inspect.isawaitable(result):
             result = await result
+        if refresh is not None and isinstance(result, dict) and result.get("token_expired"):
+            ctx.extension = extension_context(ctx, provider, await refresh())
+            result = function(*args)
+            if inspect.isawaitable(result):
+                result = await result
         return result
     finally:
         ctx.extension = previous

@@ -1,5 +1,6 @@
 """Встроенный поставщик Яндекс.Музыки (plugins/yandex-music/music/yandex_music.py):
-поиск через библиотеку yandex-music с захваченным OAuth-токеном аккаунта (captured_oauth от ядра),
+поиск через библиотеку yandex-music с OAuth-токеном аккаунта от ядра (yandex_oauth:
+токен владельца из привязанного аккаунта или захваченный из трафика),
 прямые ссылки mp3 из download-info (downloadInfoUrl → XML host/path/ts/s → get-mp3 с
 подписью), очередь в памяти модуля.
 Настоящий Яндекс из тестов не дёргается: URL-константы модуля подменяются на
@@ -52,7 +53,7 @@ class Data:
 
 
 class Ctx:
-    """Минимальный двойник ScenarioContext: sn/device/extension (+captured_oauth ядра)
+    """Минимальный двойник ScenarioContext: sn/device/extension (+yandex_oauth ядра)
     и ctx.data (персональное хранилище; общий экземпляр — shared_data)."""
 
     def __init__(self, sn="SN-T", market="ru", oauth="y0_" + "t" * 30, shared_data=None, **settings):
@@ -60,7 +61,7 @@ class Ctx:
         self.device = {"sn": sn}
         self.text = ""
         self.data = shared_data if shared_data is not None else Data()
-        values = {"market": market, "captured_oauth": oauth, **settings}
+        values = {"market": market, "yandex_oauth": oauth, **settings}
         self.extension = type("Ext", (), {
             "settings": values,
             "get": staticmethod(lambda key, default=None: values.get(key, default)),
@@ -83,9 +84,12 @@ class FakeMusic:
         self.rotor_requests = []
         self.playlists = {}  # название → [track_id] — плейлисты пользователя
         self.catalog = {item["id"]: item for item in ITEMS}  # id → запись трека (POST /tracks)
+        self.unauthorized = False  # True — /search отвечает 401 (мёртвый токен)
 
     async def search(self, request):
         self.searches.append(dict(request.query))
+        if self.unauthorized:
+            return web.json_response({"error": "expired"}, status=401)
         return web.json_response(self.search_payload)
 
     async def info(self, request):
@@ -426,3 +430,15 @@ async def test_final_link_follows_permanent_redirect(provider):
         assert await asyncio.to_thread(provider._final_link, dead) == dead  # сбой — исходная ссылка
     finally:
         await runner.cleanup()
+
+
+async def test_search_401_marks_token_expired(provider, fake):
+    """Сервис ответил 401 — плагин отвечает отметкой token_expired (ядро обменяет токен
+    заново и повторит вызов); повторный 401 доходит пользователю честной репликой."""
+    fake.unauthorized = True
+    result = await provider.search(Ctx(), "ветер", "music")
+    assert result["token_expired"] is True
+    assert result["tracks"] == [] and result["note"] == provider.NOTE_TOKEN_EXPIRED
+    # повторный вызов (ядро вернуло свежий токен) — тот же ответ до исправления токена
+    result = await provider.search(Ctx(), "ветер", "music")
+    assert result["token_expired"] is True
