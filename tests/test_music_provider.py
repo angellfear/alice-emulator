@@ -390,6 +390,24 @@ async def test_play_phrase_without_query_asks_provider(tmp_path):
         await runtime.close()
 
 
+async def test_play_phrase_punctuation_is_not_query(tmp_path):
+    """ASR с пунктуацией: «Включи музыку.» — пустой запрос, «Включи Аллу Пугачёву.» — без точки."""
+    runtime = Runtime(tmp_path)
+    marker = tmp_path / "marker.json"
+    make_music_extension(runtime, files={"music/fake.py": _provider_module(marker)}, phrases=MUSIC_PHRASES)
+    _disable_builtin_providers(runtime)
+    try:
+        report = await say(runtime, "Включи музыку.")
+        assert report["handled"] and report["messages"]
+        assert json.loads(marker.read_text(encoding="utf-8"))[0] == ["search", "", "music"]
+        marker.unlink()
+        report = await say(runtime, "Включи музыку Аллу Пугачёву!")
+        assert report["handled"] and report["messages"]
+        assert json.loads(marker.read_text(encoding="utf-8"))[0] == ["search", "аллу пугачеву", "music"]
+    finally:
+        await runtime.close()
+
+
 async def test_play_without_query_question_listens_and_answer_searches(tmp_path):
     """Поставщик на пустой запрос спрашивает «Что включить?» — вопрос уточнения
     (ShouldListen: колонка слушает), ответ пользователя — запрос поиска."""

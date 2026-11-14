@@ -97,7 +97,8 @@ def _request(ctx):
             if text.startswith(head):
                 tail = text[len(head):].strip()
                 break
-    return kind, tail
+    # распознаватель с пунктуацией: «Включи музыку.» — точка не запрос
+    return kind, tail.strip(" 	.,!?…;:«»\"'")
 
 
 async def _stack_next(ctx):
