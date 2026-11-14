@@ -60,7 +60,11 @@ class FakeYandex:
         if path == "/1/bundle/oauth/token_by_sessionid":
             return web.json_response({"access_token": "test-x-token"})
         if path.startswith("/1/bundle/account/short_info"):
-            return web.json_response({"status": "ok", "display_login": "tester", "uid": 1130000012345678})
+            token = (request.headers.get("Authorization") or "").split(" ", 1)[-1]
+            uid = {"test-x-token": 1130000012345678,
+                   "test-x-token-1": 1130000012345001,
+                   "test-x-token-2": 1130000012345002}.get(token, 1130000012345678)
+            return web.json_response({"status": "ok", "display_login": "tester", "uid": uid})
         if path == "/1/bundle/auth/x_token/":
             return web.json_response({"status": "ok", "passport_host": self.base, "track_id": "track-3"})
         if path == "/auth/session/":
@@ -96,6 +100,7 @@ async def fake(monkeypatch):
 
 def make_runtime(tmp_path):
     runtime = Runtime(tmp_path)
+    runtime.identities.mutate({"operation": "user", "id": "u1", "name": "Тест"})
     runtime.identities.data["devices"] = [device_row()]
     return runtime
 
@@ -112,29 +117,79 @@ async def test_account_status_and_token_login(tmp_path, fake):
     app = create_app(runtime=runtime)
     runner, url = await listen(app)
     try:
-        async with runtime.lifecycle.client_session().get(f"{url}/emulator/api/account") as response:
+        async with runtime.lifecycle.client_session().get(
+                f"{url}/emulator/api/account?user=u1") as response:
             assert await response.json() == {"login": False, "login_name": None}
         async with runtime.lifecycle.client_session().post(
                 f"{url}/emulator/api/account", headers=headers_write(),
-                json={"op": "login_token", "token": "test-x-token"}) as response:
+                json={"op": "login_token", "token": "test-x-token", "user": "u1"}) as response:
             assert await response.json() == {"login": True, "login_name": "tester"}
-        stored = (runtime.directory / "account" / "session.json").read_text(encoding="utf-8")
+        stored = (runtime.directory / "account" / "sessions" / "u1.json").read_text(encoding="utf-8")
         assert json.loads(stored)["x_token"] == "test-x-token"  # секрет в state/, не в ответе
         assert json.loads(stored)["uid"] == 1130000012345678  # настоящий uid short_info — для oauth_stubs
-        assert account.AccountSession(runtime).uid() == 1130000012345678
+        assert json.loads(stored)["user_id"] == "u1"  # пользователь внутри файла — коллизии имён видны
+        assert account.AccountSession(runtime, "u1").uid() == 1130000012345678
         async with runtime.lifecycle.client_session().post(
                 f"{url}/emulator/api/account", headers=headers_write(),
-                json={"op": "logout"}) as response:
+                json={"op": "logout", "user": "u1"}) as response:
             assert (await response.json())["login"] is False
-        assert not (runtime.directory / "account" / "session.json").exists()
+        assert not (runtime.directory / "account" / "sessions" / "u1.json").exists()
     finally:
         await runner.cleanup()
         await runtime.close()
 
 
+async def test_account_api_requires_user(tmp_path, fake):
+    """Без user или с несуществующим id — 400 с понятным текстом (GET и POST)."""
+    runtime = make_runtime(tmp_path)
+    from server_emulator.server import create_app
+    from tests.conftest import listen
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        async with runtime.lifecycle.client_session().get(
+                f"{url}/emulator/api/account") as response:
+            assert response.status == 400
+            assert "user" in (await response.json())["error"]
+        async with runtime.lifecycle.client_session().get(
+                f"{url}/emulator/api/account?user=ghost") as response:
+            assert response.status == 400
+            assert "ghost" in (await response.json())["error"]
+        async with runtime.lifecycle.client_session().post(
+                f"{url}/emulator/api/account", headers=headers_write(),
+                json={"op": "logout"}) as response:
+            assert response.status == 400
+            assert "user" in (await response.json())["error"]
+    finally:
+        await runner.cleanup()  # закрывает и runtime (create_app.on_cleanup)
+
+
+async def test_two_users_separate_sessions(tmp_path, fake):
+    """Два пользователя — два входа одновременно: разные x_token/uid в разных файлах
+    sessions/, сессии не путаются; забытый вход первого не трогает второй."""
+    runtime = make_runtime(tmp_path)
+    runtime.identities.mutate({"operation": "user", "id": "u2", "name": "Тест 2"})
+    try:
+        first = account.AccountSession(runtime, "u1")
+        second = account.AccountSession(runtime, "u2")
+        await first.login_token("test-x-token-1")
+        await second.login_token("test-x-token-2")
+        assert first.uid() == 1130000012345001 and second.uid() == 1130000012345002
+        stored1 = json.loads((runtime.directory / "account" / "sessions" / "u1.json").read_text("utf-8"))
+        stored2 = json.loads((runtime.directory / "account" / "sessions" / "u2.json").read_text("utf-8"))
+        assert stored1["x_token"] == "test-x-token-1" and stored1["uid"] == 1130000012345001
+        assert stored2["x_token"] == "test-x-token-2" and stored2["uid"] == 1130000012345002
+        linked = account.linked_sessions(runtime)
+        assert [s.user_id for s in linked] == ["u1", "u2"]  # обе сессии, в порядке реестра
+        first.forget()
+        assert first.status()["login"] is False and second.status()["login"] is True
+        assert [s.user_id for s in account.linked_sessions(runtime)] == ["u2"]
+    finally:
+        await runtime.close()
+
+
 async def test_login_cookies_raw_and_qr(tmp_path, fake):
     runtime = make_runtime(tmp_path)
-    session = account.AccountSession(runtime)
+    session = account.AccountSession(runtime, "u1")
     try:
         assert await session.login_cookies("yandexuid=testuid; Session_id=test") == \
             {"login": True, "login_name": "tester"}
@@ -212,7 +267,7 @@ async def test_import_from_get_sync_info_journal(tmp_path, fake):
 async def test_import_iot_after_login(tmp_path, fake):
     runtime = make_runtime(tmp_path)
     try:
-        session = account.AccountSession(runtime)
+        session = account.AccountSession(runtime, "u1")
         await session.login_token("test-x-token")
         from server_emulator.server import create_app
         from tests.conftest import listen

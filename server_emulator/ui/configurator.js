@@ -1,14 +1,15 @@
 // Первичный конфигуратор обязательных параметров (<dialog>): список незаполненных
-// (GET api/params_required), поля ввода, «Подтянуть из аккаунта Яндекса» — журнал
-// get_sync_info (без входа) + iot-API (нужен вход: токен / cookies / QR; секреты
-// остаются в state/, наружу только статус). Заполненное пишется в каталог «Параметры»,
-// закреплённые уведомления снимаются следующей сборкой конфига сами.
+// (GET api/params_required), поля ввода, сводка привязанных Яндекс-аккаунтов и
+// «Подтянуть из аккаунта Яндекса» — журнал get_sync_info (без входа) + iot-API по
+// всем входам пользователей сразу. Вход/выход — кнопка «Яндекс» у пользователя на
+// вкладке «Пользователи»; секреты остаются в state/, наружу только статус.
+// Заполненное пишется в каталог «Параметры», закреплённые уведомления снимаются
+// следующей сборкой конфига сами.
 // Открытие — window.configuratorOpen(): из закреплённого уведомления и из «Параметров».
 // API — ui/api/account.py (account.py).
 (() => {
   const node = (tag, text, cls) => { const n = document.createElement(tag); if (text != null) n.textContent = text; if (cls) n.className = cls; return n; };
   const $ = id => document.getElementById(id);
-  let poll = null;  // таймер опроса QR-подтверждения
 
   async function api(action, value, method) {
     const response = await fetch('api/' + action, {
@@ -49,75 +50,22 @@
     return required;
   }
 
-  // ── аккаунт Яндекса ───────────────────────────────────────────────────────────
-  function stopPoll() { if (poll) { clearInterval(poll); poll = null; } }
-
-  function renderAccount(status) {
-    const actions = $('configurator-account-actions');
-    const hint = $('configurator-account-hint');
-    actions.replaceChildren();
-    $('configurator-login').hidden = true;
-    stopPoll();
-    if (status.login) {
-      hint.textContent = 'Аккаунт: ' + (status.login_name || 'вход выполнен') +
-        '. Уведомления и токен — только в state/ эмулятора.';
-      const forget = node('button', 'Забыть аккаунт', 'secondary');
-      forget.type = 'button';
-      forget.onclick = () => work(async () => {
-        await api('account', {op: 'logout'});
-        await refresh();
-      });
-      actions.append(forget);
-      return;
+  // ── аккаунты Яндекса: сводка по всем пользователям ────────────────────────────
+  async function linkedCount() {
+    const {users} = await api('identities');
+    let linked = 0;
+    for (const user of users || []) {
+      const status = await api('account?user=' + encodeURIComponent(user.id)).catch(() => null);
+      if (status && status.login) linked++;
     }
-    hint.textContent = 'Вход не выполнен: импорт из журнала работает и без него.';
-    const open = node('button', 'Войти по токену / cookies / QR', 'secondary');
-    open.type = 'button';
-    open.onclick = () => { $('configurator-login').hidden = false; };
-    actions.append(open);
+    return {linked, total: (users || []).length};
   }
 
-  function loginForms() {
-    const box = $('configurator-login');
-    box.replaceChildren();
-    const token = node('input'); token.placeholder = 'x_token аккаунта';
-    const tokenBtn = node('button', 'Войти по токену', 'secondary');
-    tokenBtn.type = 'button';
-    tokenBtn.onclick = () => work(async () => {
-      renderAccount(await api('account', {op: 'login_token', token: token.value.trim()}));
-      message('Вход выполнен');
-    });
-    const cookies = node('textarea'); cookies.rows = 2;
-    cookies.placeholder = 'yandexuid=…; Session_id=… или JSON «Copy Cookies»';
-    const cookiesBtn = node('button', 'Войти по cookies', 'secondary');
-    cookiesBtn.type = 'button';
-    cookiesBtn.onclick = () => work(async () => {
-      renderAccount(await api('account', {op: 'login_cookies', cookies: cookies.value.trim()}));
-      message('Вход выполнен');
-    });
-    const qrBtn = node('button', 'Получить ссылку QR', 'secondary');
-    qrBtn.type = 'button';
-    const qrLink = node('p', null, 'hint');
-    qrBtn.onclick = () => work(async () => {
-      const {link} = await api('account', {op: 'qr_start'});
-      qrLink.replaceChildren(node('a', 'Подтвердите вход по ссылке', 'hint'));
-      qrLink.firstChild.href = link;
-      qrLink.firstChild.target = '_blank';
-      qrLink.firstChild.rel = 'noopener';
-      stopPoll();
-      poll = setInterval(() => work(async () => {
-        const state = await api('account', {op: 'qr_poll'});
-        if (state.state === 'done') {
-          stopPoll();
-          renderAccount(state);
-          message('Вход выполнен');
-        }
-      }).catch(() => {}), 2000);
-    });
-    box.append(node('p', 'Вход по токену', 'hint'), token, tokenBtn,
-               node('p', 'Вход по cookies', 'hint'), cookies, cookiesBtn,
-               node('p', 'QR-вход: ссылка подтверждается в приложении Яндекса', 'hint'),
-               qrBtn, qrLink);
+  async function renderAccountSummary() {
+    const {linked, total} = await linkedCount();
+    $('configurator-account-summary').textContent = linked
+      ? `Вход выполнен у ${linked} из ${total} пользователей; вход и выход — на вкладке «Пользователи».`
+      : 'Входа в Яндекс нет ни у одного пользователя — вход настраивается на вкладке «Пользователи». Импорт из журнала работает и без него.';
   }
 
   async function importAccount() {
@@ -127,13 +75,14 @@
     const sync = await api('params_import', {source: 'get_sync_info'});
     parts.push('журнал get_sync_info: значений ' + sync.items.length +
                (sync.answers ? ' (ответов колонок: ' + sync.answers + ')' : ''));
-    const status = await api('account');
-    if (status.login) {
+    const {linked} = await linkedCount();
+    if (linked) {
       const iot = await api('params_import', {source: 'iot'});
       parts.push('аккаунт: значений ' + iot.items.length);
     }
     result.textContent = parts.join(' · ') + '. Секреты записаны в каталог без показа.';
     await renderRequired();
+    await renderAccountSummary();
   }
 
   // ── каркас диалога ────────────────────────────────────────────────────────────
@@ -146,8 +95,7 @@
 
   async function refresh() {
     const required = await renderRequired();
-    renderAccount(await api('account'));
-    loginForms();
+    await renderAccountSummary();
     $('configurator-import-result').textContent = '';
     return required;
   }
@@ -162,7 +110,7 @@
   function bind() {
     if (!$('configurator-dialog')) return;
     $('configurator-open').onclick = open;                 // кнопка из «Параметров»
-    $('configurator-close').onclick = () => { stopPoll(); $('configurator-dialog').close(); };
+    $('configurator-close').onclick = () => { $('configurator-dialog').close(); };
     $('configurator-import').onclick = () => work(importAccount);
     $('configurator-form').onsubmit = event => { event.preventDefault(); work(async () => {
       const inputs = [...$('configurator-required').querySelectorAll('input[data-key]')];

@@ -7,9 +7,10 @@ core/yandex_quasar.py): QR-вход (pwl-yandex magic-код), обмен cookie
 (x_token → сессия), список устройств iot. Лицензия и происхождение —
 docs/LICENSE-NOTICE.md.
 
-Секреты (x_token) живут в state/account/session.json, наружу API отдаёт только
-статус; в журналы и тексты ошибок значения не попадают. Пароля клиент не спрашивает
-и не хранит. Настоящий uid из short_info тоже сохраняется (AccountSession.uid()) —
+Секреты (x_token) живут в state/account/sessions/<пользователь>.json — вход свой у
+каждого пользователя, наружу API отдаёт только статус; в журналы и тексты ошибок
+значения не попадают. Пароля клиент не спрашивает и не хранит. Настоящий uid из
+short_info тоже сохраняется (AccountSession.uid()) —
 им пользуется oauth_stubs для колонки в «Эмуляции»: тому же локальному владельцу
 отдаётся тот же uid, что дал бы реальный Яндекс, вместо синтетического номера.
 
@@ -48,11 +49,16 @@ class AccountError(ValueError):
 
 
 class AccountSession:
-    """Состояние входа аккаунта: x_token в state/account/session.json, наружу — статус."""
+    """Состояние входа аккаунта одного пользователя: x_token в
+    state/account/sessions/<пользователь>.json, наружу — статус."""
 
-    def __init__(self, runtime):
+    def __init__(self, runtime, user_id):
         self.runtime = runtime
-        self.path = runtime.directory / "account" / "session.json"
+        self.user_id = user_id
+        # в user_id допустим любой текст (не-ASCII, пробелы) — имя файла безопасное,
+        # сам user_id пишется в JSON: коллизии имён файлов видно по содержимому
+        name = re.sub(r"[^A-Za-z0-9_.-]", "_", user_id) or "_"
+        self.path = runtime.directory / "account" / "sessions" / f"{name}.json"
         self._qr = None  # csrf/track от начала QR-входа (в памяти, не на диск)
 
     def _session(self):
@@ -68,7 +74,8 @@ class AccountSession:
 
     def _save(self, x_token, display_login, uid=None):
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(json.dumps({"x_token": x_token, "display_login": display_login, "uid": uid},
+        self.path.write_text(json.dumps({"user_id": self.user_id, "x_token": x_token,
+                                         "display_login": display_login, "uid": uid},
                                         ensure_ascii=False), encoding="utf-8")
 
     def uid(self):
@@ -289,7 +296,7 @@ def _dig(data, path):
     return node
 
 
-async def import_sync_info(runtime, session):
+async def import_sync_info(runtime):
     """Значения из ответов get_sync_info настоящего облака (журнал upstream) →
     каталог «Параметры»: wifi_hash и координаты — владельцу-пользователю колонки,
     имя и glagol-ключи — колонке. Отчёт по полям без значений секретов."""
@@ -324,12 +331,32 @@ async def import_sync_info(runtime, session):
     return {"items": report, "answers": len(answers)}
 
 
-async def import_iot(runtime, session):
+def linked_sessions(runtime):
+    """Сессии всех пользователей с выполненным входом (в порядке реестра):
+    импорт «Подтянуть из аккаунта» идёт по каждой из них по очереди."""
+    return [AccountSession(runtime, user["id"])
+            for user in runtime.identities.data["users"]
+            if AccountSession(runtime, user["id"]).status()["login"]]
+
+
+async def import_iot(runtime):
     """Значения из iot-API аккаунта → каталог: комнаты и имена колонок, координаты
-    из конфигурации колонки. Отчёт по полям без значений секретов."""
+    из конфигурации колонки. Импорт по каждой сессии из linked_sessions() по очереди,
+    результаты объединяются. Отчёт по полям без значений секретов."""
+    sessions = linked_sessions(runtime)
+    if not sessions:
+        raise AccountError("Вход в аккаунт не выполнен")
+    filled, devices = [], 0
+    for session in sessions:
+        devices += await _import_iot_session(runtime, session, filled)
+    return {"items": filled, "devices": devices}
+
+
+async def _import_iot_session(runtime, session, filled):
+    """Импорт одной сессии аккаунта; items дописывает в общий filled,
+    возвращает число колонок этой сессии."""
     params = runtime.quasar_params
     devices = await session.iot_devices()
-    filled = []
     for device in devices:
         if not device["device_id"]:
             continue
@@ -353,7 +380,7 @@ async def import_iot(runtime, session):
             if value is not None and user_owner and _apply(params, user_owner, key, value):
                 filled.append({"key": key, "owner": user_owner, "source": "iot",
                                "secret": False, "status": "filled"})
-    return {"items": filled, "devices": len(devices)}
+    return len(devices)
 
 
 def required_unfilled(runtime):

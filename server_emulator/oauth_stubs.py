@@ -11,9 +11,9 @@ token_by_sessionid — «VAT.» + случайный hex 32 байта), ниг�
 число: SDK паспорта колонки разбирает его как long, строковый идентификатор реестра
 роняет разбор ответа (Failed to parse literal … as a long value) — колонка не
 восстанавливает сессию аккаунта и после перезагрузки остаётся на сплэше загрузки.
-Если через «Подтянуть из аккаунта» (account.AccountSession) привязан настоящий
-Яндекс-аккаунт — uid берётся настоящий (resolve_uid), иначе детерминированный
-синтетический от id пользователя реестра (numeric_uid).
+Если у владельца устройства через «Подтянуть из аккаунта» (account.AccountSession)
+привязан настоящий Яндекс-аккаунт — uid берётся настоящий (resolve_uid), иначе
+детерминированный синтетический от id пользователя реестра (numeric_uid).
 """
 import hashlib
 import json
@@ -75,10 +75,11 @@ def numeric_uid(user_id):
 
 def resolve_uid(runtime, user_id):
     """Настоящий uid привязанного через «Подтянуть из аккаунта» Яндекс-аккаунта
-    (AccountSession.uid()) приоритетнее синтетического: колонка в «Эмуляции» видит
-    тот же uid, что дал бы реальный Яндекс этому владельцу. Нет привязки — numeric_uid."""
+    владельца устройства (AccountSession.uid()) приоритетнее синтетического: колонка
+    в «Эмуляции» видит тот же uid, что дал бы реальный Яндекс этому владельцу.
+    Нет привязки — numeric_uid."""
     from .account import AccountSession
-    real = AccountSession(runtime).uid()
+    real = AccountSession(runtime, user_id).uid()
     return real if real is not None else numeric_uid(user_id)
 
 

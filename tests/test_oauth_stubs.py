@@ -127,6 +127,23 @@ async def test_numeric_uid_deterministic_per_user(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_resolve_uid_per_user(tmp_path):
+    """resolve_uid спрашивает аккаунт именно владельца устройства: u1 с привязанным
+    настоящим аккаунтом → настоящий uid, u2 без привязки → синтетический."""
+    from server_emulator import account
+    runtime = Runtime(tmp_path)
+    runtime.identities.mutate({"operation": "user", "id": "u1", "name": "Аня"})
+    runtime.identities.mutate({"operation": "user", "id": "u2", "name": "Борис"})
+    account.AccountSession(runtime, "u1")._save("real-x-token", "tester", 1130000012345678)
+    try:
+        assert oauth_stubs.resolve_uid(runtime, "u1") == 1130000012345678
+        assert oauth_stubs.resolve_uid(runtime, "u2") == oauth_stubs.numeric_uid("u2")
+        assert oauth_stubs.resolve_uid(runtime, "u2") != 1130000012345678
+    finally:
+        await runtime.close()
+
+
+@pytest.mark.asyncio
 async def test_linked_real_account_uid_wins_over_synthetic(tmp_path):
     """Привязанный через «Подтянуть из аккаунта» настоящий Яндекс-аккаунт — его uid
     приоритетнее синтетического: колонка в «Эмуляции» видит тот же uid, что от
@@ -134,7 +151,7 @@ async def test_linked_real_account_uid_wins_over_synthetic(tmp_path):
     from server_emulator import account
     runtime = Runtime(tmp_path)
     registry(runtime)
-    account.AccountSession(runtime)._save("real-x-token", "tester", 1130000012345678)
+    account.AccountSession(runtime, "u1")._save("real-x-token", "tester", 1130000012345678)
     runner, url = await listen(create_app(runtime=runtime))
     try:
         status, body = await post_form(url, "/token", OAUTH,
