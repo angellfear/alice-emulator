@@ -167,14 +167,15 @@ def coerce(fields, values):
     return result
 
 
-_gpus = (0.0, [])
+_gpus = None  # видеокарты NVIDIA: опрашиваются один раз (gpus)
 
 
 def gpus():
-    """Видеокарты NVIDIA: [{"value": "0", "label": "0 · RTX 4070 SUPER · 12 ГБ"}] (кеш 60 с)."""
+    """Видеокарты NVIDIA: [{"value": "0", "label": "0 · RTX 4070 SUPER · 12 ГБ"}] — опрос
+    nvidia-smi один раз за запуск сервера: состав видеокарт на ходу не меняется."""
     global _gpus
-    if time.monotonic() - _gpus[0] < 60:
-        return _gpus[1]
+    if _gpus is not None:
+        return _gpus
     found = []
     try:
         done = subprocess.run(["nvidia-smi", "--query-gpu=index,name,memory.total", "--format=csv,noheader,nounits"],
@@ -185,7 +186,7 @@ def gpus():
             found.append({"value": index, "label": f"{index} · {name.replace('NVIDIA ', '')} · {round(int(memory) / 1024)} ГБ"})
     except (OSError, ValueError, subprocess.SubprocessError):
         pass
-    _gpus = (time.monotonic(), found)
+    _gpus = found
     return found
 
 

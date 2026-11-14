@@ -62,7 +62,9 @@ def belongs(proc, folder, script):
 
 
 def snapshot():
-    return list(psutil.process_iter(["pid", "ppid", "exe", "cmdline"]))
+    # без ppid: на Windows psutil ради него перечисляет все процессы заново для каждого процесса —
+    # секунды под GIL; родитель нужен лишь найденным корням (_parent)
+    return list(psutil.process_iter(["pid", "exe", "cmdline"]))
 
 
 def find(folder, script, registered_pid=None, pid_file=None, processes=None):

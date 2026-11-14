@@ -39,7 +39,7 @@ def origin_url(repo):
 
 def tracked_changes(repo):
     """Изменённые отслеживаемые файлы (staged + unstaged); untracked (state/ и пр.) — не блокируют."""
-    status = porcelain.status(repo)
+    status = porcelain.status(repo, untracked_files="no")
     files = set()
     for names in status.staged.values():
         files.update(_name(name) for name in names)

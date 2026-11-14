@@ -104,11 +104,12 @@ class Service:
         """События проверки в журнал: новая доступная версия — один раз на версию,
         сбой проверки — не чаще раза в сутки (метка переживает рестарт сервера в state —
         иначе каждый перезапуск при недоступном репозитории пишет ту же запись заново)."""
-        release = self._available(version.current(self.root))
+        current = self._running()
+        release = self._available(current)
         if release and self._reported_release != release["version"]:
             self._reported_release = release["version"]
             log_event("info", "self_update",
-                      f"Доступна новая версия {release['version']} (сейчас {version.current(self.root)['version']})")
+                      f"Доступна новая версия {release['version']} (сейчас {current['version']})")
         error = result.get("error")
         if error and self._error_log_due():
             log_event("warning", "self_update", f"Проверка обновлений не удалась: {error}")
@@ -160,11 +161,16 @@ class Service:
 
     # --- статус для API/UI ------------------------------------------------------------
 
+    def _running(self):
+        """Версия для статуса и журнала: своя рабочая копия — версия запущенного кода (кеш
+        процесса, без статуса рабочей копии под GIL), чужой корень — расчёт."""
+        return version.current() if Path(self.root).resolve() == version.ROOT else version.current(self.root)
+
     def status(self, app=None):
         """Статус для GET api/self_update. can_update — про рабочую копию; обновление ещё требует
         штатного выхода процесса (EXIT_KEY от serve) — из встроенного прокси обновляться нельзя."""
         from ..control import EXIT_KEY
-        current = version.current(self.root)
+        current = self._running()
         settings = self.settings() or {}
         release = self._available(current)
         can, reasons, files = repo.can_update(self.root, settings.get("repo") or DEFAULT_REPO)

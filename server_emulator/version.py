@@ -25,8 +25,23 @@ def _manifest_version():
         return "0.0.0"
 
 
+_RUNNING = None  # версия запущенного кода: считается один раз за процесс (current без path)
+
+
 def current(path=None):
-    """{"version": str, "commit": str, "dirty": bool} — см. докстринг модуля."""
+    """{"version": str, "commit": str, "dirty": bool} — см. докстринг модуля. Без path —
+    версия запущенного сервера: исполняется код, загруженный при старте, поэтому она
+    считается один раз за процесс: статус рабочей копии через dulwich — сотни мс под GIL,
+    запросы панели его не пересчитывают."""
+    global _RUNNING
+    if path is not None:
+        return _describe(path)
+    if _RUNNING is None:
+        _RUNNING = _describe(None)
+    return dict(_RUNNING)
+
+
+def _describe(path):
     result = {"version": _manifest_version(), "commit": "", "dirty": False}
     try:
         from dulwich.repo import Repo
