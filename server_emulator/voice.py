@@ -817,7 +817,14 @@ class Conversation:
 
         reason_code = incoming.StreamControl.Close.Reason
 
-        if reason_code == 5 or not state['size']:
+        # NO_SPEECH от колонки при набранном звуке и без потокового ASR — не «нет речи»:
+        # конец фразы колонка признаёт по частичным результатам сервера, а непотоковый
+        # адаптер (например локальный gigaam) их не даёт — колонка закрывает микрофон
+        # по тайм-ауту ~5 с. В буфере может быть фраза: распознаём его как обычную
+        # реплику (проход ниже), а не выбрасываем.
+
+        if (reason_code == 5 or not state['size']) and not (
+                reason_code == 5 and state['size'] and not state.get('asr_task')):
 
             # Реальный wire (capture): колонка закрыла микрофон NO_SPEECH → сервер
 
@@ -1298,7 +1305,7 @@ class Conversation:
 
                 else:
 
-                    body, filename = input_audio(audio, request.Format)
+                    body, filename = await input_audio(audio, request.Format)
 
                     raw, _ = await self.runtime.provider('stt', audio=body, filename=filename)
 

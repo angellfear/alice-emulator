@@ -30,9 +30,12 @@ class InputLimit(Exception):
     """Превышен лимит длительности или размера входного аудио."""
 
 
-def input_audio(data, fmt):
+async def input_audio(data, fmt):
     """Фрейм входного аудио → (данные для ASR, имя файла): PCM s16le → WAV,
-    Opus в Ogg — как есть. Иначе ValueError (формат не поддерживается)."""
+    Opus в Ogg — декодированный WAV: буфер колонки — транспорт, а не
+    самодостаточный файл (слово активации и реплика идут в нём разными
+    логическими потоками, EOS обрывается), строгие декодеры HTTP-сервисов STT
+    такой буфер не читают. Иначе ValueError (формат не поддерживается)."""
     match = re.fullmatch(r'audio/x-pcm;bit=16;rate=(\d+);channels=(\d+)', fmt)
     if match:
         rate, channels = map(int, match.groups())
@@ -46,7 +49,23 @@ def input_audio(data, fmt):
             wav.writeframes(data)
         return buffer.getvalue(), 'input.wav'
     if fmt == 'audio/opus' and data.startswith(b'OggS'):
-        return data, 'input.ogg'
+        import numpy as np
+
+        from .native_audio import decode_opus
+
+        async def chunks():
+            yield data
+
+        samples = [chunk async for chunk in decode_opus(chunks())]
+        buffer = io.BytesIO()
+        with wave.open(buffer, 'wb') as wav:
+            wav.setnchannels(1)
+            wav.setsampwidth(2)
+            wav.setframerate(48000)
+            if samples:
+                pcm = np.concatenate(samples)
+                wav.writeframes((np.clip(pcm, -1.0, 1.0) * 32767).astype('<i2').tobytes())
+        return buffer.getvalue(), 'input.wav'
     raise ValueError('Поддержаны PCM s16le и Opus в Ogg-контейнере')
 
 

@@ -29,7 +29,7 @@ module: "server_emulator/voice.py"
 | 2 | STOP_RECORDING | не используется эмулятором; наблюдается от клиента |
 | 3 | AUDIO_SOURCE_STOPPED | не используется эмулятором |
 | 4 | CANCEL | отмена/новый запрос вытесняет старый (voice.py) |
-| 5 | NO_SPEECH | вход без аудио игнорируется (voice.py) |
+| 5 | NO_SPEECH | без аудио — пустой финал и реплика; со звуком и без потокового ASR — буфер распознаётся как реплика (voice.py) |
 
 `StreamControl` несёт `StreamId`, `Close.Reason`, `SpotterEnd`, `LazyTTS` (descriptor).
 

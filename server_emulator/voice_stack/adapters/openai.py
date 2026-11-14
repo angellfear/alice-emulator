@@ -96,7 +96,9 @@ async def _post(runtime, config, kind, **kwargs):
         config["url"], headers=_headers(config), timeout=ClientTimeout(total=90), **kwargs)
     async with response:
         if response.status >= 400:
-            raise ValueError(f"{kind}: HTTP {response.status} от провайдера")
+            body = (await response.text()).strip()
+            # как в _litellm: текст ошибки провайдера — в исключение (попадает в трассу конвейера)
+            raise ValueError(f"{kind}: HTTP {response.status} от провайдера {body[:160]}".strip())
         body = bytearray()
         async for chunk in response.content.iter_chunked(65536):
             body.extend(chunk)

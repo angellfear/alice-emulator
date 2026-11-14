@@ -15,17 +15,55 @@ from server_emulator.voice import Conversation, input_audio, ogg_pages
 from tests.conftest import listen, page, types
 
 
-def test_audio_requires_matching_format_and_complete_tts():
-    raw, filename = input_audio(b'\0\0'*320, 'audio/x-pcm;bit=16;rate=16000;channels=1')
+async def test_audio_requires_matching_format_and_complete_tts():
+    raw, filename = await input_audio(b'\0\0'*320, 'audio/x-pcm;bit=16;rate=16000;channels=1')
     with wave.open(io.BytesIO(raw)) as audio:
         assert audio.getnframes() == 320 and audio.getframerate() == 16000
     assert filename == 'input.wav'
     with pytest.raises(ValueError):
-        input_audio(b'\0', 'audio/x-pcm;bit=16;rate=16000;channels=1')
+        await input_audio(b'\0', 'audio/x-pcm;bit=16;rate=16000;channels=1')
+    with pytest.raises(ValueError):
+        await input_audio(b'\0', 'audio/opus')
     with pytest.raises(ValueError):
         ogg_pages(b'RIFFnot-ogg')
     with pytest.raises(ValueError):
         ogg_pages(page(2, b'OpusHead'+b'\0'*11, 0))
+
+
+async def test_input_audio_decodes_column_transport_to_wav():
+    """Буфер колонки — транспорт: слово активации и реплика идут разными логическими
+    потоками (нумерация страниц каждого с нуля), EOS у реплики обрывается закрытием
+    микрофона. STT должен получать самодостаточный WAV, а не эти байты как есть."""
+    import numpy as np
+
+    from server_emulator.audio_stream import transcode
+    from server_emulator.native_audio import crc as ogg_crc
+
+    async def stream(serial):
+        async def source():
+            yield np.zeros(4800, dtype=np.float32).tobytes()  # 0.1 с тишины
+
+        pages = [bytearray(page) async for page in transcode(
+            source(), 'audio/x-pcm;bit=32;rate=48000;channels=1;float=1', 'opus')]
+        pages[-1][5] &= ~4 & 0xFF  # wire колонки: EOS обрывается, а не завершает поток
+        for item in pages:
+            item[14:18] = serial.to_bytes(4, 'little')
+        result = []
+        for item in pages:  # после правок заголовка пересчитать CRC страницы
+            item[22:26] = b'\0\0\0\0'
+            struct.pack_into('<I', item, 22, ogg_crc(item))
+            result.append(bytes(item))
+        return b''.join(result)
+
+    # слово активации — без EOS (чтение продолжается BOS реплики), у реплики EOS
+    # обрывается закрытием микрофона
+    buffer = await stream(11) + await stream(22)
+    raw, filename = await input_audio(buffer, 'audio/opus')
+    assert filename == 'input.wav'
+    with wave.open(io.BytesIO(raw)) as audio:
+        assert audio.getframerate() == 48000 and audio.getnchannels() == 1
+        # оба потока целиком (плюс добивка кодера: EOS нет, granule-обрезки не было)
+        assert audio.getnframes() >= 9600
 
 
 async def test_websocket_voice_stt_model_tts_and_channel_correlation(tmp_path):

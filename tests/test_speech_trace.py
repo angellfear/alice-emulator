@@ -1,6 +1,7 @@
 """v9 §2: структурированная трасса речевого тракта — run ID, направления, терминалы."""
 import asyncio
 import io
+import json
 import struct
 import wave
 from pathlib import Path
@@ -235,8 +236,7 @@ async def test_empty_partial_recognition_not_sent(tmp_path):
 
 
 async def test_client_no_speech_close_gets_retry_prompt(tmp_path):
-    """Колонка закрыла микрофон NO_SPEECH → сервер досылает финал, закрывает OK, отвечает репликой."""
-    import struct as _struct
+    """Колонка закрыла микрофон NO_SPEECH без звука → сервер досылает финал, закрывает OK, отвечает репликой."""
     runtime = Runtime(tmp_path)
     runtime.settings['aapi_voice'] = True
     sent = []
@@ -254,7 +254,6 @@ async def test_client_no_speech_close_gets_retry_prompt(tmp_path):
     close.StreamControl.StreamId = 3
     close.StreamControl.Close.Reason = 5
     await conversation.receive(incoming, 'VoiceInput')
-    await conversation.receive_audio(_struct.pack('>I', 3) + b'\0\0' * 10)
     await conversation.receive(close, 'StreamControl')
     for _ in range(60):
         await asyncio.sleep(0)
@@ -270,6 +269,50 @@ async def test_client_no_speech_close_gets_retry_prompt(tmp_path):
                if x.startswith(b'AAPI') and server_type.FromString(x[4:]).Event.WhichOneof('Event') == 'AliceResponse']
     assert any('не расслышала' in r.Response.Cards[0].Text for r in replies)
     await conversation.shutdown()
+    await runtime.close()
+
+
+async def test_client_no_speech_close_with_audio_still_recognizes(tmp_path):
+    """NO_SPEECH от колонки при набранном звуке и без потокового ASR — тайм-аут, ждущий
+    частичные результаты сервера: буфер распознаётся как обычная реплика, а не выбрасывается."""
+    import struct as _struct
+    runtime = Runtime(tmp_path)
+    runtime.settings['aapi_voice'] = True
+    calls = []
+
+    async def provider(kind, payload=None, audio=None, filename=None):
+        calls.append(kind)
+        return json.dumps({"text": "включи свет"}, ensure_ascii=False).encode(), 'application/json'
+    runtime.provider = provider
+    sent = []
+
+    async def send(data):
+        sent.append(data)
+    client, server = types()
+    conversation = Conversation(runtime, server, send)
+    incoming = client()
+    incoming.Event.Header.MessageId = 'm'
+    incoming.Event.Header.StreamId = 3
+    incoming.Event.VoiceInput.Header.RequestId = 'r'
+    incoming.Event.VoiceInput.Format = 'audio/x-pcm;bit=16;rate=16000;channels=1'
+    close = client()
+    close.StreamControl.StreamId = 3
+    close.StreamControl.Close.Reason = 5
+    await conversation.receive(incoming, 'VoiceInput')
+    await conversation.receive_audio(_struct.pack('>I', 3) + b'\0\0' * 10)
+    await conversation.receive(close, 'StreamControl')
+    await asyncio.wait_for(conversation.task, 2)
+    server_type = load_type(ROOT, 'alice-api.pb', 'NAlice.NAliceApi.TServerMessage')
+    events = [server_type.FromString(x[4:]) for x in sent if x.startswith(b'AAPI')]
+    asr = [m for m in events if m.Event.WhichOneof('Event') == 'AsrResult']
+    assert 'stt' in calls  # буфер ушёл в распознавание, не выброшен
+    assert asr and asr[-1].Event.AsrResult.EndOfUtt
+    assert asr[-1].Event.AsrResult.AggregatedRecognition.RecognizedText == 'включи свет'
+    replies = [m.Event.AliceResponse for m in events if m.Event.WhichOneof('Event') == 'AliceResponse']
+    assert replies  # реплика прошла обычный ход — не «не расслышала»
+    assert not any('не расслышала' in r.Response.Cards[0].Text for r in replies)
+    await conversation.shutdown()
+    await runtime.close()
 
 
 def test_timing_stages_from_events(monkeypatch):
