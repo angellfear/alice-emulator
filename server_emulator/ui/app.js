@@ -221,7 +221,8 @@ function renderScenarios(){const list=$('scenario-list');list.replaceChildren();
 		const gl=document.createElement('label');gl.className='check';gl.title='Вкл/выкл всё в разделе';
 		const gc=document.createElement('input');gc.type='checkbox';
 		const toggleable=items.filter(it=>it.kind!=='extension'),states=toggleable.map(enabledOf);
-		gc.disabled=!toggleable.length;gc.checked=states.length>0&&states.every(Boolean);gc.indeterminate=!gc.checked&&states.some(Boolean);
+		// раздел только из сценариев расширений — включён вместе с ними, как и их строки
+		gc.disabled=!toggleable.length;gc.checked=toggleable.length?states.every(Boolean):items.length>0;gc.indeterminate=!gc.checked&&states.some(Boolean);
 		const title=depth===0?catTitle(n.name):n.name;
 		gc.onchange=()=>work(async()=>{if(!settings)settings=await api('settings');
 			if(gc.checked&&items.some(it=>it.kind==='builtin')&&!scenarioBuiltinEnabled)settings=await putPatch({builtin_scenarios:true})  // точечно, с перечитыванием устаревшей копии
