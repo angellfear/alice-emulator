@@ -41,6 +41,9 @@ CATEGORIES = {"user": ("profile", "service"), "device": ("info", "service"),
 # перекрывает дальнего. Имена/псевдонимы у пользователя и колонки — разные сущности.
 EFFECTIVE_PATHS = ("location.", "timezone", "weather.")
 KEEP = "__KEEP__"
+# Поля определения, которые seed() приводит к коду (значения владельцев — не поле).
+SEED_FIELDS = ("scope", "category", "user_editable", "type", "title", "hint",
+               "options", "default_value")
 
 
 class ParamError(ValueError):
@@ -369,6 +372,13 @@ class ParamStore:
          "type": "string", "title": "Город колонки (где)", "hint": "Предложный падеж"},
         {"key": "device.timezone", "scope": "device", "category": "info", "user_editable": True,
          "type": "string", "title": "Часовой пояс колонки", "hint": "IANA; перекрывает пояс пользователя"},
+        # устройство: служебное — glagol-ключи из get_sync_info настоящего облака
+        {"key": "device.glagol_cert", "scope": "device", "category": "service", "user_editable": False,
+         "type": "secret", "title": "Сертификат Glagol",
+         "hint": "Из get_sync_info настоящего облака (импорт конфигуратора)"},
+        {"key": "device.glagol_key", "scope": "device", "category": "service", "user_editable": False,
+         "type": "secret", "title": "Ключ Glagol",
+         "hint": "Из get_sync_info настоящего облака (импорт конфигуратора)"},
         # платформа: о платформе
         {"key": "platform.title", "scope": "platform", "category": "info", "user_editable": False,
          "type": "string", "title": "Название платформы", "hint": "chiron → «Станция Дуо Макс»"},
@@ -387,16 +397,32 @@ class ParamStore:
         {"key": "server.providers.search_timeout", "scope": "server", "category": "common", "user_editable": False,
          "type": "number", "options": {"min": 1, "max": 30},
          "title": "Поставщики: ожидание поиска, с",
-         "hint": "Голая фраза «включи X»: параллельный опрос каталогов плагинов, ответ — нашедший", "default_value": 3},
+         "hint": "Голая фраза «включи X»: параллельный опрос каталогов плагинов, ответ — нашедший", "default_value": 8},
     )
 
     def seed(self):
-        """Каталог параметров по умолчанию. Идемпотентно: определения не
-        перезаписывают изменённое."""
-        existing = {d["key"]: d for d in self.defs()}
+        """Каталог параметров: определения — код (SEED_DEFS), значения владельцев — БД.
+        Определение кода создаёт строку param_defs или обновляет её поля, если
+        отличаются; param_values не трогаются. Строки param_defs, которых больше нет
+        в коде, удаляются — значения владельцев остаются, их перенос решает владелец."""
+        known = set()
         for definition in self.SEED_DEFS:
-            if definition["key"] not in existing:
-                self.def_upsert(dict(definition))
+            normalized = self.validate_def(definition)
+            known.add(normalized["key"])
+            row = self.db.execute("SELECT * FROM param_defs WHERE key=?",
+                                  (normalized["key"],)).fetchone()
+            if row is not None and all(self._def_row(row)[field] == normalized[field]
+                                       for field in SEED_FIELDS):
+                continue
+            self.def_upsert(dict(definition))
+            if row is not None:
+                log.info("Параметры: определение %s обновлено из кода", normalized["key"])
+        for row in self.db.execute("SELECT key FROM param_defs").fetchall():
+            if row[0] not in known:
+                with self.db:
+                    self.db.execute("DELETE FROM param_defs WHERE key=?", (row[0],))
+                log.info("Параметры: определение %s удалено (нет в коде; значения "
+                         "владельцев в param_values остались)", row[0])
 
 
 def _put(tree, path, value):

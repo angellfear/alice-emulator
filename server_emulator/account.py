@@ -344,7 +344,6 @@ async def import_sync_info(runtime):
     каталог «Параметры»: wifi_hash и координаты — владельцу-пользователю колонки,
     имя и glagol-ключи — колонке. Отчёт по полям без значений секретов."""
     params = runtime.quasar_params
-    _ensure_glagol_defs(params)
     answers = await _sync_answers(runtime)
     report, filled = [], {}
     for answer in answers:
@@ -458,15 +457,6 @@ def required_unfilled(runtime):
             result.append({"key": key, "title": definition["title"], "hint": definition["hint"],
                            "type": definition["type"], "missing": missing})
     return result
-
-
-def _ensure_glagol_defs(params):
-    """Определения glagol-ключей: секреты в разделе «служебное» колонки; idемпотентно."""
-    for _field, key, title in GLAGOL_PARAMS:
-        if params.def_get(key) is None:
-            params.def_upsert({"key": key, "scope": "device", "category": "service",
-                               "user_editable": False, "type": "secret", "title": title,
-                               "hint": "Из get_sync_info настоящего облака (импорт конфигуратора)"})
 
 
 async def _sync_answers(runtime):

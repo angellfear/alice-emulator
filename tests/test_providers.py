@@ -30,6 +30,33 @@ async def api_put(url, client, body, headers=None):
         return r, await r.json()
 
 
+async def test_call_invoker_of_consumer(tmp_path):
+    """Вызов функции поставщика: потребитель вида объявил invoker
+    (providers.call_invoker) — invoke зовёт им; без объявления — ExtensionContext
+    плагина первым аргументом, как раньше."""
+    runtime = Runtime(tmp_path)
+
+    class _Ctx:
+        def _services_runtime(self):
+            return runtime
+
+    async def invoker(ctx, provider, function, *args):
+        return ("by-invoker", provider["kind"], args)
+
+    providers.call_invoker("fake-kind", invoker)
+    try:
+        async def function(context, *args):
+            return ("by-context", context, args)
+
+        record = {"kind": "fake-kind", "ext_id": "x"}
+        assert await providers.invoke(_Ctx(), record, function, 1) == ("by-invoker", "fake-kind", (1,))
+        base = await providers.invoke(_Ctx(), {"kind": "other-kind", "ext_id": "x"}, function, 1)
+        assert base[0] == "by-context" and base[2] == (1,)  # без объявления — прежний путь
+        assert base[1].get("yandex_oauth") in (None, "")  # системных значений в нём нет
+    finally:
+        providers.CALL_INVOKERS.pop("fake-kind", None)  # объявление тестового вида — снять
+
+
 def _disable_builtins(runtime):
     state = runtime.settings.setdefault("extensions", {})
     for ext_id in list(state["installed"]):

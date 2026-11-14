@@ -14,17 +14,22 @@ from __future__ import annotations
 
 import asyncio
 import copy
-import inspect
 import json
+import logging
+import time
 import uuid
+from types import SimpleNamespace
 
 from ..response_compose import finalize
+from ..sdk import ScenarioContext
 from .conditions import check
 from .executor import Executor
 from .normalize import lexicon_for, normalize_text, normalize_variants
 from .probe import dependencies_ok, is_builtin
 from .router import EVENT_FILTERS, candidates
 from .templates import TemplateIndex, builtin_source
+
+log = logging.getLogger(__name__)
 
 
 def _merge_templates(found, matched):
@@ -321,24 +326,48 @@ class DialogManager:
             query = str(slots.get("query") or "").strip() or text
             poll.append((entry, query))
         from .. import providers as providers_registry
-
         async def _ask(entry, query):
+            # SDK-контекст — свой у каждого опроса: потребитель вида кладёт в
+            # ctx.extension контекст своего поставщика (музыка — токен аккаунта) и
+            # восстанавливает по окончании; общий контекст параллельных опросов
+            # подменял бы токен соседу посреди его вызова
+            sdk_ctx = ScenarioContext(SimpleNamespace(scenario_executor=self.executor), ctx,
+                                      dry_run=bool((ctx or {}).get("dry_run")))
             record = providers_registry.for_ext(entry.get("kind") or "music", entry.get("ext_id"))
             if record is None or not callable(record.get("search")) or not self.extension_context:
+                log.warning("Ступень поиска «%s»: %s не вызван — нет записи реестра или "
+                            "каталога расширений", query, entry.get("ext_id"))
                 return None
             kind = str(entry.get("kind") or "music")
+            started = time.monotonic()
             try:
-                found = record["search"](self.extension_context(entry.get("ext_id")), query, kind)
-                if inspect.isawaitable(found):
-                    found = await found
-                return found if isinstance(found, dict) and found.get("tracks") else None
-            except Exception:  # noqa: BLE001 — каталог не ответил: он просто не нашёл
+                found = await providers_registry.invoke(sdk_ctx, record, record["search"],
+                                                        query, kind)
+            except Exception as exc:  # noqa: BLE001 — каталог не ответил: он просто не нашёл
+                log.warning("Ступень поиска «%s»: %s упал за %.1f с — %s: %s",
+                            query, entry.get("ext_id"), time.monotonic() - started,
+                            type(exc).__name__, exc)
                 return None
+            if isinstance(found, dict) and found.get("tracks"):
+                context = found.get("context") if isinstance(found.get("context"), dict) else {}
+                log.info("Ступень поиска «%s»: %s нашёл за %.1f с — %d треков, best %s",
+                         query, entry.get("ext_id"), time.monotonic() - started,
+                         len(found["tracks"]), context.get("best") or "none")
+                return found
+            note = str((found or {}).get("note") or "пустой ответ без note")
+            log.warning("Ступень поиска «%s»: %s не нашёл за %.1f с (%s)",
+                        query, entry.get("ext_id"), time.monotonic() - started, note)
+            return None
 
         timeout = self.search_timeout()
         results = await asyncio.gather(
             *[asyncio.wait_for(_ask(entry, query), timeout) for entry, query in poll],
             return_exceptions=True)
+        for (entry, query), found in zip(poll, results):
+            if isinstance(found, BaseException):  # тайм-аут опроса (wait_for) и прочие
+                log.warning("Ступень поиска «%s»: %s не ответил за %.1f с — %s: %s",
+                            query, entry.get("ext_id"), timeout,
+                            type(found).__name__, found)
         found_pairs = [(entry, query, found) for (entry, query), found in zip(poll, results)
                        if isinstance(found, dict) and found.get("tracks")]
         query = poll[0][1]

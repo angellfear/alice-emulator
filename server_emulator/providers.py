@@ -131,14 +131,35 @@ def extension_context(ctx, provider):
         return ExtensionContext(str(provider.get("ext_id") or ""), {})
 
 
+# вызов функций поставщика по видам — заполняют потребители (providers.call_invoker)
+CALL_INVOKERS: dict[str, callable] = {}
+
+
+def call_invoker(kind, invoker):
+    """Потребитель вида объявляет вызов функций поставщика: invoker(ctx, provider,
+    function, *args) → результат (sync/async, первый аргумент function решает сам).
+    Музыка — SDK-контекст вызова первым аргументом и OAuth-токен аккаунта Яндекса
+    в ctx.extension: без него поиск «включи {X}» не находит ничего (сценарий зовёт
+    тем же music._call). Без объявления — ExtensionContext плагина первым
+    аргументом, как раньше. Потребитель импортируется позже пересборки реестра —
+    объявление живёт в словаре, как REQUIREMENTS у require."""
+    CALL_INVOKERS[kind] = invoker
+
+
 async def invoke(ctx, provider, function, *args):
-    """Вызов функции поставщика вида: его ExtensionContext — первым аргументом
-    (настройки свежие), остальные — как требует контракт вида. Синхронная или
-    async функция; None — контекста нет (плагин выключен между выбором и вызовом)."""
-    context = extension_context(ctx, provider)
-    if context is None:
-        return None
-    result = function(context, *args)
+    """Вызов функции поставщика вида: контекст вызова — построением потребителя
+    вида (providers.call_invoker), без объявления — ExtensionContext плагина
+    (настройки свежие) первым аргументом, остальные — как требует контракт вида.
+    Синхронная или async функция; None — контекста нет (плагин выключен между
+    выбором и вызовом)."""
+    invoker = CALL_INVOKERS.get(str(provider.get("kind") or ""))
+    if invoker is None:
+        context = extension_context(ctx, provider)
+        if context is None:
+            return None
+        result = function(context, *args)
+    else:
+        result = invoker(ctx, provider, function, *args)
     if inspect.isawaitable(result):
         result = await result
     return result

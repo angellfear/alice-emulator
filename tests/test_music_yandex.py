@@ -83,8 +83,11 @@ class FakeMusic:
         self.wave = []  # [item] — первая порция «Моей волны»
         self.rotor_requests = []
         self.playlists = {}  # название → [track_id] — плейлисты пользователя
+        self.artist_songs = {}  # id исполнителя → [item] — /artists/<id>/tracks
+        self.album_tracks = {}  # id альбома → [item] — /albums/<id>/with-tracks
         self.catalog = {item["id"]: item for item in ITEMS}  # id → запись трека (POST /tracks)
         self.unauthorized = False  # True — /search отвечает 401 (мёртвый токен)
+        self.no_playable = set()  # id без проигрываемой версии: download-info без вариантов
 
     async def search(self, request):
         self.searches.append(dict(request.query))
@@ -95,7 +98,10 @@ class FakeMusic:
     async def info(self, request):
         if self.delay:
             await asyncio.sleep(self.delay)
-        self.infos.append(request.match_info["tid"])
+        tid = request.match_info["tid"]
+        self.infos.append(tid)
+        if tid in self.no_playable:
+            return web.json_response({"result": []})  # вариантов нет — «нет проигрываемой версии»
         return web.json_response(self.info_payload)
 
     async def users_likes(self, request):
@@ -125,6 +131,14 @@ class FakeMusic:
         return web.json_response({"result": {"kind": kind, "title": title, "uid": 42,
                                              "trackCount": len(tracks), "tracks": tracks,
                                              "cover": {"type": "pic", "custom": False}}})
+
+    async def artist_tracks(self, request):
+        return web.json_response({"result": {"tracks": self.artist_songs[int(request.match_info["aid"])]}})
+
+    async def album_with_tracks(self, request):
+        return web.json_response({"result": {"id": int(request.match_info["aid"]),
+                                             "title": "Альбом лучшего",
+                                             "volumes": [self.album_tracks[int(request.match_info["aid"])]]}})
 
     async def status(self, request):
         return web.json_response({"result": {"account": {"uid": 42, "login": "test"}}})
@@ -162,6 +176,8 @@ async def fake(provider, monkeypatch):
     app.router.add_get("/users/{uid}/playlists/{kind}", fm.playlist)
     app.router.add_post("/users/{uid}/{kind}/tracks/add-multiple", fm.rate)
     app.router.add_get("/preview", fm.xml)  # библиотека добирает ссылки всех вариантов
+    app.router.add_get("/artists/{aid}/tracks", fm.artist_tracks)
+    app.router.add_get("/albums/{aid}/with-tracks", fm.album_with_tracks)
     runner = web.AppRunner(app)
     await runner.setup()
     port = unused_port()
@@ -200,7 +216,7 @@ async def test_search_returns_full_track_with_stream_link(provider, fake):
     assert sorted(fake.infos) == ["101", "102", "103"]  # первый сразу, очередь — предзагрузкой
     # XML со ссылкой — только у выбранного варианта: у превью и прочих его не тянем (лишние секунды ответа)
     assert fake.xml_paths == ["/file-download-info/x"] * 3
-    assert fake.searches[0]["text"] == "ветер" and fake.searches[0]["type"] == "track"
+    assert fake.searches[0]["text"] == "ветер" and fake.searches[0]["type"] == "all"
     assert fake.searches[0]["page"] == "0"  # без page API отвечает 400
 
 
@@ -219,6 +235,81 @@ async def test_search_failure_becomes_note(provider, fake, monkeypatch):
     monkeypatch.setattr(provider, "_download_link", broken)
     result = await provider.search(Ctx(), "ветер", "music")
     assert result == {"tracks": [], "note": "Яндекс не отвечает"}
+
+
+async def test_search_best_artist_plays_artist_tracks(provider, fake):
+    """best=artist: играются популярные треки исполнителя — лучший результат Яндекса;
+    склонения запроса («Алла Пугачеву») разбирает поиск Яндекса, никаких словарей имён."""
+    fake.search_payload = {"result": {"best": {"type": "artist", "result": {"id": 5555, "name": "Алла Пугачёва"}},
+                                      "tracks": {"results": ITEMS}}}
+    fake.artist_songs[5555] = [{"id": "301", "title": "Айсберг", "artists": [{"name": "Алла Пугачёва"}],
+                                 "albums": [{"title": "Алла"}], "durationMs": 210000}]
+    result = await provider.search(Ctx(), "Алла Пугачеву", "music")
+    assert result["tracks"][0]["id"] == "301" and result["tracks"][0]["artist"] == "Алла Пугачёва"
+    assert result["context"] == {"type": "search", "best": "artist"}
+    assert fake.infos[0] == "301"  # ссылка берётся сразу у трека исполнителя
+
+
+async def test_search_best_album_playlist_track(provider, fake):
+    """best=album → треки альбома; best=playlist → треки плейлиста пользователя;
+    best=track → сам трек."""
+    fake.search_payload = {"result": {"best": {"type": "album", "result": {"id": 77}}}}
+    fake.album_tracks[77] = [{"id": "401", "title": "Звезда", "artists": [{"name": "Кто-то"}],
+                              "albums": [{"title": "Альбом лучшего"}], "durationMs": 220000}]
+    result = await provider.search(Ctx(), "альбом лучшего", "music")
+    assert result["tracks"][0]["id"] == "401" and result["context"]["best"] == "album"
+
+    fake.search_payload = {"result": {"best": {"type": "playlist",
+                                               "result": {"uid": 42, "kind": 1000, "title": "Для теста"}}}}
+    fake.playlists["Для теста"] = ["102"]
+    result = await provider.search(Ctx(), "для теста", "music")
+    assert result["tracks"][0]["id"] == "102" and result["context"]["best"] == "playlist"
+
+    fake.search_payload = {"result": {"best": {"type": "track", "result": ITEMS[1]},
+                                      "tracks": {"results": ITEMS}}}
+    result = await provider.search(Ctx(), "трек 1", "music")
+    # лучший трек первым, следом остальная выдача без повтора лучшего
+    assert [t["id"] for t in result["tracks"]] == ["102", "101", "103"]
+    assert result["context"]["best"] == "track"
+
+
+async def test_search_best_artist_skips_unplayable(provider, fake):
+    """best=artist («абба» → ABBA): у верхнего трека исполнителя нет проигрываемой
+    версии — первым очереди следующий; перебор верхних действует во всех ветках best."""
+    fake.search_payload = {"result": {"best": {"type": "artist", "result": {"id": 777, "name": "ABBA"}},
+                                      "tracks": {"results": ITEMS}}}
+    fake.artist_songs[777] = [{"id": "501", "title": "Dancing Queen", "artists": [{"name": "ABBA"}],
+                               "albums": [{"title": "Arrival"}], "durationMs": 230000},
+                              {"id": "502", "title": "Mamma Mia", "artists": [{"name": "ABBA"}],
+                               "albums": [{"title": "ABBA"}], "durationMs": 231000}]
+    fake.no_playable.add("501")
+    result = await provider.search(Ctx(), "абба", "music")
+    assert result["tracks"][0]["id"] == "502" and result["tracks"][0]["artist"] == "ABBA"
+    assert [t["id"] for t in result["tracks"]] == ["502", "501"]
+
+
+async def test_search_best_absent_keeps_track_results(provider, fake):
+    """best нет (или тип неизвестен) — прежняя выдача треков из того же ответа."""
+    result = await provider.search(Ctx(), "ветер", "music")
+    assert [t["id"] for t in result["tracks"]] == ["101", "102", "103"]
+    assert result["context"] == {"type": "search", "best": "none"}
+
+
+async def test_search_skips_unplayable_head(provider, fake):
+    """У верхнего результата нет проигрываемой версии — первым очереди становится
+    следующий проигрываемый; выдача целиком не падает с note, непроигрываемый
+    остаётся в очереди дальше."""
+    fake.no_playable.add("101")
+    result = await provider.search(Ctx(), "ветер", "music")
+    assert result["tracks"][0]["id"] == "102" and result["tracks"][0]["stream"]["url"]
+    assert [t["id"] for t in result["tracks"]] == ["102", "101", "103"]
+
+
+async def test_search_all_head_unplayable_is_note(provider, fake):
+    """Ни у одного из верхних треков нет проигрываемой версии — честный note."""
+    fake.no_playable.update("101 102 103".split())
+    result = await provider.search(Ctx(), "ветер", "music")
+    assert result["tracks"] == [] and result["note"] == provider.NOTE_NO_PLAYABLE
 
 
 BIG = [{"id": f"{200 + i}", "title": f"Песня {i}", "artists": [{"name": "Артист"}], "albums": [],

@@ -246,6 +246,17 @@ async def _oauth_token(ctx, provider):
         return "", None
 
 
+async def invoke(ctx, provider, function, *args):
+    """Вызов функции поставщика (providers.call_invoker) вне сценария — ступень
+    свободных хвостов «включи {X}»: тот же SDK-контекст вызова первым аргументом
+    и токен аккаунта с обменом по token_expired, что у music.search (_call);
+    без токена Яндекс.Музыка не отвечает, и голая фраза не находит ничего."""
+    return await _call(ctx, provider, function, ctx, *args)
+
+
+_providers.call_invoker("music", invoke)
+
+
 async def _call(ctx, provider, function, *args):
     """Вызов функции поставщика: его расширение — ctx.extension на время вызова
     (как у режимов «Интеллекта»; прежнее значение восстанавливается). Поставщику

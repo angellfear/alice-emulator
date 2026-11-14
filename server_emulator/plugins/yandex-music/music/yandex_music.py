@@ -18,11 +18,16 @@
 Сервис ответил 401 — ядро обменивает токен заново (отметка `token_expired`) и повторяет
 вызов; повторный 401 — честный отказ с объяснением.
 
-Поиск (search(ctx, query, kind)): `Client.search(text, type_="track")` → Track
-(id/title/artist/album/duration_ms/cover), первые QUEUE_LIMIT (30) результатов в порядке
-выдачи; ссылка потока — у первого трека сразу, у следующих PREFETCH_AHEAD — предзагрузкой
+Поиск (search(ctx, query, kind)): лучший результат Яндекса задаёт, что играть —
+`Client.search(text, type_=all)` несёт поле best с типом (склонения и латиницу
+разбирает поиск Яндекса): artist → популярные треки исполнителя, album → альбом,
+playlist → плейлист пользователя, track → трек первым и остальная выдача следом;
+best пуст — прежняя выдача треков. Сказки/подкасты/аудиокниги (kind) — прежним
+поиском треков (type=track): их запросы — названия, а не исполнители.
+Track (id/title/artist/album/duration_ms/cover), первые QUEUE_LIMIT (30) в порядке
+выдачи; ссылка потока — сразу у первого проигрываемого (верхние треки перебираются:
+у недоступного для скачивания ссылки нет), у следующих PREFETCH_AHEAD — предзагрузкой
 в фоне, у остальных — лениво при переходе (трек без ссылки остаётся в очереди).
-kind (tales/podcast/audiobook) — тем же type=track.
 
 «Включи музыку» без запроса — плейлист по умолчанию (настройка `default_playlist`):
 «Мне нравится» (по умолчанию; порядок — новые лайки первыми, по timestamp), «Моя волна»
@@ -70,6 +75,7 @@ PROVIDER = {"id": "builtin.yandex-music", "title": "Яндекс Музыка",
 
 QUEUE_LIMIT = 30  # окно очереди плеера (MAX_QUEUE ядра)
 PREFETCH_AHEAD = 2  # ссылки скольких следующих треков берутся заранее; остальные — лениво
+PLAYABLE_TRIES = 3  # сколько верхних треков перебрать в поиске проигрываемого первого
 DEFAULT_PLAYLIST = "Мне нравится"  # значение настройки default_playlist по умолчанию
 LIKES_NAMES = ("мне нравится", "likes", "любимое")
 WAVE_NAMES = ("моя волна", "волна", "wave")
@@ -96,6 +102,43 @@ NOTE_WHAT = "Что включить?"
 
 class MusicError(Exception):
     """Нет проигрываемой версии → note пользователю (текст — для реплики)."""
+
+
+def _query_tracks(client, query, kind):
+    """(треки yandex_music, контекст) по запросу: лучший результат Яндекса задаёт, что
+    играть — search(query, type_=all) отдаёт поле best с типом (склонения и латиницу
+    разбирает поиск Яндекса, никаких словарей имён): artist → популярные треки
+    исполнителя, album → альбом, playlist → плейлист пользователя, track → трек первым,
+    следом остальная выдача треков; best пуст или другого типа — выдача треков, как
+    раньше. Сказки/подкасты/аудиокниги — прежним поиском треков (type=track): их запросы
+    — названия, а не исполнители."""
+    if kind != "music":
+        found = client.search(query, type_="track")
+        raw = (found.tracks.results if found and found.tracks else None) or []
+        return raw, {"type": "search", "best": "none"}
+    found = client.search(query, type_="all")
+    best = getattr(found, "best", None)
+    best_type = str(getattr(best, "type", "") or "")
+    result = getattr(best, "result", None)
+    if best_type == "artist" and result:
+        tracks = client.artists_tracks(result.id)
+        raw = list(getattr(tracks, "tracks", None) or []) if tracks else []
+    elif best_type == "album" and result:
+        album = client.albums_with_tracks(result.id)
+        # треки альбома приходят томами (volumes — список списков)
+        raw = [track for volume in (getattr(album, "volumes", None) or []) for track in volume or []]
+    elif best_type == "playlist" and result:
+        playlist = client.users_playlists(result.kind, user_id=result.uid)
+        playlist = playlist[0] if isinstance(playlist, list) and playlist else playlist
+        raw = _full_tracks(client, list(getattr(playlist, "tracks", None) or []))
+    elif best_type == "track" and result:
+        # лучший трек первым, следом остальная выдача (без повтора лучшего)
+        raw = [result] + [track for track in
+                          ((found.tracks.results if found and found.tracks else None) or [])
+                          if str(getattr(track, "id", "")) != str(result.id)]
+    else:  # best пуст/неизвестного типа — прежняя выдача треков из того же ответа
+        raw = (found.tracks.results if found and found.tracks else None) or []
+    return raw, {"type": "search", "best": best_type or "none"}
 
 
 def _owner(ctx):
@@ -311,9 +354,7 @@ def _search_sync(ctx, query, kind, loop):
     client = _client(token, _language(ctx))
     try:
         if query:
-            found = client.search(query, type_="track")
-            raw = (found.tracks.results if found and found.tracks else None) or []
-            context = {"type": "search"}
+            raw, context = _query_tracks(client, query, kind)
         else:  # «включи музыку»: плейлист по умолчанию
             raw, source = _default_tracks(client, _default_playlist(ctx))
             if not raw:
@@ -323,7 +364,19 @@ def _search_sync(ctx, query, kind, loop):
         tracks = [t for t in tracks if t["id"] and t["title"]][:QUEUE_LIMIT]
         if not tracks:
             return {"tracks": []}  # пусто: ядро отвечает «не нашла» (без note)
-        tracks[0] = _with_stream(ctx, owner, tracks[0])  # ссылку первого — сразу (сбой — note)
+        # первый — с проигрываемой версией: у верхнего результата ссылки может не быть
+        # (трек недоступен для скачивания), и вся выдача не должна падать на нём —
+        # перебираем верхние, проигрываемый становится первым очереди
+        note, head = NOTE_NO_PLAYABLE, None
+        for track in tracks[:PLAYABLE_TRIES]:
+            try:
+                head = _with_stream(ctx, owner, track)
+                break
+            except MusicError as exc:
+                note = str(exc)
+        if head is None:
+            return {"tracks": [], "note": note}
+        tracks = [head] + [t for t in tracks if t["id"] != head["id"]]
     except MusicError as exc:
         return {"tracks": [], "note": str(exc)}
     except UnauthorizedError:

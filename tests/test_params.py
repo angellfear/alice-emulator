@@ -80,6 +80,31 @@ async def test_seed_idempotent(tmp_path):
     await runtime.store.close()
 
 
+async def test_seed_updates_definition_and_keeps_owner_values(tmp_path):
+    """Определение — код: устаревшая строка param_defs (default '3') обновляется
+    seed() до кодового значения (8); значение владельца в param_values не трогается.
+    Определение, которого нет в коде, удаляется — его param_values остаются."""
+    runtime = Runtime(directory=tmp_path)
+    params = runtime.quasar_params
+    db = params.db
+    db.execute("UPDATE param_defs SET default_value='3' "
+               "WHERE key='server.providers.search_timeout'")
+    db.execute("INSERT INTO param_values(owner, key, value, updated_ts) "
+               "VALUES('user:u1', 'server.providers.search_timeout', '5', 1)")
+    db.execute("INSERT INTO param_defs(key, scope, category, user_editable, type, title, "
+               "hint, options, default_value) VALUES('server.old', 'server', 'common', 0, "
+               "'string', 'Устаревший', '', NULL, NULL)")
+    db.execute("INSERT INTO param_values(owner, key, value, updated_ts) "
+               "VALUES('server', 'server.old', '\"старое\"', 1)")
+    params.seed()
+    assert params.resolve("server.providers.search_timeout") == 8  # default из кода
+    assert params.raw_value("user:u1", "server.providers.search_timeout") == 5  # владелец цел
+    assert db.execute("SELECT 1 FROM param_defs WHERE key='server.old'").fetchone() is None
+    row = db.execute("SELECT value FROM param_values WHERE key='server.old'").fetchone()
+    assert json.loads(row[0]) == "старое"
+    await runtime.store.close()
+
+
 def test_resolve_view_sources_and_secret(store):
     """Итог цепочки с уровнем-источником по каждому ключу; секрет — маской."""
     store.def_upsert({"key": "server.timezone", "scope": "server", "type": "string",

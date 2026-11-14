@@ -9,9 +9,12 @@
 """
 import datetime
 import json
+import logging
+import re
 
 from aiohttp import ClientSession
 
+from server_emulator import music
 from server_emulator.extensions import EMULATOR_VERSION
 from server_emulator.extensions.manager import validate_contributes
 from server_emulator.runtime import Runtime
@@ -19,7 +22,8 @@ from server_emulator.sdk import SDK_VERSION
 from server_emulator.server import create_app
 from tests.conftest import listen
 from tests.test_music_provider import (_disable_builtin_providers, _provider_module,
-                                       MUSIC_PHRASES, TRACKS, make_music_extension)
+                                       _yandex_token_provider_module, MUSIC_PHRASES,
+                                       TRACKS, make_music_extension)
 
 DECL = {"kind": "music", "title": "Музыка", "module": "music/fake.py",
         "capabilities": ["podcasts"]}
@@ -249,5 +253,157 @@ async def test_bare_phrase_without_catalog_hits_reports_candidates(tmp_path):
         assert not report["handled"] and report["reason"] == "no_match", report
         assert report["not_found_query"] == "эминем", report
         assert report["candidates"] == [("fake-music.search", "search")], report["candidates"]
+    finally:
+        await runtime.close()
+
+
+def _token_probe_provider_module(marker):
+    """Поставщик музыки без признака сервиса: в маркер — токен вызова (yandex_oauth),
+    треков нет — победить он не может."""
+    path = str(marker).replace("\\", "/")
+    return f'''import json
+from pathlib import Path
+MARKER = Path("{path}")
+
+def _note(event):
+    calls = json.loads(MARKER.read_text(encoding="utf-8")) if MARKER.exists() else []
+    calls.append(event)
+    MARKER.write_text(json.dumps(calls, ensure_ascii=False), encoding="utf-8")
+
+async def search(ctx, query, kind):
+    ext = getattr(ctx, "extension", None)
+    _note(["search", str(ext.get("yandex_oauth") or "") if ext is not None else ""])
+    return {{"tracks": []}}
+
+async def neighbor(ctx, track_id, context, step):
+    return None
+
+PROVIDER = {{"id": "probe", "title": "Проба токена"}}
+'''
+
+
+async def test_search_stage_calls_provider_with_music_call_context(tmp_path):
+    """Токен аккаунта доходит до поиска ступени свободных хвостов («включи {X}» без
+    слова «музыку»): поставщик с service=yandex-music получает yandex_oauth в
+    ExtensionContext вызова (music.call_context), поставщик без признака сервиса —
+    обычный контекст без токена."""
+    runtime = Runtime(tmp_path)
+    _disable_builtin_providers(runtime)
+    ya_marker = tmp_path / "ya.json"
+    other_marker = tmp_path / "other.json"
+    make_music_extension(runtime, ext_id="yandex-ext",
+                         files={"music/yandex.py": _yandex_token_provider_module(ya_marker)},
+                         phrases=MUSIC_PHRASES, module="music/yandex.py")
+    make_music_extension(runtime, ext_id="other-ext",
+                         files={"music/other.py": _token_probe_provider_module(other_marker)},
+                         phrases=MUSIC_PHRASES, module="music/other.py")
+    runtime.extensions.load_enabled()
+    try:
+        assert music.note_token(runtime, "y0_" + "c" * 30)
+        report = await _probe(runtime, "включи эминем")
+        assert report["handled"] and report["scenario"] == "media.music", report
+        assert report["speech"] == f"Включаю {TRACKS[0]['title']}.", report["speech"]
+        ya_calls = json.loads(ya_marker.read_text(encoding="utf-8"))
+        assert [c for c in ya_calls if c[0] == "search"] == [[
+            "search", music.captured_oauth()]], ya_calls
+        other_calls = json.loads(other_marker.read_text(encoding="utf-8"))
+        assert [c for c in other_calls if c[0] == "search"] == [["search", ""]], other_calls
+    finally:
+        await runtime.close()
+
+
+async def test_search_stage_logs_success_with_elapsed_and_best(tmp_path, caplog):
+    """Успешный поиск ступени виден в журнале: info-запись с запросом, поставщиком,
+    временем, числом треков и типом best из контекста поиска."""
+    runtime = Runtime(tmp_path)
+    _disable_builtin_providers(runtime)
+    marker = tmp_path / "calls.json"
+    provider = _provider_module(marker).replace(
+        '"context": {"type": "search", "id": "q"}',
+        '"context": {"type": "search", "best": "artist"}')
+    make_music_extension(runtime, ext_id="fake-music", provider_id="fake",
+                         files={"music/fake.py": provider}, phrases=MUSIC_PHRASES)
+    runtime.extensions.load_enabled()
+    try:
+        with caplog.at_level(logging.INFO, logger="server_emulator.scenario_engine.dialog"):
+            report = await _probe(runtime, "включи эминем")
+        assert report["handled"], report
+        records = [record for record in caplog.records if "нашёл за" in record.getMessage()]
+        assert len(records) == 1, records
+        message = records[0].getMessage()
+        assert "«эминем»" in message and "fake-music" in message, message
+        assert "7 треков" in message and "best artist" in message, message
+        assert re.search(r"за \d+\.\d+ с", message), message
+    finally:
+        await runtime.close()
+
+
+def _parallel_probe_module(marker, role):
+    """Поставщик для проверки параллельных опросов ступени (service=yandex-music —
+    ядро кладёт в ctx.extension свой ExtensionContext и восстанавливает по окончании).
+    «fast» уступает управление циклу и отвечает пусто; «slow» читает токен до и после
+    уступки: пока slow висит, fast успевает завершиться (очередь цикла: fast стоит
+    раньше и завершается за одну уступку slow — без ожидания по времени), и slow
+    находит треки только если токен остался его собственным."""
+    path = str(marker).replace("\\", "/")
+    track = json.dumps(TRACKS[0], ensure_ascii=False)
+    return f'''import asyncio
+import json
+from pathlib import Path
+MARKER = Path("{path}")
+ROLE = "{role}"
+TRACK = {track}
+
+def _note(event):
+    calls = json.loads(MARKER.read_text(encoding="utf-8")) if MARKER.exists() else []
+    calls.append(event)
+    MARKER.write_text(json.dumps(calls, ensure_ascii=False), encoding="utf-8")
+
+def _token(ctx):
+    ext = getattr(ctx, "extension", None)
+    return str(ext.get("yandex_oauth") or "") if ext is not None else ""
+
+async def search(ctx, query, kind):
+    if ROLE == "fast":
+        await asyncio.sleep(0)  # уступка управления: сосед успевает поставить свой контекст
+        return {{"tracks": []}}  # здесь fast завершается: ядро восстанавливает ctx.extension
+    _note(["search", "first", _token(ctx)])
+    await asyncio.sleep(0)  # сосед завершается, пока slow висит; затем второй читок
+    token = _token(ctx)
+    _note(["search", "second", token])
+    return {{"tracks": [TRACK], "start": 0, "context": {{}}}} if token else {{"tracks": []}}
+
+async def neighbor(ctx, track_id, context, step):
+    return None
+
+PROVIDER = {{"id": "probe-" + ROLE, "title": "Проба параллельности", "service": "yandex-music"}}
+'''
+
+
+async def test_parallel_search_providers_keep_own_extension_context(tmp_path):
+    """Параллельные опросы ступени не делят ExtensionContext: быстрый поставщик
+    завершается и восстанавливает ctx.extension, пока медленный висит; у медленного
+    контекст свой — токен не пропадает, треки находятся. На общем контексте
+    восстановление соседа затирает токен медленного — он отвечает пусто, ступень
+    не находит ничего («Я пока этого не умею» вместо музыки)."""
+    runtime = Runtime(tmp_path)
+    _disable_builtin_providers(runtime)
+    fast_marker = tmp_path / "fast.json"
+    slow_marker = tmp_path / "slow.json"
+    make_music_extension(runtime, ext_id="fast-music", provider_id="fast",
+                         files={"music/fast.py": _parallel_probe_module(fast_marker, "fast")},
+                         phrases=MUSIC_PHRASES, module="music/fast.py")
+    make_music_extension(runtime, ext_id="slow-music", provider_id="slow",
+                         files={"music/slow.py": _parallel_probe_module(slow_marker, "slow")},
+                         phrases=MUSIC_PHRASES, module="music/slow.py")
+    runtime.extensions.load_enabled()
+    try:
+        music.note_token(runtime, "y0_" + "c" * 30)
+        report = await _probe(runtime, "включи эминем")
+        assert report["handled"] and report["scenario"] == "media.music", report
+        assert report["speech"] == f"Включаю {TRACKS[0]['title']}.", report
+        events = json.loads(slow_marker.read_text(encoding="utf-8"))
+        assert events == [["search", "first", music.captured_oauth()],
+                          ["search", "second", music.captured_oauth()]], events
     finally:
         await runtime.close()
