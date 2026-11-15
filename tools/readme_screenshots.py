@@ -29,22 +29,31 @@ if str(ROOT) not in sys.path:
 PORT = 18090
 BASE_URL = f"http://127.0.0.1:{PORT}"
 
-# (файл, вкладка, ожидаемый текст данных, подготовка)
+# (файл, вкладка, ожидаемый текст данных, подготовка) — порядок как в навигации панели
 SHOTS = [
     ("devices", "#devices", "Гостиная", None),
     ("users", "#accounts", "Дача", None),
+    ("smart-home", "#smart-home", "Лампа", None),
     ("updates", "#updates", "Запретить", None),
     ("scenarios", "#scenarios", "Включи мультики", None),
     ("http", "#endpoints", "HTTP без эндпоинта", None),
     ("ws", "#ws", "Входящие", None),
-    ("quasar", "#quasar-http", "Гостиная", "quasar-overrides"),
+    ("quasar", "#quasar-http", "Общие замены", "quasar-devices"),
     ("params", "#params", "Определения", None),
     ("catalog", "#app-catalog", "Палитра", None),
+    ("animations", "#animations", "Демо-матрица", None),
+    ("templates", "#templates", "Шаблон", None),
     ("journal", "#traffic", "Гостиная", "expand-journal-record"),
     ("voice", "#voice-stack", "Голосовой стек", None),
+    ("replies", "#replies", "Звуковой кеш", None),
+    ("llm", "#llm", "Модель", None),
     ("agent", "#agent", "Агент", None),
+    ("mcp", "#mcp", "Колонки Алисы", None),
+    ("memory", "#memory", "Факты и предпочтения", None),
+    ("routines", "#routines", "Доброе утро", None),
     ("extensions", "#extensions", "Расширения", None),
     ("server-log", "#server-log", "Лог", None),
+    ("studio", "#studio", "Проверка цепочки", "studio-text"),
     ("mobile", "#devices", "Гостиная", "mobile"),
 ]
 
@@ -86,15 +95,16 @@ def prepare(page, action):
         page.wait_for_timeout(500)
         page.locator("#traffic details.traffic-group", has_text="AliceResponse")             .locator("button.tr-item").first.click()
         page.wait_for_timeout(900)  # карточка: заголовки, тела, расшифровка protobuf
-    elif action == "quasar-overrides":
-        # «Переопределение под устройство» → карточка станции Гостиной (источник «Напрямую»)
-        station = page.evaluate("(async () => (await (await fetch('api/identities')).json())"
-                                ".devices.find(d => d.model === 'yandexstation_2').sn)()")
-        page.locator("#quasar-http button", has_text="Переопределение под устройство").wait_for(timeout=8000)
-        page.locator("#quasar-http button", has_text="Переопределение под устройство").click()
-        page.wait_for_timeout(400)
-        page.locator("#quasar-http .quasar-device", has_text=station).click()
-        page.wait_for_timeout(600)
+    elif action == "quasar-devices":
+        # шаг «Замены устройств» → станция Гостиной (источник «Напрямую», с заменами)
+        page.locator("#quasar-http nav.quasar-stack button", has_text="Замены устройств").click()
+        page.wait_for_timeout(500)
+        page.locator("#quasar-http .quasar-device", has_text="Яндекс Станция Макс").click()
+        page.wait_for_timeout(700)
+    elif action == "studio-text":
+        # «Проверка цепочки»: запрос в поле — форма видна с примером, отправки нет
+        page.fill("#chat-input", "включи мультики")
+        page.wait_for_timeout(200)
 
 
 ERROR_MARKS = ("Произошла ошибка", "Не удалось загрузить", "Неизвестная модель",

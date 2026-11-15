@@ -10,11 +10,14 @@
 В демо нет настоящих значений: серийники — вымышленные с T1000 (allowlist .gitleaks.toml),
 device-id demo-…, IP документационные 192.0.2.x, e-mail *@example.test, ключей нет.
 После наполнения рядом с папкой создаётся demo.json — момент генерации для съёмки скриншотов.
+Для демо-GIF раздела «Анимации» нужен pillow (зависимость и readme_screenshots.py).
 """
 from __future__ import annotations
 
 import argparse
 import asyncio
+import base64
+import io
 import json
 import socket
 import struct
@@ -88,6 +91,25 @@ def demo_apk(path):
         archive.writestr("classes.dex", b"dex\n demo")
 
 
+def demo_gif(size, frames=4):
+    """Демо-GIF для раздела «Анимации»: рамка и движущаяся полоса, по кадру на цвет."""
+    from PIL import Image, ImageDraw
+
+    colors = ((230, 70, 70), (70, 180, 230), (90, 220, 90), (230, 200, 70))
+    images = []
+    for index in range(frames):
+        image = Image.new("RGB", size, (18, 18, 22))
+        draw = ImageDraw.Draw(image)
+        color = colors[index % len(colors)]
+        draw.rectangle([0, 0, size[0] - 1, size[1] - 1], outline=color)
+        column = size[0] // frames * index
+        draw.line([column, 1, column, size[1] - 2], fill=color)
+        images.append(image)
+    buffer = io.BytesIO()
+    images[0].save(buffer, format="GIF", save_all=True, append_images=images[1:], duration=250, loop=0)
+    return buffer.getvalue()
+
+
 def free_port():
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
@@ -146,7 +168,7 @@ def text_input(text, request_id):
                                     "Request": {"Event": {"Type": "text_input", "Text": text}}}}}
 
 
-async def populate(base_url, stub_port, state_dir):
+async def populate(base_url, stub_port, state_dir, runtime):
     """Наполнение через API и подключения: пользователи → устройства → трафик → правила."""
     from google.protobuf import json_format
 
@@ -166,6 +188,14 @@ async def populate(base_url, stub_port, state_dir):
         settings["aliases"]["avatars.yandex.net"] = "http://127.0.0.1:1"  # обложка не получена — для «Лога»
         settings["aapi_model"] = True  # фразы обрабатываются сценариями и промахами
         await api("PUT", "/emulator/api/settings", settings)
+
+        # модель: пресет-заглушка (сеть не вызывается) — раздел «Модель» с активным пресетом
+        await api("POST", "/emulator/api/voice-stack-preset",
+                  {"service": "llm", "adapter": "stub", "title": "Заглушка (демо)",
+                   "values": {"stub_text": "Включаю мультики на детской."}})
+        presets = await (await api("GET", "/emulator/api/voice-stack")).json()
+        demo_preset = next(p["id"] for p in presets["llm"]["presets"] if p["title"] == "Заглушка (демо)")
+        await api("POST", "/emulator/api/voice-stack-apply", {"service": "llm", "ref": "p:" + demo_preset})
 
         # пользователи: «Дом» и «Дача»
         await api("POST", "/emulator/api/identities", {"operation": "user", "id": "home", "name": "Дом"})
@@ -248,11 +278,7 @@ async def handle(ctx):
         # GET отдаёт inventory, а не настройки: собираем настройки из дефолтов через POST save
         await api("POST", "/emulator/api/updates",
                   {"policy": "allow", "custom": {"updates": []}, "devices": {station: "deny"},
-                   "platforms": {}, "custom_devices": {}, "custom_platforms": {},
-                   "endpoints": [{"id": "ota-list", "host": "quasar.yandex.net",
-                                  "path": "/tv/api/v4/updates", "method": "POST", "kind": "list"},
-                                 {"id": "ota-check", "host": "quasar.yandex.net",
-                                  "path": "/check_updates", "method": "GET", "kind": "check"}]})
+                   "platforms": {}, "custom_devices": {}, "custom_platforms": {}})
 
         # каталог приложений: своё приложение из мини-APK + раздел
         demo_dir = Path(state_dir).parent / "demo-build"
@@ -270,6 +296,53 @@ async def handle(ctx):
                          headers={"X-Emulator": "1", "Content-Type": "application/json"},
                          data=json.dumps({"section": "demo-section"}))
         (demo_dir / "palette.apk").unlink()
+
+        # умный дом: устройства и комнаты источника (так расширяют реестр расширения через SDK)
+        for device in ({"id": "lamp-1", "name": "Лампа", "room": "living",
+                        "type": "devices.types.light",
+                        "capabilities": [{"type": "devices.capabilities.on_off"}]},
+                       {"id": "vacuum-1", "name": "Робот-пылесос", "room": "living",
+                        "type": "devices.types.vacuum_cleaner"},
+                       {"id": "kettle-1", "name": "Чайник", "room": "kitchen",
+                        "type": "devices.types.kettle"}):
+            runtime.smart_home.add_device(device, origin="demo-hub")
+        runtime.smart_home.set_rooms({"living": "Гостиная", "kitchen": "Кухня"}, origin="demo-hub")
+
+        # анимации: две записи каталога (GIF-медиа) и проект фронтального дисплея станции
+        for animation_id, title, size in (("demo-wave", "Привет", (64, 64)),
+                                          ("demo-blink", "Маячок", (32, 32))):
+            await api("PUT", "/emulator/api/animations",
+                      {"animation": {"id": animation_id, "title": title, "models": ["led_matrix"],
+                                     "url": f"http://192.0.2.10/media/{animation_id}.gif"},
+                       "media_base64": base64.b64encode(demo_gif(size)).decode("ascii")})
+        await api("POST", "/emulator/api/animations-import",
+                  {"platform": "yandexstation_2", "id": "demo-matrix", "title": "Демо-матрица",
+                   "kind": "frontal", "filename": "demo-matrix.gif",
+                   "data_base64": base64.b64encode(demo_gif((25, 16))).decode("ascii")})
+
+        # MCP: пробный вызов встроенного инструмента — строка в журнале раздела
+        await api("POST", "/emulator/api/mcp", {"op": "call", "name": "speakers_list", "arguments": {}})
+
+        # память агента: факты о пользователях и пожелания к ответам
+        for user_id, entries in (
+                ("home", ({"kind": "facts", "text": "Дети просят мультики по вечерам, в гостиной станция Макс"},
+                          {"kind": "facts", "text": "Любимая музыка — джаз, громкость обычно пять"},
+                          {"kind": "instructions", "text": "Отвечай кратко и по-русски", "key": "стиль ответов"})),
+                ("dacha", ({"kind": "facts", "text": "Колонка на даче без подписки — только сценарии"},))):
+            for entry in entries:
+                await api("POST", "/emulator/api/memory", {"op": "put", "user": user_id, **entry})
+
+        # задания: агенту по cron (будни утром) и сценарию по интервалу
+        await api("POST", "/emulator/api/routines", {"op": "save", "routine": {
+            "title": "Доброе утро", "owner": "home", "sn": demo_sn(DEVICES[0][2]), "kind": "agent",
+            "prompt": "Кратко: погода на день и одно бодрое напоминание",
+            "schedule": {"kind": "cron", "expr": "0 8 * * 1-5"}, "tz": "Europe/Moscow",
+            "delivery": "speak", "enabled": True}})
+        await api("POST", "/emulator/api/routines", {"op": "save", "routine": {
+            "title": "Мультики по расписанию", "owner": "home", "sn": demo_sn(DEVICES[1][2]),
+            "kind": "scenario", "scenario_id": "user.cartoons",
+            "schedule": {"kind": "interval", "expr": "21600"}, "tz": "Europe/Moscow",
+            "delivery": "inbox", "enabled": True}})
 
         # лог сервера: событие самообновления (проверка релизов — как в фоновом цикле)
         await api("POST", "/emulator/api/self_update", {"action": "check"})
@@ -301,7 +374,7 @@ async def main(folder):
     base_url = f"http://127.0.0.1:{port}"
     stub, stub_port = await stub_upstream()
     try:
-        await populate(base_url, stub_port, state_dir)
+        await populate(base_url, stub_port, state_dir, runtime)
         await asyncio.sleep(0.3)
         # артефакт in-process прогона (незавершённая задача при остановке) — не для скриншота
         with runtime.server_log.db:
