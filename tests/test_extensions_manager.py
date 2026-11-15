@@ -356,9 +356,16 @@ async def test_update_and_rollback(tmp_path):
             assert (tmp_path / "extensions" / "coffee" / "current").read_text(encoding="utf-8") == "1.0.0"
             body = await op(client, url, {"op": "rollback", "id": "coffee"})  # откат туда-обратно
             assert body["version"] == "1.1.0"
+            registry = runtime.smart_home
+            registry.set_rooms({"r1": "Кухня"}, "coffee")
+            registry.add_device({"id": "pot", "name": "Кофеварка", "room": "r1"}, "coffee")
+            registry.add_device({"id": "lamp", "name": "Лампа"}, "other")
             await op(client, url, {"op": "uninstall", "id": "coffee"})
             assert not (tmp_path / "extensions" / "coffee").exists()  # удаление — с файлами
             assert "coffee" not in runtime.settings["extensions"]["installed"]
+            # устройства и комнаты удалённого расширения уходят из реестра, чужие — нет
+            assert [d["id"] for d in registry.devices()] == ["other:lamp"]
+            assert registry.rooms() == {}
     finally:
         await app_runner.cleanup()
         await runtime.close()

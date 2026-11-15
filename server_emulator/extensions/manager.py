@@ -783,7 +783,8 @@ class ExtensionManager:
         return {"id": ext_id, "enabled": False}
 
     async def uninstall(self, ext_id):
-        """Удаление с файлами (локальная папка не удаляется — снимается подключение)."""
+        """Удаление с файлами (локальная папка не удаляется — снимается подключение);
+        устройства и комнаты расширения уходят из реестра умного дома."""
         entry = self._installed(ext_id)
         if entry.get("builtin"):
             raise ValueError("Встроенное расширение нельзя удалить — оно поставляется "
@@ -796,6 +797,9 @@ class ExtensionManager:
             shutil.rmtree(self.ext_root(ext_id), ignore_errors=True)
         await self._save()
         self.load_enabled()
+        registry = getattr(self.runtime, "smart_home", None)
+        if registry is not None:
+            registry.forget_origin(ext_id)
         return {"uninstalled": ext_id}
 
     async def set_values(self, ext_id, values):

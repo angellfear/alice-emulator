@@ -297,6 +297,19 @@ class SmartHomeRegistry:
         del self._devices[device_id]
         self._changed()
 
+    def forget_origin(self, origin):
+        """Удалённое расширение: его устройства, комнаты и обработчик действий уходят из реестра."""
+        origin = str(origin)
+        self._callbacks.pop(origin, None)
+        devices = [key for key, item in self._devices.items() if item["origin"] == origin]
+        rooms = [key for key, room in self._rooms.items() if room["origin"] == origin]
+        for key in devices:
+            del self._devices[key]
+        for key in rooms:
+            del self._rooms[key]
+        if devices or rooms:
+            self._changed()
+
     def _own(self, device_id, origin):
         item = self._devices.get(device_id if device_id.startswith(origin + ":")
                                  else f"{origin}:{device_id}")
