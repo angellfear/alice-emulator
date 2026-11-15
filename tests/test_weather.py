@@ -85,7 +85,7 @@ async def _provider():
 
     app = web.Application()
     app.router.add_get("/v1/forecast", handler)
-    app.router.add_get("/v1/geocoding", geocode)
+    app.router.add_get("/v1/search", geocode)
     runner = web.AppRunner(app)
     await runner.setup()
     await web.TCPSite(runner, "127.0.0.1", 0).start()

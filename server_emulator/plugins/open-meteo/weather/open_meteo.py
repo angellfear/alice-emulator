@@ -9,14 +9,14 @@
 возвращает только свежие данные.
 
 «в <город>»: location с {"city": …} вместо координат — геокодирование через
-api.open-meteo.com/v1/geocoding (тот же хост, разрешён расширением); координаты и
+geocoding-api.open-meteo.com/v1/search (разрешён расширением); координаты и
 таймзона города подставляются в запрос. Не нашёл город — исключение (датасет
 ответит честным отказом).
 
 Источник: api.open-meteo.com/v1/forecast (URL — настройка плагина, можно подставить
 Open-Meteo-совместимый). Недоступен — резерв api.met.no (locationforecast 2.0
 complete), ответ приводится к форме Open-Meteo (met_no_to_open_meteo), чтобы сценарий
-не зависел от источника; города met.no не геокодирует.
+не зависел от источника; город met.no получает координатами от геокодера Open-Meteo.
 
 Сеть — стандартная библиотека (urllib.request в asyncio.to_thread); URL — константы
 модуля (OPEN_METEO_URL/MET_NO_URL/GEOCODE_URL): тесты подменяют их на локальный
@@ -34,7 +34,7 @@ PROVIDER = {"id": "builtin.open-meteo", "title": "Open-Meteo"}
 
 DEFAULT_URL = "https://api.open-meteo.com/v1/forecast"
 OPEN_METEO_URL = DEFAULT_URL  # константа для подмены в тестах; настройка url сильнее
-GEOCODE_URL = "https://api.open-meteo.com/v1/geocoding"
+GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search"  # геокодер Open-Meteo — отдельный хост
 PRIMARY_TIMEOUT = 4  # секунд на Open-Meteo целиком
 HEDGE_DELAY = 1.0    # Open-Meteo молчит дольше — резерв met.no стартует параллельно, побеждает первый ответ
 TIMEOUT_S = 10
@@ -166,12 +166,14 @@ async def _get_json(url, query):
 
 async def geocode(ctx, name):
     """Город → {"latitude", "longitude", "timezone", "name"} (open-meteo geocoding).
-    Адрес — настройка geocode_url; иначе сосед прогнозного url (тот же хост —
-    подменный сервер тестов), иначе GEOCODE_URL. Не нашёл — исключение."""
+    Адрес — настройка geocode_url; у своего Open-Meteo-совместимого url прогноза —
+    /v1/search на его хосте (так геокодер отдаёт развёрнутый у себя Open-Meteo);
+    иначе GEOCODE_URL. Не нашёл — исключение."""
     url = str(ctx.get("geocode_url") or "").strip() if ctx is not None else ""
     if not url and ctx is not None:
         forecast_url = str(ctx.get("url") or "").strip()
-        url = forecast_url.rsplit("/v1/", 1)[0] + "/v1/geocoding" if "/v1/" in forecast_url else ""
+        if forecast_url and forecast_url != DEFAULT_URL and "/v1/" in forecast_url:
+            url = forecast_url.rsplit("/v1/", 1)[0] + "/v1/search"
     query = {"name": str(name or ""), "count": "1", "language": "ru", "format": "json"}
     # Без явного таймаута здесь шаг ждал бы до TIMEOUT_S (10 с, сокетный таймаут
     # urlopen) при медленном геокодере — тот же потолок, что у запроса прогноза,
@@ -196,16 +198,10 @@ async def forecast(ctx, location):
         found = await geocode(ctx, location["city"])
         location = {"latitude": found["latitude"], "longitude": found["longitude"],
                     "timezone": found.get("timezone"), "city": found["name"]}
-    query = _query(location)
-    if location.get("city"):  # города met.no не геокодирует — резерва нет
-        try:
-            data = await asyncio.wait_for(_get_json(url or OPEN_METEO_URL, query), PRIMARY_TIMEOUT)
-        except Exception as first:
-            raise ValueError(f"геокодирование недоступно: {first}") from first
-        data["source"] = "open-meteo"
+    data = await _first_source(url or OPEN_METEO_URL, _query(location), location.get("timezone"))
+    if location.get("city"):
         data["city"] = location["city"]  # имя города от геокодера (nominative)
-        return data
-    return await _first_source(url or OPEN_METEO_URL, query, location.get("timezone"))
+    return data
 
 
 async def _first_source(url, query, timezone):

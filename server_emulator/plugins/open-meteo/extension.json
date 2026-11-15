@@ -13,6 +13,7 @@
  "permissions": {
   "network": [
    "api.open-meteo.com",
+   "geocoding-api.open-meteo.com",
    "api.met.no"
   ],
   "actions": [],
