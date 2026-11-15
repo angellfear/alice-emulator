@@ -351,9 +351,19 @@ def test_gif_import_delta_frames_loop_and_durations(tmp_path):
     assert project["loop_from"] == -1                                   # без метки цикла — играет раз
     # экспорт: с циклом — метка Netscape loop в файле, без — нет
     with Image.open(io.BytesIO(store.export("yandexstation_2", "delta")[2])) as gif:
-        assert gif.info.get("loop") == 0 and gif.n_frames == 2
+        assert gif.info.get("loop") == 0 and gif.n_frames == 5 + 12   # 100 и 250 мс шагами по 20 мс
+    back = store.import_file("yandexstation_2", "back", "Назад", "frontal",
+                             store.export("yandexstation_2", "delta")[2], "back.gif")
+    assert [f["delayMs"] for f in back["frames"]] == [100, 240]         # повторы склеены обратно
     with Image.open(io.BytesIO(store.export("yandexstation_2", "once")[2])) as gif:
         assert "loop" not in gif.info
+
+
+def test_frontal_longer_than_limit_rejected(tmp_path):
+    store = AnimationProjectStore(tmp_path)
+    frame = {"colors": [[0, 0, 0]] * 400, "delayMs": 40_000}
+    with pytest.raises(ValueError, match="длиннее"):
+        store.put("yandexstation_2", _project(kind="frontal", frames=[frame, frame]))
 
 
 def test_frontal_gif_import_render_and_export(tmp_path):
@@ -371,7 +381,12 @@ def test_frontal_gif_import_render_and_export(tmp_path):
     assert color[0] == color[1] == color[2] and color[0] in (0, 255)    # цветной GIF — порогом в ч/б
     name = store.publish_gif(project)
     with Image.open(store.media / name) as gif:
-        assert gif.size == (25, 16) and gif.n_frames == 2
+        assert gif.size == (25, 16) and gif.n_frames == 10
+        durations = []
+        for index in range(gif.n_frames):
+            gif.seek(index)
+            durations.append(gif.info["duration"])
+        assert set(durations) == {20}                                   # шаг LED-экрана
     file_name, content_type, body = store.export("yandexstation_2", "eyes")
     assert (file_name, content_type) == ("eyes.gif", "image/gif") and body.startswith(b"GIF8")
     with pytest.raises(ValueError):

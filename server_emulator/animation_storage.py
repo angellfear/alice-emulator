@@ -30,6 +30,10 @@ MAX_FRAMES = 500
 MAX_DELAY_MS = 600_000
 MAX_IMPORT_BYTES = 2 * 1024 * 1024
 MIN_GIF_DELAY_MS = 20
+# LED-экран играет GIF с постоянным шагом кадра 20 мс (как настоящие GIF эмоций: 50 кадров/с,
+# каждый кадр 20 мс): задержка кадра проекта при сборке GIF раскладывается на повторы по 20 мс
+GIF_STEP_MS = 20
+MAX_GIF_MS = 60_000  # предельная длина frontal-анимации: 3000 кадров GIF по 20 мс
 
 
 def _displays(platform: str) -> list[dict]:
@@ -110,11 +114,14 @@ def validate_project(platform: str, value: dict) -> dict:
     if not isinstance(frames, list) or not 1 <= len(frames) <= MAX_FRAMES:
         raise ValueError(f"frames: от 1 до {MAX_FRAMES} кадров")
     loop_from = value.get("loop_from", -1)
+    clean = [_frame(kind, display, f) for f in frames]
+    if kind == "frontal" and sum(f["delayMs"] for f in clean) > MAX_GIF_MS:
+        raise ValueError(f"frontal: анимация длиннее {MAX_GIF_MS // 1000} с")
     if isinstance(loop_from, bool) or not isinstance(loop_from, int) or not -1 <= loop_from < len(frames):
         raise ValueError("loop_from: -1 (без цикла) или индекс кадра")
     return {"platform": platform, "id": _check_id(value.get("id")), "title": title.strip(),
             "kind": kind, "size": list(display["size"]), "loop_from": loop_from,
-            "frames": [_frame(kind, display, f) for f in frames]}
+            "frames": clean}
 
 
 class AnimationProjectStore:
@@ -219,19 +226,28 @@ def _pillow():
 
 
 def render_gif(project: dict) -> bytes:
-    """Кадры frontal → анимированный GIF (с циклом, если задан loop_from)."""
+    """Кадры frontal → GIF 2 цвета: кадр проекта — round(delayMs / 20) одинаковых кадров по
+    20 мс (шаг LED-экрана), метка цикла Netscape, если задан loop_from. Pillow при save_all
+    склеивает одинаковые соседние кадры в один с суммой задержек, поэтому кадры пишутся его
+    покадровыми getheader/getdata."""
     Image = _pillow()
+    from PIL import GifImagePlugin
     width, height = project["size"]
+    palette = [0, 0, 0, 255, 255, 255]
     images = []
     for frame in project["frames"]:
-        image = Image.new("RGB", (width, height))
-        image.putdata([tuple(c[:3]) for c in frame["colors"]])
-        images.append(image)
-    out = io.BytesIO()
-    options = {"loop": 0} if project["loop_from"] >= 0 else {}
-    images[0].save(out, format="GIF", save_all=True, append_images=images[1:],
-                   duration=[f["delayMs"] for f in project["frames"]], disposal=1, **options)
-    return out.getvalue()
+        image = Image.new("P", (width, height))
+        image.putpalette(palette)
+        image.putdata([1 if c[0] else 0 for c in frame["colors"]])
+        images.append((image, max(1, round(frame["delayMs"] / GIF_STEP_MS))))
+    info = {"loop": 0} if project["loop_from"] >= 0 else {}
+    header, _ = GifImagePlugin.getheader(images[0][0], info=info)
+    out = [*header]
+    for image, repeats in images:
+        data = b"".join(GifImagePlugin.getdata(image, duration=GIF_STEP_MS, disposal=1))
+        out.extend([data] * repeats)
+    out.append(b";")
+    return b"".join(out)
 
 
 def _gif_frames(data: bytes, size: tuple) -> tuple[list[dict], int]:
@@ -241,7 +257,8 @@ def _gif_frames(data: bytes, size: tuple) -> tuple[list[dict], int]:
     с disposal) Pillow композитит с предыдущими при seek — кадр полный.
     Дисплей чёрно-белый, градаций нет: кадр переводится в серый и порогом (127) —
     в пиксели вкл/выкл; цветной источник не отклоняется — приводится к тому, что
-    реально показала бы колонка. Цикл источника (метка Netscape loop) — loop_from=0:
+    реально показала бы колонка. Одинаковые соседние кадры (после порога) — один кадр с
+    суммой задержек; длиннее MAX_GIF_MS и MAX_FRAMES кадров — обрезается. Цикл источника (метка Netscape loop) — loop_from=0:
     частичный цикл GIF не выражает, повторяется целиком; без метки — играет раз."""
     Image = _pillow()
     if not data.startswith(b"GIF8"):
@@ -249,8 +266,8 @@ def _gif_frames(data: bytes, size: tuple) -> tuple[list[dict], int]:
     try:
         gif = Image.open(io.BytesIO(data))
         loop_from = 0 if gif.info.get("loop", -1) >= 0 else -1
-        frames = []
-        for index in range(min(getattr(gif, "n_frames", 1), MAX_FRAMES)):
+        frames, total = [], 0
+        for index in range(getattr(gif, "n_frames", 1)):
             gif.seek(index)
             image = gif.convert("RGBA")
             background = Image.new("RGBA", image.size, (0, 0, 0, 255))
@@ -261,8 +278,17 @@ def _gif_frames(data: bytes, size: tuple) -> tuple[list[dict], int]:
                 else:
                     image = image.resize(size, Image.Resampling.NEAREST)
             delay = max(MIN_GIF_DELAY_MS, min(int(gif.info.get("duration", 100) or 100), MAX_DELAY_MS))
-            raw = image.tobytes()
-            frames.append({"colors": [[255, 255, 255] if v > 127 else [0, 0, 0] for v in raw], "delayMs": delay})
+            delay = min(delay, MAX_GIF_MS - total)
+            if delay <= 0:
+                break
+            total += delay
+            colors = [[255, 255, 255] if v > 127 else [0, 0, 0] for v in image.tobytes()]
+            if frames and frames[-1]["colors"] == colors and frames[-1]["delayMs"] + delay <= MAX_DELAY_MS:
+                frames[-1]["delayMs"] += delay      # повтор кадра (шаг 20 мс экспорта) — одна задержка
+                continue
+            if len(frames) == MAX_FRAMES:
+                break
+            frames.append({"colors": colors, "delayMs": delay})
     except (OSError, EOFError, ValueError) as exc:
         raise ValueError(f"GIF не разобран: {exc}") from None
     return frames, loop_from
