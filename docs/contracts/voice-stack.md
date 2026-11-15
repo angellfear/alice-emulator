@@ -251,7 +251,7 @@ async def complete(runtime, config, payload):
 | Адаптер | Сервис | Метка | Основные поля | Дополнительно | Режимы голоса |
 |---|---|---|---|---|---|
 | `openai` | llm / asr / tts | любой сервер с OpenAI API; в «Заполнить как» — OpenAI (Online), Groq (Online Free), DeepSeek (Online), OpenRouter (Online Free / Online), Gemini OpenAI-совместимый (Online Free), Ollama, vLLM, speaches | URL*, API-ключ, модель*, у asr — язык, у tts — голос* | температура, уровень рассуждений (llm), формат аудио (tts) | `preset` (tts) |
-| `anthropic` | llm | (Online) | API-ключ*, модель | температура, макс. токенов, URL | — |
+| `anthropic` | llm | (Online) | API-ключ*, модель | макс. токенов, URL (температуру Claude 5.5 не принимает); токен подписки `sk-ant-oat…` — ошибка с отсылкой к `claude` | — |
 | `chatgpt` | llm | ChatGPT по подписке (Online) | модель (GPT-6 Luna / GPT-5.6 Luna) | глубина размышления | — |
 | `claude` | llm | Claude по подписке (Online) | токен входа (`claude setup-token`), модель | глубина размышления | — |
 | `stream` | asr | — | URL, модель, язык | нормализация громкости (`normalize`, по умолчанию включена: `audio_gain.AutoGain` поднимает тихий микрофон колонки до ровного уровня перед ASR — усиление следует за пиковой огибающей, потолок +50 dB, тишина не раздувается) | — |

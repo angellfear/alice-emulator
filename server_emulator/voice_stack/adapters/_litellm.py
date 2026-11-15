@@ -29,14 +29,6 @@ def prepare():
     _prepared = True
 
 
-def sampling_models(names):
-    """Каталог litellm считает новые Claude-модели не принимающими temperature —
-    разрешить параметры семплирования явно (поля адаптера не меняются)."""
-    prepare()
-    import litellm
-    litellm.register_model({name: {"supports_sampling_params": True} for name in names})
-
-
 def provider_error(kind, exc):
     """Исключение litellm → ValueError с HTTP-статусом и деталями провайдера."""
     status = getattr(exc, "status_code", None)

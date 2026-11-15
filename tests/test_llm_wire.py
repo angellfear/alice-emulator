@@ -160,6 +160,8 @@ async def test_anthropic_errors():
                                          {"messages": [{"role": "user", "content": "x"}]})
             with pytest.raises(ValueError, match="нужен API-ключ"):
                 await anthropic.complete(runtime, {"url": base + "/v1/messages"}, {"messages": []})
+            with pytest.raises(ValueError, match="Claude по подписке"):
+                await anthropic.complete(runtime, {"api_key": "sk-ant-oat01-test-token"}, {"messages": []})
     finally:
         await runner.cleanup()
 

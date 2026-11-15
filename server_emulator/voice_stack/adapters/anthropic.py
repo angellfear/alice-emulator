@@ -13,41 +13,43 @@ SERVICES = {
                        {"value": "claude-haiku-5-5", "label": "Claude Haiku 5.5 (быстрый)"},
                        {"value": "claude-sonnet-5-5", "label": "Claude Sonnet 5.5"},
                        {"value": "claude-opus-5-5", "label": "Claude Opus 5.5"}]},
-                   {"key": "temperature", "label": "Температура", "type": "number", "step": 0.1, "group": "advanced"},
                    {"key": "max_tokens", "label": "Максимум токенов ответа", "type": "number", "step": 1, "group": "advanced"},
                    {"key": "url", "label": "Адрес сервиса", "type": "text", "group": "advanced",
                     "help": "Пусто — https://api.anthropic.com/v1/messages; нужен для прокси"}],
         "defaults": {"url": "https://api.anthropic.com/v1/messages", "model": "claude-haiku-5-5",
-                     "temperature": 0.3, "max_tokens": 512},
+                     "max_tokens": 512},
         "examples": {
-            "Claude Haiku (Online)": {"model": "claude-haiku-5-5", "temperature": 0.3, "max_tokens": 512},
-            "Claude Sonnet (Online)": {"model": "claude-sonnet-5-5", "temperature": 0.3, "max_tokens": 512},
+            "Claude Haiku (Online)": {"model": "claude-haiku-5-5", "max_tokens": 512},
+            "Claude Sonnet (Online)": {"model": "claude-sonnet-5-5", "max_tokens": 512},
         },
     },
 }
 MATCH = {"llm": r"api\.anthropic\.com"}
 VERSION = "2023-06-01"
+OAUTH_PREFIX = "sk-ant-oat"  # токен подписки (claude setup-token) — для Claude Code, не для API-ключа
 
-# Каталог litellm считает эти модели не принимающими temperature — поле адаптера
-# должно доходить до провайдера, как раньше (см. _litellm.sampling_models)
-SAMPLING_MODELS = ("claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5")
+
+def _key(config):
+    """API-ключ пресета; пусто или токен подписки — понятная ошибка."""
+    key = secret(config.get("api_key"))
+    if not key:
+        raise ValueError("Anthropic: нужен API-ключ")
+    if key.startswith(OAUTH_PREFIX):
+        raise ValueError("Anthropic: это токен подписки (claude setup-token) — он для адаптера «Claude по подписке»")
+    return key
 
 
 async def complete_stream(runtime, config, payload):
     """Поток ответа Claude (необязательно): те же дельты и собранный ответ, что у openai.py."""
     from . import _litellm
-    key = secret(config.get("api_key"))
-    if not key:
-        raise ValueError("Anthropic: нужен API-ключ")
+    key = _key(config)
     _litellm.prepare()
-    _litellm.sampling_models(SAMPLING_MODELS)
     import litellm
     params = {"model": "anthropic/" + (config.get("model") or payload.get("model") or ""),
               "messages": payload.get("messages") or [],
               "api_base": _litellm.api_base(config.get("url") or SERVICES["llm"]["defaults"]["url"], "/v1/messages"),
               "api_key": key,
               "max_tokens": int(config.get("max_tokens") or 512),
-              "temperature": float(payload.get("temperature", config.get("temperature", 0.3))),
               "timeout": 90, "num_retries": 0, "stream": True,
               "stream_options": {"include_usage": True}}
     if payload.get("tools"):
@@ -78,18 +80,14 @@ async def complete_stream(runtime, config, payload):
 
 async def complete(runtime, config, payload):
     from . import _litellm
-    key = secret(config.get("api_key"))
-    if not key:
-        raise ValueError("Anthropic: нужен API-ключ")
+    key = _key(config)
     _litellm.prepare()
-    _litellm.sampling_models(SAMPLING_MODELS)
     import litellm
     params = {"model": "anthropic/" + (config.get("model") or payload.get("model") or ""),
               "messages": payload.get("messages") or [],
               "api_base": _litellm.api_base(config.get("url") or SERVICES["llm"]["defaults"]["url"], "/v1/messages"),
               "api_key": key,
               "max_tokens": int(config.get("max_tokens") or 512),
-              "temperature": float(payload.get("temperature", config.get("temperature", 0.3))),
               "timeout": 90, "num_retries": 0}  # прежний адаптер не ретраил — ошибка провайдера сразу
     if payload.get("tools"):
         params["tools"] = payload["tools"]

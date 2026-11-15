@@ -71,7 +71,8 @@ def test_anthropic_markup_and_label():
     validate_fields(spec["fields"])
     fields = {f["key"]: f for f in spec["fields"]}
     assert fields["api_key"]["type"] == "password" and fields["api_key"]["required"] and fields["api_key"]["link"]
-    for key in ("temperature", "max_tokens", "url"):
+    assert "temperature" not in fields  # Claude 5.5: Messages API отклоняет temperature
+    for key in ("max_tokens", "url"):
         assert fields[key]["group"] == "advanced"
     assert set(spec["examples"]["Claude Haiku (Online)"]) <= set(fields)
 
