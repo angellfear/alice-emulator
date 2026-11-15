@@ -104,7 +104,7 @@ ReqId и Doc2docUrl внешнего поиска в карточки не по�
 ## Встроенные плагины
 
 Минимальный набор поставляется с эмулятором (`server_emulator/plugins/`):
-музыка — `builtin.spotify` и `builtin.yandex-music`, погода — `builtin.open-meteo`,
+музыка — `builtin.spotify` и `builtin.yandex-music`, погода — `builtin.open-meteo` и `builtin.yandex-weather` (API Яндекс Погоды v2, ключ в настройках),
 новости — `builtin.news-stub`, видео — `builtin.video-links`. Установлены всегда, версия = версия эмулятора,
 включены по умолчанию; включение/выключение и настройки — как у внешних; удалить/
 обновить/откатить и установить чужое с id `builtin.*` нельзя (details —

@@ -1,0 +1,43 @@
+{
+ "id": "builtin.yandex-weather",
+ "name": "Яндекс Погода",
+ "version": "0.1.0",
+ "description": "Поставщик погоды (встроенный): прогноз API Яндекс Погоды v2 (api.weather.yandex.ru, ключ из кабинета разработчика) в форме Open-Meteo — текущая погода, почасовая лента, два дня. Город переводится в координаты геокодером Open-Meteo. Выбирается в «Поставщиках данных → Погода».",
+ "author": "Angell Fear",
+ "license": "MIT",
+ "requires": {
+  "emulator": ">=0.1.0",
+  "sdk": ">=2.0.0",
+  "python_packages": []
+ },
+ "permissions": {
+  "network": [
+   "api.weather.yandex.ru",
+   "geocoding-api.open-meteo.com"
+  ],
+  "actions": [],
+  "device_push": false,
+  "install": false
+ },
+ "settings": {
+  "fields": [
+   {
+    "key": "api_key",
+    "label": "Ключ API Яндекс Погоды (X-Yandex-Weather-Key)",
+    "type": "password"
+   }
+  ],
+  "defaults": {
+   "api_key": ""
+  }
+ },
+ "contributes": {
+  "providers": [
+   {
+    "kind": "weather",
+    "title": "Погода",
+    "module": "weather/yandex_weather.py"
+   }
+  ]
+ }
+}
