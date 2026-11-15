@@ -1557,6 +1557,8 @@ def mount_ui(app, runtime, prefix="/emulator"):
     # колонка качает <Path>/<платформа>/meta.txt — список ключей файлов от корня Bucket,
     # по строке на файл, суффикс имени — дисплей (_ring), затем каждый файл по
     # Bucket + "/" + ключ. Без guard и заголовков интерфейса; запрос — в лог сервера.
+    from .animations import ring_suffix
+
     async def ring_led(request):
         tail = request.match_info.get("tail", "")
         platform, project_id = request.match_info["platform"], request.match_info["project_id"]
@@ -1566,7 +1568,7 @@ def mount_ui(app, runtime, prefix="/emulator"):
             if tail.rsplit("/", 1)[-1] == "meta.txt":  # как в S3: строка ключа без перевода строки
                 name = "meta.txt"
                 data = (f"emulator/api/animations-ring/{platform}/{project_id}/"
-                        f"{platform}/{project_id}_ring.led").encode()
+                        f"{platform}/{project_id}{ring_suffix(platform)}.led").encode()
         except ValueError as exc:
             runtime.server_log.log("warning", "animations", f"Файл кольца не отдан: {exc}",
                                    client=request.remote, tail=tail)

@@ -108,6 +108,13 @@ PLATFORM_TITLES = {
 # S3Directory — образцы плеера, «включи музыку»). Панель и окно: директивы прошивки с
 # такой нагрузкой нет — анимацию можно редактировать, импортировать и экспортировать.
 PLAYABLE_KINDS = {"clock", "frontal", "ring"}
+# Суффикс имени файла кольца в каталоге S3Directory: по нему загрузчик прошивки выбирает
+# разборщик. Загрузчик yandexstation_2 разбирает только имена на «oknix.led».
+RING_SUFFIX = {"yandexstation_2": "_oknix"}
+
+
+def ring_suffix(platform: str) -> str:
+    return RING_SUFFIX.get(platform, "_ring")
 
 
 def platform_displays(platform: str) -> list[dict]:

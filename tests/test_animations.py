@@ -584,3 +584,9 @@ def test_ring_s3_text_unrolls_loop():
     assert lines[0] == "ff0000 ff0000 100"
     assert lines[1:] == ["0000ff 0000ff 1000"] * 10   # цикл до RING_S3_MIN_MS
     assert formats.build_ring_s3_text(frames).splitlines() == ["ff0000 ff0000 100", "0000ff 0000ff 1000"]
+
+
+def test_ring_suffix_by_platform():
+    from server_emulator.animations import ring_suffix
+    assert ring_suffix('yandexstation_2') == '_oknix'   # загрузчик прошивки разбирает только «…oknix.led»
+    assert ring_suffix('yandexmini_2') == '_ring'
