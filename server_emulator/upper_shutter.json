@@ -755,6 +755,1045 @@
    "value": 224
   }
  },
+ "tile_property": {
+  "type": "container",
+  "background": [
+   {
+    "type": "solid",
+    "color": "#1ae6eef9"
+   }
+  ],
+  "border": {
+   "corner_radius": 24
+  },
+  "content_alignment_horizontal": "center",
+  "content_alignment_vertical": "center",
+  "height": {
+   "type": "fixed",
+   "value": 264
+  },
+  "items": [
+   {
+    "type": "container",
+    "actions": [
+     {
+      "log_id": "open_smart_home",
+      "url": {
+       "$dialog": [
+        {
+         "type": "client_action",
+         "name": "open_smart_home_page_directive",
+         "payload": {
+          "move_options": {
+           "move_to": "Remote",
+           "onto_id": "@@ID@@"
+          }
+         }
+        }
+       ]
+      }
+     },
+     {
+      "log_id": "close_upper_shutter",
+      "url": {
+       "$dialog": [
+        {
+         "type": "client_action",
+         "name": "close_top_sheet"
+        }
+       ]
+      }
+     }
+    ],
+    "content_alignment_horizontal": "center",
+    "content_alignment_vertical": "center",
+    "height": {
+     "type": "match_parent"
+    },
+    "items": [
+     {
+      "type": "container",
+      "alignment_vertical": "top",
+      "content_alignment_horizontal": "center",
+      "items": [
+       {
+        "type": "container",
+        "height": {
+         "type": "fixed",
+         "value": 82
+        },
+        "items": [
+         {
+          "type": "image",
+          "height": {
+           "type": "fixed",
+           "value": 82
+          },
+          "image_url": "https://yastatic.net/s3/smart-display-res/iot/devices/@@ICON@@@2x.png",
+          "placeholder_color": "#0fff",
+          "visibility": "@{device_@@VAR@@_on_off_state ? 'gone' : 'visible'}",
+          "width": {
+           "type": "fixed",
+           "value": 82
+          }
+         },
+         {
+          "type": "image",
+          "height": {
+           "type": "fixed",
+           "value": 82
+          },
+          "image_url": "https://yastatic.net/s3/smart-display-res/iot/devices/@@ICON@@@2x.png",
+          "placeholder_color": "#0fff",
+          "visibility": "@{device_@@VAR@@_on_off_state ? 'visible' : 'gone'}",
+          "width": {
+           "type": "fixed",
+           "value": 82
+          }
+         }
+        ],
+        "orientation": "overlap",
+        "width": {
+         "type": "fixed",
+         "value": 82
+        }
+       },
+       {
+        "type": "text",
+        "auto_ellipsize": 1,
+        "font_size": 24,
+        "line_height": 28,
+        "max_lines": 1,
+        "text": "@@NAME@@",
+        "text_alignment_horizontal": "center",
+        "text_color": "#e6eef9",
+        "width": {
+         "type": "wrap_content",
+         "constrained": true
+        }
+       },
+       {
+        "type": "text",
+        "font_size": 22,
+        "line_height": 28,
+        "max_lines": 1,
+        "text": "@@ROOM@@",
+        "text_alignment_horizontal": "center",
+        "text_color": "#80e6eef9",
+        "width": {
+         "type": "wrap_content",
+         "constrained": true
+        }
+       }
+      ],
+      "margins": {
+       "bottom": 14
+      },
+      "orientation": "vertical"
+     },
+     {
+      "type": "container",
+      "alignment_vertical": "bottom",
+      "content_alignment_horizontal": "center",
+      "items": [
+       {
+        "type": "container",
+        "background": [
+         {
+          "type": "solid",
+          "color": "#1ae6eef9"
+         }
+        ],
+        "border": {
+         "corner_radius": 16
+        },
+        "content_alignment_vertical": "center",
+        "height": {
+         "type": "fixed",
+         "value": 48
+        },
+        "items": [
+         {
+          "type": "image",
+          "height": {
+           "type": "fixed",
+           "value": 20
+          },
+          "image_url": "https://yastatic.net/s3/smart-display-res/iot/property-icons/@@PICON@@.png",
+          "margins": {
+           "right": 6
+          },
+          "width": {
+           "type": "fixed",
+           "value": 20
+          }
+         },
+         {
+          "type": "text",
+          "font_size": 22,
+          "line_height": 28,
+          "max_lines": 1,
+          "text": "@{round(toNumber(property_@@VAR@@_@@INSTANCE@@_devices.properties.float_value)*10.0)/10.0} @@UNIT@@",
+          "text_color": "#fff",
+          "width": {
+           "type": "wrap_content",
+           "constrained": true
+          }
+         }
+        ],
+        "margins": {
+         "top": 8,
+         "left": 4,
+         "bottom": 8,
+         "right": 4
+        },
+        "orientation": "horizontal",
+        "paddings": {
+         "top": 10,
+         "bottom": 10,
+         "left": 12,
+         "right": 12
+        },
+        "width": {
+         "type": "wrap_content",
+         "constrained": true
+        }
+       }
+      ],
+      "layout_mode": "wrap",
+      "orientation": "horizontal",
+      "width": {
+       "type": "match_parent"
+      }
+     }
+    ],
+    "orientation": "overlap",
+    "paddings": {
+     "left": 16,
+     "right": 16,
+     "top": 10,
+     "bottom": 10
+    },
+    "width": {
+     "type": "match_parent"
+    }
+   }
+  ],
+  "margins": {
+   "right": 8
+  },
+  "orientation": "overlap",
+  "visibility": "@{@@FILTER@@ ? 'visible' : 'gone'}",
+  "width": {
+   "type": "fixed",
+   "value": 224
+  }
+ },
+ "tile_property_offline": {
+  "type": "container",
+  "background": [
+   {
+    "type": "solid",
+    "color": "#1ae6eef9"
+   }
+  ],
+  "border": {
+   "corner_radius": 24
+  },
+  "content_alignment_horizontal": "center",
+  "content_alignment_vertical": "center",
+  "height": {
+   "type": "fixed",
+   "value": 264
+  },
+  "items": [
+   {
+    "type": "container",
+    "actions": [
+     {
+      "log_id": "open_smart_home",
+      "url": {
+       "$dialog": [
+        {
+         "type": "client_action",
+         "name": "open_smart_home_page_directive",
+         "payload": {
+          "move_options": {
+           "move_to": "Remote",
+           "onto_id": "@@ID@@"
+          }
+         }
+        }
+       ]
+      }
+     },
+     {
+      "log_id": "close_upper_shutter",
+      "url": {
+       "$dialog": [
+        {
+         "type": "client_action",
+         "name": "close_top_sheet"
+        }
+       ]
+      }
+     }
+    ],
+    "content_alignment_horizontal": "center",
+    "content_alignment_vertical": "center",
+    "height": {
+     "type": "match_parent"
+    },
+    "items": [
+     {
+      "type": "container",
+      "alignment_vertical": "top",
+      "content_alignment_horizontal": "center",
+      "items": [
+       {
+        "type": "container",
+        "height": {
+         "type": "fixed",
+         "value": 82
+        },
+        "items": [
+         {
+          "type": "image",
+          "height": {
+           "type": "fixed",
+           "value": 82
+          },
+          "image_url": "https://yastatic.net/s3/smart-display-res/iot/devices/@@ICON@@@2x.png",
+          "placeholder_color": "#0fff",
+          "visibility": "@{device_@@VAR@@_on_off_state ? 'gone' : 'visible'}",
+          "width": {
+           "type": "fixed",
+           "value": 82
+          }
+         },
+         {
+          "type": "image",
+          "height": {
+           "type": "fixed",
+           "value": 82
+          },
+          "image_url": "https://yastatic.net/s3/smart-display-res/iot/devices/@@ICON@@@2x.png",
+          "placeholder_color": "#0fff",
+          "visibility": "@{device_@@VAR@@_on_off_state ? 'visible' : 'gone'}",
+          "width": {
+           "type": "fixed",
+           "value": 82
+          }
+         }
+        ],
+        "orientation": "overlap",
+        "width": {
+         "type": "fixed",
+         "value": 82
+        }
+       },
+       {
+        "type": "text",
+        "auto_ellipsize": 1,
+        "font_size": 24,
+        "line_height": 28,
+        "max_lines": 1,
+        "text": "@@NAME@@",
+        "text_alignment_horizontal": "center",
+        "text_color": "#e6eef9",
+        "width": {
+         "type": "wrap_content",
+         "constrained": true
+        }
+       },
+       {
+        "type": "text",
+        "font_size": 22,
+        "line_height": 28,
+        "max_lines": 1,
+        "text": "@@ROOM@@",
+        "text_alignment_horizontal": "center",
+        "text_color": "#80e6eef9",
+        "width": {
+         "type": "wrap_content",
+         "constrained": true
+        }
+       }
+      ],
+      "margins": {
+       "bottom": 14
+      },
+      "orientation": "vertical"
+     },
+     {
+      "type": "container",
+      "alignment_vertical": "bottom",
+      "content_alignment_horizontal": "center",
+      "items": [
+       {
+        "type": "container",
+        "background": [
+         {
+          "type": "solid",
+          "color": "#1ae6eef9"
+         }
+        ],
+        "border": {
+         "corner_radius": 16
+        },
+        "content_alignment_vertical": "center",
+        "height": {
+         "type": "fixed",
+         "value": 48
+        },
+        "items": [
+         {
+          "type": "image",
+          "height": {
+           "type": "fixed",
+           "value": 20
+          },
+          "image_url": "https://yastatic.net/s3/smart-display-res/iot/property-icons/@@PICON@@.png",
+          "margins": {
+           "right": 6
+          },
+          "width": {
+           "type": "fixed",
+           "value": 20
+          }
+         },
+         {
+          "type": "text",
+          "font_size": 22,
+          "line_height": 28,
+          "max_lines": 1,
+          "text": "@{round(toNumber(property_@@VAR@@_@@INSTANCE@@_devices.properties.float_value)*10.0)/10.0} @@UNIT@@",
+          "text_color": "#fff",
+          "width": {
+           "type": "wrap_content",
+           "constrained": true
+          }
+         }
+        ],
+        "margins": {
+         "top": 8,
+         "left": 4,
+         "bottom": 8,
+         "right": 4
+        },
+        "orientation": "horizontal",
+        "paddings": {
+         "top": 10,
+         "bottom": 10,
+         "left": 12,
+         "right": 12
+        },
+        "width": {
+         "type": "wrap_content",
+         "constrained": true
+        }
+       }
+      ],
+      "layout_mode": "wrap",
+      "orientation": "horizontal",
+      "width": {
+       "type": "match_parent"
+      }
+     }
+    ],
+    "orientation": "overlap",
+    "paddings": {
+     "left": 16,
+     "right": 16,
+     "top": 10,
+     "bottom": 10
+    },
+    "width": {
+     "type": "match_parent"
+    }
+   },
+   {
+    "type": "container",
+    "alignment_horizontal": "center",
+    "alignment_vertical": "top",
+    "background": [
+     {
+      "type": "solid",
+      "color": "#0b0f14"
+     }
+    ],
+    "border": {
+     "corner_radius": 12
+    },
+    "content_alignment_horizontal": "center",
+    "content_alignment_vertical": "center",
+    "height": {
+     "type": "fixed",
+     "value": 32
+    },
+    "items": [
+     {
+      "type": "image",
+      "appearance_animation": {
+       "type": "fade",
+       "duration": 300,
+       "interpolator": "ease_in_out"
+      },
+      "height": {
+       "type": "fixed",
+       "value": 16
+      },
+      "image_url": "https://yastatic.net/s3/smart-display-res/iot/icons/wifi.webp?centaur_cache=1",
+      "margins": {
+       "right": 4
+      },
+      "width": {
+       "type": "fixed",
+       "value": 16
+      }
+     },
+     {
+      "type": "text",
+      "font_size": 16,
+      "line_height": 14,
+      "text": "Не в сети",
+      "text_alignment_horizontal": "center",
+      "text_color": "#FF5555"
+     }
+    ],
+    "margins": {
+     "top": 12
+    },
+    "orientation": "horizontal",
+    "paddings": {
+     "left": 8,
+     "right": 8,
+     "top": 8,
+     "bottom": 8
+    },
+    "width": {
+     "type": "fixed",
+     "value": 110
+    }
+   }
+  ],
+  "margins": {
+   "right": 8
+  },
+  "orientation": "overlap",
+  "visibility": "@{@@FILTER@@ ? 'visible' : 'gone'}",
+  "width": {
+   "type": "fixed",
+   "value": 224
+  }
+ },
+ "tile_device_property_offline": {
+  "type": "container",
+  "background": [
+   {
+    "type": "solid",
+    "color": "#1ae6eef9"
+   }
+  ],
+  "border": {
+   "corner_radius": 24
+  },
+  "content_alignment_horizontal": "center",
+  "content_alignment_vertical": "center",
+  "height": {
+   "type": "fixed",
+   "value": 264
+  },
+  "items": [
+   {
+    "type": "container",
+    "actions": [
+     {
+      "log_id": "open_smart_home",
+      "url": {
+       "$dialog": [
+        {
+         "type": "client_action",
+         "name": "open_smart_home_page_directive",
+         "payload": {
+          "move_options": {
+           "move_to": "Remote",
+           "onto_id": "@@ID@@"
+          }
+         }
+        }
+       ]
+      }
+     },
+     {
+      "log_id": "close_upper_shutter",
+      "url": {
+       "$dialog": [
+        {
+         "type": "client_action",
+         "name": "close_top_sheet"
+        }
+       ]
+      }
+     }
+    ],
+    "content_alignment_vertical": "center",
+    "height": {
+     "type": "match_parent"
+    },
+    "items": [
+     {
+      "type": "separator",
+      "delimiter_style": {
+       "color": "#0fff"
+      },
+      "height": {
+       "type": "match_parent"
+      },
+      "width": {
+       "type": "fixed",
+       "value": 20
+      }
+     },
+     {
+      "type": "container",
+      "height": {
+       "type": "match_parent"
+      },
+      "items": [
+       {
+        "type": "container",
+        "content_alignment_horizontal": "center",
+        "content_alignment_vertical": "center",
+        "height": {
+         "type": "match_parent",
+         "weight": 1
+        },
+        "items": [
+         {
+          "type": "container",
+          "height": {
+           "type": "fixed",
+           "value": 82
+          },
+          "items": [
+           {
+            "type": "image",
+            "height": {
+             "type": "fixed",
+             "value": 82
+            },
+            "image_url": "https://yastatic.net/s3/smart-display-res/iot/devices/@@ICON@@@2x.png",
+            "placeholder_color": "#0fff",
+            "visibility": "@{device_@@VAR@@_on_off_state ? 'gone' : 'visible'}",
+            "width": {
+             "type": "fixed",
+             "value": 82
+            }
+           },
+           {
+            "type": "image",
+            "height": {
+             "type": "fixed",
+             "value": 82
+            },
+            "image_url": "https://yastatic.net/s3/smart-display-res/iot/devices/@@ICON@@-on@2x.png",
+            "placeholder_color": "#0fff",
+            "visibility": "@{device_@@VAR@@_on_off_state ? 'visible' : 'gone'}",
+            "width": {
+             "type": "fixed",
+             "value": 82
+            }
+           }
+          ],
+          "orientation": "overlap",
+          "width": {
+           "type": "fixed",
+           "value": 82
+          }
+         },
+         {
+          "type": "text",
+          "auto_ellipsize": 1,
+          "font_size": 24,
+          "line_height": 28,
+          "max_lines": 1,
+          "text": "@@NAME@@",
+          "text_alignment_horizontal": "center",
+          "text_color": "#e6eef9",
+          "width": {
+           "type": "wrap_content",
+           "constrained": true
+          }
+         },
+         {
+          "type": "text",
+          "font_size": 22,
+          "line_height": 28,
+          "max_lines": 1,
+          "text": "@@ROOM@@",
+          "text_alignment_horizontal": "center",
+          "text_color": "#80e6eef9",
+          "width": {
+           "type": "wrap_content",
+           "constrained": true
+          }
+         }
+        ],
+        "orientation": "vertical",
+        "width": {
+         "type": "match_parent"
+        }
+       },
+       {
+        "type": "separator",
+        "delimiter_style": {
+         "color": "#0fff"
+        },
+        "height": {
+         "type": "fixed",
+         "value": 98
+        },
+        "width": {
+         "type": "match_parent"
+        }
+       }
+      ],
+      "orientation": "vertical",
+      "width": {
+       "type": "fixed",
+       "value": 184
+      }
+     },
+     {
+      "type": "separator",
+      "delimiter_style": {
+       "color": "#0fff"
+      },
+      "height": {
+       "type": "match_parent"
+      },
+      "width": {
+       "type": "fixed",
+       "value": 20
+      }
+     },
+     {
+      "type": "separator",
+      "background": [
+       {
+        "type": "gradient",
+        "angle": 90,
+        "colors": [
+         "#08e6eef9",
+         "#4de6eef9",
+         "#4de6eef9",
+         "#4de6eef9",
+         "#08e6eef9"
+        ]
+       }
+      ],
+      "delimiter_style": {
+       "color": "#0fff"
+      },
+      "height": {
+       "type": "fixed",
+       "value": 116
+      },
+      "width": {
+       "type": "fixed",
+       "value": 1
+      }
+     },
+     {
+      "type": "separator",
+      "delimiter_style": {
+       "color": "#0fff"
+      },
+      "height": {
+       "type": "match_parent"
+      },
+      "width": {
+       "type": "fixed",
+       "value": 20
+      }
+     },
+     {
+      "type": "container",
+      "content_alignment_horizontal": "center",
+      "content_alignment_vertical": "center",
+      "height": {
+       "type": "match_parent"
+      },
+      "items": [
+       {
+        "type": "container",
+        "alignment_vertical": "center",
+        "content_alignment_horizontal": "center",
+        "items": [
+         {
+          "type": "container",
+          "background": [
+           {
+            "type": "solid",
+            "color": "#1ae6eef9"
+           }
+          ],
+          "border": {
+           "corner_radius": 16
+          },
+          "content_alignment_vertical": "center",
+          "height": {
+           "type": "fixed",
+           "value": 48
+          },
+          "items": [
+           {
+            "type": "image",
+            "height": {
+             "type": "fixed",
+             "value": 20
+            },
+            "image_url": "https://yastatic.net/s3/smart-display-res/iot/property-icons/@@PICON@@.png",
+            "margins": {
+             "right": 6
+            },
+            "width": {
+             "type": "fixed",
+             "value": 20
+            }
+           },
+           {
+            "type": "text",
+            "font_size": 22,
+            "line_height": 28,
+            "max_lines": 1,
+            "text": "@{round(toNumber(property_@@VAR@@_@@INSTANCE@@_devices.properties.float_value)*10.0)/10.0} @@UNIT@@",
+            "text_color": "#fff",
+            "width": {
+             "type": "wrap_content",
+             "constrained": true
+            }
+           }
+          ],
+          "margins": {
+           "top": 8,
+           "left": 4,
+           "bottom": 8,
+           "right": 4
+          },
+          "orientation": "horizontal",
+          "paddings": {
+           "top": 10,
+           "bottom": 10,
+           "left": 12,
+           "right": 12
+          },
+          "width": {
+           "type": "wrap_content",
+           "constrained": true
+          }
+         }
+        ],
+        "layout_mode": "wrap",
+        "orientation": "horizontal",
+        "width": {
+         "type": "match_parent"
+        }
+       }
+      ],
+      "orientation": "vertical",
+      "width": {
+       "type": "fixed",
+       "value": 199
+      }
+     },
+     {
+      "type": "separator",
+      "delimiter_style": {
+       "color": "#0fff"
+      },
+      "height": {
+       "type": "match_parent"
+      },
+      "width": {
+       "type": "fixed",
+       "value": 20
+      }
+     }
+    ],
+    "orientation": "horizontal",
+    "width": {
+     "type": "match_parent"
+    }
+   },
+   {
+    "type": "container",
+    "alignment_horizontal": "center",
+    "alignment_vertical": "top",
+    "background": [
+     {
+      "type": "solid",
+      "color": "#0b0f14"
+     }
+    ],
+    "border": {
+     "corner_radius": 12
+    },
+    "content_alignment_horizontal": "center",
+    "content_alignment_vertical": "center",
+    "height": {
+     "type": "fixed",
+     "value": 32
+    },
+    "items": [
+     {
+      "type": "image",
+      "appearance_animation": {
+       "type": "fade",
+       "duration": 300,
+       "interpolator": "ease_in_out"
+      },
+      "height": {
+       "type": "fixed",
+       "value": 16
+      },
+      "image_url": "https://yastatic.net/s3/smart-display-res/iot/icons/wifi.webp?centaur_cache=1",
+      "margins": {
+       "right": 4
+      },
+      "width": {
+       "type": "fixed",
+       "value": 16
+      }
+     },
+     {
+      "type": "text",
+      "font_size": 16,
+      "line_height": 14,
+      "text": "Не в сети",
+      "text_alignment_horizontal": "center",
+      "text_color": "#FF5555"
+     }
+    ],
+    "margins": {
+     "top": 12
+    },
+    "orientation": "horizontal",
+    "paddings": {
+     "left": 8,
+     "right": 8,
+     "top": 8,
+     "bottom": 8
+    },
+    "width": {
+     "type": "fixed",
+     "value": 110
+    }
+   },
+   {
+    "type": "container",
+    "alignment_horizontal": "left",
+    "alignment_vertical": "bottom",
+    "height": {
+     "type": "fixed",
+     "value": 92
+    },
+    "items": [
+     {
+      "type": "container",
+      "alpha": 0.3,
+      "content_alignment_horizontal": "center",
+      "content_alignment_vertical": "center",
+      "height": {
+       "type": "fixed",
+       "value": 92
+      },
+      "items": [
+       {
+        "type": "container",
+        "background": [
+         {
+          "type": "solid",
+          "color": "#1ae6eef9"
+         }
+        ],
+        "border": {
+         "corner_radius": 64
+        },
+        "content_alignment_horizontal": "center",
+        "content_alignment_vertical": "center",
+        "height": {
+         "type": "fixed",
+         "value": 64
+        },
+        "items": [
+         {
+          "type": "container",
+          "height": {
+           "type": "fixed",
+           "value": 40
+          },
+          "items": [
+           {
+            "type": "image",
+            "appearance_animation": {
+             "type": "fade",
+             "duration": 300,
+             "interpolator": "ease_in_out"
+            },
+            "height": {
+             "type": "match_parent"
+            },
+            "high_priority_preview_show": true,
+            "image_url": "",
+            "preview": "iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAYAAACOEfKtAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAAZiS0dEAP8A/wD/oL2nkwAAAAlwSFlzAAAWJQAAFiUBSVIk8AAAA5hJREFUeNrtm8tx2zAQhv88CsAxt6CDsIMgt9yiDkJXEHWgcQVxKpBTge0KpFRgpQIzFYi55aYcSE5kRljiyQVn9pvBBZAWu7/wBgQIgiAIgsDDK24HCBSAjwDeAGgB/OF2aElUAI4ATn166vMEBxQ6wU6jdOzLhAkM/hdvSCtu58a85HbgApooU9zOjSlRwEUhAkYiAkYiAkYiAkYiAkYiAkYiAkYiAkaSSkAFoEa3DSudCt2WUHM7MrDB8/3qI+K2XDXse+E6wq4CsBvZ2zDqRga7zWAzVsCtxeaaSzyN52d246On0gSkfNWhRmPGwA0KPB0JQCGix4QKuALdGu651CB4IMoMZp4AL50Ynx+/6wjbNfJNIpTfuxCjIS3QTAh0DaCJCDQXLYCribjMHI6MlwKpZt+BGnlaoIv/Qa3QB01UfkKaxWluAadiUD7GfLvwiii7RZldd0wDYE+Ur32M+Qr4iSj7ziJHGNdE2ftclSrQM28qauTtwgO2hbVXN/ZpgRVRtk8Y2FxQPca4GvERkDL64GqkIPZEWeVqxEfAd4HOlArl81tXIz4CKkt+26elQflduRrxEVBb8g+JA6PsNYnrstlTiesBMO/q/dJu4XGmeobkRIoj/SZDYFfoZsm2T7cAPmSo51esgdcZnEpBg7RrvmykaIGaO4gInGdbGz4CNpZ8xa1CBhrXD/oI2FryNXe0EVSW/MbVgI+APy35CssUUcPee367GvER8ECUVdxqBED5fHC0kWQMBJbxImEMdTS3z1Ghgn3RGXMPzAV1waRyVUqt3A23Ih4YJNpZ+a4DfxBl7O9MPPhMlGU9WVegL2QMtzIO6IkYdG4HWK8FE2B7ZHTCTC8qDJbbCutSfKda4RPK3N5pTD9JmQ0D+pcssSvfoZDWN0C1whPKmpU3E76meJLijQZ9t1qKiFPixb4mi2I94Ry3iFPipb6sD+LGwck7zPsrK0wPMafe9yJ4dHD2CfP82gb0bJvzkioY5ej0MGDrTMK5tDr2cc+G9hBxENLMLFyx4p2L6NKdxwFt4f7vId1/9iumVwGXuq1KGfCLTELeAPgS+N0W3eFte5Y0/l0dhArwDYx/qgmhhl+XzpWOSxPuHI3uVQGXeDsUPN75YDBva9yh7FOhKCHvRLh4NLox0mf5QYm2BtMRWq5Z2AeF7o7WoHsFq9AJrEefa9DNyAd0l/yHPrXcAQiCIAiCIAiCIMzLXzAqgg1o3Mi+AAAAAElFTkSuQmCC",
+            "tint_color": "#e6eef9",
+            "width": {
+             "type": "match_parent"
+            }
+           }
+          ],
+          "width": {
+           "type": "fixed",
+           "value": 40
+          }
+         }
+        ],
+        "width": {
+         "type": "fixed",
+         "value": 64
+        }
+       }
+      ],
+      "visibility": "visible",
+      "width": {
+       "type": "fixed",
+       "value": 92
+      }
+     }
+    ],
+    "margins": {
+     "bottom": 6,
+     "left": 66
+    },
+    "orientation": "overlap",
+    "width": {
+     "type": "fixed",
+     "value": 92
+    }
+   }
+  ],
+  "margins": {
+   "right": 8
+  },
+  "orientation": "overlap",
+  "visibility": "@{@@FILTER@@ ? 'visible' : 'gone'}",
+  "width": {
+   "type": "fixed",
+   "value": 464
+  }
+ },
  "tile_show_all": {
   "type": "container",
   "actions": [

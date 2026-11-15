@@ -8,10 +8,13 @@ upper_shutter_key_static_key, card_name upper_shutter}, card_name
 CentaurUpperShutterData; IsLedSilent) — форма настоящего ответа из журнала.
 
 Карточка собирается по реестру умного дома из обезличенного шаблона
-upper_shutter.json (каркас, чип фильтра, плитки вкл/выкл в сети и не в сети,
-«Показать все»): чипы — только присутствующих категорий, плитки — группами по
+upper_shutter.json (каркас, чип фильтра, плитки вкл/выкл и со значением свойства
+в сети и не в сети, «Показать все»): чипы — только присутствующих категорий, плитки — группами по
 комнатам по имени, без комнаты — в конце, затем «Показать все». Переменная состояния
-плитки — device_<id>_on_off_state (variable_key), та же, что в set_div_variables.
+плитки — device_<id>_on_off_state (variable_key), та же, что в set_div_variables;
+значение свойства — строка в property_<id>_<инстанс>_devices.properties.float_value
+(«--», если значения нет). Датчик, термостат и пылесос показываются, только когда у
+них есть значение с образцом (PROPERTIES).
 Ссылки dialog:// в шаблоне хранятся раскрытыми ({"$dialog": [директивы]}) и
 кодируются при сборке, как в образце: компактный JSON, quote без безопасных символов.
 
@@ -40,6 +43,22 @@ ON_OFF_TYPES = {"LightDeviceType": ("Light", "lamp-other"),
                 "TvDeviceDeviceType": ("TV", "tv"),
                 "FanDeviceType": (None, "uso"),
                 "FanDeviceTypeV2": (None, "uso")}
+
+# Тип устройства со значением свойства → (фильтр, иконка, есть ли вкл/выкл): датчики —
+# «Датчики», термостат — «Климат», пылесос — «Пылесосы»; у датчика переменной
+# вкл/выкл в образце нет.
+VALUE_TYPES = {"ClimateSensorDeviceType": ("Sensors", "sensor-climate", False),
+               "SensorDeviceType": ("Sensors", "sensor", False),
+               "ThermostatDeviceType": ("Climate", "thermostat", True),
+               "VacuumCleanerDeviceType": ("Vacuum", "vaccleaner", True)}
+
+# Инстанс значения реестра → (инстанс переменной, иконка свойства, единица) — только
+# те, что есть в образце; значение без образца плитку не даёт.
+PROPERTIES = {"temperature": ("temperature", "temperature", "°C"),
+              "humidity": ("humidity", "humidity", "%"),
+              "battery": ("battery_level", "battery-level", "%"),
+              "voltage": ("voltage", "voltage", "В"),
+              "power": ("power", "power", "Вт")}
 
 _template = None
 
@@ -84,18 +103,55 @@ def _on_off(device):
     return None
 
 
+def _property(device):
+    """(инстанс, иконка, единица, значение-строка) первого значения устройства из образца:
+    уровень с инстансом или батарея; None — значения нет."""
+    for cap in device.get("capabilities") or []:
+        kind = str(cap.get("type") or "")
+        known = PROPERTIES.get(kind if kind == "battery" else
+                               str(cap.get("instance") or "") if kind == "level" else "")
+        if known is None:
+            continue
+        value = cap.get("value")
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            text = str(int(value)) if float(value).is_integer() else str(float(value))
+        else:
+            text = "--"
+        return (*known, text)
+    return None
+
+
 def _tiles(registry):
-    """[(комната, фильтр, устройство, состояние)] — устройства шторки в порядке показа."""
+    """[(комната, устройство, плитка)] — устройства шторки в порядке показа; плитка —
+    {filter, icon, state (вкл/выкл или None), property (или None)}."""
     rooms = registry.rooms()
     result = []
     for device in registry.devices():
-        kind = ON_OFF_TYPES.get(str(device.get("type") or ""))
+        kind = str(device.get("type") or "")
         state = _on_off(device)
-        if kind is None or state is None:
+        if kind in ON_OFF_TYPES and state is not None:
+            flt, icon = ON_OFF_TYPES[kind]
+            tile = {"filter": flt, "icon": icon, "state": state, "property": None}
+        elif kind in VALUE_TYPES and (prop := _property(device)) is not None:
+            flt, icon, switchable = VALUE_TYPES[kind]
+            tile = {"filter": flt, "icon": icon, "property": prop,
+                    "state": bool(state) if switchable else None}
+        else:
             continue
-        result.append((rooms.get(str(device.get("room") or ""), ""), kind, device, state))
-    result.sort(key=lambda item: (not item[0], item[0].lower(), item[2]["name"].lower()))
+        result.append((rooms.get(str(device.get("room") or ""), ""), device, tile))
+    result.sort(key=lambda item: (not item[0], item[0].lower(), item[1]["name"].lower()))
     return result
+
+
+def _template_name(device, tile):
+    """Шаблон плитки: вкл/выкл, датчик или устройство со значением; в сети и не в сети.
+    Устройство со значением в сети (образца нет) — форма датчика в сети."""
+    online = bool(device.get("online"))
+    if tile["property"] is None:
+        return "tile_on_off" if online else "tile_on_off_offline"
+    if online:
+        return "tile_property"
+    return "tile_device_property_offline" if tile["state"] is not None else "tile_property_offline"
 
 
 def card(registry):
@@ -107,19 +163,27 @@ def card(registry):
     body = copy.deepcopy(template["card"])
     root = body["card"]["states"][0]["div"]
     filters_gallery, devices_gallery = root["items"][0]["items"][:2]
-    present = {kind[0] for _room, kind, _device, _state in tiles}
+    present = {tile["filter"] for _room, _device, tile in tiles}
     filters_gallery["items"] = [_render(template["filter_chip"], {"FILTER": key, "LABEL": label})
                                 for key, label in FILTERS if key in present]
     variables = body["card"]["variables"]
     items = []
-    for room, (flt, icon), device, state in tiles:
+    for room, device, tile in tiles:
         var = variable_key(device["id"])
-        visibility = (f"iot_filter_{flt} == 'on' || upper_shutter_all_filters_is_off" if flt
-                      else "false || upper_shutter_all_filters_is_off")
-        tile = template["tile_on_off" if device.get("online") else "tile_on_off_offline"]
-        items.append(_render(tile, {"VAR": var, "ID": str(device["id"]), "NAME": device["name"],
-                                    "ROOM": room, "ICON": icon, "FILTER": visibility}))
-        variables.append({"type": "boolean", "name": f"device_{var}_on_off_state", "value": state})
+        flt = tile["filter"]
+        values = {"VAR": var, "ID": str(device["id"]), "NAME": device["name"], "ROOM": room,
+                  "ICON": tile["icon"],
+                  "FILTER": (f"iot_filter_{flt} == 'on' || upper_shutter_all_filters_is_off"
+                             if flt else "false || upper_shutter_all_filters_is_off")}
+        if tile["state"] is not None:
+            variables.append({"type": "boolean", "name": f"device_{var}_on_off_state",
+                              "value": tile["state"]})
+        if tile["property"] is not None:
+            instance, icon, unit, text = tile["property"]
+            values.update({"INSTANCE": instance, "PICON": icon, "UNIT": unit})
+            variables.append({"type": "string", "value": text,
+                              "name": f"property_{var}_{instance}_devices.properties.float_value"})
+        items.append(_render(template[_template_name(device, tile)], values))
     items.append(_render(template["tile_show_all"], {}))
     devices_gallery["items"] = items
     return json.dumps(_render(body, {}), ensure_ascii=False, separators=(",", ":"))

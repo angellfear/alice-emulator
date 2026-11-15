@@ -69,6 +69,46 @@ def test_card_from_registry(tmp_path):
     assert "https://yastatic.net/s3/smart-display-res/iot/devices/lamp-other-on@2x.png" in body
 
 
+def test_value_tiles(tmp_path):
+    registry = smart_home.SmartHomeRegistry(SimpleNamespace(directory=tmp_path, extensions=None))
+    origin = "ha"
+    registry.set_rooms({"r-k": "Кухня"}, origin)
+    add = lambda **kw: registry.add_device(kw, origin)  # noqa: E731
+    add(id="sensor.v", name="Напряжение", room="r-k", type="SensorDeviceType",
+        capabilities=[{"type": "level", "value": 231.1, "instance": "voltage"}])
+    add(id="sensor.h", name="Влажность", room="r-k", type="ClimateSensorDeviceType",
+        capabilities=[{"type": "level", "value": 26.0, "instance": "humidity"}], online=False)
+    add(id="vacuum.r", name="Пылесос", room="r-k", type="VacuumCleanerDeviceType",
+        capabilities=[{"type": "battery", "value": 9}], online=False)
+    add(id="climate.p", name="Плита", room="r-k", type="ThermostatDeviceType",
+        capabilities=[{"type": "on_off", "value": True},
+                      {"type": "level", "value": 192, "instance": "temperature"}])
+    add(id="sensor.time", name="Время", room="r-k", type="SensorDeviceType", capabilities=[])
+    add(id="sensor.lux", name="Освещённость", room="r-k", type="SensorDeviceType",
+        capabilities=[{"type": "level", "value": 5, "instance": "illuminance"}])  # без образца
+    body = upper_shutter.card(registry)
+    assert "@@" not in body
+    card = json.loads(body)
+    filters, devices = card["card"]["states"][0]["div"]["items"][0]["items"][:2]
+    assert [_texts(chip) for chip in filters["items"]] == [["Датчики"], ["Климат"], ["Пылесосы"]]
+    tiles = {_texts(tile)[0]: tile for tile in devices["items"]}
+    assert list(tiles) == ["Влажность", "Напряжение", "Плита", "Пылесос", "Показать все"]
+    assert "Не в сети" in _texts(tiles["Влажность"]) and "Не в сети" in _texts(tiles["Пылесос"])
+    assert "Не в сети" not in _texts(tiles["Напряжение"])
+    text = json.dumps(tiles["Напряжение"], ensure_ascii=False)
+    assert "property_ha_sensor_v_voltage_devices.properties.float_value)*10.0)/10.0} В" in text
+    assert "property-icons/voltage.png" in text and "devices/sensor@2x.png" in text
+    assert "property-icons/battery-level.png" in json.dumps(tiles["Пылесос"])
+    assert tiles["Плита"]["visibility"] ==         "@{iot_filter_Climate == 'on' || upper_shutter_all_filters_is_off ? 'visible' : 'gone'}"
+    variables = {v["name"]: (v["type"], v["value"]) for v in card["card"]["variables"]}
+    assert variables["property_ha_sensor_v_voltage_devices.properties.float_value"] ==         ("string", "231.1")
+    assert variables["property_ha_sensor_h_humidity_devices.properties.float_value"] ==         ("string", "26")
+    assert variables["property_ha_vacuum_r_battery_level_devices.properties.float_value"] ==         ("string", "9")
+    assert variables["device_ha_climate_p_on_off_state"] == ("boolean", True)
+    assert variables["device_ha_vacuum_r_on_off_state"] == ("boolean", False)
+    assert "device_ha_sensor_v_on_off_state" not in variables  # у датчика вкл/выкл нет
+
+
 def test_variable_names_match_set_div_variables():
     raw = smart_home.div_variables_raw({"lights:light.kitchen": {"on_off": True}})
     message = load_type(schemas_dir(), station_file(),
