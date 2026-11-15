@@ -247,9 +247,8 @@ def _card_directive(weather, title, hour_now, tomorrow, tables):
     values = {
         "title": title,
         "temp": f"{_signed(current['temperature_2m'])}°",
-        # перенос строки — как в JSON-строке образца («Ощущается как -4°,\nпасмурно»):
-        # реестр подставляет значение в JSON-текст, поэтому \n идёт экранированным
-        "feels": f"Ощущается как {_signed(current['apparent_temperature'])}°,\\n{condition}",
+        # перенос строки — как в образце («Ощущается как -4°, / пасмурно» в две строки)
+        "feels": f"Ощущается как {_signed(current['apparent_temperature'])}°,\n{condition}",
         "icon_template": icon_name,
         "slug": slug,
         "video_uri": f"{VIDEO_BASE}chiron_{slug}_LOOP.webm?v=1",

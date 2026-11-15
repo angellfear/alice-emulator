@@ -18,11 +18,12 @@ import random
 import re
 import uuid
 from pathlib import Path
+from urllib.parse import quote
 
 CARDS_DIR = Path(__file__).parent / "app_cards"
 STATE_DIRNAME = "screen_templates"
 UUID_MARKER = "<uuid>"
-VAR = re.compile(r"\{\{([a-z0-9_]+)\}\}")
+VAR = re.compile(r"\{\{([a-z0-9_]+)(\|url)?\}\}")
 
 # Директивы экрана: имя конверта → proto payload (схема станции, "centaur")
 SHOW_VIEW_PROTO = "NAlice.TLayeredDivUICapability.TDivUIShowViewDirective"
@@ -215,14 +216,23 @@ class Registry:
 
 
 def substitute(text, values=None):
-    """{{name}} — значениями (строки); <uuid> — свежий uuid (seeded random —
+    """{{name}} — значениями (строки, экранируются по правилам JSON: текст с кавычками
+    и переводами строк не ломает тело), {{name|url}} — значением в URL-кодировке
+    (запрос кнопки dialog://text_command?query=…); <uuid> — свежий uuid (seeded random —
     детерминированность эталонов). Неизвестная переменная — TemplateError
     с её именем: опечатка не уйдёт на провод."""
-    used = sorted(set(VAR.findall(text)))
-    for name in used:
-        if values is None or name not in values:
-            raise TemplateError(f"Переменная «{name}» без значения")
-        text = text.replace("{{" + name + "}}", str(values[name]))
+    used = sorted({match.group(1) for match in VAR.finditer(text)})
+    missing = [name for name in used if values is None or name not in values]
+    if missing:
+        raise TemplateError(f"Переменная «{missing[0]}» без значения")
+
+    def value(match):
+        raw = str(values[match.group(1)])
+        if match.group(2):
+            raw = quote(raw, safe="")
+        return json.dumps(raw, ensure_ascii=False)[1:-1]  # значение внутри строки JSON
+
+    text = VAR.sub(value, text)
     return text.replace(UUID_MARKER, str(uuid.UUID(int=random.getrandbits(128), version=4))), used
 
 
@@ -234,7 +244,7 @@ def parse_body(body, values=None):
 
 def variables(body):
     """Доступные переменные шаблона — {{name}} из тела (для списка в UI)."""
-    return sorted(set(VAR.findall(json.dumps(body, ensure_ascii=False))))
+    return sorted({match.group(1) for match in VAR.finditer(json.dumps(body, ensure_ascii=False))})
 
 
 # ── модуль-синглтон (как voice_stack.adapters: configure при старте) ─────────

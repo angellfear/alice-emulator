@@ -330,9 +330,11 @@
     inner.templates = templates;
     const templateNames = Object.keys(templates);
     const filled = JSON.stringify(inner)
-      .replace(/\{\{([a-z0-9_]+)\}\}/g, (m, name) => {
-        if (values && values[name] !== undefined) return values[name];
-        return /template|icon/i.test(name) && templateNames.length ? templateNames[0] : name;
+      .replace(/\{\{([a-z0-9_]+)(\|url)?\}\}/g, (m, name, url) => {
+        let raw = values && values[name] !== undefined ? String(values[name])
+          : (/template|icon/i.test(name) && templateNames.length ? templateNames[0] : name);
+        if (url) raw = encodeURIComponent(raw);
+        return JSON.stringify(raw).slice(1, -1);  // значение внутри строки JSON, как на сервере
       })
       .replace(/<uuid>/g, '00000000-0000-4000-8000-000000000000');
     const out = JSON.parse(filled);
