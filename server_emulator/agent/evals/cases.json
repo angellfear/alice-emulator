@@ -44,10 +44,6 @@
   "scenario": null
  },
  {
-  "phrase": "что ты умеешь",
-  "scenario": "chat.chat"
- },
- {
   "phrase": "включи блютуз и поставь таймер на десять минут",
   "llm": true,
   "tools": [

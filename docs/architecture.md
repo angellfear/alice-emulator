@@ -180,7 +180,7 @@ agent: ответ готов → TTS заранее → async_reply.keep()
 | Фронт TLS | [front](contracts/front.md) |
 | Маршруты и журнал трафика | [routing](contracts/routing.md) |
 | Плеер, громкость, директивы | [player](contracts/player.md), [station-media](contracts/station-media.md), [device-actions](contracts/device-actions.md) |
-| Сценарии и данные | [scenarios](contracts/scenarios.md), [providers](contracts/providers.md), [datasets](contracts/datasets.md), [params-db](contracts/params-db.md), [coverage](contracts/coverage.md) |
+| Сценарии и данные | [scenarios](contracts/scenarios.md), [providers](contracts/providers.md), [params-db](contracts/params-db.md), [coverage](contracts/coverage.md) |
 | Расширения и встроенные плагины | [extensions](contracts/extensions.md) |
 | Агент | [agent](contracts/agent.md), [memory](contracts/memory.md), [routines](contracts/routines.md) |
 | Журнал сервера | [server-log](contracts/server-log.md) |

@@ -27,7 +27,6 @@ module: "server_emulator/providers.py"
 | `weather` | `scenario_plugins.py` → `forecast(ctx, location)` — прогноз в форме Open-Meteo (`current`/`hourly`/`daily`), `location` — `{"latitude", "longitude", "timezone"?}` из параметров дома | сценарий `informers.weather`, виджет погоды | работает |
 | `news` | `scenarios/informers/news.py` → `headlines(ctx, kind)` → `{"items": ["заголовок", …], "note"?}` | сценарий `informers.news` | работает (встроенный — заглушка без сети) |
 | `video` | `scenarios/media/video.py` → `catalog(ctx)` → `{"items": [запись каталога, …], "note"?}`; запись: `title`, `embed`; необязательные `url`, `genre`, `host`, `player`, `duration`, `year`, `preview` — host/player без значения сценарий выводит из адреса `embed` | сценарий `media.video` | работает (встроенный — каталог ссылок в настройках плагина) |
-| `knowledge` | `plugins/knowledge/scenarios/knowledge/knowledge.py` → `record(ctx, domain, key, args)` → значение домена или `{"value", "updated_at"}` (таблица доменов — docs/contracts/datasets.md); опционально `supports(ctx, domain)` → bool | сценарий `knowledge.knowledge` (`builtin.knowledge`) | встроенного поставщика нет — поставщик даёт расширение |
 
 Поставщик без обязательной функции вида в реестр не попадает — расширение
 отключается целиком, причина видна в карточке расширения; вид без потребителя

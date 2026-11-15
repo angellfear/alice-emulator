@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-02T17:21:27",
+ "generated": "2026-11-15T02:52:37",
  "results": [
   {
    "group": "media",
@@ -214,8 +214,8 @@
    "text": "открой список моих треков",
    "expect": null,
    "verdict": "other",
-   "scenario": "device.app.open",
-   "reason": "template"
+   "scenario": "media.video",
+   "reason": "dir:builtin.video-links.search"
   },
   {
    "group": "media",
@@ -638,7 +638,7 @@
    "expect": "device.player.pause",
    "verdict": "ok",
    "scenario": "device.player.pause",
-   "reason": "phrase:contains"
+   "reason": "template"
   },
   {
    "group": "media",
@@ -843,18 +843,18 @@
    "section": "audio-settings",
    "text": "выключись через 15 минут",
    "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "verdict": "other",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "media",
    "section": "audio-settings",
    "text": "выключи станцию через 2 часа",
    "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "verdict": "other",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "media",
@@ -943,7 +943,7 @@
    "text": "поставь первый таймер на паузу",
    "expect": null,
    "verdict": "other",
-   "scenario": "device.player.pause",
+   "scenario": "timers.timer.pause",
    "reason": "phrase:contains"
   },
   {
@@ -978,9 +978,9 @@
    "section": "sleep-timer",
    "text": "выключись через 20 минут",
    "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "verdict": "other",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "time",
@@ -1006,7 +1006,7 @@
    "text": "поставь таймер сна на паузу",
    "expect": null,
    "verdict": "other",
-   "scenario": "device.player.pause",
+   "scenario": "timers.timer.set",
    "reason": "phrase:contains"
   },
   {
@@ -1120,88 +1120,7 @@
   {
    "group": "chat",
    "section": "chat",
-   "text": "как дела",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "chat",
-   "section": "chat",
-   "text": "кто тебя создал",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "chat",
-   "section": "chat",
    "text": "какое твое любимое приложение",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "chat",
-   "section": "chat",
-   "text": "что ты умеешь",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "chat",
-   "section": "chat",
-   "text": "расскажи скороговорку",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "chat",
-   "section": "chat",
-   "text": "спой что-нибудь",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "chat",
-   "section": "chat",
-   "text": "расскажи свое стихотворение",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "chat",
-   "section": "chat",
-   "text": "скажи тост",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "chat",
-   "section": "chat",
-   "text": "расскажи кричалку",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "chat",
-   "section": "chat",
-   "text": "повтори за мной привет",
    "expect": null,
    "verdict": "miss",
    "scenario": null,
@@ -1220,262 +1139,154 @@
    "group": "chat",
    "section": "date",
    "text": "точное время в москве",
-   "expect": null,
-   "verdict": "other",
-   "scenario": "informers.clock",
-   "reason": "phrase:contains"
+   "expect": "informers.clock.date",
+   "verdict": "ok",
+   "scenario": "informers.clock.date",
+   "reason": "template"
   },
   {
    "group": "chat",
    "section": "date",
    "text": "какой сегодня день",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "informers.clock.date",
+   "verdict": "ok",
+   "scenario": "informers.clock.date",
+   "reason": "template"
   },
   {
    "group": "chat",
    "section": "date",
    "text": "в какой день недели будет 8 марта",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "informers.clock.date",
+   "verdict": "ok",
+   "scenario": "informers.clock.date",
+   "reason": "template"
   },
   {
    "group": "chat",
    "section": "date",
    "text": "понедельник это какое число",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "chat",
-   "section": "shopping",
-   "text": "добавь в список покупок йогурт хлеб кефир и шампунь",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "chat",
-   "section": "shopping",
-   "text": "добавь в список покупок масло",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "chat",
-   "section": "shopping",
-   "text": "покажи список покупок",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "chat",
-   "section": "shopping",
-   "text": "удали из списка покупок конфеты",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "chat",
-   "section": "shopping",
-   "text": "очисти список покупок",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "informers.clock.date",
+   "verdict": "ok",
+   "scenario": "informers.clock.date",
+   "reason": "template"
   },
   {
    "group": "chat",
    "section": "games",
    "text": "давай поговорим с мудрым учителем",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "chat",
-   "section": "games",
-   "text": "давай погадаем",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "chat",
    "section": "games",
    "text": "давай сыграем в верю не верю",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "chat",
    "section": "games",
    "text": "давай сыграем в угадай песню",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "chat",
    "section": "games",
    "text": "давай сыграем в найди лишнее",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "chat",
-   "section": "games",
-   "text": "давай сыграем в шар судьбы",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "chat",
    "section": "games",
    "text": "давай сыграем в слова",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "chat",
    "section": "games",
    "text": "давай сыграем в города",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "chat",
    "section": "games",
    "text": "давай сыграем в квест про космос",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "chat",
    "section": "games",
    "text": "давай сыграем в зоологию",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "chat",
    "section": "games",
    "text": "давай сыграем в виселицу",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "chat",
    "section": "games",
    "text": "давай сыграем в угадай число",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "chat",
    "section": "games",
    "text": "давай сыграем в загадки",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "chat",
    "section": "games",
    "text": "расскажи про этот день в истории",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "chat",
    "section": "games",
    "text": "выйти из игры",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "unavailable",
-   "section": "alice-recipe",
-   "text": "что приготовить на обед",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "unavailable",
-   "section": "alice-recipe",
-   "text": "какие есть рецепты салата",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "unavailable",
-   "section": "alice-recipe",
-   "text": "какие рецепты есть с курицей",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "unavailable",
-   "section": "alice-recipe",
-   "text": "найди рецепт шарлотки",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "unavailable",
-   "section": "alice-recipe",
-   "text": "давай приготовим лазанью",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
@@ -1520,7 +1331,7 @@
    "expect": "informers.weather",
    "verdict": "ok",
    "scenario": "informers.weather",
-   "reason": "phrase:contains"
+   "reason": "dir:builtin.open-meteo.weather"
   },
   {
    "group": "knowledge",
@@ -1529,7 +1340,7 @@
    "expect": "informers.weather",
    "verdict": "ok",
    "scenario": "informers.weather",
-   "reason": "template"
+   "reason": "dir:builtin.open-meteo.weather"
   },
   {
    "group": "knowledge",
@@ -1569,224 +1380,26 @@
   },
   {
    "group": "knowledge",
-   "section": "facts",
-   "text": "какова высота эвереста",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "knowledge",
-   "section": "facts",
-   "text": "кто такой александр флеминг",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "knowledge",
-   "section": "facts",
-   "text": "сколько калорий в горьком шоколаде",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "knowledge",
-   "section": "facts",
-   "text": "значение имени александр",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "knowledge",
-   "section": "geo",
-   "text": "где тут рядом бассейн",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "knowledge",
-   "section": "geo",
-   "text": "куда сходить в кино",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "knowledge",
-   "section": "geo",
-   "text": "найди кафе поближе",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "knowledge",
-   "section": "route",
-   "text": "сколько идти до работы",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "knowledge",
-   "section": "route",
-   "text": "долго ли ехать на автобусе до работы",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "knowledge",
-   "section": "route",
-   "text": "как пройти в библиотеку",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "knowledge",
-   "section": "traffic",
-   "text": "как там на дорогах",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "knowledge",
-   "section": "traffic",
-   "text": "где сейчас пробки",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "knowledge",
    "section": "news",
    "text": "расскажи новости",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "informers.news",
+   "verdict": "ok",
+   "scenario": "informers.news",
+   "reason": "dir:builtin.news-stub.news"
   },
   {
    "group": "knowledge",
    "section": "news",
    "text": "включи новости",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "knowledge",
-   "section": "price",
-   "text": "92 евро сколько в рублях",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "knowledge",
-   "section": "price",
-   "text": "какой курс биткоина",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "knowledge",
-   "section": "price",
-   "text": "сколько стоит нефть",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "knowledge",
-   "section": "price",
-   "text": "сколько стоит ноутбук",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "informers.news",
+   "verdict": "ok",
+   "scenario": "informers.news",
+   "reason": "dir:builtin.news-stub.news"
   },
   {
    "group": "knowledge",
    "section": "price",
    "text": "подскажи квадратный корень из восьми",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "knowledge",
-   "section": "translation",
-   "text": "как по-английски искусственный интеллект",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "knowledge",
-   "section": "translation",
-   "text": "переведи на французский воскресенье",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "knowledge",
-   "section": "tv-schedule",
-   "text": "скажи программу на вечер",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "knowledge",
-   "section": "tv-schedule",
-   "text": "скажи программу на 8 февраля",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "knowledge",
-   "section": "tv-schedule",
-   "text": "какие фильмы сегодня по тв",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
-  },
-  {
-   "group": "knowledge",
-   "section": "tv-schedule",
-   "text": "скажи программу планета hd",
    "expect": null,
    "verdict": "miss",
    "scenario": null,
@@ -1841,109 +1454,109 @@
    "group": "unavailable",
    "section": "film",
    "text": "включи фильм обыкновенное чудо",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "film",
    "text": "запусти мультфильм король лев",
-   "expect": null,
-   "verdict": "other",
-   "scenario": "device.app.open",
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
    "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "film",
    "text": "поставь фильм побег из шоушенка",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "film",
    "text": "включи комедию",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "film",
    "text": "покажи что-нибудь романтическое",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "film",
    "text": "покажи новинки фильмов",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "film",
    "text": "запусти фильм 2012 года",
-   "expect": null,
-   "verdict": "other",
-   "scenario": "device.app.open",
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
    "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "film",
    "text": "посоветуй мультфильм",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "film",
    "text": "продолжить смотреть",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "series",
    "text": "включи сериал друзья",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "series",
    "text": "поставь сериал клиника",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "series",
    "text": "найди комедийный сериал",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
@@ -1958,253 +1571,253 @@
    "group": "unavailable",
    "section": "series",
    "text": "посоветуй сериал",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "tv-channel",
    "text": "включи новогодний канал",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "tv-channel",
    "text": "запусти пятый канал",
-   "expect": null,
-   "verdict": "other",
-   "scenario": "device.app.open",
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
    "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "tv-channel",
    "text": "что идет по рбк",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "video-search",
    "text": "покажи видео с енотом в сети",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "video-search",
    "text": "запусти мультфильм про кота в сети",
-   "expect": null,
-   "verdict": "other",
-   "scenario": "device.app.open",
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
    "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "video-search",
    "text": "включи музыкальный клип в сети",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "video-search",
    "text": "включи хоккей",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "video-search",
    "text": "включи футбол",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "video-settings",
    "text": "перемотай на 10 минут вперед",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "device.player.rewind",
+   "verdict": "ok",
+   "scenario": "device.player.rewind",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "video-settings",
    "text": "перемотай на 20 минут назад",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "device.player.rewind",
+   "verdict": "ok",
+   "scenario": "device.player.rewind",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "video-settings",
    "text": "пропусти заставку",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "video-settings",
    "text": "пропусти титры",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "video-settings",
    "text": "покажи список дорожек",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "video-settings",
    "text": "включи русские субтитры",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "video-settings",
    "text": "выключи субтитры",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "video-settings",
    "text": "включи следующую серию",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "video-settings",
    "text": "выключи колонку через 2 часа",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "video-settings",
    "text": "выключись через 40 минут",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "video-settings",
    "text": "выключи станцию в полночь",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "karaoke",
    "text": "включи караоке",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "karaoke",
    "text": "включи песню штиль в караоке",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "karaoke",
    "text": "давай споем под караоке",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "karaoke",
    "text": "покажи текст песни",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "karaoke",
    "text": "показать слова песни",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "alice-show",
    "text": "включи утреннее шоу",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "alice-show",
    "text": "запусти утреннее шоу",
-   "expect": null,
-   "verdict": "other",
-   "scenario": "device.app.open",
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
    "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "alice-show",
    "text": "поставь утреннее шоу",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
@@ -2219,10 +1832,10 @@
    "group": "unavailable",
    "section": "alice-show",
    "text": "включи вечернее шоу",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
@@ -2237,28 +1850,28 @@
    "group": "unavailable",
    "section": "voice-order",
    "text": "закажи продукты в лавке",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "voice-order",
    "text": "добавь в корзину молоко",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "voice-order",
    "text": "давай купим 2 пачки муки",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
@@ -2273,64 +1886,64 @@
    "group": "unavailable",
    "section": "order-status",
    "text": "когда привезут продукты из лавки",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "order-status",
    "text": "где мои покупки из маркета",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "order-status",
    "text": "расскажи о статусе заказа из яндекс еды",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "order-status",
    "text": "где мой заказ из деливери",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "feedback",
    "text": "свяжись с поддержкой",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "emotions",
    "text": "мне грустно",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "emotions",
    "text": "ты супер",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
@@ -2354,91 +1967,91 @@
    "group": "unavailable",
    "section": "emotions",
    "text": "улыбнись",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "non-obvious",
    "text": "вызови такси на работу",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "non-obvious",
    "text": "давай запишем капсулу времени",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "non-obvious",
    "text": "давай сочиним сказку",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "non-obvious",
    "text": "придумай стихотворение про зиму",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "non-obvious",
    "text": "шепот",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "non-obvious",
    "text": "включи метроном",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "non-obvious",
    "text": "найди мой телефон",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "non-obvious",
    "text": "включи радионяню в детской",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
    "section": "non-obvious",
    "text": "выключись через 30 минут",
-   "expect": null,
-   "verdict": "miss",
-   "scenario": null,
-   "reason": "no_match"
+   "expect": "system.unavailable",
+   "verdict": "ok",
+   "scenario": "system.unavailable",
+   "reason": "template"
   },
   {
    "group": "unavailable",
