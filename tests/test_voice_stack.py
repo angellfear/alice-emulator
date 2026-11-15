@@ -413,7 +413,21 @@ async def test_state_busy_server_is_running(tmp_path, stack):
         await runner.cleanup()
 
 
-async def test_state_closed_port_is_stopped(tmp_path, stack):
+@pytest.fixture
+def closed_port(stack, monkeypatch):
+    """Порт пакета не принимает соединений. Настоящий порт не пробуется: при параллельном
+    прогоне его может занять сервер другого теста."""
+    async def no_health(*_args):
+        return None
+
+    async def refused(*_args):
+        return False
+
+    monkeypatch.setattr(stack.local, "health", no_health)
+    monkeypatch.setattr(stack.local, "_accepts", refused)
+
+
+async def test_state_closed_port_is_stopped(tmp_path, stack, closed_port):
     """Порт не принимает соединение — пакет не запущен: stopped, штатно (без журнала)."""
     package = stack.package("loc")
     folder = stack.local.folder(package)
@@ -426,7 +440,7 @@ async def test_state_closed_port_is_stopped(tmp_path, stack):
 # --- журнал только при сбое: признак crashed в состоянии карточки ----------------------
 
 
-async def test_state_crash_flag(tmp_path, stack):
+async def test_state_crash_flag(tmp_path, stack, closed_port):
     """Штатная остановка — без журнала (crashed: false); упавший процесс — журнал и
     crashed: true; запускающийся — журнал есть, crashed: false; кода нет, журнал
     кончается трассировкой Python — сбой."""
