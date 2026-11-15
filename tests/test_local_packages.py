@@ -142,7 +142,7 @@ def test_run_steps_are_valid_python(packages, ident):
 def test_server_env_is_read_by_script(packages, ident):
     text = "".join((TOOLS / (name + ".py")).read_text(encoding="utf-8") for name in SOURCES[ident] + ["speech_common"])
     for name in packages[ident]["server"]["env"]:
-        if name not in ("CUDA_VISIBLE_DEVICES", "HF_HOME", "HF_HUB_OFFLINE"):
+        if name not in ("CUDA_VISIBLE_DEVICES", "PYTHONWARNINGS", "HF_HOME", "HF_HUB_OFFLINE"):
             assert name in text, f"{ident}: сервер не читает {name}"
 
 

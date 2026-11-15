@@ -12,7 +12,8 @@ POST   voice-stack-clean      — {ids: [...]} | {all_unused: true} удалит
 POST   voice-stack-package    — {id, values} параметры запуска пакета (до установки тоже)
 POST   voice-stack-install    — {id} фоновая установка (прогресс в GET)
 POST   voice-stack-uninstall  — {id} удалить установку остановленного пакета (параметры остаются)
-POST   voice-stack-restart    — {id} перезапуск сервера пакета
+POST   voice-stack-restart    — {id} перезапуск сервера пакета; дожидается /health или смерти процесса —
+                                умерший сразу сервер даёт ошибку с причиной, а не «restarted»
 POST   voice-stack-stop       — {id} остановить сервер пакета
 POST   voice-stack-file       — ?id=&key= тело — WAV (проверка формата и длительности), один файл на поле
 GET    voice-stack-file       — ?id=&key= прослушать; DELETE — удалить
@@ -248,11 +249,19 @@ async def voice_stack_stop(request, runtime, app):
     return web.json_response({"stopped": package["id"]})
 
 
+RESTART_READY_TIMEOUT = 15.0  # сколько ждать /health после перезапуска: дольше — «грузится модель», карточка показывает состояние
+
+
 @route("voice-stack-restart", methods=("POST",))
 async def voice_stack_restart(request, runtime, app):
     _, package = await _package(request, runtime)
-    runtime.voice_stack.local.stop(package)
-    await runtime.voice_stack.local.start(package)
+    local = runtime.voice_stack.local
+    local.stop(package)
+    await local.start(package)
+    try:  # процесс, умерший сразу после запуска, не должен выглядеть как успешный перезапуск
+        await local.wait_ready(package, RESTART_READY_TIMEOUT)
+    except ValueError as exc:
+        raise ValueError(f"Не запустился «{package.get('title', package['id'])}»: {exc}") from exc
     return web.json_response({"restarted": package["id"]})
 
 

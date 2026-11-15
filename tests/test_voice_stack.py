@@ -318,3 +318,160 @@ def test_cache_drop_dynamic_keeps_static(tmp_path):
     assert cache.drop_dynamic() == 1
     assert cache.cached(identity, "Включаю.") and not cache.cached(identity, "+12")
     assert all(not item.get("dynamic") for item in TtsCache(tmp_path).index.values())
+
+
+def test_state_of_busy_server_uses_short_probe(stack, monkeypatch):
+    """Сервер занят (грузит модель, /health не отвечает) — статус берёт короткую пробу,
+    процесс жив: карточка показывает starting, не дожидаясь длинного тайм-аута."""
+    package = stack.package("loc")
+    stack.local.installed = lambda pkg: True
+
+    class Live:
+        def poll(self):
+            return None  # процесс жив
+
+    stack.local.processes["loc"] = Live()
+    seen = []
+
+    async def probe(pkg, timeout=1.5):
+        seen.append(timeout)
+        return None  # /health не отвечает
+
+    monkeypatch.setattr(stack.local, "health", probe)
+    assert asyncio.run(stack.local.state(package))["status"] == "starting"
+    assert seen == [voice_stack.STATE_HEALTH_TIMEOUT] and seen[0] < 1.0
+
+
+def test_health_short_timeout_of_silent_server(stack):
+    """health() с коротким тайм-аутом против сервера, принявшего соединение и молчащего,
+    возвращается сам — готовность после запуска ждёт дольше, статус карточки нет."""
+    import socket
+
+    with socket.socket() as reserved:  # свободный порт, чтобы не столкнуться с чужим сервером
+        reserved.bind(("127.0.0.1", 0))
+        port = reserved.getsockname()[1]
+    package = stack.package("loc")
+    package["defaults"] = {**package["defaults"], "port": port}
+
+    async def scenario():
+        server = await asyncio.start_server(lambda reader, writer: asyncio.sleep(10),
+                                            "127.0.0.1", port)
+        try:
+            started = time.perf_counter()
+            assert await stack.local.health(package, voice_stack.STATE_HEALTH_TIMEOUT) is None
+            assert time.perf_counter() - started < 1.0
+        finally:
+            server.close()
+            await server.wait_closed()
+
+    asyncio.run(scenario())
+
+
+def test_public_probes_states_in_parallel(stack, monkeypatch):
+    """Состояния пакетов в public() собираются параллельно: медленная проба каждого
+    пакета не складывается в секунды ожидания вкладки."""
+    async def slow(pkg):
+        await asyncio.sleep(0.4)
+        return {"status": "absent"}
+
+    monkeypatch.setattr(stack.local, "state", slow)
+    started = time.perf_counter()
+    result = asyncio.run(stack.public())
+    assert time.perf_counter() - started < 0.8  # подряд (0.4 × 2 пакета) дало бы ≥0.8 с
+    assert {p["id"] for p in result["tts"]["packages"]} == {"loc", "other"}
+    assert all(p["state"]["status"] == "absent" for p in result["tts"]["packages"])
+
+
+# --- статус занятого сервера: порт принимает, /health за короткую пробу не успел -------
+
+
+async def test_state_busy_server_is_running(tmp_path, stack):
+    """/health не ответил за короткую пробу, но порт принимает соединение — сервер
+    занят (распознаёт/синтезирует/греет модель): состояние running, а не starting/stopped,
+    и ответ не позже ~0.6 с (проба 0.4 с + проверка порта)."""
+    from aiohttp import web
+
+    async def health(request):
+        await asyncio.sleep(2)
+        return web.json_response({"model": "busy"})
+
+    app = web.Application()
+    app.router.add_get("/health", health)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    await web.TCPSite(runner, "127.0.0.1", 59999).start()
+    try:
+        package = stack.package("loc")
+        folder = stack.local.folder(package)
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "installed.json").write_text('{"device": "cpu"}', encoding="utf-8")
+        started = time.monotonic()
+        state = await stack.local.state(package)
+        assert time.monotonic() - started <= 0.6
+        assert state["status"] == "running"
+    finally:
+        await runner.cleanup()
+
+
+async def test_state_closed_port_is_stopped(tmp_path, stack):
+    """Порт не принимает соединение — пакет не запущен: stopped, штатно (без журнала)."""
+    package = stack.package("loc")
+    folder = stack.local.folder(package)
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "installed.json").write_text('{"device": "cpu"}', encoding="utf-8")
+    state = await stack.local.state(package)
+    assert state["status"] == "stopped" and state["crashed"] is False and "log" not in state
+
+
+# --- журнал только при сбое: признак crashed в состоянии карточки ----------------------
+
+
+async def test_state_crash_flag(tmp_path, stack):
+    """Штатная остановка — без журнала (crashed: false); упавший процесс — журнал и
+    crashed: true; запускающийся — журнал есть, crashed: false; кода нет, журнал
+    кончается трассировкой Python — сбой."""
+    from types import SimpleNamespace
+
+    package = stack.package("loc")
+    folder = stack.local.folder(package)
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "installed.json").write_text('{"device": "cpu"}', encoding="utf-8")
+
+    stack.local.processes["loc"] = SimpleNamespace(poll=lambda: 0)
+    state = await stack.local.state(package)
+    assert state["status"] == "stopped" and state["crashed"] is False and "log" not in state
+
+    stack.local.processes["loc"] = SimpleNamespace(poll=lambda: 1)
+    state = await stack.local.state(package)
+    assert state["status"] == "stopped" and state["crashed"] is True and "log" in state
+
+    stack.local.processes["loc"] = SimpleNamespace(poll=lambda: None)
+    state = await stack.local.state(package)
+    assert state["status"] == "starting" and state["crashed"] is False and "log" in state
+
+    del stack.local.processes["loc"]
+    (folder / "server.log").write_text(
+        "предупреждение\nTraceback (most recent call last):\n  File \"x\", line 1\nError: бум\n",
+        encoding="utf-8")
+    state = await stack.local.state(package)
+    assert state["status"] == "stopped" and state["crashed"] is True and "log" in state
+
+    (folder / "server.log").write_text("работал и остановлен\n", encoding="utf-8")
+    state = await stack.local.state(package)
+    assert state["status"] == "stopped" and state["crashed"] is False and "log" not in state
+
+
+def test_tail_strips_nul_and_ansi(tmp_path, stack):
+    """Журнал с NUL-байтами (onnxruntime на Windows пишет предупреждения в stderr
+    в UTF-16) и ANSI-цветом — читаемый текст без NUL и ESC-последовательностей."""
+    package = stack.package("loc")
+    folder = stack.local.folder(package)
+    folder.mkdir(parents=True, exist_ok=True)
+    raw = (b"\x1b\x00[\x009\x000\x00m\x00[\x00W\x00:\x00o\x00n\x00n\x00x\x00r\x00u\x00n\x00t\x00i\x00m\x00e\x00:"
+           b"\x00 \x00M\x00e\x00m\x00c\x00p\x00y\x00T\x00r\x00a\x00n\x00s\x00f\x00o\x00r\x00m\x00e\x00r\x00]\x00"
+           b"\x1b\x00[\x00m\x00 \x00o\x00k\x00\n"
+           b"\x1b[0;32m" + "готов".encode() + b"\x1b[0m\n")
+    (folder / "server.log").write_bytes(raw)
+    text = stack.local._tail(package)
+    assert "\x00" not in text and "\x1b" not in text
+    assert "onnxruntime" in text and "готов" in text

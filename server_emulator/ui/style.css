@@ -627,6 +627,7 @@ small.warn{color:var(--warning)}
 .vs-local.error .vs-dot,.vs-local.stopped .vs-dot{background:var(--danger)}
 .vs-stage{font-size:12px;color:var(--muted)}
 .vs-log{margin:0;max-height:120px;overflow:auto;font-size:11.5px;white-space:pre-wrap;color:var(--danger);background:transparent}
+.vs-log.plain{color:inherit}
 .vs-bar{display:flex;gap:8px;align-items:stretch}
 .vs-bar .vs-select{flex:1;min-width:0}
 .vs-add.on{border-color:var(--accent-border);color:var(--accent-strong)}

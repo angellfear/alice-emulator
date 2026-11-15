@@ -91,7 +91,7 @@ async def test_live_local_package_states(tmp_path, monkeypatch):
 
     monkeypatch.setattr(runtime.voice_stack.local, "start", start_noop)
 
-    async def health_running(package):
+    async def health_running(package, timeout=1.5):
         return {"model": "sherpa"}
 
     monkeypatch.setattr(runtime.voice_stack.local, "health", health_running)
@@ -111,7 +111,7 @@ async def test_live_local_package_states(tmp_path, monkeypatch):
             assert (await _live(client, url))["services"]["asr"]["status"] == "warn"  # установка идёт
             del runtime.voice_stack.local.jobs["locasr"]
 
-            async def health_down(package):
+            async def health_down(package, timeout=1.5):
                 return None
 
             monkeypatch.setattr(runtime.voice_stack.local, "health", health_down)

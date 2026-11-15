@@ -9,7 +9,6 @@
 import asyncio
 import copy
 import logging
-import time
 import uuid
 
 import psutil
@@ -216,26 +215,16 @@ class Lifecycle:
         step = job.step("start", f"Запускается: {package['title']}")
         try:
             await local.start(package)
+            outcome = await local.wait_ready(package, self.ready_timeout)
         except (OSError, ValueError) as exc:
             step.update(status="fail", detail=str(exc))
             raise ValueError(f"Не запустился {package['title']}: {exc}") from exc
-        deadline = time.monotonic() + self.ready_timeout
-        while True:
-            if await local.healthy(package):
-                step.update(status="ok", detail=f"отвечает на порту {local.options(package).get('port')}")
-                return
-            popen = local.processes.get(package["id"])
-            if popen is None:  # сервер уже был запущен (или запуск не требовался)
-                step.update(status="ok", detail="уже запущен")
-                return
-            if popen.poll() is not None:
-                tail = local._tail(package).strip()[-400:]
-                step.update(status="fail", detail=f"процесс завершился с кодом {popen.returncode}" + (": " + tail if tail else ""))
-                raise ValueError(f"Не запустился {package['title']}: процесс завершился (код {popen.returncode})")
-            if time.monotonic() >= deadline:
-                step.update(status="warn", detail="процесс работает, но ответа ещё нет (грузится модель) — состояние в карточке пакета")
-                return
-            await asyncio.sleep(0.5)
+        if outcome == "healthy":
+            step.update(status="ok", detail=f"отвечает на порту {local.options(package).get('port')}")
+        elif outcome == "already":
+            step.update(status="ok", detail="уже запущен")
+        else:
+            step.update(status="warn", detail="процесс работает, но ответа ещё нет (грузится модель) — состояние в карточке пакета")
 
     # --- остановка панели --------------------------------------------------------
     def stop_all(self, timeout=3.0):

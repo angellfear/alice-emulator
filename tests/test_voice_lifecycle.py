@@ -280,6 +280,53 @@ async def test_api_plan_apply_job(world):
     await stack.shutdown()
 
 
+async def test_api_restart_restarts_running_package(world):
+    from server_emulator.ui import api as ui_api
+    stack, ports, _ = world
+    stack.runtime.voice_stack = stack
+    app = web.Application()
+
+    async def handler(request):
+        return await ui_api.dispatch(request, stack.runtime, app)
+    app.router.add_route("*", "/api/{action}", handler)
+    headers = {"X-Emulator": "1"}
+    async with TestClient(TestServer(app)) as client:
+        await stack.apply("asr", "k:a")
+        await wait_listening(ports["a"])
+        old_pid = stack.local.processes["a"].pid
+        restarted = await (await client.post("/api/voice-stack-restart", json={"id": "a"}, headers=headers)).json()
+        assert restarted == {"restarted": "a"}
+        assert stack.local.processes["a"].pid != old_pid  # запущен новый процесс, а не переиспользован старый
+        await wait_listening(ports["a"])
+    await stack.shutdown()
+
+
+async def test_api_restart_reports_dead_process(world, tmp_path, venv_template):
+    """Перезапуск пакета, чей сервер умирает сразу: ошибка с причиной, а не молчаливый «restarted»."""
+    from server_emulator.ui import api as ui_api
+    stack, _, _ = world
+    dying = tmp_path / "dying_server.py"
+    dying.write_text("", encoding="utf-8")  # пустой скрипт: процесс завершается, ничего не печатая
+    (tmp_path / "packages" / "c.json").write_text(json.dumps(package_json("c", "asr", free_port(), dying)), encoding="utf-8")
+    folder = stack.local.folder(stack.package("c"))
+    folder.mkdir(parents=True)
+    shutil.copytree(venv_template, folder / "venv")
+    (folder / "installed.json").write_text("{}", encoding="utf-8")
+    stack.runtime.voice_stack = stack
+    app = web.Application()
+
+    async def handler(request):
+        return await ui_api.dispatch(request, stack.runtime, app)
+    app.router.add_route("*", "/api/{action}", handler)
+    headers = {"X-Emulator": "1"}
+    async with TestClient(TestServer(app)) as client:
+        failed = await client.post("/api/voice-stack-restart", json={"id": "c"}, headers=headers)
+        assert failed.status == 400
+        error = (await failed.json())["error"]
+        assert "Не запустился" in error and "завершился" in error
+    await stack.shutdown()
+
+
 # --- установленное локально ----------------------------------------------------------------
 @pytest.fixture
 def installed(tmp_path):

@@ -68,6 +68,10 @@ from .processes import kill_tree
 
 log = logging.getLogger(__name__)
 
+# журналы пакетов могут содержать NUL-байты (onnxruntime на Windows пишет в stderr
+# в UTF-16) и ANSI-цветовые последовательности — карточка пакета показывает читаемый текст
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
 ROOT = Path(__file__).resolve().parent
 PROJECT = ROOT.parent.parent
 PACKAGES = ROOT / "packages"
@@ -94,6 +98,10 @@ def resolve_speech_dir(state):
     """speech_dir_from_config по настройкам state/server.json этой папки данных."""
     return speech_dir_from_config(server_config.load(state))
 SERVICES = ("asr", "tts", "llm")
+# Проба /health для статуса карточки: сервер занят распознаванием или грузит модель —
+# длинный тайм-аут каждой пробы делал открытие вкладки секундами (замер 2026-11-14:
+# 1.6 с на один грузящийся пакет, у владельца 5–10 с на несколько).
+STATE_HEALTH_TIMEOUT = 0.4
 SETTINGS_KEY = {"asr": "stt", "tts": "tts", "llm": "model"}
 FIELD_TYPES = ("text", "password", "number", "select", "textarea", "file")
 FIELD_GROUPS = ("advanced",)
@@ -502,11 +510,13 @@ class LocalSpeech:
                     "будет поставлена сборка для видеокарты.")
         return ""
 
-    async def health(self, package):
-        """JSON /health работающего сервера пакета или None (не запущен)."""
+    async def health(self, package, timeout=1.5):
+        """JSON /health работающего сервера пакета или None (не запущен). Тайм-аут
+        параметром: готовность после запуска ждёт дольше (start/wait_ready), статусу
+        карточки достаточно короткой пробы."""
         url = f"http://127.0.0.1:{self.options(package)['port']}{package['server'].get('health', '/health')}"
         try:
-            async with ClientSession(timeout=ClientTimeout(total=1.5)) as session:
+            async with ClientSession(timeout=ClientTimeout(total=timeout)) as session:
                 async with session.get(url) as response:
                     if response.status != 200:
                         return None
@@ -518,7 +528,28 @@ class LocalSpeech:
     async def healthy(self, package):
         return await self.health(package) is not None
 
+    async def _accepts(self, package):
+        """Принимает ли порт пакета соединения: жив ли сервер независимо от занятости.
+        Занятый сервер (распознаёт, синтезирует, греет модель) TCP принимает — не успевает
+        только ответить на /health; не запущенный порт не открывает."""
+        port = self.options(package)["port"]
+        try:
+            _, writer = await asyncio.wait_for(asyncio.open_connection("127.0.0.1", port),
+                                               STATE_HEALTH_TIMEOUT)
+        except Exception:  # noqa: BLE001 — соединение не приняли: сервера нет
+            return False
+        writer.close()
+        try:
+            await writer.wait_closed()
+        except Exception:  # noqa: BLE001 — закрытие пробы на ответ не влияет
+            pass
+        return True
+
     async def state(self, package):
+        """Статус карточки пакета. Проба /health коротким тайм-аутом: сервер занят
+        распознаванием/синтезом или грузит модель — проба длится до тайм-аута, длинная
+        задержала бы вкладку. Не ответил — различаем по порту: соединение принимается —
+        сервер жив и занят (running), порт закрыт — не запущен (starting/stopped)."""
         job = self.jobs.get(package["id"])
         if job and job["stage"] not in ("done", "error"):
             return {"status": "installing", **job}
@@ -527,19 +558,35 @@ class LocalSpeech:
         if not self.installed(package):
             return {"status": "error", **job} if job and job["stage"] == "error" else {"status": "absent"}
         extra = {"outdated": self.outdated(package)}
-        health = await self.health(package)
+        health = await self.health(package, STATE_HEALTH_TIMEOUT)
         if health is not None:
             return {"status": "running", **extra, **({"voice": health["voice"]} if health.get("voice") else {})}
+        if await self._accepts(package):
+            return {"status": "running", **extra}
         process = self.processes.get(package["id"])
         if process is not None and process.poll() is None:
-            return {"status": "starting", "log": self._tail(package), **extra}
-        return {"status": "stopped", "log": self._tail(package), **extra}
+            return {"status": "starting", "log": self._tail(package), "crashed": False, **extra}
+        log = self._tail(package)
+        if self._crashed(package, log):
+            return {"status": "stopped", "log": log, "crashed": True, **extra}
+        return {"status": "stopped", "crashed": False, **extra}
+
+    def _crashed(self, package, log):
+        """Пакет упал, а не остановлен штатно: последний код выхода не 0; кода нет
+        (процесс уже не помнится — например, перезапуск эмулятора) — журнал
+        кончается трассировкой Python. Штатная остановка — не сбой."""
+        process = self.processes.get(package["id"])
+        code = process.poll() if process is not None else None
+        if code is not None:
+            return code != 0
+        return "Traceback (most recent call last):" in log
 
     def _tail(self, package):
         try:
-            return (self.folder(package) / "server.log").read_text(encoding="utf-8", errors="replace")[-600:]
+            text = (self.folder(package) / "server.log").read_text(encoding="utf-8", errors="replace")
         except OSError:
             return ""
+        return _ANSI_RE.sub("", text.replace("\x00", ""))[-600:]
 
     # --- установка ---------------------------------------------------------------
     def install(self, package):
@@ -651,13 +698,16 @@ class LocalSpeech:
     # --- процесс -----------------------------------------------------------------
     async def start(self, package):
         if not self.installed(package):
-            return
+            raise ValueError(f"Пакет «{package.get('title', package['id'])}» не установлен — нажмите «Установить»")
         wrong = self.wrong_device(package)
         if wrong:
             raise ValueError(wrong)
         folder = self.folder(package)
         process = self.processes.get(package["id"])
-        own = (process is not None and process.poll() is None) or (folder / "server.pid").exists()
+        # свой — живой процесс из реестра или по server.pid; устаревший файл (процесс умер
+        # или PID переиспользован чужим) find() удаляет, иначе он маскирует чужой сервер на порту
+        pid_server = processes.find(folder, self.script(package), None, folder / "server.pid", [])
+        own = (process is not None and process.poll() is None) or bool(pid_server)
         if await self.healthy(package):
             if own:
                 return
@@ -684,12 +734,34 @@ class LocalSpeech:
                 flags |= subprocess.BELOW_NORMAL_PRIORITY_CLASS
             else:
                 extra["preexec_fn"] = lambda: os.nice(10)
-        with open(folder / "server.log", "w", encoding="utf-8") as output:
-            self.processes[package["id"]] = subprocess.Popen(
-                [str(self.python(package)), str(PROJECT / package["server"]["script"])], cwd=str(folder), env=env,
-                stdout=output, stderr=subprocess.STDOUT, creationflags=flags, **extra)
-        (folder / "server.pid").write_text(str(self.processes[package["id"]].pid), encoding="ascii")
+        try:
+            with open(folder / "server.log", "w", encoding="utf-8") as output:
+                self.processes[package["id"]] = subprocess.Popen(
+                    [str(self.python(package)), str(PROJECT / package["server"]["script"])], cwd=str(folder), env=env,
+                    stdout=output, stderr=subprocess.STDOUT, creationflags=flags, **extra)
+            (folder / "server.pid").write_text(str(self.processes[package["id"]].pid), encoding="ascii")
+        except OSError as exc:  # лог уже усечён: сбой запуска не должен выглядеть как тихий успех
+            self.processes.pop(package["id"], None)
+            raise ValueError(f"Не удалось запустить {self.python(package)}: {exc}") from exc
         log.info("Речевой сервер %s запущен на порту %s", package["id"], options["port"])
+
+    async def wait_ready(self, package, timeout):
+        """Дождаться готовности после start(): "healthy" | "already" | "loading".
+        Процесс умер, не успев ответить, — ValueError с кодом и хвостом лога: запуск
+        не должен сообщать успех, пока сервер не отвечает или не умер."""
+        deadline = time.monotonic() + timeout
+        while True:
+            if await self.healthy(package):
+                return "healthy"
+            process = self.processes.get(package["id"])
+            if process is None:
+                return "already"  # сервер уже был запущен (или запуск не требовался)
+            if process.poll() is not None:
+                tail = self._tail(package).strip()[-400:]
+                raise ValueError(f"процесс завершился с кодом {process.returncode}" + (": " + tail if tail else ""))
+            if time.monotonic() >= deadline:
+                return "loading"  # грузится модель: состояние видно в карточке пакета
+            await asyncio.sleep(0.5)
 
     def stop(self, package):
         """Остановить сервер, в том числе запущенный прошлым экземпляром панели (по server.pid)."""
@@ -1062,6 +1134,11 @@ class VoiceStack:
     async def public(self):
         await self.migrate()
         packages, adapters, result = self.packages(), adapter_registry.available(), {}
+        flat = [package for service in SERVICES for package in packages[service]]
+        # Состояния пакетов — параллельно: state() ждёт пробу /health каждого работающего
+        # сервера (занят распознаванием, грузит модель — до тайм-аута), подряд это
+        # секунды ожидания вкладки; параллельно — максимум одна проба.
+        states = iter(await asyncio.gather(*(self.local.state(package) for package in flat)))
         for service in SERVICES:
             presets = [self._mask(service, p, adapters) for p in self.presets(service)]
             items = []
@@ -1072,7 +1149,7 @@ class VoiceStack:
                           for f in package.get("fields", [])]
                 items.append({k: package[k] for k in ("id", "title", "description", "requirements") if k in package}
                              | {"fields": fields, "values": self.local.options(package), "files": self.local.files(package), "platform": PLATFORM,
-                                "note": package.get("notes", {}).get(PLATFORM, ""), "state": await self.local.state(package)}
+                                "note": package.get("notes", {}).get(PLATFORM, ""), "state": next(states)}
                              | ({"voice_modes": voice_modes(package)} if voice_modes(package) else {})
                              | ({"bake": {**package["bake"], **self.local.baked(package)}} if package.get("bake") else {})
                              | ({"origin": package["_origin"]} if package.get("_origin") else {}))

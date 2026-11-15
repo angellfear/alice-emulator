@@ -399,7 +399,10 @@
       box.append(bar, make('div', 'vs-stage', st.stage || ''));
     }
     if (st.error) box.append(make('pre', 'vs-log', st.error));
-    if (['stopped', 'starting'].includes(st.status) && st.log) box.append(make('pre', 'vs-log', st.log));
+    // журнал: при запуске — прогресс обычным цветом; красным — только при сбое (crashed);
+    // штатная остановка — без журнала
+    if (st.status === 'starting' && st.log) box.append(make('pre', 'vs-log plain', st.log));
+    else if (st.crashed && st.log) box.append(make('pre', 'vs-log', st.log));
     const row = make('div', 'vs-actions');
     if (['absent', 'error'].includes(st.status)) {
       row.append(button(st.status === 'error' ? 'Повторить установку' : 'Установить', null, async () => { await saveOptions(); await api('voice-stack-install', 'POST', { id: pkg.id }); say('Установка: ' + pkg.title); await load() }));
@@ -498,10 +501,10 @@
   // настройки с _rev, как в «Режимах вывода ответа».
   function pseudoBlock() {
     const box = make('div', 'vs-output');
+    const stt = () => (cfg?.stt || {});
     const label = make('label', 'vs-flag'), check = make('input');
     check.type = 'checkbox'; check.checked = stt().pseudo_stream === 'yes';
     label.append(check, make('span', null, 'Эмуляция потокового режима'));
-    const stt = () => (cfg?.stt || {});
     const pauses = make('div', 'vs-flags');
     const num = (key, title, min, max) => {
       const wrap = make('label', 'vs-flag'), input = make('input');

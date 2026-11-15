@@ -49,6 +49,10 @@ def real_loaders():
     import onnx_asr
     import onnxruntime
 
+    # предупреждения onnxruntime (MemcpyTransformer/CUDA и пр.) в журнал пакета не нужны:
+    # только ошибки; на Windows он пишет их в stderr в UTF-16 — карточка показывает мусор
+    onnxruntime.set_default_logger_severity(3)
+
     def load_model(name, device, quantization):
         providers = ["CPUExecutionProvider"]
         if device == "cuda":

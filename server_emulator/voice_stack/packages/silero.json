@@ -203,7 +203,8 @@
       "SILERO_DEVICE": "{device}",
       "SILERO_THREADS": "{threads}",
       "SILERO_WORKERS": "{workers}",
-      "CUDA_VISIBLE_DEVICES": "{gpu}"
+      "CUDA_VISIBLE_DEVICES": "{gpu}",
+      "PYTHONWARNINGS": "ignore::SyntaxWarning"
     }
   },
   "platforms": {

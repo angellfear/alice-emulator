@@ -57,6 +57,7 @@ def fake_runtime(monkeypatch, tmp_path, providers, session_providers, versions, 
             return session_providers
 
     module = types.SimpleNamespace(get_available_providers=lambda: providers, preload_dlls=lambda: None,
+                                   set_default_logger_severity=lambda severity: None,
                                    InferenceSession=Session)
     monkeypatch.setitem(sys.modules, "onnxruntime", module)
     monkeypatch.setattr(onnx_cuda, "distributions", lambda: versions)
