@@ -265,6 +265,18 @@ def drop_builtin(name):
             del _HANDLERS[trigger]
 
 
+def ensure_observer(trigger, handler, name="", description=""):
+    """Встроенный наблюдатель события: как ensure_builtin, но вне выбора обработчика —
+    вызывается для каждого события фоном, has_handler и счётчики не меняет («Нет
+    обработчиков» остаётся честным). Идемпотентно по имени."""
+    handler_name = name or handler.__name__.lstrip("_")
+    for _h, _enabled, meta in _OBSERVERS.get(str(trigger), ()):
+        if meta["source"] == "builtin" and meta["name"] == handler_name:
+            return
+    _OBSERVERS.setdefault(str(trigger), []).append(
+        (handler, None, {"source": "builtin", "name": handler_name, "description": description}))
+
+
 def observers(trigger):
     """Наблюдатели события (sdk.on_event): вызываются для каждого события, в выборе
     обработчика не участвуют."""

@@ -1003,22 +1003,35 @@ class Runtime:
         """Реестр умного дома изменился: set_iot_user_info живым сессиям (smart_home.py);
         sn — только этой колонке (сразу после опознания — ей нужен текущий список).
         Вызывается из записи реестра — сбой сборки/отправки не должен ломать запись."""
+        from . import capabilities
         from . import smart_home
         sn_set = {str(sn)} if sn else {s.get("device_sn") for s in self.sessions.values()
                                        if s.get("send") and s.get("device_sn")}
+        # директивы пуша — из возможности LocalIoT: список уходит только колонкам,
+        # которые её объявили (наблюдатель capabilities пишет объявление в реестр и
+        # зовёт пуш сразу, как LocalIoT появился); без объявления — списка нет
+        devices = {d["sn"]: d for d in self.identities.data["devices"]}
+        sn_set = {s for s in sn_set if capabilities.has(devices.get(s), "LocalIoT")}
         if not sn_set:
             return
         if sn and not (self.smart_home.devices() or self.smart_home.rooms()):
             return  # новой колонке показывать нечего; при изменении реестра пустой
                     # список уходит — карточки должны сниматься
         try:
-            raw = smart_home.user_info_raw(self.smart_home)
             server_type = load_type(ROOT / "schemas", "alice-api.pb",
                                     "NAlice.NAliceApi.TServerMessage")
-        except Exception as exc:  # noqa: BLE001 — без схем/реестра пуша нет
+        except Exception as exc:  # noqa: BLE001 — без схем пуша нет
             log.warning("Пуш умного дома не собран: %s", exc)
             return
         for sn in sn_set:
+            try:
+                # устройство-колонки в кадре у каждой колонки своё: лаунчер ищет дом,
+                # где есть её устройство, и без него список в шторке пуст
+                raw = smart_home.user_info_raw(self.smart_home,
+                                               station=smart_home.station_info(self, sn))
+            except Exception as exc:  # noqa: BLE001 — сбой одной колонки не рвёт остальных
+                log.warning("Пуш умного дома не собран: %s", exc)
+                continue
             message = smart_home.iot_push(server_type, sn, "set_iot_user_info", raw)
             self.lifecycle.spawn(self.send_message(sn, message))
 

@@ -145,7 +145,8 @@ async def _on_iot_device_action(conversation, incoming, trigger):
                                                    'set_iot_account_settings',
                                                    account_settings_raw()).SerializeToString())
         await conversation.send(b'AAPI' + iot_push(server_type, device_sn, 'set_iot_user_info',
-                                                   user_info_raw(registry)).SerializeToString())
+                                                   user_info_raw(registry,
+                                                                 station=station_info(runtime, device_sn))).SerializeToString())
     return True
 
 
@@ -243,12 +244,15 @@ class SmartHomeRegistry:
 
     def add_device(self, device, origin):
         item = self._normalize(device, origin)
+        if self._devices.get(item["id"]) == item:
+            return copy.deepcopy(item)  # запись не изменилась — без сохранения и пуша
         self._devices[item["id"]] = item
         self._changed()
         return copy.deepcopy(item)
 
     def update_device(self, device_id, patch, origin):
         device_id, item = self._own(str(device_id), origin)
+        changed = False
         for key, value in dict(patch or {}).items():
             if key not in DEVICE_KEYS:
                 raise SmartHomeError(f"поле {key!r} обновлять нельзя")
@@ -259,8 +263,11 @@ class SmartHomeRegistry:
                 value = bool(value)
             else:
                 value = str(value) if value is not None else ""
-            item[key] = value
-        self._changed()
+            if item.get(key) != value:
+                item[key] = value
+                changed = True
+        if changed:
+            self._changed()
         return copy.deepcopy(item)
 
     def remove_device(self, device_id, origin):
@@ -294,13 +301,15 @@ class SmartHomeRegistry:
         """Комнаты источника {id: name} — заменяют его предыдущие, чужие не трогают."""
         if not isinstance(rooms, dict):
             raise SmartHomeError("комнаты: {id: name}")
-        for key, room in list(self._rooms.items()):
-            if room["origin"] == str(origin):
-                del self._rooms[key]
-        for key, name in rooms.items():
-            name = str(name or "").strip()
-            if name:
-                self._rooms[str(key)] = {"name": name, "origin": str(origin)}
+        fresh = {str(key): {"name": str(name or "").strip(), "origin": str(origin)}
+                 for key, name in rooms.items()}
+        fresh = {key: room for key, room in fresh.items() if room["name"]}
+        old = {key: room for key, room in self._rooms.items() if room["origin"] == str(origin)}
+        if old == fresh:
+            return  # комнаты не изменились — без сохранения и пуша
+        for key in old:
+            del self._rooms[key]
+        self._rooms.update(fresh)
         self._changed()
 
     def rooms(self):
@@ -430,9 +439,43 @@ def _capability_raw(entry):
                   {"Meta": meta, "State": {"Percentage": float(value or 0)}}, "centaur")
 
 
-def user_info_raw(registry):
+# Платформа колонки → enum Type устройства-колонки (образец настоящего кадра 2026-11-14:
+# chiron → YandexStationChironDeviceType, yandexstation_2 → YandexStation2DeviceType).
+STATION_TYPES = {"chiron": "YandexStationChironDeviceType",
+                 "yandexstation_2": "YandexStation2DeviceType",
+                 "yandexstation": "YandexStationDeviceType",
+                 "yandexmini": "YandexStationMiniDeviceType",
+                 "yandexmini_2": "YandexStationMini2DeviceType",
+                 "yandexmicro": "YandexStationMicroDeviceType",
+                 "yandexmidi": "YandexStationMidiDeviceType",
+                 "yandexmodule": "YandexModuleDeviceType",
+                 "yandexmodule_2": "YandexModule2DeviceType",
+                 "magritte": "YandexTvMagritteDeviceType",
+                 "malevich": "YandexTvMalevichDeviceType",
+                 "monet": "YandexTvMonetDeviceType",
+                 "cucumber": "YandexStationCucumberDeviceType"}
+
+
+def station_info(runtime, sn):
+    """{sn, name, platform} колонки для устройства-колонки в кадре (None — колонки нет
+    в реестре устройств: тогда кадр без неё, как раньше)."""
+    device = None
+    identities = getattr(runtime, "identities", None)
+    if identities is not None and sn:
+        device = next((d for d in identities.data["devices"] if d.get("sn") == str(sn)), None)
+    if device is None:
+        return None
+    from .quasar_config import device_platform
+    return {"sn": str(sn), "name": str(device.get("name") or sn),
+            "platform": device_platform(device)}
+
+
+def user_info_raw(registry, station=None):
     """PayloadRaw директивы set_iot_user_info: TSetIoTUserInfoDirective c
     IoTClientUserInfo (Rooms/Households/Devices) — поля по образцу 2026-11-10.
+    station — устройство-колонки в том же доме (форма настоящего кадра): лаунчер
+    колонки берёт для виджетов умного дома дом, где есть её устройство, поэтому без
+    него список в шторке пуст при принятых устройствах.
     Умения вписываются в готовое сообщение напрямую (ParseDict портит bytes-поля:
     он ждёт их в base64-строках). Держатель умения несёт RawCapability и
     CapabilityType вместе (оба поля в образце): колонка строит из CapabilityType
@@ -469,11 +512,32 @@ def user_info_raw(registry):
             "Id": item["id"],
             "Name": item["name"],
             "Type": device_type,
+            # сущность источника без префикса (образец настоящего кадра: ExternalId = entity_id)
+            "ExternalId": str(item["id"]).split(":", 1)[-1],
             "RoomId": item.get("room") or "",
             "HouseholdId": household,
             "StatusInfo": {"Status": "OnlineDeviceState" if item["online"] else "OfflineDeviceState",
                            "Updated": now, "Changed": now},
-            "Endpoint": {"Id": item["id"]},
+            # статус конечной точки (образец: Endpoint.Status — Online/Offline + UpdatedAt;
+            # UpdatedAt проставляется после сборки — GetCurrentTime, как Timings в конверте)
+            "Endpoint": {"Id": item["id"],
+                         "Status": {"Status": "Online" if item["online"] else "Offline"}},
+        })
+    if station:
+        endpoint_id = "{}.{}".format(station["sn"], station.get("platform") or "").rstrip(".")
+        devices.append({
+            # форма настоящего кадра (2026-11-14): Id — постоянный uuid по серийнику,
+            # ExternalId/Endpoint.Id — «<серийник>.<платформа>», SkillId «Q», Endpoint
+            # без умений; дом — общий с устройствами реестра
+            "Id": str(uuid.uuid5(uuid.NAMESPACE_URL, "emulator-station:" + station["sn"])),
+            "Name": str(station.get("name") or station["sn"]),
+            "Type": STATION_TYPES.get(str(station.get("platform") or ""),
+                                      "SmartSpeakerDeviceType"),
+            "ExternalId": endpoint_id,
+            "SkillId": "Q",
+            "HouseholdId": DEFAULT_HOUSEHOLD["id"],
+            "StatusInfo": {"Status": "OnlineDeviceState", "Updated": now, "Changed": now},
+            "Endpoint": {"Id": endpoint_id, "Status": {"Status": "Online"}},
         })
     message = build(SCHEMAS_DIR, USER_INFO_PROTO,
                     {"Name": "set_iot_user_info",
@@ -493,6 +557,8 @@ def user_info_raw(registry):
                 cap.CapabilityType = entry[1]
             else:
                 cap.CapabilityType = entry
+    for device in message.IoTClientUserInfo.Devices:
+        device.Endpoint.Status.UpdatedAt.GetCurrentTime()
     return message.SerializeToString()
 
 

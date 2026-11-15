@@ -1,7 +1,7 @@
 ---
 title: "Умный дом: реестр устройств и директивы колонке"
 status: draft
-date: "2026-11-12"
+date: "2026-11-14"
 module: "server_emulator/smart_home.py"
 ---
 
@@ -40,7 +40,7 @@ module: "server_emulator/smart_home.py"
 
 | Директива | Тип PayloadRaw | Когда |
 |---|---|---|
-| `set_iot_user_info` | `NAlice.TLocalIoTCapability.TSetIoTUserInfoDirective`: `IoTClientUserInfo` — `Rooms{Id, Name, HouseholdId}`, `Households`, `Devices{Id, Name, Type, RoomId, HouseholdId, StatusInfo{Status: Online/OfflineDeviceState, …}, Endpoint{Id, AnyCapabilities}}` | изменение реестра — всем живым сессиям (пустой список тоже: карточки снимаются); новой колонке — сразу после опознания, если реестр не пуст |
+| `set_iot_user_info` | `NAlice.TLocalIoTCapability.TSetIoTUserInfoDirective`: `IoTClientUserInfo` — `Rooms{Id, Name, HouseholdId}`, `Households`, `Devices{Id, Name, Type, ExternalId, RoomId, HouseholdId, StatusInfo{Status: Online/OfflineDeviceState, …}, Endpoint{Id, Status{Status: Online/Offline, UpdatedAt}, AnyCapabilities}}` + устройство-колонки (`ExternalId`/`Endpoint.Id` — `<серийник>.<платформа>`, `Type` — enum платформы, `SkillId: Q`, дом общий с устройствами, Endpoint без умений — форма настоящего кадра 2026-11-14; лаунчер колонки берёт для виджетов умного дома дом, где есть её устройство) | изменение реестра — колонкам, объявившим `LocalIoT` (см. [capabilities.md](capabilities.md): адресаты — по объявлению колонки; `LocalIoT` появился в объявлении — пуш сразу, без изменения реестра; пустой список тоже уходит — карточки снимаются); новой колонке — сразу после опознания, если реестр не пуст и она объявила `LocalIoT`. Идентичная перезапись устройства/комнат списка не пушит: снимок подписки расширения не даёт пачки одинаковых кадров (настоящий сервер шлёт список только по реальному изменению, ~десятки раз за сутки, а не на каждый тик датчика) |
 | `set_div_variables` | `NAlice.TDivViewCapability.TSetDivVariablesDirective`: переменная `device_<id, «-» и «:»→«_»>_<capability>_state` (`LongValue` 0/1, `VariableType: Local`) | после действия колонки — по каждой изменившейся возможности |
 | `sync_iot_user_info` | `NAlice.TLocalIoTCapability.TSyncIoTUserInfoDirective` — только `Name` | после каждого действия колонки — сигнал виджетам перечитать |
 | `set_iot_account_settings` | `NAlice.TLocalIoTCapability.TSetIoTAccountSettingsDirective`: `Name` + пустое `IoTAccountSettings` (настроек в директиве нет) | после действия колонки, третьим пушем (запись 2026-11-12) |
@@ -54,6 +54,13 @@ module: "server_emulator/smart_home.py"
 (`on_off`/`level`/`color`/`battery`) отображаются на `OnOffCapabilityType`/`LevelCapabilityType`/
 `ColorCapabilityType`/`BatteryCapabilityType`, неизвестное значение становится
 `UnknownDeviceType`/`UnknownCapabilityType` — сборка списка не падает.
+`Type` — имена enum, которые несёт настоящий кадр (2026-11-14, журнал «Прозрачного»):
+`climate→ThermostatDeviceType`, `media_player→MediaDeviceDeviceType`, `fan→FanDeviceTypeV2`,
+`lock→DoorLockDeviceType`, `cover→CurtainDeviceType`; датчик уточняется по `device_class`
+сущности (`temperature`/`humidity`→`ClimateSensorDeviceType`, `motion`/`opening`/`moisture` →
+одноимённые типы, прочие → `SensorDeviceType`). `ExternalId` — сущность источника без
+префикса origin, `Endpoint.Status` — `Online`/`Offline` с `UpdatedAt` (GetCurrentTime),
+как в настоящем кадре.
 `AnyCapabilities` несёт держатель умения с `RawCapability` и `CapabilityType` вместе —
 оба поля заполняются, как в образце 2026-11-10 (журнал 2026-11-13: настоящий кадр —
 `OnOffCapabilityType=1`/`LevelCapabilityType=3`/`BatteryCapabilityType=15` рядом с
@@ -113,4 +120,4 @@ State{Percentage}}`. Держатель без `CapabilityType` даёт все�
 - Реестр — единственный источник iot-директив колонке; переменные div — производные от
   состояния реестра.
 - Префикс id исключает пересечение устройств разных расширений.
-- Любое изменение реестра уходит всем живым сессиям, включая пустой список.
+- Любое изменение реестра уходит колонкам, объявившим `LocalIoT` ([capabilities.md](capabilities.md)), включая пустой список.

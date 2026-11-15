@@ -8,6 +8,11 @@ from pathlib import Path
 
 from .settings_service import RECORD_MODES, ROUTE_MODES
 from .state_store import StateStore
+from . import capabilities
+
+# Реестр идентичностей подключён — включается наблюдение объявления возможностей
+# колонки (TextInput/VoiceInput → device.state.capabilities); без реестра писать некуда.
+capabilities.activate()
 
 
 def collect_device_id(*candidates):

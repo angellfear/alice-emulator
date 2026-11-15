@@ -764,6 +764,17 @@
         if (!Array.isArray(items) || !items.length) box.append(line('—', 'state-item faint'));
         sections.append(box);
       }
+      // Возможности — объявление самой колонки (пишет сервер в device.state.capabilities)
+      const caps = (device.state || {}).capabilities;
+      const capNames = caps && caps.items ? Object.keys(caps.items).sort() : [];
+      const capBox = node('div');
+      capBox.append(node('b', 'Возможности' + (capNames.length ? ' · ' + capNames.length : '')));
+      for (const name of capNames) { const item = node('div', name); item.className = 'state-item'; capBox.append(item); }
+      if (!capNames.length) { const item = node('div', '—'); item.className = 'state-item faint'; capBox.append(item); }
+      const capHint = node('p');
+      capHint.className = 'hint';
+      capHint.textContent = 'Колонка объявляет возможности сама в каждом запросе; список — из последнего полного объявления.';
+      sections.append(capBox, capHint);
     };
     form.append(when, grid, sections);
     const intervalLabel = node('label', 'Интервал опроса, с (0 — без лимита)');

@@ -63,19 +63,31 @@ UNASSIGNED_AREA = "unassigned"  # псевдокомната для сущнос
 ENTITY_DOMAINS = ("light", "switch", "climate", "cover", "media_player",
                   "vacuum", "sensor", "binary_sensor", "lock", "fan", "humidifier")
 
+# Тип устройства — имена enum EUserDeviceType схемы станции (образец настоящего
+# кадра 2026-11-14: climate→ThermostatDeviceType, media_player→MediaDeviceDeviceType,
+# fan→FanDeviceTypeV2; ClimateDeviceType/CoverDeviceType/LockDeviceType в enum нет —
+# раньше станция получала вместо них UnknownDeviceType).
 DOMAIN_MAP = {
     "light": {"type": "LightDeviceType"},
     "switch": {"type": "SwitchDeviceType"},
-    "climate": {"type": "ClimateDeviceType"},
-    "cover": {"type": "CoverDeviceType"},
-    "media_player": {"type": "MediaDeviceType"},
+    "climate": {"type": "ThermostatDeviceType"},
+    "cover": {"type": "CurtainDeviceType"},
+    "media_player": {"type": "MediaDeviceDeviceType"},
     "vacuum": {"type": "VacuumCleanerDeviceType"},
     "sensor": {"type": "SensorDeviceType"},
     "binary_sensor": {"type": "SensorDeviceType"},
-    "lock": {"type": "LockDeviceType"},
-    "fan": {"type": "FanDeviceType"},
+    "lock": {"type": "DoorLockDeviceType"},
+    "fan": {"type": "FanDeviceTypeV2"},
     "humidifier": {"type": "HumidifierDeviceType"},
 }
+
+# Тип датчика по device_class сущности (образец: температура/влажность →
+# ClimateSensorDeviceType, прочие датчики → SensorDeviceType).
+SENSOR_TYPE_BY_CLASS = {"temperature": "ClimateSensorDeviceType",
+                        "humidity": "ClimateSensorDeviceType",
+                        "motion": "MotionSensorDeviceType",
+                        "opening": "OpenSensorDeviceType",
+                        "moisture": "WaterLeakSensorDeviceType"}
 
 ACTION_SERVICES = {  # действие карточки → сервис HA по умению
     ("on_off", True): "turn_on", ("on_off", False): "turn_off",
@@ -86,6 +98,21 @@ ACTION_SERVICES = {  # действие карточки → сервис HA п�
 # уровень: яркость света, позиция шторы, температура климата); громкость плеера
 # в enum станции не входит — умение идёт без инстанса.
 LEVEL_INSTANCES = {"light": "brightness", "cover": "open", "climate": "temperature"}
+
+# device_class датчика → инстанс уровня реестра: в настоящем кадре датчик несёт
+# умение уровня с текущим значением (State.Level, Instance по тому, ЧТО измеряет).
+SENSOR_LEVEL_INSTANCE = {"temperature": "temperature", "humidity": "humidity",
+                         "pressure": "pressure", "illuminance": "illuminance",
+                         "carbon_dioxide": "co2", "voltage": "voltage",
+                         "power": "power", "current": "amperage"}
+
+
+def _state_number(state):
+    """Число в начале состояния сущности («21.5», «21.5 °C») — None, если его нет."""
+    try:
+        return float(str(state or "").split("°")[0].strip())
+    except ValueError:
+        return None
 
 
 def _capabilities(domain, state, attributes):
@@ -110,6 +137,11 @@ def _capabilities(domain, state, attributes):
                      "instance": LEVEL_INSTANCES[domain]})
     if domain == "sensor" and isinstance(attributes.get("battery_level"), (int, float)):
         caps.append({"type": "battery", "value": int(attributes["battery_level"])})
+    if domain in ("sensor", "binary_sensor"):
+        instance = SENSOR_LEVEL_INSTANCE.get(str(attributes.get("device_class") or ""))
+        value = _state_number(state)
+        if instance and value is not None:
+            caps.append({"type": "level", "value": value, "instance": instance})
     return caps
 
 
@@ -120,7 +152,11 @@ def _device_from_state(entity_id, state, attributes, area):
     if mapping is None:
         return None
     name = str(attributes.get("friendly_name") or entity_id)
-    device = {"id": entity_id, "name": name, "type": mapping["type"],
+    device_type = mapping["type"]
+    if domain in ("sensor", "binary_sensor"):  # уточнение по device_class сущности
+        device_type = SENSOR_TYPE_BY_CLASS.get(str(attributes.get("device_class") or ""),
+                                               device_type)
+    device = {"id": entity_id, "name": name, "type": device_type,
               "capabilities": _capabilities(domain, state, attributes),
               "online": state not in ("unavailable", "unknown"),
               "room": area or UNASSIGNED_AREA}  # без области в HA — псевдокомната «Не назначено»

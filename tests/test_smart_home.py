@@ -10,6 +10,7 @@ iot_device_action_semantic_frame, запись 2026-11-12) и пуш
 import asyncio
 import base64
 import json
+import uuid
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -163,6 +164,79 @@ def test_directives_per_sample_fields(tmp_path):
     assert not msg.IoTAccountSettings.ListFields()
 
 
+def test_identical_writes_do_not_notify(tmp_path):
+    """Идентичная перезапись (снимок подписки HA) не пушит список: слушатель
+    реестра срабатывает только на реальное изменение."""
+    reg = _standalone_registry(tmp_path, loaded={"plug": {}})
+    calls = []
+    reg.subscribe(lambda: calls.append(1))
+    device = {"id": "d-1", "name": "Лампа", "room": "room-1",
+              "capabilities": [{"type": "on_off", "value": False}]}
+    reg.add_device(device, "plug")
+    reg.set_rooms({"room-1": "Кухня"}, "plug")
+    assert len(calls) == 2  # устройство + комнаты
+    reg.add_device(dict(device), "plug")          # та же запись — тишина
+    reg.set_rooms({"room-1": "Кухня"}, "plug")    # те же комнаты — тишина
+    assert len(calls) == 2
+    reg.update_device("plug:d-1", {"online": False}, "plug")
+    assert len(calls) == 3
+    reg.update_device("plug:d-1", {"online": False}, "plug")  # без изменения — тишина
+    assert len(calls) == 3
+    reg.update_device("plug:d-1", {"name": "Ночник"}, "plug")
+    assert len(calls) == 4
+
+
+def test_user_info_external_id_and_endpoint_status(tmp_path):
+    """Устройство несёт ExternalId (сущность без префикса) и Endpoint.Status
+    (Online/Offline + UpdatedAt) — по образцу настоящего кадра 2026-11-14."""
+    reg = _standalone_registry(tmp_path, loaded={"plug": {}})
+    reg.add_device({"id": "lamp-1", "name": "Свет", "online": True}, "plug")
+    reg.add_device({"id": "sensor-1", "name": "Датчик", "online": False}, "plug")
+    msg = _centaur("NAlice.TLocalIoTCapability.TSetIoTUserInfoDirective").FromString(
+        smart_home.user_info_raw(reg))
+    devices = {d.Id: d for d in msg.IoTClientUserInfo.Devices}
+    assert devices["plug:lamp-1"].ExternalId == "lamp-1"
+    assert devices["plug:lamp-1"].Endpoint.Status.Status == 2  # Online
+    assert devices["plug:lamp-1"].Endpoint.Status.UpdatedAt.seconds > 0
+    assert devices["plug:sensor-1"].Endpoint.Status.Status == 1  # Offline
+
+
+def test_user_info_station_device(tmp_path):
+    """Устройство-колонки в кадре — форма настоящего кадра (2026-11-14): Id — постоянный
+    uuid по серийнику, ExternalId/Endpoint.Id — «<серийник>.<платформа>», Type — enum
+    платформы, SkillId «Q», тот же дом, Endpoint без умений. Лаунчер колонки берёт для
+    виджетов умного дома дом, где есть её устройство."""
+    reg = _standalone_registry(tmp_path, loaded={"plug": {}})
+    reg.add_device({"id": "lamp-1", "name": "Свет", "room": "room-1"}, "plug")
+    reg.set_rooms({"room-1": "Кухня"}, "plug")
+    station = {"sn": "C00T10001B6SAK", "name": "Дуо", "platform": "chiron"}
+    msg = _centaur("NAlice.TLocalIoTCapability.TSetIoTUserInfoDirective").FromString(
+        smart_home.user_info_raw(reg, station=station))
+    devices = msg.IoTClientUserInfo.Devices
+    own = devices[1]
+    assert [d.Name for d in devices] == ["Свет", "Дуо"]
+    assert own.Type == 53  # YandexStationChironDeviceType
+    assert own.ExternalId == "C00T10001B6SAK.chiron"
+    assert own.Endpoint.Id == "C00T10001B6SAK.chiron"
+    assert not own.Endpoint.AnyCapabilities and own.SkillId == "Q"
+    assert own.HouseholdId == "emulator-home"  # дом общий с устройствами реестра
+    assert own.StatusInfo.Status == 1 and own.Endpoint.Status.Status == 2  # online
+    # Id постоянный — повторная сборка даёт тот же
+    again = _centaur("NAlice.TLocalIoTCapability.TSetIoTUserInfoDirective").FromString(
+        smart_home.user_info_raw(reg, station=station))
+    assert again.IoTClientUserInfo.Devices[1].Id == own.Id
+
+
+def test_station_info_reads_runtime_registry(tmp_path):
+    """station_info берёт имя и платформу колонки из реестра устройств runtime."""
+    runtime = SimpleNamespace(identities=SimpleNamespace(data={"devices": [
+        {"sn": "C00T10001B6SAK", "name": "Дуо", "profile": {"platform": "chiron"}}]}))
+    assert smart_home.station_info(runtime, "C00T10001B6SAK") == {
+        "sn": "C00T10001B6SAK", "name": "Дуо", "platform": "chiron"}
+    assert smart_home.station_info(runtime, "нет-такой") is None
+    assert smart_home.station_info(SimpleNamespace(), "C00T10001B6SAK") is None
+
+
 # --- расширение через SDK + действие с колонки ------------------------------------------------
 
 MANIFEST = {
@@ -284,8 +358,13 @@ async def test_extension_devices_action_updates_state_and_pushes(tmp_path):
         assert list(settings.IoTAccountSettings.ListFields()) == []  # настроек нет, как в образце
         user_info = _centaur("NAlice.TLocalIoTCapability.TSetIoTUserInfoDirective") \
             .FromString(bytes(push_directive(sent, 5).PayloadRaw))
-        assert [d.Id for d in user_info.IoTClientUserInfo.Devices] == ["lights:light-1"]
+        assert user_info.IoTClientUserInfo.Devices[0].Id == "lights:light-1"
         assert user_info.IoTClientUserInfo.Devices[0].StatusInfo.Status == 1  # OnlineDeviceState
+        # второе устройство кадра — сама колонка: лаунчер ищет дом по её устройству
+        assert len(user_info.IoTClientUserInfo.Devices) == 2
+        own = user_info.IoTClientUserInfo.Devices[1]
+        assert own.ExternalId.startswith(SN)  # «<серийник>.<платформа>» (платформа может быть пуста)
+        assert own.Endpoint.Id == own.ExternalId and not own.Endpoint.AnyCapabilities
 
         assert runtime.smart_home.devices()[0]["capabilities"][0]["value"] is True
         entry = json.loads(calls.read_text(encoding="utf-8").splitlines()[0])
@@ -354,6 +433,10 @@ async def test_registry_change_pushes_user_info_to_live_sessions(tmp_path):
         sent.append(data)
 
     _session(runtime, send)
+    runtime.identities.mutate({"operation": "device", "sn": SN, "name": "Колонка",
+                               "user_id": None, "device_ids": []})
+    runtime.identities.mutate({"operation": "state", "sn": SN,
+                               "state": {"capabilities": {"ts": 1, "items": {"LocalIoT": {}}}}})
     try:
         runtime.smart_home.add_device({"id": "d-1", "name": "Лампа", "room": "room-1"}, "plug")
         runtime.smart_home.set_rooms({"room-1": "Кухня"}, "plug")
@@ -363,7 +446,10 @@ async def test_registry_change_pushes_user_info_to_live_sessions(tmp_path):
         assert directive.Name == "set_iot_user_info" and directive.EndpointId.value == SN
         user_info = _centaur("NAlice.TLocalIoTCapability.TSetIoTUserInfoDirective")
         msg = user_info.FromString(bytes(directive.PayloadRaw))
-        assert [d.Id for d in msg.IoTClientUserInfo.Devices] == ["plug:d-1"]
+        # устройство-колонки — из реестра идентичностей (объявление LocalIoT записано
+        # в state): постоянный uuid по серийнику в общем доме с устройствами
+        assert [d.Id for d in msg.IoTClientUserInfo.Devices] == [
+            "plug:d-1", str(uuid.uuid5(uuid.NAMESPACE_URL, "emulator-station:" + SN))]
         assert [(r.Id, r.Name) for r in msg.IoTClientUserInfo.Rooms] == [("room-1", "Кухня")]
 
         sent.clear()
@@ -372,7 +458,9 @@ async def test_registry_change_pushes_user_info_to_live_sessions(tmp_path):
         directive = push_directive(sent, -1)  # пустой список уходит — карточки снимаются
         msg = _centaur("NAlice.TLocalIoTCapability.TSetIoTUserInfoDirective").FromString(
             bytes(directive.PayloadRaw))
-        assert list(msg.IoTClientUserInfo.Devices) == []
+        # устройства снялись; устройство-колонки из реестра идентичностей остаётся
+        assert [d.Id for d in msg.IoTClientUserInfo.Devices] == [
+            str(uuid.uuid5(uuid.NAMESPACE_URL, "emulator-station:" + SN))]
     finally:
         await runtime.close()
 
@@ -408,6 +496,10 @@ async def test_empty_registry_not_pushed_to_identified_column(tmp_path):
         sent.append(data)
 
     _session(runtime, send)
+    runtime.identities.mutate({"operation": "device", "sn": SN, "name": "Колонка",
+                               "user_id": None, "device_ids": []})
+    runtime.identities.mutate({"operation": "state", "sn": SN,
+                               "state": {"capabilities": {"ts": 1, "items": {"LocalIoT": {}}}}})
     try:
         runtime._smart_home_push(SN)  # новой колонке показывать нечего
         assert not sent
@@ -441,5 +533,67 @@ async def test_feature_inactive_without_extension(tmp_path):
         assert not await smart_home._on_iot_device_action(
             conversation, iot_incoming(["plug:d-1"], "on"), "TextInput")
         assert not sent
+    finally:
+        await runtime.close()
+
+
+SN2 = "1928374651"
+
+
+async def test_push_only_to_local_iot_columns(tmp_path):
+    """set_iot_user_info уходит только колонкам, объявившим LocalIoT (директивы пуша —
+    из этой возможности); сессия без объявления списка не получает."""
+    from server_emulator import capabilities
+    runtime = Runtime(tmp_path)
+    sent_one, sent_two = [], []
+
+    async def send_one(data):
+        sent_one.append(data)
+
+    async def send_two(data):
+        sent_two.append(data)
+
+    runtime.sessions["conn-1"] = {"connection_id": "conn-1", "device_sn": SN,
+                                  "user_id": "owner", "send": send_one}
+    runtime.sessions["conn-2"] = {"connection_id": "conn-2", "device_sn": SN2,
+                                  "user_id": "owner", "send": send_two}
+    runtime.identities.mutate({"operation": "device", "sn": SN, "name": "Первая",
+                               "user_id": None, "device_ids": []})
+    runtime.identities.mutate({"operation": "device", "sn": SN2, "name": "Вторая",
+                               "user_id": None, "device_ids": []})
+    runtime.identities.mutate({"operation": "state", "sn": SN,
+                               "state": {"capabilities": {"ts": 1, "items": {"LocalIoT": {}}}}})
+    try:
+        runtime.smart_home.add_device({"id": "d-1", "name": "Лампа"}, "plug")
+        await asyncio.sleep(0.05)
+        assert push_directive(sent_one, 0).Name == "set_iot_user_info"
+        assert sent_two == []
+    finally:
+        await runtime.close()
+
+
+async def test_local_iot_announcement_pushes_without_registry_change(tmp_path):
+    """Колонка объявила LocalIoT (наблюдатель возможностей записал объявление) —
+    set_iot_user_info ей сразу, без изменения реестра умного дома."""
+    from server_emulator import capabilities
+    from test_capabilities import _env_client
+    runtime = Runtime(tmp_path)
+    sent = []
+
+    async def send(data):
+        sent.append(data)
+
+    _session(runtime, send)
+    runtime.identities.mutate({"operation": "device", "sn": SN, "name": "Колонка",
+                               "user_id": None, "device_ids": []})
+    try:
+        runtime.smart_home.add_device({"id": "d-1", "name": "Лампа"}, "plug")
+        await asyncio.sleep(0.05)
+        assert not sent  # по изменению реестра колонке без объявления пуша нет
+        client = _env_client(video_player=False, animation=False, local_iot=True, sn=SN)
+        conversation = SimpleNamespace(runtime=runtime, trace_context={"sn": SN})
+        await capabilities.observe(conversation, client, "TextInput")
+        await asyncio.sleep(0.05)  # пуш уходит задачей жизненного цикла
+        assert push_directive(sent, 0).Name == "set_iot_user_info"
     finally:
         await runtime.close()

@@ -277,6 +277,109 @@ def installed_apps(request):
     return _apps_from_env(_env(_raw_state(request)), _load(_APPS_CAP))
 
 
+# --- объявление возможностей колонки ---------------------------------------------
+
+
+def _capability_type_names():
+    """ECapabilityType (вложен в NAlice.TCapability, alice-api.pb): номер → имя значения."""
+    env_type = _load_env()
+    if env_type is None:
+        return {}
+    try:
+        enum = env_type.DESCRIPTOR.file.pool.FindEnumTypeByName("NAlice.TCapability.ECapabilityType")
+    except KeyError:
+        return {}
+    return {value.number: value.name for value in enum.values}
+
+
+def _enum_capability(value_name):
+    """Значение ECapabilityType (…CapabilityType) → (короткое имя, класс или None).
+    Имена вне шаблона …CapabilityType (ThermostatType, AccessibilityVoiceControlType)
+    пробуют вариант без хвоста Type — тело возможности находится по схеме."""
+    base = value_name[:-len("CapabilityType")] if value_name.endswith("CapabilityType") else value_name
+    candidates = [base]
+    if base.endswith("Type"):
+        candidates.append(base[:-len("Type")])
+    for short in candidates:
+        cls = _load("NAlice.T" + short + "Capability")
+        if cls is not None:
+            return short, cls
+    return base, None
+
+
+def _capability_params(cls, body):
+    """Тело возможности (Meta/Parameters/State) как dict; пустое или неразбираемое — {}."""
+    if cls is None or not body:
+        return {}
+    cap = cls()
+    try:
+        cap.ParseFromString(bytes(body))
+    except Exception:  # noqa: BLE001 — чужая сериализация: тело не отдаём
+        return {}
+    from .schema import message_dict
+    try:
+        return message_dict(cap)
+    except Exception:  # noqa: BLE001 — нестрогое тело не должно ломать разбор
+        return {}
+
+
+def endpoint_sn(raw):
+    """Серийник из самого объявления (Endpoints[0].Id); состояния в запросе нет — пусто."""
+    env = _env(raw)
+    if env is None or not env.Endpoints:
+        return ""
+    return env.Endpoints[0].Id or ""
+
+
+def capability_names(raw):
+    """Имена объявленных возможностей без разбора тел — быстрый путь наблюдателя
+    (вызывается на каждый запрос колонки). Состояния нет — []."""
+    env = _env(raw)
+    if env is None:
+        return []
+    numbers = _capability_type_names()
+    out = []
+    for endpoint in env.Endpoints:
+        for holder in endpoint.AnyCapabilities:
+            number = int(holder.CapabilityType)
+            value_name = numbers.get(number) or "#" + str(number)
+            short, _cls = _enum_capability(value_name)
+            out.append(short)
+        for any_cap in endpoint.Capabilities:
+            full = (any_cap.type_url or "").rsplit("/", 1)[-1]
+            if full.startswith("NAlice.T") and full.endswith("Capability"):
+                out.append(full[len("NAlice.T"):-len("Capability")])
+            else:
+                out.append(full)
+    return out
+
+
+def capabilities(raw):
+    """EnvironmentStateRaw → {короткое имя: {Meta/Parameters/State}} — объявление колонки.
+    AnyCapabilities (номер + тело) и Capabilities (google.protobuf.Any, type_url) дают
+    одинаковые короткие имена (Alarm, Animation, SmartHomeClientView); типа нет в схемах —
+    имя по номеру (#312) без параметров. Состояния нет — {} (запрос без объявления честен)."""
+    env = _env(raw)
+    if env is None:
+        return {}
+    numbers = _capability_type_names()
+    caps = {}
+    for endpoint in env.Endpoints:
+        for holder in endpoint.AnyCapabilities:
+            number = int(holder.CapabilityType)
+            value_name = numbers.get(number) or "#" + str(number)
+            short, cls = _enum_capability(value_name)
+            caps[short] = _capability_params(cls, holder.RawCapability)
+        for any_cap in endpoint.Capabilities:
+            full = (any_cap.type_url or "").rsplit("/", 1)[-1]
+            if full.startswith("NAlice.T") and full.endswith("Capability"):
+                short = full[len("NAlice.T"):-len("Capability")]
+            else:
+                short = full
+            caps[short] = _capability_params(_load(full), any_cap.value)
+    return caps
+
+
 def fetch_state_result(response, assistant_name=""):
     """Ответ колонки на SyncPush{GetDeviceState} (TClientMessage.Event.SyncPushResponse)
     → {ts, alarms, timers, volume, player, assistant_name}: будильники/таймеры/плеер —
