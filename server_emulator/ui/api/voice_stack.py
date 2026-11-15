@@ -24,6 +24,8 @@ POST   voice-stack-bake       — multipart meta{service, adapter, values, id?, 
                                 {voice_id, title}; JSON {package: <id>} — запечь эталон пакета (перезапуск сервера) → {bake}
 POST   voice-stack-unbake     — {service, adapter, values, id?} удалить запечённый голос поставщика; {package} — голос пакета
 POST   voice-stack-preset-file — ?service=&id=&key= тело — WAV эталона клонирования пресета; GET — прослушать; DELETE — удалить
+POST   voice-stack-login       — {service} запустить вход подписки кодом устройства (отдельный процесс);
+                                GET — его состояние и вывод {running, done, exit, output, auth_ready, cooldown}; DELETE — отменить
 """
 import json
 import logging
@@ -222,6 +224,17 @@ async def voice_stack_preset_file(request, runtime, app):
     if stack.active(service) == "p:" + identifier:
         await stack.apply(service, "p:" + identifier)  # применённый пресет — сразу с новым эталоном
     return web.json_response(info)
+
+
+@route("voice-stack-login", methods=("GET", "POST", "DELETE"))
+async def voice_stack_login(request, runtime, app):
+    runner = runtime.voice_stack.login
+    if request.method == "GET":
+        return web.json_response(runner.status())
+    if request.method == "DELETE":
+        return web.json_response({"cancelled": runner.cancel()})
+    body = await _body(request)
+    return web.json_response(runner.start(str(body.get("service", ""))))
 
 
 @route("voice-stack-install", methods=("POST",))

@@ -358,6 +358,7 @@
     if (!active) actions.append(button('Применить', null, async () => { check(); await save(); const ok = await voiceApply(s, ref, d.title); await load(); if (ok) say('Применён: ' + d.title) }));
     actions.append(button('Сохранить', active ? null : 'secondary', async () => { check(); await save(); await load(); say('Сохранено: ' + d.title) }));
     if (s === 'tts' && adapter.test) actions.append(testButton(ref, 'Проверить голос'));
+    if (adapter.login) actions.append(button('Войти', 'secondary', () => loginDialog(adapter)));
     if (!active) actions.append(button('Удалить', 'danger', async () => {
       if (!await ask('Удалить пресет «' + preset.title + '»?', 'Удалить')) return;
       await api('voice-stack-preset?service=' + s + '&id=' + encodeURIComponent(preset.id), 'DELETE');
@@ -382,6 +383,82 @@
       } catch (e) { say(e.message, true) } finally { b.disabled = false; b.classList.remove('busy') }
     };
     return b;
+  }
+
+  // вход модели по подписке (код устройства): сервер запускает login отдельным процессом,
+  // диалог показывает ссылку и код из его вывода и ждёт завершения. Перерисовка — только
+  // при изменении вывода: переписывание текста каждую секунду сбивало выделение кода
+  function loginDialog(adapter) {
+    let timer = null, shown = null;
+    const dialog = make('dialog', 'catalog-dialog');
+    const close = () => { clearTimeout(timer); dialog.close(); dialog.remove() };
+    const state = make('p', null, 'Запускаю вход…');
+    const link = make('a'); link.target = '_blank'; link.rel = 'noopener';
+    const linkWrap = make('p');
+    const code = make('p', 'vs-login-code');
+    const copy = make('button', 'secondary', 'Копировать код'); copy.type = 'button';
+    copy.onclick = async () => {
+      if (!code.textContent) return;
+      try { await navigator.clipboard.writeText(code.textContent); say('Код скопирован') }
+      catch { say('Не удалось скопировать — выделите код мышью', true) }
+    };
+    const codeWrap = make('div', 'row'); codeWrap.style.display = 'none'; codeWrap.append(code, copy);
+    const log = make('pre', 'vs-log plain');
+    const row = make('div', 'row');
+    const closeBtn = make('button', 'secondary', 'Закрыть'); closeBtn.type = 'button'; closeBtn.onclick = close;
+    const cancelBtn = make('button', 'danger', 'Отменить вход'); cancelBtn.type = 'button';
+    cancelBtn.onclick = async () => {
+      clearTimeout(timer);
+      try { await api('voice-stack-login', 'DELETE'); say('Вход отменён') } catch (e) { say(e.message, true) }
+      close();
+    };
+    const render = r => {
+      const out = r.output || [];
+      const next = {
+        running: !!r.running, exit: r.exit ?? null,
+        url: out.map(l => l.match(/^1\) Visit (\S+)/)?.[1]).find(Boolean) || '',
+        userCode: out.map(l => l.match(/^2\) Enter code: (.+)$/)?.[1]).find(Boolean) || '',
+        cooldown: r.cooldown || 0,
+        log: out.slice(-6).join('\n'),
+      };
+      const key = JSON.stringify(next);
+      if (key === shown) return;
+      shown = key;
+      if (next.running) {
+        const wait = Math.floor(next.cooldown / 60) + ':' + String(next.cooldown % 60).padStart(2, '0');
+        state.textContent = next.userCode ? 'Откройте ссылку в браузере и введите код:'
+          : next.cooldown ? `OpenAI ограничил частоту: новый код через ${wait} — прошлая попытка была недавно`
+          : 'Ждём код устройства…';
+        if (next.url) { link.href = next.url; link.textContent = next.url; linkWrap.replaceChildren(link) }
+        if (code.textContent !== next.userCode) code.textContent = next.userCode;  // перезапись сбивала выделение
+        codeWrap.style.display = next.userCode ? '' : 'none';
+        if (log.textContent !== next.log) log.textContent = next.log;
+        row.replaceChildren(cancelBtn, closeBtn);
+      } else if (next.exit === 0) {
+        state.textContent = 'Готово: вход сохранён. Можно закрыть.';
+        linkWrap.replaceChildren(); codeWrap.style.display = 'none';
+        log.textContent = out.slice(-4).join('\n');
+        row.replaceChildren(closeBtn);
+      } else if (next.exit != null) {
+        state.textContent = 'Вход не удался — журнал:';
+        linkWrap.replaceChildren(); codeWrap.style.display = 'none';
+        log.textContent = out.slice(-8).join('\n');
+        row.replaceChildren(closeBtn);
+      }
+    };
+    const poll = async () => {
+      try {
+        const r = await api('voice-stack-login');
+        render(r);
+        if (r.running) timer = setTimeout(poll, 1000);
+        else if (r.exit === 0) { await load(); say('Вход выполнен: ' + adapter.title) }
+      } catch (e) { state.textContent = 'Состояние входа недоступно'; log.textContent = e.message }
+    };
+    dialog.append(make('h3', null, 'Вход: ' + adapter.title), state, linkWrap, codeWrap, log, row);
+    dialog.addEventListener('cancel', e => { e.preventDefault(); close() });
+    document.body.append(dialog); dialog.showModal();
+    api('voice-stack-login', 'POST', { service: adapter.id }).then(poll)
+      .catch(e => { state.textContent = 'Не удалось запустить вход'; log.textContent = e.message; row.replaceChildren(closeBtn) });
   }
 
   function statusBox(s, pkg) {

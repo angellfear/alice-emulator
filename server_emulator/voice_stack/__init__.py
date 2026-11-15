@@ -807,6 +807,10 @@ class VoiceStack:
         self.installed = Inventory(self)
         adapter_registry.configure(self.state_dir / "adapters",
                                    extension_dirs=lambda: self._extension_layers("voice/adapters"))
+        # импорт ленивый: пакет не должен тянуть voice_stack.login — иначе при
+        # «python -m server_emulator.voice_stack.login» runpy найдёт модуль уже в sys.modules
+        from .login import LoginRunner
+        self.login = LoginRunner(runtime.directory)  # кнопка «Войти»: процесс кода устройства подписки
 
     def _extension_layers(self, name):
         """Слои точки подключения name («voice/packages|adapters|presets») включённых
@@ -1165,7 +1169,8 @@ class VoiceStack:
                               **({"bake": {**(spec.get("bake") or {}), "available": callable(getattr(module, "bake_voice", None))}}
                                  if "baked" in voice_modes(spec) else {}),
                               "voices": callable(getattr(module, "voices", None)), "test": hasattr(module, "synth_pcm"),
-                              "stream": hasattr(module, "recognize_stream")})
+                              "stream": hasattr(module, "recognize_stream"),
+                              "login": bool(getattr(module, "LOGIN", None))})
             kinds.sort(key=lambda kind: kind["title"].lower())
             entry = {"presets": presets, "packages": items, "adapters": kinds, "active": self.active(service),
                      "streaming": self.active_streaming(service)}
