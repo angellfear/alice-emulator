@@ -74,6 +74,18 @@ def _string_member(struct, key):
 
 
 
+def _frame_slots(frame_body):
+    """Строковые слоты семантического фрейма: {"embed_uri": {"string_value": …}} → {"embed_uri": …}."""
+    slots = {}
+    for key, value in (frame_body.fields.items() if frame_body is not None else ()):
+        if value.WhichOneof('kind') == 'string_value':
+            slots[key] = value.string_value
+        elif value.WhichOneof('kind') == 'struct_value':
+            text = _string_member(value.struct_value, 'string_value')
+            if text:
+                slots[key] = text
+    return slots
+
 def _bool_member(struct, key):
 
     """bool из google.protobuf.Struct или False (ключ отсутствует/не bool)."""
@@ -219,6 +231,7 @@ def service_event_fields(request, event_obj):
             'callback': _typed_callback_type(event_obj.Payload),
             'frame': _semantic_frame_name(event_obj.Payload),
             'frame_text': _string_member(frame_value.struct_value, 'text') if frame_value is not None and frame_value.WhichOneof('kind') == 'struct_value' else '',
+            'frame_slots': _frame_slots(frame_body),
             'music_type': _string_member(music_struct, 'type'),
             'music_token': _string_member(music_struct, 'recoverCommitToken'),
             'music_command': _music_command(event_obj.Payload) or _player_frame_command(event_obj),

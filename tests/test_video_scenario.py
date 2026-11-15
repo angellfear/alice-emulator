@@ -57,7 +57,8 @@ def make_runtime(tmp_path, catalog=CATALOG):
     video-links выключены, каталог — golden-плагин, читающий свой JSON-файл."""
     runtime = Runtime(tmp_path)
     state = runtime.settings.setdefault("extensions", {})
-    for ext_id in ("builtin.spotify", "builtin.yandex-music", "builtin.video-links"):
+    for ext_id in ("builtin.spotify", "builtin.yandex-music", "builtin.video-links",
+                   "builtin.youtube"):
         state["enabled"][ext_id] = False
     runtime.extensions.load_enabled()
     runtime.identities.mutate({"operation": "user", "id": "owner", "name": "O"})
@@ -322,3 +323,68 @@ async def test_provider_failure_and_note_are_honest(tmp_path):
         assert report["speech"] == "Каталог ещё не заполнен."
     finally:
         await runtime.close()
+
+
+async def test_tap_on_card_plays_video(tmp_path):
+    """Касание карточки (gallery_video_select_semantic_frame) — тот же запуск, что номер:
+    запись выдачи по embed_uri, без выдачи — поля самого фрейма."""
+    runtime = make_runtime(tmp_path)
+
+    async def tap(embed, title=""):
+        ctx = {"input": {"message_id": "m", "request_id": "r", "dialog_id": "dg", "sn": "SN-N",
+                         "text": "", "event_name": "@@mm_semantic_frame",
+                         "frame": "gallery_video_select_semantic_frame",
+                         "frame_slots": {"action": "play", "embed_uri": embed, "title": title,
+                                         "url": "https://example.com/watch/x"}},
+               "clock": {"now": datetime.datetime(2026, 10, 27, 21, 7)}, "sequence": 1,
+               "route_mode": "emulate", "player_owner": None,
+               **runtime._scenario_context(sn="SN-N")}
+        return await runtime.dialog.handle_event("video.selected", ctx, "dg", None, deliver=False)
+
+    try:
+        await _say(runtime, "открой список комедий")
+        report = await tap("https://example.com/embed/two")
+        assert report["handled"] and report["scenario"] == "media.video", report
+        assert report["speech"] == "Запускаю."
+        directives = _directives(report)
+        assert [d.Name for d in directives] == ["play_web_video_directive", "tts_play_placeholder"]
+        assert directives[0].AnalyticsType == "Комедия про путешествия"
+        report = await tap("https://www.youtube.com/embed/abc?autoplay=1", "Ролик")
+        assert _directives(report)[0].AnalyticsType == "Ролик"
+        if not (Path(server_emulator.__file__).parent / "schemas" / "alice-api.pb").is_file():
+            pytest.skip("нет схем протокола")
+        play = _decode(_directives(report)[0], PLAY_PROTO)
+        assert play.EmbedContent.EmbedUri == "https://www.youtube.com/embed/abc?autoplay=1"
+        assert play.HostDomain == "www.youtube.com"
+    finally:
+        await runtime.close()
+
+
+YOUTUBE = Path(server_emulator.__file__).parent / "plugins" / "youtube" / "video" / "youtube.py"
+
+
+async def test_youtube_search_items(monkeypatch):
+    """Выдача yt-dlp → записи вида video: embed с автозапуском, превью hqdefault,
+    каналы и плейлисты отброшены; пусто — note."""
+    spec = importlib.util.spec_from_file_location("builtin_youtube", YOUTUBE)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    seen = {}
+
+    def fake_search(query, count):
+        seen["args"] = (query, count)
+        return [{"id": "abc", "title": "Смешарики", "ie_key": "Youtube", "duration": 125.0},
+                {"id": "UC1", "title": "Канал", "ie_key": "YoutubeTab"},
+                {"id": "", "title": "Без id"}]
+
+    monkeypatch.setattr(module, "_search", fake_search)
+    result = await module.search(ExtCtx({"results": 5}), "смешарики")
+    assert seen["args"] == ("смешарики", 5)
+    assert result["items"] == [{"title": "Смешарики",
+                                "embed": "https://www.youtube.com/embed/abc?autoplay=1",
+                                "url": "https://www.youtube.com/watch?v=abc",
+                                "host": "youtube.com", "player": "youtube", "duration": 125,
+                                "preview": "https://i.ytimg.com/vi/abc/hqdefault.jpg"}]
+    monkeypatch.setattr(module, "_search", lambda query, count: [])
+    result = await module.search(ExtCtx(), "пусто")
+    assert result["items"] == [] and "ничего не нашлось" in result["note"]

@@ -143,6 +143,12 @@ def _is_tts_frame(fields):
     return fields.get("frame") == "tts_semantic_frame"
 
 
+def _is_video_select(fields):
+    """frame=gallery_video_select_semantic_frame (касание карточки open_search: во фрейме
+    embed_uri, url и title ролика)"""
+    return fields.get("frame") == "gallery_video_select_semantic_frame"
+
+
 def _is_recover_commit(fields):
     """music.type=recoverCommit (колонка подтвердила переход трека: token в
     music_token) — отдача следующего трека стеком «дальше» (music.py COMMITS)"""
@@ -185,6 +191,8 @@ callback_route('', 'music.recover_commit', _is_recover_commit,
                'event:[music=recoverCommit]')
 callback_route('@@mm_semantic_frame', 'music.touch', _is_music_touch, 'кнопки экрана плеера',
                lambda fields: "event:@@mm_semantic_frame[music_command=%s]" % fields["music_command"])
+callback_route('@@mm_semantic_frame', 'video.selected', _is_video_select, 'касание карточки выдачи видео',
+               'event:@@mm_semantic_frame[frame=gallery_video_select_semantic_frame]')
 callback_route('@@mm_semantic_frame', 'callbacks.ack', None, 'семантический фрейм — тихое подтверждение',
                'event:@@mm_semantic_frame')
 # Колбэки штатного плеера колонки: своей очереди у эмулятора нет — на

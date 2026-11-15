@@ -41,6 +41,7 @@ dependencies = [
   "num2words>=0.5.14,<2",
   "Pillow>=10,<13",
   "psutil>=5.9,<8",
+  "yt-dlp>=2025.1",  # поиск YouTube (встроенный плагин builtin.youtube); версии выходят часто, верхней границы нет
 ]
 
 [project.optional-dependencies]

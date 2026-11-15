@@ -101,12 +101,12 @@ def test_service_event_fields_from_wire():
     fields = service_event_fields(request.Event.TextInput, request.Event.TextInput.Request.Event)
     assert fields == {'event_name': '@@mm_typed_callback', 'purpose': 'sync_timezone',
                       'disable_output_speech': True, 'timezone': 'Asia/Tashkent',
-                      'callback': '', 'frame': '', 'frame_text': '',
+                      'callback': '', 'frame': '', 'frame_text': '', 'frame_slots': {},
                       'music_type': '', 'music_token': '', 'music_command': ''}
     request = service_request(purpose='', timezone='')
     fields = service_event_fields(request.Event.TextInput, request.Event.TextInput.Request.Event)
     assert fields == {'event_name': '@@mm_typed_callback', 'purpose': '', 'disable_output_speech': True,
-                      'timezone': '', 'callback': '', 'frame': '', 'frame_text': '',
+                      'timezone': '', 'callback': '', 'frame': '', 'frame_text': '', 'frame_slots': {},
                       'music_type': '', 'music_token': '', 'music_command': ''}
 
 

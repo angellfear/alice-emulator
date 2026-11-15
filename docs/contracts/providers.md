@@ -26,7 +26,7 @@ module: "server_emulator/providers.py"
 | `music` | `music.py` → `search(ctx, query, kind)`, `neighbor(ctx, track_id, context, step)`; опционально `rate(ctx, track_id, like)`, `commit(ctx, track_id)`, `queue(ctx)` (окно очереди для виджета) | сценарий `media.music`, ядро `music.py` | работает |
 | `weather` | `scenario_plugins.py` → `forecast(ctx, location)` — прогноз в форме Open-Meteo (`current`/`hourly`/`daily`), `location` — `{"latitude", "longitude", "timezone"?}` из параметров дома | сценарий `informers.weather`, виджет погоды | работает |
 | `news` | `scenarios/informers/news.py` → `headlines(ctx, kind)` → `{"items": ["заголовок", …], "note"?}` | сценарий `informers.news` | работает (встроенный — заглушка без сети) |
-| `video` | `scenarios/media/video.py` → `catalog(ctx)` → `{"items": [запись каталога, …], "note"?}`; запись: `title`, `embed`; необязательные `url`, `genre`, `host`, `player`, `duration`, `year`, `preview` — host/player без значения сценарий выводит из адреса `embed` | сценарий `media.video` | работает (встроенный — каталог ссылок в настройках плагина) |
+| `video` | `scenarios/media/video.py` → `catalog(ctx)` → `{"items": [запись каталога, …], "note"?}`; запись: `title`, `embed`; необязательные `url`, `genre`, `host`, `player`, `duration`, `year`, `preview` — host/player без значения сценарий выводит из адреса `embed`; необязательная `search(ctx, query)` — поиск самого поставщика, его выдача не фильтруется | сценарий `media.video` | работает (встроенные — каталог ссылок и YouTube) |
 
 Поставщик без обязательной функции вида в реестр не попадает — расширение
 отключается целиком, причина видна в карточке расширения; вид без потребителя
@@ -83,7 +83,10 @@ ReqId и Doc2docUrl внешнего поиска в карточки не по�
 Фразы — в справочнике плагина (`phrases/video.json`): поиска («открой список
 {query}», «список {query}») и выбора («[номер ]{num}»). Встроенный
 `builtin.video-links` — каталог ссылок, правится в настройках плагина (JSON-список),
-сети нет — ссылки открывает плеер колонки. Без образца в журнале не реализовано:
+сети нет — ссылки открывает плеер колонки. Встроенный `builtin.youtube` — поиск YouTube
+(`search` через yt-dlp, без ключа API; «найди на ютубе {query}»). Касание карточки
+выдачи приходит фреймом `gallery_video_select_semantic_frame` (`embed_uri`, `url`,
+`title`; маршрут колбэка `video.selected`) — запуск тем же ответом, что выбор номером. Без образца в журнале не реализовано:
 карточка фильма (`centaur_open_video_details_screen`), `video_play` поставщиков,
 экран поиска divui, внешний поиск.
 
@@ -105,7 +108,7 @@ ReqId и Doc2docUrl внешнего поиска в карточки не по�
 
 Минимальный набор поставляется с эмулятором (`server_emulator/plugins/`):
 музыка — `builtin.spotify` и `builtin.yandex-music`, погода — `builtin.open-meteo` и `builtin.yandex-weather` (API Яндекс Погоды v2, ключ в настройках),
-новости — `builtin.news-stub`, видео — `builtin.video-links`. Установлены всегда, версия = версия эмулятора,
+новости — `builtin.news-stub`, видео — `builtin.video-links` и `builtin.youtube`. Установлены всегда, версия = версия эмулятора,
 включены по умолчанию; включение/выключение и настройки — как у внешних; удалить/
 обновить/откатить и установить чужое с id `builtin.*` нельзя (details —
 [extensions.md](extensions.md), раздел «Встроенные плагины»).

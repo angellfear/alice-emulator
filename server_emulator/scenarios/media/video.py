@@ -10,17 +10,21 @@ open_search с веб-карточками SearchVideoItem, у каждой — 
 Выдача запоминается в данных сценария до новой выдачи — по ней выбирается номер.
 «ещё»/«назад» листает сама колонка (сценарий device.screen.navigation), о закрытии
 экрана эмулятору не сообщают — память после закрытия остаётся до новой выдачи.
-Нет выдачи — номер не наш (отказ), фразу забирает следующий кандидат.
+Нет выдачи — номер не наш (отказ), фразу забирает следующий кандидат. Касание
+карточки (фрейм gallery_video_select_semantic_frame, в нём embed_uri) запускает ролик
+тем же ответом, что выбор номером.
 
 Фильтр выдачи — по последнему слову запроса (нормальная форма слова, wordforms.lemma):
 совпадение с жанром или словом названия; общие слова (фильм, кино, видео, ролик,
 медиа, подборка) — весь каталог; совпадений меньше трёх — честный отказ (карточек в
 образце много, выдача рассчитана на выбор по номеру).
 
+Поставщик с функцией search(ctx, query) ищет сам (YouTube): его выдача не фильтруется.
+
 Маршрут «Вместе» (hybrid) — отказ: Яндекс отвечает сам, как у музыки.
 """
 from server_emulator import providers
-providers.require("video", ("catalog",))
+providers.require("video", ("catalog",), ("search",))
 from server_emulator.media_directives import tts_placeholder
 from server_emulator.scenario_engine import wordforms
 from server_emulator.sdk import say
@@ -36,6 +40,8 @@ PLAY_PROTO = "NAlice.TWebPlayerCapability.TPlayWebVideoDirective"
 async def handle(ctx):
     if ctx.route_mode == "hybrid":
         return None
+    if ctx.event.frame == "gallery_video_select_semantic_frame":
+        return _tapped(ctx, ctx.event.slots)
     entry = ctx.phrase_entry or {}
     number = ctx.slots.get("num")
     if entry.get("id") == "select" or number is not None:
@@ -53,9 +59,25 @@ def _select(ctx, number):
     items = memory["items"]
     if not 1 <= number <= len(items):
         return say(f"В списке всего {len(items)}.")
+    return _play(items[number - 1])
+
+
+def _tapped(ctx, slots):
+    """Касание карточки: ролик — запись выдачи с тем же embed, иначе поля самого фрейма."""
+    embed = str(slots.get("embed_uri") or "")
+    if not embed:
+        return None
+    memory = ctx.data.get("search")
+    items = memory.get("items") if isinstance(memory, dict) else None
+    for item in items if isinstance(items, list) else ():
+        if item.get("embed") == embed:
+            return _play(item)
+    return _play({"title": str(slots.get("title") or ""), "embed": embed, "url": str(slots.get("url") or "")})
+
+
+def _play(item):
     play = {"name": "play_web_video_directive", "type": "client_action", "is_led_silent": True,
-            "analytics_type": items[number - 1]["title"], "proto": PLAY_PROTO,
-            "fields": _play_fields(items[number - 1])}
+            "analytics_type": item["title"], "proto": PLAY_PROTO, "fields": _play_fields(item)}
     return {"text": "Запускаю.", "card": False, "directives": [play, tts_placeholder()]}
 
 
@@ -64,8 +86,12 @@ async def _search(ctx, query):
     provider = ctx.provider("video")
     if provider is None:
         return ctx.no_data_source()
+    search = provider.get("search")
     try:
-        result = await providers.invoke(ctx, provider, provider["catalog"])
+        if search and query:  # поиск у поставщика: выдача уже по запросу
+            result = await providers.invoke(ctx, provider, search, query)
+        else:
+            result = await providers.invoke(ctx, provider, provider["catalog"])
     except Exception:  # noqa: BLE001 — сбой поставщика не роняет сценарий
         result = None
     if not isinstance(result, dict):
@@ -74,7 +100,7 @@ async def _search(ctx, query):
     note = str(result.get("note") or "").strip()
     if not items:
         return say(note or "Каталог видео пуст.")
-    matched = _filter(items, query)
+    matched = list(items) if search and query else _filter(items, query)
     if not matched:
         return say(f"По запросу «{query}» в каталоге видео ничего нет.")
     if len(matched) < MIN_CARDS:

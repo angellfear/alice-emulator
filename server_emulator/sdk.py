@@ -27,7 +27,7 @@ import inspect
 import json
 import time
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -531,6 +531,7 @@ class Event:
     music_type: str = ""
     music_token: str = ""
     music_command: str = ""
+    slots: dict = field(default_factory=dict)  # строковые слоты семантического фрейма
 
 
 class _ActionExecution:
@@ -620,7 +621,8 @@ class ScenarioContext:
                      frame=str(source.get("frame") or ""),
                      music_type=str(source.get("music_type") or ""),
                      music_token=str(source.get("music_token") or ""),
-                     music_command=str(source.get("music_command") or ""))
+                     music_command=str(source.get("music_command") or ""),
+                     slots=dict(source.get("frame_slots") or {}))
 
     @property
     def ask(self):

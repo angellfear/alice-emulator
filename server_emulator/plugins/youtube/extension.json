@@ -1,0 +1,45 @@
+{
+ "id": "builtin.youtube",
+ "name": "YouTube",
+ "version": "0.1.0",
+ "description": "Поставщик видео (встроенный): «найди на ютубе …» ищет ролики YouTube (yt-dlp, без ключа API) и показывает выдачу карточками, выбор по номеру открывает ролик в плеере колонки.",
+ "author": "Angell Fear",
+ "license": "MIT",
+ "requires": {
+  "emulator": ">=0.1.0",
+  "sdk": ">=2.7.0",
+  "python_packages": []
+ },
+ "permissions": {
+  "network": [
+   "www.youtube.com",
+   "youtube.com",
+   "i.ytimg.com"
+  ],
+  "actions": [],
+  "device_push": false,
+  "install": false
+ },
+ "settings": {
+  "fields": [
+   {
+    "key": "results",
+    "label": "Роликов в выдаче",
+    "type": "number"
+   }
+  ],
+  "defaults": {
+   "results": 10
+  }
+ },
+ "contributes": {
+  "providers": [
+   {
+    "kind": "video",
+    "title": "Видео",
+    "module": "video/youtube.py",
+    "phrases": "phrases/video.json"
+   }
+  ]
+ }
+}

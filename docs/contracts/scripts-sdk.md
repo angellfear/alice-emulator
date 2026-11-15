@@ -68,7 +68,7 @@ module: "server_emulator/sdk.py"
 | `ctx.text` | реплика, как её оставил диалоговый слой (нормализованный ASR-вариант, если он применён) |
 | `ctx.raw_text` | исходная реплика до нормализации (если отличалась) |
 | `ctx.slots` | слоты триггера; **живой dict** исполнения — правки переживают шаги |
-| `ctx.event` | `Event(name, callback, purpose, frame)` — имя служебного события и поля запроса (для event/protocol_event-триггеров), иначе пустое |
+| `ctx.event` | `Event(name, callback, purpose, frame, …, slots)` — имя служебного события и поля запроса (для event/protocol_event/provide-триггеров), иначе пустое; `slots` — строковые слоты семантического фрейма (`{"embed_uri": "…"}`) |
 | `ctx.sn` | SN колонки, от которой пришёл запрос |
 | `ctx.device` | запись реестра о колонке: sn, name, room, model, display, light(s), apps, platform, fields. `apps` — установленные приложения колонки из состояния её запроса (`TAppLaunchCapability.InstalledAppsList`, cap 39), по серийнику, в порядке колонки; его читают device.apps.list и промпт модели/агента, по нему запускается ютуб (webview-карта) |
 | `ctx.owner` | владелец: id, name, location (гео); комната колонки — `ctx.device.room` |
