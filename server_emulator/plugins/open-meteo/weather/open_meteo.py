@@ -147,7 +147,8 @@ def _query(location):
             "daily": ("temperature_2m_max,temperature_2m_min,precipitation_probability_max,"
                       "weather_code,wind_speed_10m_max,wind_gusts_10m_max,"
                       "wind_direction_10m_dominant"),
-            "forecast_hours": "24", "forecast_days": "2", "timezone": "auto"}
+            "forecast_hours": "24", "forecast_days": "2", "timezone": "auto",
+            "wind_speed_unit": "ms"}  # речь — «м/с», как у met.no; по умолчанию Open-Meteo отдаёт км/ч
 
 
 def _http_json(url, query):
