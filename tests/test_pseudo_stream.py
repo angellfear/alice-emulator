@@ -75,8 +75,9 @@ def pipeline(monkeypatch, tmp_path):
 
 
 async def test_pause_ends_phrase_and_sends_partials(pipeline):
-    """Речь → пауза: частичный текст после 0.4 с тишины, финал после 1.8 с —
-    тот же текст; колонка закрывает микрофон по финалу, а не по тайм-ауту."""
+    """Речь → пауза: частичный текст после 0.4 с тишины — вся накопленная фраза,
+    финал после 1.8 с — вся фраза распознаётся ещё раз; колонка закрывает микрофон
+    по финалу, а не по тайм-ауту."""
     transcribe, calls = pipeline
     data = _tone(0.8) + _silence(2.2)
     partials = []
@@ -87,8 +88,8 @@ async def test_pause_ends_phrase_and_sends_partials(pipeline):
     result = await asr_pseudo_stream.recognize_stream(
         _Runtime({}), transcribe, _chunks(data), PCM48, on_partial)
     assert partials == ["сегмент 1"], partials
-    assert result == {"text": "сегмент 1"}
-    assert len(calls) == 1
+    assert result == {"text": "сегмент 2"}, result  # финал — повторное распознавание всей фразы
+    assert len(calls) == 2
 
 
 async def test_pause_ends_phrase_while_mic_stays_open(pipeline):
@@ -107,7 +108,7 @@ async def test_pause_ends_phrase_while_mic_stays_open(pipeline):
 
     result = await asr_pseudo_stream.recognize_stream(
         _Runtime({}), transcribe, endless(), PCM48, None)
-    assert result == {"text": "сегмент 1"} and len(calls) == 1
+    assert result == {"text": "сегмент 2"} and len(calls) == 2  # частичный и финал — вся фраза ещё раз
     assert sent["seconds"] < asr_pseudo_stream.END_PAUSE_S + 0.3, sent
 
 
@@ -122,7 +123,7 @@ async def test_end_pause_setting_ends_phrase_earlier(pipeline):
     result = await asr_pseudo_stream.recognize_stream(
         _Runtime({"stt": {"pseudo_end_pause": 0.6}}), transcribe,
         _chunks(_tone(0.8) + _silence(1.0)), PCM48, None, trace=trace)
-    assert result == {"text": "сегмент 1"} and len(calls) == 1
+    assert result == {"text": "сегмент 2"} and len(calls) == 2  # частичный и финал
     actions = [r["action"] for r in records if r["name"] == "pseudo_segment"]
     assert actions == ["partial", "end"]  # конец по паузе 0.6 с, до закрытия микрофона
 
@@ -143,13 +144,13 @@ async def test_level_no_disables_gain(pipeline, monkeypatch):
     result = await asr_pseudo_stream.recognize_stream(
         _Runtime({"stt": {"level": "no"}}), transcribe,
         _chunks(_tone(0.8) + _silence(2.2)), PCM48, None)
-    assert result == {"text": "сегмент 1"}
+    assert result == {"text": "сегмент 2"}  # частичный и финал — вся фраза ещё раз
     assert levels == [False]
 
 
 async def test_internal_pause_splits_into_progressive_text(pipeline):
-    """Пауза 0.5 с внутри фразы — частичное распознавание первой части, затем обеих;
-    финальный текст — обе части по порядку."""
+    """Пауза 0.5 с внутри фразы: каждый частичный текст — вся накопленная фраза
+    на момент вызова (заменяет прежний); финал — вся фраза распознаётся ещё раз."""
     transcribe, calls = pipeline
     data = _tone(0.8) + _silence(0.5) + _tone(0.8) + _silence(2.2)
     partials = []
@@ -159,9 +160,9 @@ async def test_internal_pause_splits_into_progressive_text(pipeline):
 
     result = await asr_pseudo_stream.recognize_stream(
         _Runtime({}), transcribe, _chunks(data), PCM48, on_partial)
-    assert partials == ["сегмент 1", "сегмент 1 сегмент 2"], partials
-    assert result == {"text": "сегмент 1 сегмент 2"}
-    assert len(calls) == 2
+    assert partials == ["сегмент 1", "сегмент 2"], partials
+    assert result == {"text": "сегмент 3"}, result
+    assert len(calls) == 3
 
 
 async def test_silence_only_recognizes_nothing(pipeline):
@@ -203,19 +204,22 @@ async def test_bos_stream_drops_wake_word(pipeline):
 
     result = await asr_pseudo_stream.recognize_stream(
         _Runtime({}), transcribe, _pages(wake + utterance), "audio/opus", on_partial)
-    assert result == {"text": "сегмент 1"}, result
+    # слово активации отбрасывается отменой задачи (BOS), распознаётся только реплика:
+    # частичный — вся реплика, финал — вся реплика ещё раз
+    assert result == {"text": "сегмент 2"}, result
     assert partials == ["сегмент 1"], partials
 
 
 async def test_long_speech_segment_is_cut(pipeline):
-    """Речь без пауз дольше предельного сегмента: режется на части (лимит моделей
-    ~20-30 с), тексты складываются, частичные результаты продолжаются."""
+    """Речь без пауз дольше предельного сегмента (лимит моделей ~20-30 с): текст окна
+    20 с фиксируется, буфер начинается заново; финал — фикс + текст последнего окна
+    (вся оставшаяся фраза распознаётся ещё раз), частичные результаты продолжаются."""
     transcribe, calls = pipeline
     data = _tone(asr_pseudo_stream.MAX_SEGMENT_S + 1.0) + _silence(2.2)
     result = await asr_pseudo_stream.recognize_stream(
         _Runtime({}), transcribe, _chunks(data), PCM48, None)
-    assert len(calls) == 2  # сегмент разрезан
-    assert result == {"text": "сегмент 1 сегмент 2"}
+    assert len(calls) == 3  # окно 20 с, частичное по последнему окну, финал
+    assert result == {"text": "сегмент 1 сегмент 3"}, result
 
 
 def test_enabled_requires_flag_and_feasibility(monkeypatch, tmp_path):
@@ -345,7 +349,7 @@ async def test_wire_fragments_still_recognize(pipeline):
     data = await opus(_tone(0.8) + _silence(2.2))
     result = await asr_pseudo_stream.recognize_stream(
         _Runtime({}), transcribe, _chunks(data, 61), "audio/opus", None)
-    assert result == {"text": "сегмент 1"} and len(calls) == 1
+    assert result == {"text": "сегмент 2"} and len(calls) == 2  # частичный и финал — вся фраза ещё раз
 
 
 async def test_trace_events_on_opus_stream(pipeline):
@@ -367,7 +371,7 @@ async def test_trace_events_on_opus_stream(pipeline):
     utterance = await opus(_tone(0.8) + _silence(2.2))
     result = await asr_pseudo_stream.recognize_stream(
         _Runtime({}), transcribe, _pages(wake + utterance), "audio/opus", None, trace=trace)
-    assert result == {"text": "сегмент 1"}
+    assert result == {"text": "сегмент 2"}  # wake-поток отменён (BOS), реплика: частичный и финал
 
     starts = [r for r in records if r["name"] == "pseudo_stream_start"]
     assert len(starts) == 2  # слово активации и реплика — два логических потока
@@ -386,3 +390,113 @@ async def test_trace_events_on_opus_stream(pipeline):
     assert any(r["had_speech"] is True and r["text_len"] == len("сегмент 1") for r in flushes)
     done = next(r for r in records if r["name"] == "pseudo_done")
     assert done["streams"] == 2 and done["frames"] > 0 and done["samples_total"] > 20000
+
+
+async def _recognize_by_length(runtime, audio, filename, texts):
+    """Транскрибёр, текст которого зависит от длины полученного аудио: короткий вызов
+    и вызов с полной фразой возвращают разный текст."""
+    seconds = round(len(audio) / 2 / asr_pseudo_stream.RATE, 1)  # PCM16 mono: 2 байта на сэмпл
+    texts.append(seconds)
+    return f"фраза {seconds} с"
+
+
+async def test_final_recognizes_whole_phrase(pipeline):
+    """Финал — распознавание всей накопленной фразы целиком: transcribe получает
+    весь буфер фразы (аудио длиннее любого из частичных), финальный текст — от этого
+    вызова, а не склейка частичных текстов."""
+    transcribe, calls = pipeline
+    texts = []
+
+    async def by_length(runtime, audio, filename):
+        return await _recognize_by_length(runtime, audio, filename, texts)
+
+    data = _tone(0.3) + _silence(0.5) + _tone(0.8) + _silence(2.2)
+    partials = []
+
+    async def on_partial(text):
+        partials.append(text)
+
+    result = await asr_pseudo_stream.recognize_stream(
+        _Runtime({}), by_length, _chunks(data), PCM48, on_partial)
+    assert len(texts) == 3  # частичный, частичный, финал
+    assert texts[-1] >= 1.6  # финалу досталась вся фраза (0.3+0.5+0.8+1.8 = 3.4 с)
+    assert result == {"text": f"фраза {texts[-1]} с"}, result  # финальный текст — с полной фразой
+    assert partials == [f"фраза {texts[0]} с", f"фраза {texts[1]} с"], partials
+
+
+async def test_partial_replaces_previous_text(pipeline):
+    """Частичный текст — вся фраза на момент вызова: следующий частичный заменяет
+    прежний, а не дописывается к нему."""
+    transcribe, calls = pipeline
+    texts = []
+
+    async def by_length(runtime, audio, filename):
+        return await _recognize_by_length(runtime, audio, filename, texts)
+
+    data = _tone(0.8) + _silence(0.5) + _tone(0.8) + _silence(2.2)
+    partials = []
+
+    async def on_partial(text):
+        partials.append(text)
+
+    result = await asr_pseudo_stream.recognize_stream(
+        _Runtime({}), by_length, _chunks(data), PCM48, on_partial)
+    assert texts[1] > texts[0]  # второй частичный получил всю накопленную фразу
+    assert partials == [f"фраза {texts[0]} с", f"фраза {texts[1]} с"], partials  # замена, не склейка
+
+
+async def test_end_fires_after_empty_partial(pipeline):
+    """Первое частичное распознавание вернуло пусто — конец фразы по паузе всё равно
+    наступает: счёт тишины до конца фразы не зависит от результатов распознавания."""
+    transcribe, calls = pipeline
+    attempts = []
+
+    async def empty_first(runtime, audio, filename):
+        attempts.append(len(attempts))
+        return "" if len(attempts) == 1 else "текст"
+
+    from server_emulator.speech_trace import SpeechTrace
+    records = []
+    trace = SpeechTrace(records.append, {"sn": "C00T1000TESTK"})
+    result = await asr_pseudo_stream.recognize_stream(
+        _Runtime({}), empty_first, _chunks(_tone(0.5) + _silence(0.6) + _tone(0.6) + _silence(2.2)),
+        PCM48, None, trace=trace)
+    actions = [r["action"] for r in records if r["name"] == "pseudo_segment"]
+    assert actions == ["partial", "partial", "end"], actions  # конец — по паузе, не по закрытию микрофона
+    assert result == {"text": "текст"} and len(attempts) == 3
+
+
+async def test_noise_burst_stays_in_phrase_buffer(pipeline):
+    """Шумовой всплеск короче MIN_SPEECH_S не вызывает распознавания сам по себе,
+    но его кадры остаются в буфере фразы: следующая речь распознаётся вместе с ним."""
+    transcribe, calls = pipeline
+    data = _tone(0.15) + _silence(0.6) + _tone(0.8) + _silence(2.2)
+    result = await asr_pseudo_stream.recognize_stream(
+        _Runtime({}), transcribe, _chunks(data), PCM48, None)
+    assert len(calls) == 2  # частичный по всей фразе (шум + пауза + речь) и финал
+    assert result == {"text": "сегмент 2"}, result
+
+
+async def test_long_phrase_fixes_window_and_adds_last(pipeline):
+    """Фраза 25 с без пауз: текст первых 20 с фиксируется, буфер начинается заново;
+    финал — зафиксированный текст + текст последнего окна (вся оставшаяся фраза)."""
+    transcribe, calls = pipeline
+    texts = []
+
+    async def by_length(runtime, audio, filename):
+        return await _recognize_by_length(runtime, audio, filename, texts)
+
+    data = _tone(asr_pseudo_stream.MAX_SEGMENT_S + 5.0) + _silence(2.2)
+    partials = []
+
+    async def on_partial(text):
+        partials.append(text)
+
+    result = await asr_pseudo_stream.recognize_stream(
+        _Runtime({}), by_length, _chunks(data), PCM48, on_partial)
+    assert texts[0] == 20.0  # первое окно — ровно MAX_SEGMENT_S
+    assert texts[1] >= 5.0  # частичный последнего окна — весь остаток фразы
+    assert texts[2] > texts[1]  # финал распознал больше аудио (тишина до конца фразы)
+    # частичный на границе окна 20 с (текст окна) и частичный всего накопленного (фикс + остаток)
+    assert partials == ["фраза 20.0 с", f"фраза 20.0 с фраза {texts[1]} с"], partials
+    assert result == {"text": f"фраза 20.0 с фраза {texts[2]} с"}, result

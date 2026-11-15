@@ -1,7 +1,8 @@
 """Эмуляция потокового распознавания для batch-STT: детектор пауз Silero VAD по ходу
-приёма звука, каждая пауза — распознавание накопленного сегмента тем же batch-STT
-(WAV) и частичный AsrResult колонке, пауза дольше порога — финальный текст и конец
-фразы (колонка закрывает микрофон сама, без тайм-аута NO_SPEECH). Ветвление —
+приёма звука, фраза копится целиком (речь и паузы между словами) — пауза между словами
+даёт частичный AsrResult с распознаванием всей накопленной фразы тем же batch-STT (WAV),
+пауза дольше порога — конец фразы и финальный текст по всей фразе ещё раз (колонка
+закрывает микрофон сама, без тайм-аута NO_SPEECH). Ветвление —
 provider_manager: адаптер с recognize_stream (T-one, deepgram) — настоящий поток;
 batch-адаптер с включённой настройкой stt.pseudo_stream («Эмуляция потокового режима»
 в карточке ASR) — этот модуль. Готового потокового режима у локальных batch-движков
@@ -131,8 +132,13 @@ class _Vad:
 
 
 class _Accumulator:
-    """Речь между паузами: кадры VAD, preroll до начала речи (атака слова не режется),
-    счётчик тишины, готовые тексты сегментов. Состояние VAD живёт здесь."""
+    """Фраза от начала речи до паузы конца: кадры речи и пауз между словами копятся
+    в буфере фразы целиком. Частичное распознавание проходит по всей накопленной
+    фразе (текст колонке заменяет прежний), конец фразы — вся фраза ещё раз.
+    Фраза длиннее окна MAX_SEGMENT_S: текст окна фиксируется, буфер начинается заново,
+    финал — зафиксированное + текст последнего окна. Кадры шумовых всплесков короче
+    MIN_SPEECH_S не распознаются сами по себе, но остаются в буфере фразы. Preroll
+    до начала речи (атака слова не режется). Состояние VAD живёт здесь."""
 
     def __init__(self, vad, partial_frames, end_frames, trace=None):
         self.vad = vad
@@ -142,17 +148,19 @@ class _Accumulator:
         self.state = np.zeros((2, 1, 128), dtype=np.float32)
         self.pending = np.empty(0, dtype=np.float32)  # хвост меньше кадра
         self.context = np.zeros(CONTEXT, dtype=np.float32)  # прошлые 64 сэмпла (вход модели)
-        self.buffer = []  # кадры сегмента: речь + короткий хвост тишины до решения
+        self.phrase = []  # кадры фразы: речь и паузы между словами — распознаётся целиком
         self.pre = collections.deque(maxlen=PREROLL_FRAMES)
         self.in_speech = False
-        self.silence = 0  # кадров тишины подряд
-        self.speech = 0  # речевых кадров в сегменте
-        self.texts = []  # распознанные сегменты по порядку
+        self.silence = 0  # кадров тишины подряд с конца речи
+        self.partial_done = False  # частичное в этой паузе уже отдано (до возобновления речи)
+        self.speech = 0  # речевых кадров в текущем окне фразы (с начала фразы или после max)
+        self.fixed = []  # тексты зафиксированных окон длинной фразы
         self.samples_total = 0  # сэмплов звука принято всего (трасса pseudo_vad)
         self._vad_mark = 0  # сэмплов с последнего события pseudo_vad
 
-    def joined(self):
-        return " ".join(self.texts).strip()
+    def joined(self, last=""):
+        """Текст фразы к этому моменту: зафиксированные окна + текст текущего окна."""
+        return " ".join([*self.fixed, last]).strip()
 
     async def feed(self, samples):
         """PCM 16 кГц этого кадра колонки → вероятности речи → 'partial' | 'max' | 'end'
@@ -191,49 +199,69 @@ class _Accumulator:
         if probability >= SPEECH_THRESHOLD:
             if not self.in_speech:
                 self.in_speech = True
-                self.buffer.extend(self.pre)
+                self.phrase.extend(self.pre)
                 self.pre.clear()
             self.silence = 0
+            self.partial_done = False
             self.speech += 1
-            self.buffer.append(frame)
-            return "max" if len(self.buffer) >= MAX_SEGMENT_FRAMES else None
-        if not self.in_speech:
+            self.phrase.append(frame)
+            return "max" if len(self.phrase) >= MAX_SEGMENT_FRAMES else None
+        if not self.in_speech:  # тишина до начала фразы — только preroll
             self.pre.append(frame)
-            if self.texts:  # после частичного распознавания пауза та же: её длина решает конец фразы
-                self.silence += 1
-                if self.silence >= self.end_frames:
-                    return "end"
             return None
+        # тишина внутри фразы: кадры остаются в буфере (пауза между словами); счёт до конца
+        # фразы не зависит от результатов частичного распознавания — конец по паузе наступает
+        # и после пустого частичного текста
         self.silence += 1
-        self.buffer.append(frame)
+        self.phrase.append(frame)
         if self.silence >= self.end_frames:
             return "end"
-        if self.silence >= self.partial_frames:
+        if not self.partial_done and self.silence >= self.partial_frames:
+            self.partial_done = True  # один частичный на паузу: фраза копится дальше до конца фразы
             return "partial"
         return None
 
-    async def flush(self, runtime, transcribe):
-        """Накопленный сегмент → WAV (input_audio) → тем же batch-STT → текст сегмента.
-        Сегмент короче MIN_SPEECH_S — шум: без распознавания."""
-        if not self.buffer:
-            return ""
-        samples = np.concatenate(self.buffer)
-        had_speech = self.speech >= MIN_SPEECH_FRAMES
-        self.buffer = []
-        self.pre.clear()
-        self.in_speech = False
-        self.speech = 0  # счётчик тишины не сбрасывается: пауза продолжается и после сегмента
-        if not had_speech:
+    async def _recognize(self, runtime, transcribe):
+        """Буфер фразы целиком → WAV (input_audio) → тем же batch-STT → текст.
+        Речевых кадров меньше MIN_SPEECH_S — шум: без вызова STT, кадры остаются
+        в буфере фразы (позже распознаются вместе со следующей речью)."""
+        if not self.phrase or self.speech < MIN_SPEECH_FRAMES:
             if self.trace is not None:
                 self.trace.event("pseudo_flush", "server", had_speech=False, text_len=0)
             return ""
+        samples = np.concatenate(self.phrase)
         pcm = (np.clip(samples, -1.0, 1.0) * 32767).astype("<i2").tobytes()
         audio, filename = await input_audio(pcm, f"audio/x-pcm;bit=16;rate={RATE};channels=1")
         text = str(await transcribe(runtime, audio, filename) or "").strip()
-        if text:
-            self.texts.append(text)
         if self.trace is not None:
             self.trace.event("pseudo_flush", "server", had_speech=True, text_len=len(text))
+        return text
+
+    async def partial(self, runtime, transcribe):
+        """Пауза между словами: частичный текст — вся накопленная фраза целиком,
+        заменяет прежний частичный. Буфер не очищается: конец фразы распознаёт
+        её ещё раз, тишина продолжает счёт до конца фразы."""
+        return await self._recognize(runtime, transcribe)
+
+    async def window(self, runtime, transcribe):
+        """Окно фразы заполнено (MAX_SEGMENT_S, речь без пауз): текст окна фиксируется,
+        буфер начинается заново — финал соберёт зафиксированное + текст последнего окна."""
+        text = await self._recognize(runtime, transcribe)
+        if text:
+            self.fixed.append(text)
+        self.phrase = []
+        self.speech = 0
+        return text
+
+    async def final(self, runtime, transcribe):
+        """Конец фразы (пауза END или закрытие микрофона): вся фраза распознаётся
+        ещё раз — фраза росла и после частичного; буфер очищается."""
+        text = await self._recognize(runtime, transcribe)
+        self.phrase = []
+        self.pre.clear()
+        self.in_speech = False
+        self.speech = 0
+        self.silence = 0
         return text
 
 
@@ -313,9 +341,10 @@ def _is_stream_start(frame):
 
 
 async def _run_one(runtime, transcribe, chunks, fmt, on_partial, vad, trace=None, totals=None):
-    """Один логический поток wire-кадров: PCM 16 кГц → Silero VAD → сегменты между
-    паузами; пауза между словами (stt.pseudo_partial_pause) — batch-STT сегмента и
-    частичный текст колонке, пауза конца фразы (stt.pseudo_end_pause) — финальный
+    """Один логический поток wire-кадров: PCM 16 кГц → Silero VAD → фразы между паузами
+    конца (stt.pseudo_end_pause). Пауза между словами (stt.pseudo_partial_pause) —
+    batch-STT всей накопленной фразы и частичный текст колонке (заменяет прежний),
+    конец фразы или закрытие микрофона — вся фраза распознаётся ещё раз → финальный
     {'text': ...} (колонка закроет микрофон сама)."""
     partial_frames, end_frames = pauses(runtime)
     acc = _Accumulator(vad, partial_frames, end_frames, trace=trace)
@@ -323,7 +352,7 @@ async def _run_one(runtime, transcribe, chunks, fmt, on_partial, vad, trace=None
     try:
         async with asyncio.timeout(120):
             # микрофон колонки тихий (пик около −55 dBFS): Silero VAD на таком уровне речи не
-            # видит — уровень выравнивается при декодировании, сегмент распознаётся выровненным
+            # видит — уровень выравнивается при декодировании, фраза распознаётся выровненной
             # (stt.level="no" выключает выравнивание)
             async for chunk in transcode(chunks, fmt, "pcm16", level=level(runtime)):
                 samples = np.frombuffer(chunk, dtype="<i2").astype(np.float32) / 32768.0
@@ -332,19 +361,24 @@ async def _run_one(runtime, transcribe, chunks, fmt, on_partial, vad, trace=None
                 action = await acc.feed(samples)
                 if action is None:
                     continue
-                if trace is not None:  # сегмент готов к распознаванию: что накопилось
+                if trace is not None:  # фраза готова к распознаванию: что накопилось
                     trace.event("pseudo_segment", "server", action=action,
                                 speech_frames=acc.speech,
-                                seconds=round(len(acc.buffer) * FRAME / RATE, 2))
-                text = await acc.flush(runtime, transcribe)
+                                seconds=round(len(acc.phrase) * FRAME / RATE, 2))
                 if action == "end":
-                    return {"text": acc.joined()}
-                joined = acc.joined()
+                    text = await acc.final(runtime, transcribe)
+                    return {"text": acc.joined(text)}
+                if action == "partial":
+                    text = await acc.partial(runtime, transcribe)
+                    joined = acc.joined(text)
+                else:  # max: окно фразы заполнено — текст зафиксирован, буфер начался заново
+                    text = await acc.window(runtime, transcribe)
+                    joined = acc.joined()
                 if text and on_partial and joined != last:
                     last = joined
                     await on_partial(joined)
     except asyncio.TimeoutError as exc:
         raise ValueError("Эмуляция потока: распознавание не завершилось за 120 с") from exc
-    # микрофон закрылся раньше паузы END (колонка сама): хвост — в финальный текст
-    await acc.flush(runtime, transcribe)
-    return {"text": acc.joined()}
+    # микрофон закрылся раньше паузы END (колонка сама): вся фраза — в финальный текст
+    text = await acc.final(runtime, transcribe)
+    return {"text": acc.joined(text)}
