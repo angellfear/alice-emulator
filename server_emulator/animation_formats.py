@@ -172,6 +172,27 @@ def build_led_text(frames: list, loop_from: int = -1, name: str = "") -> str:
     return "\n".join(lines) + "\n"
 
 
+# Длина файла кольца в каталоге S3: образец animations/weather/cloudy/cucumber/cloudy_ring.led —
+# 500 кадров по 20 мс, без name/loop.
+RING_S3_MIN_MS = 10000
+
+
+def build_ring_s3_text(frames: list, loop_from: int = -1) -> str:
+    """Кадры → .led каталога кольца в форме файла S3 настоящего сервера: строка — кадр,
+    цвета RRGGBB и задержка, без name/loop; часть с начала цикла повторяется, пока показ
+    не достигнет RING_S3_MIN_MS."""
+    sequence = list(frames)
+    if 0 <= loop_from < len(frames):
+        looped = frames[loop_from:]
+        step = sum(int(f["delayMs"]) for f in looped)
+        while step > 0 and sum(int(f["delayMs"]) for f in sequence) < RING_S3_MIN_MS:
+            sequence.extend(looped)
+    lines = [" ".join(["".join(f"{int(v) & 0xFF:02x}" for v in (list(c) + [0] * 3)[:3])
+                       for c in frame["colors"]] + [str(int(frame["delayMs"]))])
+             for frame in sequence]
+    return "\n".join(lines) + "\n"
+
+
 # --- .scled -----------------------------------------------------------------
 
 def _scled_frame(values: list, delay: int) -> dict:

@@ -1561,11 +1561,12 @@ def mount_ui(app, runtime, prefix="/emulator"):
         tail = request.match_info.get("tail", "")
         platform, project_id = request.match_info["platform"], request.match_info["project_id"]
         try:
-            name, content_type, data = runtime.animation_projects.export(platform, project_id)
-            if tail.rsplit("/", 1)[-1] == "meta.txt":
-                name, content_type = "meta.txt", "text/plain; charset=utf-8"
+            data = runtime.animation_projects.ring_file(platform, project_id)
+            name, content_type = f"{project_id}.led", "text/plain; charset=utf-8"
+            if tail.rsplit("/", 1)[-1] == "meta.txt":  # как в S3: строка ключа без перевода строки
+                name = "meta.txt"
                 data = (f"emulator/api/animations-ring/{platform}/{project_id}/"
-                        f"{platform}/{project_id}_ring.led\n").encode()
+                        f"{platform}/{project_id}_ring.led").encode()
         except ValueError as exc:
             runtime.server_log.log("warning", "animations", f"Файл кольца не отдан: {exc}",
                                    client=request.remote, tail=tail)

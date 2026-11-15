@@ -207,6 +207,15 @@ class AnimationProjectStore:
         return (f"{project_id}.led", "text/plain; charset=utf-8",
                 formats.build_led_text(frames, loop_from, project_id).encode("utf-8"))
 
+    def ring_file(self, platform: str, project_id: str) -> bytes:
+        """Файл кольца для каталога draw_animation_directive (форма файла S3)."""
+        project = self.get(platform, project_id)
+        if project is None:
+            raise ValueError("Проект не найден")
+        if project["kind"] != "ring":
+            raise ValueError("Проект не для кольца")
+        return formats.build_ring_s3_text(project["frames"], project["loop_from"]).encode("utf-8")
+
     @staticmethod
     def _gif_name(platform: str, project_id: str) -> str:
         return f"project.{platform}.{project_id}.gif"

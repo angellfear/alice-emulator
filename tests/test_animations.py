@@ -4,6 +4,7 @@
 import base64
 import gzip
 import io
+import re
 from pathlib import Path
 
 import pytest
@@ -511,7 +512,10 @@ async def test_api_play_project(tmp_path, monkeypatch):
                 keys = (await response.text()).splitlines()
             assert keys == ['emulator/api/animations-ring/yandexmini_2/r/yandexmini_2/r_ring.led']
             async with client.get(url + '/' + keys[0]) as response:
-                assert response.status == 200 and (await response.text()).startswith('name r')
+                assert response.status == 200
+                ring = (await response.text()).splitlines()
+            # форма файла S3: только кадры RRGGBB и задержка, без name/loop
+            assert ring and all(re.fullmatch(r'([0-9a-f]{6} ){6}\d+', line) for line in ring)
             # запрос колонки — в логе сервера: какой хвост запросила прошивка
             await runtime.server_log.flush()
             import sqlite3
@@ -571,3 +575,12 @@ def test_push_wire_forms_for_scled_and_led_screen():
     entry = payload["animation_sequence"].list_value.values[0].struct_value.fields
     assert entry["frontal_led_image"].string_value == "http://h/a.gif"
     assert payload["till_end_of_speech"].bool_value is False
+
+
+def test_ring_s3_text_unrolls_loop():
+    frames = [{"colors": [[255, 0, 0, 7]] * 2, "delayMs": 100},
+              {"colors": [[0, 0, 255, 0]] * 2, "delayMs": 1000}]
+    lines = formats.build_ring_s3_text(frames, loop_from=1).splitlines()
+    assert lines[0] == "ff0000 ff0000 100"
+    assert lines[1:] == ["0000ff 0000ff 1000"] * 10   # цикл до RING_S3_MIN_MS
+    assert formats.build_ring_s3_text(frames).splitlines() == ["ff0000 ff0000 100", "0000ff 0000ff 1000"]
