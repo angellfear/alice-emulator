@@ -285,3 +285,11 @@ async def test_user_reply_scenario_v2(tmp_path):
         assert _response(sent).Response.Cards[0].Text == "Привет! Чем помочь?"
     finally:
         await runtime.close()
+
+
+def test_parse_query_strips_time_words_from_city():
+    from server_emulator.scenarios.informers.weather import _parse_query
+    assert _parse_query("в москве на завтра") == (True, "москва")
+    assert _parse_query("на завтра в москве") == (True, "москва")
+    assert _parse_query("в нижнем новгороде сегодня") == (False, "нижний новгород")
+    assert _parse_query("завтра") == (True, None)

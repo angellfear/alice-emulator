@@ -106,6 +106,9 @@ def _hours(hourly, limit=24):
     return [{name: values[index] for name, values in columns.items()} for index in range(width)][:limit]
 
 
+WHEN = re.compile(r"(?:\bна\s+)?\b(?:завтра|сегодня|сейчас|неделю|выходные)\b")
+
+
 def _parse_query(query):
     """(tomorrow, city) из хвоста фразы: «на завтра», «в Москве». Город — группа после
     предлога «в/во»; нормальная форма — для геокодирования и кеша."""
@@ -113,10 +116,11 @@ def _parse_query(query):
         return False, None
     text = str(query).lower().replace("ё", "е")
     tomorrow = "завтра" in text
+    text = WHEN.sub(" ", text)  # «на завтра», «на неделю» — не часть названия города
     match = re.search(r"(?:^|\s)во?\s+(.+)$", text)
     city = None
     if match:
-        raw = match.group(1).replace("завтра", "").strip(" .?!")
+        raw = " ".join(match.group(1).strip(" .?!").split())
         if raw:
             from server_emulator.scenario_engine import wordforms
             city = " ".join(wordforms.lemma(word) for word in raw.split())
