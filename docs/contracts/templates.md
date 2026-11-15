@@ -27,7 +27,10 @@
   `NAlice.TLayeredDivUICapability.TDivUIShowViewDirective`, `draw_animation_directive` →
   `NAlice.TAnimationCapability.TDrawAnimationDirective`, `divui_hide_view` →
   `NAlice.TLayeredDivUICapability.TDivUIHideViewDirective` (proto payload, схема «centaur»).
-- **Подстановки** `{{имя}}` — значениями при сборке (`Registry.build(id, values)`);
+- **Подстановки** `{{имя}}` — значениями при сборке (`Registry.build(id, values)`), значение
+  экранируется по правилам JSON (кавычки и переводы строк в тексте не ломают тело; подстановка
+  стоит внутри строки JSON, но не внутри строкового `GlobalTemplates.*.StringBody`);
+  `{{имя|url}}` — значение в URL-кодировке (запрос кнопки `dialog://text_command?query=…`);
   неизвестная переменная — ошибка сборки (опечатка не уходит на провод). `<uuid>` —
   свежий request_id (в образце ютуба `log_id` карты == `request_id` webview — один uuid;
   из seeded random — детерминированность эталонов). Переменные собираются из тела
@@ -40,7 +43,9 @@
 удаляет переопределение и возвращает образец. Новый id — пользовательский шаблон,
 «сбросить» удаляет его целиком. Встроенные: `youtube` (запуск ютуба), `clock_refusal`
 (карта отказа «открой часы»), `player_pause_animation` (анимация паузы плеера),
-`weather` (карточка погоды weather_day).
+`weather` (карточка погоды weather_day), `skill_card` (экран навыка Диалогов: картинка,
+текст, иконка и название навыка, две кнопки-подсказки — `{{image_url}}`, `{{text}}`,
+`{{skill_icon}}`, `{{skill_name}}`, `{{suggest_1}}`, `{{suggest_2}}`).
 
 Применение: `app_directives.youtube_launch_directive()`/`not_here_directive()` и
 `media_directives.draw_player_pause()` собирают директивы через реестр — правка шаблона

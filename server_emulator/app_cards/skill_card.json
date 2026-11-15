@@ -1,0 +1,381 @@
+{
+ "title": "Навык Диалогов (карта skill_card)",
+ "proves": "Ответ настоящего сервера внутри навыка Диалогов (.85 «Прозрачно», запись 2026-11-15 15:46:34, обмен 368129, запуск навыка-викторины): divui_show_view (AnalyticsType show_view, TDivUIShowViewDirective, CardName DialogovoSkillCardData, Id dialogovo_skill/skill_card_key_static_key, InactivityTimeout Infinity, TerminateActions — divui_hide_view карты и io_service_stop_conversation) + simple_text-карточка и tts_play_placeholder. Карта skill_card: глобальные шаблоны close_button_wrapper и answer_suggest; картинка ответа, текст, шапка с иконкой и названием навыка, галерея кнопок-подсказок (dialog://text_command?query=…), голосовая прокрутка (centaur://scroll_command), кнопка закрытия. Данные ответа — подстановки {{…}}, остальное — константы образца.",
+ "name": "divui_show_view",
+ "analytics_type": "show_view",
+ "directive": {
+  "Name": "show_view",
+  "Div2Card": {
+   "GlobalTemplates": {
+    "answer_suggest_global_template": {
+     "StringBody": "{\"answer_suggest_global_template\":{\"type\":\"text\",\"background\":[{\"type\":\"solid\",\"$color\":\"answer_suggest_backgroundColor\"}],\"border\":{\"corner_radius\":1000},\"font_size\":36,\"height\":{\"type\":\"wrap_content\"},\"line_height\":42,\"paddings\":{\"top\":23,\"left\":32,\"bottom\":23,\"right\":32},\"width\":{\"type\":\"wrap_content\"},\"$actions\":\"answer_suggest_actions\",\"$text\":\"answer_suggest_text\",\"$text_color\":\"answer_suggest_textColor\"}}"
+    },
+    "close_button_wrapper_global_template": {
+     "StringBody": "{\"close_button_wrapper_global_template\":{\"type\":\"container\",\"height\":{\"type\":\"match_parent\",\"weight\":1},\"items\":[{\"type\":\"container\",\"height\":{\"type\":\"match_parent\"},\"width\":{\"type\":\"match_parent\"},\"$items\":\"close_button_wrapper_items\"},{\"type\":\"container\",\"alignment_horizontal\":\"right\",\"alignment_vertical\":\"top\",\"items\":[{\"type\":\"container\",\"alignment_horizontal\":\"right\",\"border\":{\"corner_radius\":100},\"height\":{\"type\":\"fixed\",\"value\":72},\"items\":[{\"type\":\"image\",\"appearance_animation\":{\"type\":\"fade\",\"duration\":300,\"interpolator\":\"ease_in_out\"},\"height\":{\"type\":\"match_parent\"},\"high_priority_preview_show\":true,\"image_url\":\"\",\"preview\":\"iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAMAAADVRocKAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAClUExURQAAAOXs+Obv+ubu+ebt+eTv+OXu+eXu+ufu+ebu+uXt+ufv+ubt9+bv+Obu+OXt+Ofu+OXu+OXv++Xt+ebv+eTs+OXs9+Xt9+Ts9+fv+eTt+Ojv+ebu9+Xu++bu+ebu+eXu+Obu+ebu+ebu+ebu+ebu+ebu+ebu+ebu+ebu+ebu+eXt+eXu+Obu+Obu+ebu+ebu+Obt+Obu+OXt+OXu+ebu+f///5p967YAAAA1dFJOUwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUZBTin2Teo3Ube36YFGRlF5UVGBQUFCeFZ0wAAAAFiS0dENke/iNEAAAAJcEhZcwAACxMAAAsTAQCanBgAAAAHdElNRQfnCxsLBgfzNr3RAAAB+klEQVRo3u2Y21LCQBBEkQExrLAiN0EFN3dAQcX8/6+ZBC2TkGQm7lTpw/bzcA4VqFRXt1omJiYmJiYm/zgXbYAOQJdy2+1cAkDvqgnfsmC1Xq+g18dvhYCn9LZH519bA2U7ju0O+6hBCKk8x/HUTW9EFtyC8qM4fgCYIf7+QZjeKrDIAlh5UZoNZkj4m9PtdndJFoyenYhkyPAjZw1kwfDlW1BvyPIbCcY7LyIYcvzIXtEFE1AhbsjzfRcEWTCdicxHKwx5/mYv5ndkQUvO2pihwA+suaTzCQZNPmrQ5iMGBn6tgYVfY2DiVxrY+BUGRn6pgZVfZuDllxiY+ecGbn7RcDhw84sGfn6FgZFfamDllxiY+SfDz88bHfbM/PT9kBXgjaw5v/CIWA1nfGZDCZ/VUMpnNOT5uVcFi6Hw/n99QxuZFj+ACd75dPjWHO98enxJaJVafFJv1eIzGir7A5Ohpp+wGGr7D4MB6VfaBrS/aRoI/VDL0BUS71dFw6A/JQs64PoYv2gIFSzIguG7jfOLBu/4m62ivp/kDE2mhOwYUttPsoYmAviwSfycoclWAV+DVIj3t8RwGq8UjOmPaHmfTGqeEnh/iw1ufLtVC0n/F7XkMhkFj0Dph3J2GgVloy758AgAEkj7yRSG8THQJ0ETExMTExOTP8gnSj786B/T6zMAAAAldEVYdGRhdGU6Y3JlYXRlADIwMjMtMTEtMjdUMTE6MDU6MDQrMDA6MDD8W8+6AAAAJXRFWHRkYXRlOm1vZGlmeQAyMDIzLTExLTI3VDExOjA1OjA0KzAwOjAwjQZ3BgAAACh0RVh0ZGF0ZTp0aW1lc3RhbXAAMjAyMy0xMS0yN1QxMTowNjowNyswMDowMADM90cAAAAASUVORK5CYII=\",\"width\":{\"type\":\"match_parent\"},\"$tint_color\":\"close_button_wrapper_closeButtonProps_tint_color\"}],\"margins\":{\"top\":36,\"right\":36},\"paddings\":{\"top\":12,\"right\":12,\"left\":12,\"bottom\":12},\"width\":{\"type\":\"fixed\",\"value\":72},\"$actions\":\"close_button_wrapper_closeButtonProps_actions\",\"$alpha\":\"close_button_wrapper_closeButtonProps_alpha\",\"$background\":\"close_button_wrapper_closeButtonProps_background\",\"$visibility_actions\":\"close_button_wrapper_closeButtonProps_visibility_actions\"}]},{\"type\":\"container\",\"alignment_horizontal\":\"left\",\"alignment_vertical\":\"bottom\",\"width\":{\"type\":\"match_parent\",\"weight\":1},\"$items\":\"close_button_wrapper_suggests\"}],\"orientation\":\"overlap\",\"width\":{\"type\":\"match_parent\",\"weight\":1}}}"
+    }
+   },
+   "CardName": "DialogovoSkillCardData",
+   "StringBody": {
+    "templates": {},
+    "card": {
+     "log_id": "skill_card",
+     "states": [
+      {
+       "state_id": 0,
+       "div": {
+        "type": "container",
+        "extensions": [
+         {
+          "id": "alice_voice_control",
+          "params": {
+           "voice_controls_raw": [
+            "CgISABKeAQoD4hAAIpYBCmwKOnR5cGUuZ29vZ2xlYXBpcy5jb20vTkFsaWNlLlRDZW50YXVyR29CYWNrd2FyZFR5cGVkQ2FsbGJhY2sSLgosCg9kaWFsb2dvdm9fc2tpbGwSGXNraWxsX2NhcmRfa2V5X3N0YXRpY19rZXkSHAoIY29tbWFuZHMQAhoMZ29fYmFja3dhcmRzIgAiCAgAEAEYACAB"
+           ]
+          }
+         }
+        ],
+        "height": {
+         "type": "match_parent"
+        },
+        "items": [
+         {
+          "type": "close_button_wrapper_global_template",
+          "close_button_wrapper_closeButtonProps_actions": [
+           {
+            "log_id": "dialogovo_skill_close_button_element_click",
+            "payload": {
+             "data": {},
+             "meta": {
+              "instanceId": "instanceId",
+              "cardId": "skill_card_key_static_key",
+              "cardName": "dialogovo_skill",
+              "elementName": "close_button"
+             }
+            }
+           },
+           {
+            "log_id": "close_fullscreen",
+            "url": "centaur://local_command?local_commands=%5B%22execute_terminate_actions%22%5D&id=%7B%22cardId%22%3A+%22skill_card_key_static_key%22%2C+%22cardName%22%3A+%22dialogovo_skill%22%7D"
+           }
+          ],
+          "close_button_wrapper_closeButtonProps_visibility_actions": [
+           {
+            "log_id": "dialogovo_skill_close_button_element_show",
+            "payload": {
+             "data": {},
+             "meta": {
+              "instanceId": "instanceId",
+              "cardId": "skill_card_key_static_key",
+              "cardName": "dialogovo_skill",
+              "elementName": "close_button"
+             }
+            }
+           }
+          ],
+          "close_button_wrapper_closeButtonProps_background": [
+           {
+            "type": "solid",
+            "color": "#0b0f14"
+           }
+          ],
+          "close_button_wrapper_closeButtonProps_tint_color": "#80e6eef9",
+          "close_button_wrapper_items": [
+           {
+            "type": "container",
+            "background": [
+             {
+              "type": "solid",
+              "color": "#0b0f14"
+             }
+            ],
+            "extensions": [
+             {
+              "id": "alice_voice_control",
+              "params": {
+               "voice_controls_raw": [
+                "CgISABJNCgPyDAASRgoDqgYAEjUKCWRpYWxvZ292bxACGiRhbGljZS5leHRlcm5hbF9za2lsbF9zZXNzaW9uX3JlcXVlc3QiACoICAAQABgAIAE="
+               ]
+              }
+             }
+            ],
+            "height": {
+             "type": "match_parent"
+            },
+            "items": [
+             {
+              "type": "gallery",
+              "height": {
+               "type": "match_parent",
+               "weight": 1
+              },
+              "items": [
+               {
+                "type": "image",
+                "appearance_animation": {
+                 "type": "fade",
+                 "duration": 300,
+                 "interpolator": "ease_in_out"
+                },
+                "border": {
+                 "corner_radius": 28
+                },
+                "image_url": "{{image_url}}",
+                "margins": {
+                 "bottom": 32,
+                 "left": 48,
+                 "right": 48
+                },
+                "width": {
+                 "type": "fixed",
+                 "value": 554
+                }
+               },
+               {
+                "type": "text",
+                "font_size": 44,
+                "line_height": 55,
+                "margins": {
+                 "left": 48,
+                 "right": 48
+                },
+                "text": "{{text}}",
+                "text_color": "#e6eef9"
+               },
+               {
+                "type": "gallery",
+                "item_spacing": 24,
+                "items": [],
+                "margins": {
+                 "top": 48
+                },
+                "orientation": "horizontal",
+                "paddings": {
+                 "left": 48,
+                 "right": 48
+                }
+               }
+              ],
+              "orientation": "vertical",
+              "paddings": {
+               "top": 184,
+               "bottom": 168
+              }
+             },
+             {
+              "type": "container",
+              "alignment_horizontal": "left",
+              "alignment_vertical": "top",
+              "background": [
+               {
+                "type": "gradient",
+                "angle": 270,
+                "colors": [
+                 "#0b0f14",
+                 "#990b0f14",
+                 "#000b0f14"
+                ]
+               }
+              ],
+              "content_alignment_vertical": "center",
+              "items": [
+               {
+                "type": "image",
+                "appearance_animation": {
+                 "type": "fade",
+                 "duration": 300,
+                 "interpolator": "ease_in_out"
+                },
+                "border": {
+                 "corner_radius": 44
+                },
+                "height": {
+                 "type": "fixed",
+                 "value": 88
+                },
+                "image_url": "{{skill_icon}}",
+                "margins": {
+                 "right": 32
+                },
+                "width": {
+                 "type": "fixed",
+                 "value": 88
+                }
+               },
+               {
+                "type": "text",
+                "font_size": 40,
+                "line_height": 48,
+                "text": "{{skill_name}}",
+                "text_color": "#e6eef9"
+               }
+              ],
+              "orientation": "horizontal",
+              "paddings": {
+               "left": 48,
+               "bottom": 48,
+               "top": 48,
+               "right": 168
+              }
+             },
+             {
+              "type": "container",
+              "alignment_vertical": "bottom",
+              "background": [
+               {
+                "type": "gradient",
+                "angle": 90,
+                "colors": [
+                 "#990b0f14",
+                 "#000b0f14"
+                ]
+               }
+              ],
+              "content_alignment_horizontal": "left",
+              "height": {
+               "type": "wrap_content"
+              },
+              "items": [
+               {
+                "type": "gallery",
+                "disappear_actions": [
+                 {
+                  "log_id": "unreg_voice_scroll_for_alice_answer_suggests_gallery_0",
+                  "url": "centaur://scroll_command?local_commands=%5B%22unreg_scroll%22%5D&card_id=skill_card_key_static_key&card_name=dialogovo_skill&id=alice_answer_suggests_gallery",
+                  "log_limit": 0,
+                  "visibility_percentage": 20,
+                  "disappear_duration": 0
+                 }
+                ],
+                "height": {
+                 "type": "wrap_content"
+                },
+                "id": "alice_answer_suggests_gallery",
+                "item_spacing": 16,
+                "items": [
+                 {
+                  "type": "answer_suggest_global_template",
+                  "answer_suggest_text": "{{suggest_1}}",
+                  "answer_suggest_actions": [
+                   {
+                    "log_id": "stop_conversation",
+                    "url": "centaur://local_command?local_commands=%5B%22io_service_stop_conversation%22%5D"
+                   },
+                   {
+                    "log_id": "external_skill_button_text",
+                    "url": "dialog://text_command?query={{suggest_1|url}}&enable_nlg=false"
+                   }
+                  ],
+                  "answer_suggest_backgroundColor": "#1b2129",
+                  "answer_suggest_textColor": "#e6eef9"
+                 },
+                 {
+                  "type": "answer_suggest_global_template",
+                  "answer_suggest_text": "{{suggest_2}}",
+                  "answer_suggest_actions": [
+                   {
+                    "log_id": "stop_conversation",
+                    "url": "centaur://local_command?local_commands=%5B%22io_service_stop_conversation%22%5D"
+                   },
+                   {
+                    "log_id": "external_skill_button_text",
+                    "url": "dialog://text_command?query={{suggest_2|url}}&enable_nlg=false"
+                   }
+                  ],
+                  "answer_suggest_backgroundColor": "#1b2129",
+                  "answer_suggest_textColor": "#e6eef9"
+                 }
+                ],
+                "orientation": "horizontal",
+                "paddings": {
+                 "top": 48,
+                 "right": 48,
+                 "bottom": 48,
+                 "left": 48
+                },
+                "visibility_actions": [
+                 {
+                  "log_id": "reg_voice_scroll_for_alice_answer_suggests_gallery_0",
+                  "url": "centaur://scroll_command?local_commands=%5B%22reg_scroll%22%5D&card_id=skill_card_key_static_key&card_name=dialogovo_skill&id=alice_answer_suggests_gallery&orientation=horizontal&weight=0&scroll_to_next=div-action%3A%2F%2Fset_next_item%3Fid%3Dalice_answer_suggests_gallery%26overflow%3Dclamp&scroll_to_prev=div-action%3A%2F%2Fset_previous_item%3Fid%3Dalice_answer_suggests_gallery%26overflow%3Dclamp&scroll_to_start=div-action%3A%2F%2Fset_current_item%3Fid%3Dalice_answer_suggests_gallery%26item%3D0",
+                  "log_limit": 0,
+                  "visibility_duration": 0,
+                  "visibility_percentage": 80
+                 }
+                ],
+                "width": {
+                 "type": "wrap_content",
+                 "constrained": 1
+                }
+               }
+              ],
+              "width": {
+               "type": "match_parent"
+              }
+             }
+            ],
+            "orientation": "overlap",
+            "width": {
+             "type": "match_parent"
+            }
+           }
+          ],
+          "close_button_wrapper_suggests": [
+           {
+            "type": "separator",
+            "delimiter_style": {
+             "color": "#0fff"
+            }
+           }
+          ]
+         },
+         {
+          "type": "separator",
+          "alignment_horizontal": "left",
+          "alignment_vertical": "top",
+          "delimiter_style": {
+           "color": "#0fff"
+          },
+          "height": {
+           "type": "fixed",
+           "value": 1
+          },
+          "id": "block_for_on_load_actions",
+          "width": {
+           "type": "fixed",
+           "value": 1
+          }
+         }
+        ],
+        "orientation": "overlap",
+        "visibility_actions": [
+         {
+          "log_id": "skill_card_key_static_key_page_show",
+          "payload": {
+           "meta": {
+            "cardName": "dialogovo_skill",
+            "cardId": "skill_card_key_static_key"
+           }
+          },
+          "visibility_duration": 0,
+          "visibility_percentage": 80
+         }
+        ],
+        "width": {
+         "type": "match_parent"
+        }
+       }
+      }
+     ]
+    }
+   },
+   "Id": {
+    "CardName": "dialogovo_skill",
+    "CardId": "skill_card_key_static_key"
+   }
+  },
+  "InactivityTimeout": "Infinity",
+  "TerminateActions": [
+   "dialog://?directives=%5B%7B%22type%22%3A%22client_action%22%2C%22name%22%3A%22divui_hide_view%22%2C%22payload%22%3A%7B%22Identifier%22%3A%7B%22CardId%22%3A%22skill_card_key_static_key%22%2C%22CardName%22%3A%22dialogovo_skill%22%7D%7D%7D%5D",
+   "centaur://local_command?local_commands=%5B%22io_service_stop_conversation%22%5D"
+  ]
+ }
+}

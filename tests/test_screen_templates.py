@@ -191,3 +191,28 @@ def test_runtime_configures_registry(tmp_path):
     runtime = Runtime(tmp_path)
     assert screen_templates.registry().state_dir == tmp_path / "screen_templates"
     assert screen_templates.registry().cards_dir == screen_templates.CARDS_DIR
+
+
+def test_build_escapes_values_and_url_filter(registry):
+    """Значение — внутри строки JSON: кавычки и переводы строк не ломают тело;
+    {{имя|url}} — URL-кодировка (запрос кнопки dialog://text_command)."""
+    body = {"Name": "draw_animation_directive",
+            "Animations": [{"S3Directory": {"Bucket": "https://x/?q={{q|url}}", "Path": "{{q}}"}}]}
+    registry.save("escaped", body)
+    assert registry.read("escaped")["variables"] == ["q"]
+    directory = registry.build("escaped", {"q": 'а "б"\nв'})["fields"]["Animations"][0]["S3Directory"]
+    assert directory["Path"] == 'а "б"\nв'
+    assert directory["Bucket"] == "https://x/?q=%D0%B0%20%22%D0%B1%22%0A%D0%B2"
+
+
+def test_skill_card_template(registry):
+    """Карта навыка Диалогов: данные ответа — подстановки, кнопка шлёт текст подсказки."""
+    entry = registry.read("skill_card")
+    assert entry["analytics_type"] == "show_view"
+    assert entry["variables"] == ["image_url", "skill_icon", "skill_name", "suggest_1", "suggest_2", "text"]
+    values = {"image_url": "https://example.invalid/i.png", "skill_icon": "https://example.invalid/s.png",
+              "skill_name": "Навык", "text": "Ответ навыка", "suggest_1": "Начать игру", "suggest_2": "Правила"}
+    card = registry.build("skill_card", values)["fields"]["Div2Card"]
+    assert card["Id"] == {"CardName": "dialogovo_skill", "CardId": "skill_card_key_static_key"}
+    assert "query=%D0%9D%D0%B0%D1%87%D0%B0%D1%82%D1%8C%20%D0%B8%D0%B3%D1%80%D1%83&" in card["StringBody"]
+    assert "{{" not in card["StringBody"]
