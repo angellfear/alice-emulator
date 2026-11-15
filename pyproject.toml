@@ -18,6 +18,7 @@ dependencies = [
   "PyOgg==0.6.14a1",
   "langchain>=1.4,<2",
   "litellm>=1.109.0,!=1.82.7,!=1.82.8,<2",
+  "claude-agent-sdk>=0.2.180,<0.3",
   "langgraph>=1.2,<2",
   "aiosqlite>=0.20,<1",
   "langgraph-checkpoint-sqlite>=3.1,<4",

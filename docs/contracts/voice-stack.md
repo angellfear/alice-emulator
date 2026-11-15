@@ -102,6 +102,18 @@ async def unbake_voice(runtime, config, voice_id) -> None                      #
 сервера; без файла входа адаптер отвечает ошибкой с этой командой. Температуру модели с
 размышлением не принимают — адаптер её не передаёт.
 
+`claude.py` — Claude Pro/Max через Claude Agent SDK (готового провайдера подписки у LiteLLM
+нет; SDK — официальный путь Anthropic, ходит через Claude Code). Конвейеру нужен один шаг модели,
+SDK же ведёт свой цикл агента: инструменты запроса становятся инструментами SDK-сервера MCP
+`alice` (свои инструменты Claude Code выключены, `tools=[]`), хук PreToolUse отвечает `defer` —
+прогон останавливается, вызов приходит в `ResultMessage.deferred_tool_use` и уходит конвейеру как
+`tool_calls`. История передаётся одной репликой-стенограммой (реплики, вызовы и результаты
+инструментов), системные сообщения и `tool_choice` — системным промптом. Вход — токен
+`claude setup-token` в поле пресета (`CLAUDE_CODE_OAUTH_TOKEN`), пусто — вход установленного
+Claude Code. Настройки, CLAUDE.md и сессии пользователя не читаются и не пишутся
+(`setting_sources=[]`, `--no-session-persistence`), рабочая папка — `state/voice_stack/claude`.
+Каждый запрос запускает процесс Claude Code — ответ на секунды дольше, чем через API.
+
 **Пример кастомного LLM адаптера** (`server_emulator/state/voice_stack/adapters/myllm.py`):
 ```python
 TITLE = "My LLM"
@@ -241,6 +253,7 @@ async def complete(runtime, config, payload):
 | `openai` | llm / asr / tts | любой сервер с OpenAI API; в «Заполнить как» — OpenAI (Online), Groq (Online Free), DeepSeek (Online), OpenRouter (Online Free / Online), Gemini OpenAI-совместимый (Online Free), Ollama, vLLM, speaches | URL*, API-ключ, модель*, у asr — язык, у tts — голос* | температура, уровень рассуждений (llm), формат аудио (tts) | `preset` (tts) |
 | `anthropic` | llm | (Online) | API-ключ*, модель | температура, макс. токенов, URL | — |
 | `chatgpt` | llm | ChatGPT по подписке (Online) | модель (GPT-6 Luna / GPT-5.6 Luna) | глубина размышления | — |
+| `claude` | llm | Claude по подписке (Online) | токен входа (`claude setup-token`), модель | глубина размышления | — |
 | `stream` | asr | — | URL, модель, язык | нормализация громкости (`normalize`, по умолчанию включена: `audio_gain.AutoGain` поднимает тихий микрофон колонки до ровного уровня перед ASR — усиление следует за пиковой огибающей, потолок +50 dB, тишина не раздувается) | — |
 | `stub` | llm | — | текст ответа | — | — |
 | `google` | llm | Gemini (Online Free) | API-ключ*, модель | температура, уровень рассуждений, URL | — |
