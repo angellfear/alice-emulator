@@ -94,6 +94,14 @@ async def unbake_voice(runtime, config, voice_id) -> None                      #
 через общий `aiohttp`-клиент `runtime.lifecycle`; у LLM-адаптеров клиенты собственные у litellm
 (официальные SDK под ним). Диапазон версий и исключения — в `pyproject.toml`.
 
+**Модели по подписке** (без API-ключа, лимиты подписки): `chatgpt.py` — провайдер LiteLLM
+`chatgpt` (бэкенд Codex CLI, ответы с инструментами). Вход — один раз в терминале:
+`python -m server_emulator.voice_stack.login chatgpt [--state <папка>]` — вход по коду устройства
+делает LiteLLM (ссылка и код в терминале), файл входа — `state/voice_stack/chatgpt/auth.json`,
+токен обновляется сам. Код устройства требует человека, поэтому вход — отдельной командой, не из
+сервера; без файла входа адаптер отвечает ошибкой с этой командой. Температуру модели с
+размышлением не принимают — адаптер её не передаёт.
+
 **Пример кастомного LLM адаптера** (`server_emulator/state/voice_stack/adapters/myllm.py`):
 ```python
 TITLE = "My LLM"
@@ -232,6 +240,7 @@ async def complete(runtime, config, payload):
 |---|---|---|---|---|---|
 | `openai` | llm / asr / tts | любой сервер с OpenAI API; в «Заполнить как» — OpenAI (Online), Groq (Online Free), DeepSeek (Online), OpenRouter (Online Free / Online), Gemini OpenAI-совместимый (Online Free), Ollama, vLLM, speaches | URL*, API-ключ, модель*, у asr — язык, у tts — голос* | температура, уровень рассуждений (llm), формат аудио (tts) | `preset` (tts) |
 | `anthropic` | llm | (Online) | API-ключ*, модель | температура, макс. токенов, URL | — |
+| `chatgpt` | llm | ChatGPT по подписке (Online) | модель (GPT-6 Luna / GPT-5.6 Luna) | глубина размышления | — |
 | `stream` | asr | — | URL, модель, язык | нормализация громкости (`normalize`, по умолчанию включена: `audio_gain.AutoGain` поднимает тихий микрофон колонки до ровного уровня перед ASR — усиление следует за пиковой огибающей, потолок +50 dB, тишина не раздувается) | — |
 | `stub` | llm | — | текст ответа | — | — |
 | `google` | llm | Gemini (Online Free) | API-ключ*, модель | температура, уровень рассуждений, URL | — |
