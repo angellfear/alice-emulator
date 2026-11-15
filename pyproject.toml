@@ -64,7 +64,7 @@ server_emulator = ["ui/*", "schemas/*.pb", "requirements.txt", "voice_stack/pack
   "plugins/*/ha_common.py", "plugins/*/mcp/*.json", "plugins/*/scenarios/**/*.json",
   "plugins/*/scenarios/**/*.py", "plugins/*/voice/adapters/*.py", "plugins/*/voice/presets/*.json",
   "quasar_defaults/*.json", "quasar_defaults/platforms/*.json", "quasar_defaults/README.md",
-  "oauth_static/*.json"]
+  "oauth_static/*.json", "upper_shutter.json"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

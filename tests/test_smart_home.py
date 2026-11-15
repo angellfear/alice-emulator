@@ -378,6 +378,33 @@ async def test_extension_devices_action_updates_state_and_pushes(tmp_path):
         aapi_handlers.drop_builtin(smart_home.IOT_HANDLER_NAME)
 
 
+async def test_shutter_tile_frame_turns_off(tmp_path):
+    """Кнопка плитки шторки: request_value внутри request, instance всегда «on», значение —
+    capability_value.bool_value (образец карточки set_upper_shutter)."""
+    runtime, calls = await make_ext_runtime(tmp_path)
+    try:
+        await dispatch_iot(runtime, iot_incoming(["lights:light-1"], "on"))
+        client = _type(CLIENT)()
+        client.Event.Header.MessageId = "msg-3"
+        client.Event.TextInput.Header.RequestId = "req-3"
+        event = client.Event.TextInput.Request.Event
+        event.Type = "server_action"
+        event.Name = "@@mm_semantic_frame"
+        json_format.ParseDict({"typed_semantic_frame": {"iot_device_action_semantic_frame": {
+            "request": {"request_value": {
+                "intent_parameters": {"capability_instance": "on",
+                                      "capability_value": {"bool_value": False},
+                                      "capability_type": "devices.capabilities.on_off"},
+                "device_ids": ["lights:light-1"]}}}}}, event.Payload)
+        handled, sent = await dispatch_iot(runtime, client)
+        assert handled and len(sent) == 6
+        last = json.loads(calls.read_text(encoding="utf-8").splitlines()[-1])
+        assert last["id"] == "lights:light-1" and last["action"]["value"] is False
+    finally:
+        await runtime.close()
+        aapi_handlers.drop_builtin(smart_home.IOT_HANDLER_NAME)
+
+
 async def test_action_foreign_frame_returns_false(tmp_path):
     runtime, _calls = await make_ext_runtime(tmp_path)
     try:

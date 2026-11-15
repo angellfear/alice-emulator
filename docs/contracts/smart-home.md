@@ -41,7 +41,7 @@ module: "server_emulator/smart_home.py"
 | Директива | Тип PayloadRaw | Когда |
 |---|---|---|
 | `set_iot_user_info` | `NAlice.TLocalIoTCapability.TSetIoTUserInfoDirective`: `IoTClientUserInfo` — `Rooms{Id, Name, HouseholdId}`, `Households`, `Devices{Id, Name, Type, ExternalId, RoomId, HouseholdId, StatusInfo{Status: Online/OfflineDeviceState, …}, Endpoint{Id, Status{Status: Online/Offline, UpdatedAt}, AnyCapabilities}}` + устройство-колонки (`ExternalId`/`Endpoint.Id` — `<серийник>.<платформа>`, `Type` — enum платформы, `SkillId: Q`, дом общий с устройствами, Endpoint без умений — форма настоящего кадра 2026-11-14; лаунчер колонки берёт для виджетов умного дома дом, где есть её устройство) | изменение реестра — колонкам, объявившим `LocalIoT` (см. [capabilities.md](capabilities.md): адресаты — по объявлению колонки; `LocalIoT` появился в объявлении — пуш сразу, без изменения реестра; пустой список тоже уходит — карточки снимаются); новой колонке — сразу после опознания, если реестр не пуст и она объявила `LocalIoT`. Идентичная перезапись устройства/комнат списка не пушит: снимок подписки расширения не даёт пачки одинаковых кадров (настоящий сервер шлёт список только по реальному изменению, ~десятки раз за сутки, а не на каждый тик датчика) |
-| `set_div_variables` | `NAlice.TDivViewCapability.TSetDivVariablesDirective`: переменная `device_<id, «-» и «:»→«_»>_<capability>_state` (`LongValue` 0/1, `VariableType: Local`) | после действия колонки — по каждой изменившейся возможности |
+| `set_div_variables` | `NAlice.TDivViewCapability.TSetDivVariablesDirective`: переменная `device_<id, всё кроме букв, цифр и «_» → «_»>_<capability>_state` (`LongValue` 0/1, `VariableType: Local`) | после действия колонки — по каждой изменившейся возможности |
 | `sync_iot_user_info` | `NAlice.TLocalIoTCapability.TSyncIoTUserInfoDirective` — только `Name` | после каждого действия колонки — сигнал виджетам перечитать |
 | `set_iot_account_settings` | `NAlice.TLocalIoTCapability.TSetIoTAccountSettingsDirective`: `Name` + пустое `IoTAccountSettings` (настроек в директиве нет) | после действия колонки, третьим пушем (запись 2026-11-12) |
 
@@ -76,8 +76,31 @@ State{Percentage}}`. Держатель без `CapabilityType` даёт все�
 `BrightnessInstance`/`CoverInstance`/…, Unit и диапазон — из той же таблицы); громкость
 плеера в enum станции не входит — умение идёт без инстанса. Неизвестный тип умения
 идёт `CapabilityType`'ом (без байтов).
-Переменная div строится по образцу `device_<id>_<capability>_state` (образцов с «:» в id нет;
-префикс origin в имени тоже становится «_»).
+Переменная div строится по образцу `device_<id>_<capability>_state` (в образце uuid с «_»
+вместо «-»; «:» префикса origin и «.» сущности тоже становятся «_») — то же имя у плиток шторки.
+
+## Шторка
+
+Блок умного дома в верхней шторке рисует сервер, а не лаунчер по своей базе. Колонка шлёт
+`TextInput` с событием `@@mm_typed_callback` (`Payload.analytics.purpose:
+collect_upper_shutter`); ответ — `InputStartAck` и `AliceResponse` с одной директивой
+`client_action` `set_upper_shutter`, `IsLedSilent`, `Payload.div2_card`: `string_body` —
+div2 JSON, `id {card_id: upper_shutter_key_static_key, card_name: upper_shutter}`,
+`card_name: CentaurUpperShutterData` (форма настоящего ответа в журнале).
+
+Карточка (`server_emulator/upper_shutter.py`) собирается из обезличенного шаблона
+`upper_shutter.json`, снятого с настоящей карточки: каркас (переменные фильтров
+`iot_filter_<Sensors|Climate|Speakers|Vacuum|Light|TV|Scenarios>`, триггеры
+`upper_shutter_all_filters_is_off`/`isVertical`), чип фильтра, плитки вкл/выкл в сети
+(иконка с вариантом `-on`, переключатель — `set_variable` и фрейм
+`iot_device_action_semantic_frame` с id реестра) и не в сети, «Показать все». Чипы — только
+категорий, что есть среди плиток; плитки — по комнатам (по имени), без комнаты — в конце,
+у них подписи комнаты нет. В шторку идут устройства с `on_off`: лампы (`Light`), телевизоры
+(`TV`), вентилятор — без фильтра (виден, когда фильтры сняты); реле и медиаплееры, как в
+образце, не показываются. Ссылки `dialog://` кодируются как в образце: компактный JSON,
+`quote` без безопасных символов. Колбэк принимает тот же обработчик `iot_device_action`, что
+и действия (регистрируется с первым обработчиком действий); устройств шторки нет — обычный
+путь (тихая заглушка служебных колбэков).
 
 ## Действие с колонки
 

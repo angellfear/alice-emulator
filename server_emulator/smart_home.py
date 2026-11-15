@@ -30,7 +30,7 @@ import time
 import uuid
 from pathlib import Path
 
-from . import aapi_handlers
+from . import aapi_handlers, upper_shutter
 from .scenario_engine.proto_build import build, encode
 
 log = logging.getLogger(__name__)
@@ -75,10 +75,26 @@ def _device_ids(frame_body):
             if item.WhichOneof('kind') == 'string_value']
 
 
+def _intent(frame_body):
+    """intent_parameters фрейма: рядом с request_value (голос, карточка ответа) или внутри
+    него (плитка шторки)."""
+    return (_struct_member(frame_body, 'intent_parameters')
+            or _struct_member(_struct_member(frame_body, 'request_value'), 'intent_parameters'))
+
+
 def _capability_instance(frame_body):
     """capability_instance из intent_parameters («on»/«off»/…)."""
-    intent = _struct_member(frame_body, 'intent_parameters')
-    return _string_member(intent, 'capability_instance')
+    return _string_member(_intent(frame_body), 'capability_instance')
+
+
+def _capability_value(frame_body, instance):
+    """Значение вкл/выкл: capability_value.bool_value (кнопка плитки шторки: instance
+    всегда «on», значение — здесь), иначе по instance («off» — выкл). None — не задано."""
+    value = _struct_member(_intent(frame_body), 'capability_value')
+    flag = value.fields.get('bool_value') if value is not None else None
+    if flag is not None and flag.WhichOneof('kind') == 'bool_value':
+        return flag.bool_value
+    return instance.lower() != 'off' if instance else None
 
 
 IOT_HANDLER_NAME = 'iot_device_action'
@@ -96,6 +112,8 @@ async def _on_iot_device_action(conversation, incoming, trigger):
     registry = getattr(runtime, 'smart_home', None)
     if registry is None or not registry.has_actions():
         return False
+    if upper_shutter.is_request(incoming):  # колбэк шторки — карточка по реестру
+        return await upper_shutter.on_text_input(conversation, incoming, trigger)
     request = incoming.Event.TextInput.Request
     event_obj = request.Event
     frame = _struct_member(event_obj.Payload, 'typed_semantic_frame')
@@ -103,8 +121,12 @@ async def _on_iot_device_action(conversation, incoming, trigger):
         return False
     body = next(iter(frame.fields.values()), None)
     body = body.struct_value if body is not None and body.WhichOneof('kind') == 'struct_value' else None
+    # плитка шторки кладёт request_value в request (образец карточки set_upper_shutter),
+    # голос и карточка ответа — прямо во фрейм
+    body = _struct_member(body, 'request') or body
     device_ids = _device_ids(body)
     instance = _capability_instance(body)
+    value = _capability_value(body, instance)
     device_sn = conversation.trace_context.get('sn') or ''
     await conversation.message(conversation.event(incoming, 'InputStartAck'))
     # ответ колонке: пустой голос + одна tts_play_placeholder (запись 2026-11-12)
@@ -125,7 +147,7 @@ async def _on_iot_device_action(conversation, incoming, trigger):
     changed = {}
     for device_id in device_ids:
         action = {'instance': instance, 'capability': 'on_off',
-                  'value': instance.lower() != 'off' if instance else None}
+                  'value': value}
         try:
             # notify=False: список колонке уходит ниже, в порядке образца,
             # а не слушателем реестра
@@ -322,8 +344,9 @@ class SmartHomeRegistry:
         self._callbacks[str(origin)] = callback
         aapi_handlers.ensure_builtin(
             'TextInput', _on_iot_device_action, name=IOT_HANDLER_NAME,
-            description='Действие умного дома с колонки (кнопка карточки, голос): '
-                        'фрейм iot_device_action_semantic_frame → плагину-владельцу')
+            description='Умный дом с колонки: фрейм iot_device_action_semantic_frame '
+                        '(кнопка карточки или шторки, голос) → плагину-владельцу; колбэк '
+                        'collect_upper_shutter → карточка шторки set_upper_shutter')
 
     def has_actions(self):
         """Есть ли обработчики действий (фича используется хоть одним источником)."""
@@ -564,10 +587,10 @@ def user_info_raw(registry, station=None):
 
 def div_variables_raw(changes):
     """PayloadRaw set_div_variables: TSetDivVariablesDirective — переменные
-    device_<id, «-» и «:»→«_»>_<capability>_state (значение LongValue, VariableType Local).
-    «:» — префикс origin в id реестра, в настоящих id устройств его нет."""
+    device_<upper_shutter.variable_key(id)>_<capability>_state (значение LongValue,
+    VariableType Local) — те же имена, что у плиток шторки."""
     variables = [{"VariableName": "device_{}_{}_state".format(
-                       str(device_id).replace("-", "_").replace(":", "_"), capability),
+                       upper_shutter.variable_key(device_id), capability),
                   "LongValue": int(bool(value)), "VariableType": "Local"}
                  for device_id, change in dict(changes or {}).items()
                  for capability, value in dict(change).items()]
