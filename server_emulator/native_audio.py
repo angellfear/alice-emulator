@@ -36,10 +36,11 @@ async def packets(chunks, require_eos=False):
             if crc(raw)!=checksum:raise ValueError('Ogg CRC mismatch')
             granule,stream,number=struct.unpack_from('<QII',raw,6)
             if serial is None:serial=stream;seq=number
-            if raw[5]&2 and number==0 and not pending and seq:
+            if raw[5]&2 and number==0 and seq:
                 # Колонка начинает в том же канале новый логический поток (BOS, нумерация страниц
-                # с нуля): сначала звук слова активации, затем сама реплика. Поток читается заново.
-                serial=stream;seq=number
+                # с нуля): сначала звук слова активации, затем сама реплика. Поток читается заново;
+                # недособранный пакет прежнего потока продолжения не получит — отбрасывается.
+                serial=stream;seq=number;pending.clear()
             if stream!=serial or number!=seq:raise ValueError('Ogg stream/sequence changed')
             seq+=1
             if bool(raw[5]&1)!=bool(pending):raise ValueError('Invalid Ogg continuation')

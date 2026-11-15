@@ -93,3 +93,21 @@ async def test_new_logical_stream_in_one_channel_is_decoded_in_sequence():
         for page in chained:yield page
     output=b''.join([p async for p in transcode(encoded(),'audio/opus','f32_8000')])
     assert 16000<=len(output)//4<17000
+
+async def test_new_logical_stream_drops_unfinished_packet_of_previous():
+    """Новый Ogg-поток (BOS, страница 0) приходит, пока пакет прежнего потока не дособран:
+    недособранный пакет отбрасывается, новый поток читается без ошибки."""
+    import struct
+    from server_emulator.native_audio import crc, page, packets
+    def raw_page(segments, body, serial, sequence, flags=0):
+        raw = bytearray(struct.pack('<4sBBQIIIB', b'OggS', 0, flags, 0, serial, sequence, 0, len(segments))
+                        + bytes(segments) + body)
+        struct.pack_into('<I', raw, 22, crc(raw))
+        return bytes(raw)
+    chain = [page(b'a' * 10, 1, 0, flags=2),
+             raw_page([255], b'x' * 255, 1, 1),  # пакет не закончен: продолжения не будет
+             page(b'b' * 5, 2, 0, flags=2),
+             page(b'c' * 3, 2, 1, flags=4)]
+    async def source():
+        for item in chain: yield item
+    assert [p async for p, _granule in packets(source())] == [b'a' * 10, b'b' * 5, b'c' * 3]
