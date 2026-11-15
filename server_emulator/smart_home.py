@@ -300,7 +300,8 @@ class SmartHomeRegistry:
     def forget_origin(self, origin):
         """Удалённое расширение: его устройства, комнаты и обработчик действий уходят из реестра."""
         origin = str(origin)
-        self._callbacks.pop(origin, None)
+        if self._callbacks.pop(origin, None) is not None and not self._callbacks:
+            aapi_handlers.drop_builtin(IOT_HANDLER_NAME)
         devices = [key for key, item in self._devices.items() if item["origin"] == origin]
         rooms = [key for key, room in self._rooms.items() if room["origin"] == origin]
         for key in devices:
@@ -360,6 +361,12 @@ class SmartHomeRegistry:
             description='Умный дом с колонки: фрейм iot_device_action_semantic_frame '
                         '(кнопка карточки или шторки, голос) → плагину-владельцу; колбэк '
                         'collect_upper_shutter → карточка шторки set_upper_shutter')
+
+    def close(self):
+        """Остановка сервера: обработчики действий снимаются вместе с фичей в реестре AAPI."""
+        if self._callbacks:
+            self._callbacks.clear()
+            aapi_handlers.drop_builtin(IOT_HANDLER_NAME)
 
     def has_actions(self):
         """Есть ли обработчики действий (фича используется хоть одним источником)."""

@@ -497,6 +497,7 @@ class Runtime:
     async def close(self):
         """Идемпотентная остановка общих ресурсов (клиент, фоновые задачи)."""
         await self.voice_stack.shutdown()  # локальные речевые серверы: все, включая осиротевшие
+        self.smart_home.close()  # обработчик действий умного дома — из общего реестра AAPI
         if self.routines is not None:
             self.routines.shutdown()
         await self.self_update.close()  # цикл проверки релизов и его клиент
