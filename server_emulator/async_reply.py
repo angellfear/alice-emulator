@@ -13,8 +13,10 @@
   «Не получилось» (как у quasar-server input-handler.ts).
 """
 import asyncio
+import re
 import time
 import uuid
+from urllib.parse import quote
 
 from google.protobuf import json_format
 
@@ -124,27 +126,46 @@ def push(server_type, answer_id):
     return output
 
 
-def screen_card(response, text):
-    """divui_show_view с простой Div2-карточкой текста ответа. На ответ по server_action колонка
-    сама экран не открывает (нет голосовой активации) — карточку simple_text не видно; облако
-    в ответе на напоминание тоже шлёт divui_show_view (перехват volume-set). Поля — как у
-    погоды (scenarios/informers/weather.json), карточка — минимальная.
-    TODO: длинный текст (≈800 символов) не помещается и не прокручивается — контейнер по центру
-    обрезан сверху и снизу (проверено на колонке 2026-10-30). Переделать на прокручиваемую
-    карточку: например, gallery orientation=vertical с текстом от верха."""
+def screen_card(response, text, suggests=()):
+    """divui_show_view с карточкой ответа агента — шаблон agent_answer (реестр screen_templates,
+    раскладка карты skill_card навыка Диалогов): шапка «Алиса», прокручиваемый текст, картинка
+    и кнопки-подсказки (dialog://text_command — нажатие шлёт фразу), кнопка закрытия.
+    На ответ по server_action колонка сама экран не открывает — карточку simple_text не видно.
+    Картинка — первая markdown-картинка ответа ![…](https://…), из текста она убирается;
+    нет картинки — элемент убран. Нет кнопок — убрана нижняя панель."""
     import json
     from pathlib import Path
+    from . import screen_templates
     from .scenario_engine.proto_build import encode
-    body = {"templates": {}, "card": {"log_id": "agent_answer", "states": [{"state_id": 0, "div": {
-        "type": "container", "width": {"type": "match_parent"}, "height": {"type": "match_parent"},
-        "background": [{"type": "solid", "color": "#0b0f14"}], "content_alignment_vertical": "center",
-        "paddings": {"left": 96, "right": 96, "top": 64, "bottom": 64},
-        "items": [{"type": "text", "text": text, "font_size": 40, "line_height": 52, "text_color": "#ffffff"}]}}]}}
-    fields = {"Name": "divui_show_view", "Layer": {"Dialog": {}}, "InactivityTimeout": "Long", "OverlayBehaviour": "Hide",
-              "Div2Card": {"CardName": "agent_answer", "Id": {"CardName": "agent_answer", "CardId": uuid.uuid4().hex},
-                           "StringBody": json.dumps(body, ensure_ascii=False, separators=(",", ":"))}}
+    image = IMAGE.search(text or "")
+    if image:
+        text = (text[:image.start()] + text[image.end():]).strip()
+    built = screen_templates.registry().build(
+        "agent_answer", {"title": "Алиса", "text": text, "image_url": image.group(1) if image else ""})
+    fields = built["fields"]
+    body = json.loads(fields["Div2Card"]["StringBody"])
+    content = body["card"]["states"][0]["div"]["items"][0]["close_button_wrapper_items"][0]
+    for node in content["items"]:
+        if node.get("id") == "answer_scroll" and not image:
+            node["items"] = [item for item in node["items"] if item.get("id") != "answer_image"]
+        if node.get("id") == "answer_suggests":
+            node["items"][0]["items"] = [_suggest(phrase) for phrase in suggests]
+    content["items"] = [node for node in content["items"]
+                        if node.get("id") != "answer_suggests" or suggests]
+    fields["Div2Card"]["StringBody"] = json.dumps(body, ensure_ascii=False, separators=(",", ":"))
     directive = response.Response.Directives.add()
-    directive.Type, directive.Name = "client_action", "divui_show_view"
-    directive.AnalyticsType, directive.IsLedSilent = "divui_show_view", True
-    directive.PayloadRaw = encode(Path(__file__).resolve().parent / "schemas",
-                                  "NAlice.TLayeredDivUICapability.TDivUIShowViewDirective", fields, "centaur")
+    directive.Type, directive.Name = "client_action", built["name"]
+    directive.AnalyticsType, directive.IsLedSilent = built["analytics_type"], True
+    directive.PayloadRaw = encode(Path(__file__).resolve().parent / "schemas", built["proto"], fields, "centaur")
+
+
+IMAGE = re.compile(r"!\[[^\]]*\]\((https?://[^)\s]+)\)")
+
+
+def _suggest(phrase):
+    """Кнопка-подсказка карты (форма — кнопки skill_card): нажатие шлёт фразу как реплику."""
+    return {"type": "answer_suggest_global_template", "answer_suggest_text": phrase,
+            "answer_suggest_actions": [
+                {"log_id": "agent_answer_suggest",
+                 "url": "dialog://text_command?query=" + quote(phrase, safe="") + "&enable_nlg=false"}],
+            "answer_suggest_backgroundColor": "#1b2129", "answer_suggest_textColor": "#e6eef9"}

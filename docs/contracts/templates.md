@@ -45,7 +45,9 @@
 (карта отказа «открой часы»), `player_pause_animation` (анимация паузы плеера),
 `weather` (карточка погоды weather_day), `skill_card` (экран навыка Диалогов: картинка,
 текст, иконка и название навыка, две кнопки-подсказки — `{{image_url}}`, `{{text}}`,
-`{{skill_icon}}`, `{{skill_name}}`, `{{suggest_1}}`, `{{suggest_2}}`).
+`{{skill_icon}}`, `{{skill_name}}`, `{{suggest_1}}`, `{{suggest_2}}`). `agent_answer` (карточка ответа
+агента: `{{title}}`, `{{text}}`, `{{image_url}}`; кнопки и удаление пустой картинки
+достраивает `async_reply.screen_card`).
 
 Применение: `app_directives.youtube_launch_directive()`/`not_here_directive()` и
 `media_directives.draw_player_pause()` собирают директивы через реестр — правка шаблона

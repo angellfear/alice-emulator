@@ -124,3 +124,42 @@ async def test_confirmation_by_push_keeps_listening(tmp_path):
                                                       tool_calls=[call])
     response = later[0].AliceResponse
     assert response.Response.Cards[0].Text == "Выключить свет. Подтвердите." and response.VoiceResponse.ShouldListen
+    screen = [d for d in response.Response.Directives if d.Name == "divui_show_view"][0]
+    assert "dialog://text_command?query=%D0%94%D0%B0".encode() in screen.PayloadRaw  # кнопка «Да»
+
+
+def _card_body(text, suggests=()):
+    """StringBody карточки ответа agent_answer после screen_card (по схеме станции)."""
+    from pathlib import Path
+    import server_emulator
+    from server_emulator.schema import load_type, schemas_dir, station_file
+    response = types()[1]().Event.AliceResponse
+    async_reply.screen_card(response, text, suggests)
+    directive = response.Response.Directives[0]
+    cls = load_type(Path(server_emulator.__file__).parent / "schemas", station_file(schemas_dir()),
+                    "NAlice.TLayeredDivUICapability.TDivUIShowViewDirective")
+    message = cls()
+    message.ParseFromString(directive.PayloadRaw)
+    return json.loads(message.Div2Card.StringBody)
+
+
+def test_answer_card_image_and_suggests():
+    """Карточка ответа: markdown-картинка — элемент image (из текста убрана), кнопки —
+    подсказки dialog://text_command; без картинки и кнопок — элементы убраны."""
+    import pytest
+    from pathlib import Path
+    import server_emulator
+    if not (Path(server_emulator.__file__).parent / "schemas" / "alice-api.pb").is_file():
+        pytest.skip("нет схем протокола")
+    body = _card_body("Вот кот ![кот](https://example.com/cat.jpg) рыжий.", ("Да", "Нет"))
+    content = body["card"]["states"][0]["div"]["items"][0]["close_button_wrapper_items"][0]
+    scroll = [n for n in content["items"] if n.get("id") == "answer_scroll"][0]
+    assert scroll["items"][0]["image_url"] == "https://example.com/cat.jpg"
+    assert scroll["items"][1]["text"] == "Вот кот  рыжий."
+    suggests = [n for n in content["items"] if n.get("id") == "answer_suggests"][0]["items"][0]["items"]
+    assert [s["answer_suggest_text"] for s in suggests] == ["Да", "Нет"]
+    body = _card_body("Просто текст.")
+    content = body["card"]["states"][0]["div"]["items"][0]["close_button_wrapper_items"][0]
+    scroll = [n for n in content["items"] if n.get("id") == "answer_scroll"][0]
+    assert [i["type"] for i in scroll["items"]] == ["text"]
+    assert not [n for n in content["items"] if n.get("id") == "answer_suggests"]

@@ -255,7 +255,9 @@ async def model_reply(conv, incoming, request, text, answer, trace=None, screen=
 
     if screen:  # ответ по Push: экран колонка сама не открывает — карточка директивой
 
-        async_reply.screen_card(response, answer['text'])
+        # ждёт подтверждения вызова инструмента — кнопки ответа на карточке
+        async_reply.screen_card(response, answer['text'],
+                                ('Да', 'Нет') if answer.get('tool_calls') else ())
 
     # Модель выбирает карточку/действие/оба: вызовы alice_action исполняются,
 
