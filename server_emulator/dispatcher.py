@@ -27,7 +27,7 @@ from .endpoints import builtin_covers, clck_json_batch, find_builtin, protobuf_s
 from .front import is_auth_host
 from . import push_channel
 from . import screensaver_settings
-from .quasar_replace import (SUPPORTED_CONFIG_GENERATION, apply_replacements, config_generation,
+from .quasar_replace import (SUPPORTED_CONFIG_GENERATION, apply_local_urls, apply_replacements, config_generation,
                              effective_direct_replace, replaced_headers)
 from .upstream import UpstreamError, LOCAL_DOMAIN_PATHS, forward_headers
 from .upstream.forward import decoded_json
@@ -317,6 +317,8 @@ class Dispatcher:
                 runtime.server_log.log("error", "quasar", "Замены regexp сломали ответ get_sync_info",
                                        device_sn=sn, error=str(replaced['error'])[:200])
                 replaced = None
+            from .quasar_rules import local_domain, local_urls
+            replaced = apply_local_urls(local_urls(device, local_domain(runtime)), headers, payload, replaced)
             parsed = decoded_json(headers, payload)
             if parsed is not None:
                 # поколение конфига в ответе Яндекса: детект по маркерам нового поколения

@@ -169,6 +169,37 @@ def apply_replacements(rules, headers, payload):
     return {'payload': text.encode('utf-8'), 'text': text, 'applied': applied}
 
 
+def apply_local_urls(urls, headers, payload, replaced=None):
+    """Локальные адреса «Эмуляции»/«Вместе» (quasar_rules.local_urls: [(name, path, url)])
+    поверх ответа «Напрямую» после замен regexp: каналы, которые в этих режимах ведёт эмулятор
+    (подпись push_subscribe — локальная), не остаются на настоящих хостах. Путь — от корня
+    ответа, недостающие объекты создаются. Результат — в форме apply_replacements; ничего не
+    изменилось или ответ не JSON-объект — replaced как есть."""
+    if not urls:
+        return replaced
+    try:
+        text = replaced['text'] if replaced else decoded_body(headers, payload).decode('utf-8')
+        body = json.loads(text)
+    except (AttributeError, UnicodeDecodeError, ValueError):
+        return replaced
+    if not isinstance(body, dict):
+        return replaced
+    changed = 0
+    for _name, path, url in urls:
+        parts = [part for part in path.split('/') if part]
+        node = body
+        for key in parts[:-1]:
+            node = node.setdefault(key, {}) if isinstance(node, dict) else None
+        if isinstance(node, dict) and node.get(parts[-1]) != url:
+            node[parts[-1]] = url
+            changed += 1
+    if not changed:
+        return replaced
+    text = json.dumps(body, ensure_ascii=False, separators=(',', ':'))
+    return {'payload': text.encode('utf-8'), 'text': text,
+            'applied': (replaced or {}).get('applied', 0) + changed}
+
+
 def preview_replacements(rules, body):
     """Прогнать правила по сохранённому оригинальному ответу (превью «После замен»).
 

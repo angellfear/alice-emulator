@@ -17,7 +17,10 @@ BODY = {"status": "ok", "config": {"name": "yandex-station", "volume": 5, "tags"
 
 
 async def start(tmp_path, rules=None, reply=None, compress=False):
-    """Эмулятор с устройством в режиме «Напрямую» и заглушкой Яндекса; reply — готовые байты тела."""
+    """Эмулятор с устройством в режиме «Напрямую» и заглушкой Яндекса; reply — готовые байты тела.
+    Локальный домен пуст: здесь проверяются только замены regexp (локальные адреса —
+    tests/test_quasar_source.py)."""
+    (tmp_path / "server.json").write_text('{"local_domain": ""}', encoding="utf-8")
     runtime = Runtime(tmp_path)
     registry(runtime)
     state = dict(state_of(runtime), quasar_source="direct")

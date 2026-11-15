@@ -85,7 +85,13 @@ async def test_direct_forwards_and_saves_last(tmp_path):
         async with ClientSession() as client:
             async with client.get(url + "/get_sync_info?device_id=q-id", headers=HEADERS) as response:
                 assert response.status == 200
-                assert await response.json() == STUB_CONFIG  # ответ Яндекса без изменений
+                sent = await response.json()
+        # ответ Яндекса без изменений, кроме локальных адресов «Эмуляции» (домен по умолчанию alica.lan)
+        assert sent["config"].pop("system_config") == {
+            "uniProxyUrl": "ws://alica.lan/uni.ws",
+            "pushd": {"xivaSubscribeUrl": "ws://alica.lan/v2/subscribe/websocket"},
+            "arpc_client": {"server_url": "http://alica.lan"}}
+        assert sent == STUB_CONFIG
         assert calls and calls[0][0] == "/get_sync_info?device_id=q-id"
         last = state_of(runtime).get("quasar_direct_last")
         assert last and last["status"] == 200 and last["body"] == STUB_CONFIG

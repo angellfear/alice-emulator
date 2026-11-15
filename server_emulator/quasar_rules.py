@@ -512,13 +512,18 @@ def local_domain(runtime):
     return server_config.load(runtime.directory).get("local_domain") or ""
 
 
-def local_rules(device, domain):
-    """Замены «локальный адрес» для устройства в «Эмуляции»/«Вместе»; пустой домен — []."""
+def local_urls(device, domain):
+    """Локальные адреса устройства в «Эмуляции»/«Вместе»: [(name, path, url)]; пустой домен — []."""
     if not domain or device is None or (device.get("route_mode") or "emulate") not in LOCAL_MODES:
         return []
+    return [(name, path, url.format(domain=domain)) for name, path, url in LOCAL_URLS]
+
+
+def local_rules(device, domain):
+    """Замены «локальный адрес» для устройства в «Эмуляции»/«Вместе»; пустой домен — []."""
     return [{"name": name, "path": path, "kind": "select", "enabled": True,
-             "options": {SINGLE: url.format(domain=domain)}, "value": SINGLE}
-            for name, path, url in LOCAL_URLS]
+             "options": {SINGLE: url}, "value": SINGLE}
+            for name, path, url in local_urls(device, domain)]
 
 
 def compose_config(runtime, platform, device=None, device_rules=None, trace=None, render=True,

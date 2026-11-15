@@ -228,7 +228,7 @@ quasar-server (MIT; commit и пересборка — `tools/build_quasar_defau
 | Метка | Режим | Что получает колонка |
 |---|---|---|
 | **Генерируемый** | `generated` (по умолчанию) | конфиг, собранный `compose_config`: шаблон и замены (см. выше) |
-| **Напрямую** | `direct` | ответ настоящего `quasar.yandex.net` без изменений; обмен — в «Журнал» (`source=upstream`) по опции «Запись» устройства; успешный JSON сохраняется в `state.quasar_direct_last` |
+| **Напрямую** | `direct` | ответ настоящего `quasar.yandex.net` без изменений (кроме замен ниже и локальных адресов `LOCAL_URLS` в «Эмуляции»/«Вместе» — те же, что в генерируемом: пуш-канал, uniproxy и gproxy ведёт эмулятор, подпись `push_subscribe` у него локальная); обмен — в «Журнал» (`source=upstream`) по опции «Запись» устройства; успешный JSON сохраняется в `state.quasar_direct_last` |
 | **Свой** | `custom` | `state.quasar_custom` как есть: без замен, glagol.security и группы стереопары; нет сохранённого или в нём нет `config` → 409 `quasar_custom_not_set` |
 
 Маршрут API (`ui/api/quasar_config_api.py`, домен `quasar_source`):
