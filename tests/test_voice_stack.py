@@ -1,4 +1,5 @@
 import asyncio
+import time
 import copy
 import json
 
@@ -134,6 +135,20 @@ def test_preset_apply_writes_adapter_and_keeps_key(stack):
         stack.save_preset("tts", "anthropic", "x", {})  # адаптер не умеет tts
     with pytest.raises(ValueError):
         stack.save_preset("llm", "openai", " ", {})
+
+
+def test_save_source_keeps_stream_settings(stack):
+    """Смена источника перезаписывает settings["stt"] целиком — настройки «Эмуляции
+    потокового режима» (галочка и обе паузы) и выравнивание уровня переносятся."""
+    url = "http://127.0.0.1:5015/v1/audio/transcriptions"
+    stack.runtime.settings["stt"] = {
+        "adapter": "openai", "url": url,
+        "pseudo_stream": "yes", "pseudo_partial_pause": 0.6, "pseudo_end_pause": 2.5, "level": "no"}
+    asyncio.run(stack.save_source("asr", "k:gigaam", {"adapter": "openai", "url": url}))
+    stt = stack.runtime.settings["stt"]
+    assert stt["pseudo_stream"] == "yes" and stt["pseudo_partial_pause"] == 0.6
+    assert stt["pseudo_end_pause"] == 2.5 and stt["level"] == "no"
+    assert stack.runtime.settings["voice_stack"]["asr"] == "k:gigaam"
 
 
 def test_package_options_before_install_and_after_uninstall(stack):

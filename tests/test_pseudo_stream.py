@@ -111,6 +111,42 @@ async def test_pause_ends_phrase_while_mic_stays_open(pipeline):
     assert sent["seconds"] < asr_pseudo_stream.END_PAUSE_S + 0.3, sent
 
 
+async def test_end_pause_setting_ends_phrase_earlier(pipeline):
+    """stt.pseudo_end_pause=0.6: тишина 1.0 с закрывает фразу по паузе — финал есть
+    (при умолчании 1.8 конца по паузе не было бы, только закрытие микрофона)."""
+    from server_emulator.speech_trace import SpeechTrace
+
+    transcribe, calls = pipeline
+    records = []
+    trace = SpeechTrace(records.append, {"sn": "C00T1000TESTK"})
+    result = await asr_pseudo_stream.recognize_stream(
+        _Runtime({"stt": {"pseudo_end_pause": 0.6}}), transcribe,
+        _chunks(_tone(0.8) + _silence(1.0)), PCM48, None, trace=trace)
+    assert result == {"text": "сегмент 1"} and len(calls) == 1
+    actions = [r["action"] for r in records if r["name"] == "pseudo_segment"]
+    assert actions == ["partial", "end"]  # конец по паузе 0.6 с, до закрытия микрофона
+
+
+async def test_level_no_disables_gain(pipeline, monkeypatch):
+    """stt.level="no": детектор пауз идёт без выравнивания уровня — transcode
+    вызывается с level=False (batch-путь voice.py берёт ту же настройку)."""
+    transcribe, calls = pipeline
+    levels = []
+    real_transcode = asr_pseudo_stream.transcode
+
+    async def spy(chunks, source, target, **kwargs):
+        levels.append(kwargs.get("level"))
+        async for chunk in real_transcode(chunks, source, target, **kwargs):
+            yield chunk
+
+    monkeypatch.setattr(asr_pseudo_stream, "transcode", spy)
+    result = await asr_pseudo_stream.recognize_stream(
+        _Runtime({"stt": {"level": "no"}}), transcribe,
+        _chunks(_tone(0.8) + _silence(2.2)), PCM48, None)
+    assert result == {"text": "сегмент 1"}
+    assert levels == [False]
+
+
 async def test_internal_pause_splits_into_progressive_text(pipeline):
     """Пауза 0.5 с внутри фразы — частичное распознавание первой части, затем обеих;
     финальный текст — обе части по порядку."""
@@ -199,6 +235,24 @@ def test_enabled_requires_flag_and_feasibility(monkeypatch, tmp_path):
 
     runtime.settings["stt"]["pseudo_stream"] = "no"
     assert asr_pseudo_stream.enabled(runtime) is False
+
+
+def test_pauses_from_settings_fall_back_to_defaults():
+    """Ключи pseudo_partial_pause/pseudo_end_pause: число в диапазоне — берётся;
+    ключа нет, не число или вне диапазона — умолчания 0.4/1.8 (без ошибки);
+    конец фразы должен быть длиннее паузы между словами."""
+    frames = asr_pseudo_stream._frames
+    defaults = (frames(asr_pseudo_stream.PARTIAL_PAUSE_S), frames(asr_pseudo_stream.END_PAUSE_S))
+    for stt in ({},  # ключей нет
+                {"pseudo_partial_pause": "abc", "pseudo_end_pause": 99},  # мусор, вне диапазона
+                {"pseudo_partial_pause": 0.1, "pseudo_end_pause": 6.0}):  # оба вне диапазона
+        assert asr_pseudo_stream.pauses(_Runtime({"stt": stt})) == defaults, stt
+    # конец не длиннее паузы между словами — откатывается только конец, пауза между словами в диапазоне
+    assert asr_pseudo_stream.pauses(
+        _Runtime({"stt": {"pseudo_partial_pause": 1.5, "pseudo_end_pause": 1.5}})) == (
+        frames(1.5), frames(asr_pseudo_stream.END_PAUSE_S))
+    assert asr_pseudo_stream.pauses(
+        _Runtime({"stt": {"pseudo_partial_pause": 0.6, "pseudo_end_pause": 2.5}})) == (frames(0.6), frames(2.5))
 
 
 async def test_save_source_keeps_pseudo_stream():

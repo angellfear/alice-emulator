@@ -1007,8 +1007,13 @@ class VoiceStack:
     async def save_source(self, service, ref, config):
         settings = copy.deepcopy(self.runtime.settings)
         previous = settings.get(SETTINGS_KEY[service]) or {}
-        if "pseudo_stream" in previous:  # галочка «Эмуляция потокового режима» живёт поверх
-            config = {**config, "pseudo_stream": previous["pseudo_stream"]}  # источника: применение пресета/пакета её не сбрасывает
+        # настройки «Эмуляции потокового режима» (галочка и обе паузы) и выравнивания
+        # уровня живут поверх источника: применение пресета/пакета их не сбрасывает
+        carried = {key: previous[key] for key in
+                   ("pseudo_stream", "pseudo_partial_pause", "pseudo_end_pause", "level")
+                   if key in previous}
+        if carried:
+            config = {**config, **carried}
         settings[SETTINGS_KEY[service]] = config
         settings["voice_stack"] = {**(settings.get("voice_stack") or {}), service: ref}
         await self.runtime.save_settings(settings)

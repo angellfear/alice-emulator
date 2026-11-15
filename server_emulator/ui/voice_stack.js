@@ -489,26 +489,51 @@
     return box;
   };
 
-  // «Эмуляция потокового режима» (settings["stt"].pseudo_stream): batch-STT не отдаёт
-  // частичные результаты — детектор пауз (Silero VAD) распознаёт накопленное по ходу
-  // речи, колонка закрывает микрофон в конце фразы, а не по тайм-ауту. Видна только
-  // когда активный STT не умеет настоящий поток (streaming === false); сохранение —
-  // общие настройки с _rev, как в «Режимах вывода ответа».
+  // «Эмуляция потокового режима» (settings["stt"]): pseudo_stream — галочка,
+  // pseudo_partial_pause / pseudo_end_pause — паузы детектора (видны при включённой
+  // галочке), level — выравнивание уровня микрофона. Batch-STT не отдаёт частичные
+  // результаты — детектор пауз (Silero VAD) распознаёт накопленное по ходу речи,
+  // колонка закрывает микрофон в конце фразы, а не по тайм-ауту. Виден только когда
+  // активный STT не умеет настоящий поток (streaming === false); сохранение — общие
+  // настройки с _rev, как в «Режимах вывода ответа».
   function pseudoBlock() {
     const box = make('div', 'vs-output');
     const label = make('label', 'vs-flag'), check = make('input');
-    check.type = 'checkbox'; check.checked = (cfg?.stt || {}).pseudo_stream === 'yes';
+    check.type = 'checkbox'; check.checked = stt().pseudo_stream === 'yes';
     label.append(check, make('span', null, 'Эмуляция потокового режима'));
-    check.onchange = async () => {
-      check.disabled = true;
+    const stt = () => (cfg?.stt || {});
+    const pauses = make('div', 'vs-flags');
+    const num = (key, title, min, max) => {
+      const wrap = make('label', 'vs-flag'), input = make('input');
+      input.type = 'number'; input.step = '0.1'; input.min = min; input.max = max;
+      input.value = stt()[key] ?? '';
+      wrap.append(input, make('span', null, title));
+      input.onchange = () => {
+        const value = Number(input.value);
+        if (input.value.trim() === '' || Number.isNaN(value)) { input.value = stt()[key] ?? ''; return }  // пустое и мусор — вернуться к сохранённому
+        save({ [key]: value }, () => { input.value = stt()[key] ?? '' });
+      };
+      return wrap;
+    };
+    pauses.append(num('pseudo_partial_pause', 'Пауза между словами, с', 0.2, 2),
+                  num('pseudo_end_pause', 'Конец фразы, с', 0.5, 5));
+    const levelLabel = make('label', 'vs-flag'), level = make('input');
+    level.type = 'checkbox'; level.checked = stt().level !== 'no';
+    levelLabel.append(level, make('span', null, 'Выравнивание уровня микрофона'));
+    const sync = () => { pauses.style.display = check.checked ? '' : 'none' };
+    const save = async (patch, revert) => {
+      check.disabled = level.disabled = true;
       try {
         const fresh = await api('settings');
-        fresh.stt = { ...(fresh.stt || {}), pseudo_stream: check.checked ? 'yes' : 'no' };
+        fresh.stt = { ...(fresh.stt || {}), ...patch };
         await api('settings', 'PUT', fresh);
         cfg = fresh;
-      } catch (e) { check.checked = !check.checked; say(e.message, true) } finally { check.disabled = false }
+      } catch (e) { revert?.(); say(e.message, true) } finally { check.disabled = level.disabled = false }
     };
-    box.append(label, make('small', 'vs-help', 'Пакетный движок распознаёт по паузам в речи: текст приходит по ходу, колонка закрывает микрофон в конце фразы, а не по тайм-ауту. Выключено — распознавание целиком после закрытия микрофона.'));
+    check.onchange = () => { sync(); save({ pseudo_stream: check.checked ? 'yes' : 'no' }, () => { check.checked = !check.checked; sync() }) };
+    level.onchange = () => save({ level: level.checked ? 'yes' : 'no' }, () => { level.checked = !level.checked });
+    sync();
+    box.append(label, pauses, levelLabel, make('small', 'vs-help', 'Пакетный движок распознаёт по паузам в речи: текст приходит по ходу, колонка закрывает микрофон в конце фразы, а не по тайм-ауту. Выключено — распознавание целиком после закрытия микрофона. Выравнивание усиливает тихий звук микрофона перед распознаванием.'));
     return box;
   }
 

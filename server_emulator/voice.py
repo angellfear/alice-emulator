@@ -1323,7 +1323,7 @@ class Conversation:
 
                 else:
 
-                    body, filename = await input_audio(audio, request.Format, level=True)
+                    body, filename = await input_audio(audio, request.Format, level=asr_pseudo_stream.level(self.runtime))
 
                     raw, _ = await self.runtime.provider('stt', audio=body, filename=filename)
 

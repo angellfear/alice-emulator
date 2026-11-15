@@ -28,8 +28,8 @@ CONTEXT = 64  # контекст кадра: модель ждёт 576 сэмп�
 # без контекста вероятности ~0.003 на любой речи — детектор молчит)
 SPEECH_THRESHOLD = 0.5  # вероятность речи: кадр считается речью (рекомендация silero-vad)
 MIN_SPEECH_S = 0.25  # сегмент короче — шум (щелчок, вздох), не распознаётся
-PARTIAL_PAUSE_S = 0.4  # пауза внутри фразы → частичное распознавание накопленного
-END_PAUSE_S = 1.8  # пауза дольше — конец фразы (как trailing_silence потокового движка)
+PARTIAL_PAUSE_S = 0.4  # пауза внутри фразы → частичное распознавание: умолчание stt.pseudo_partial_pause
+END_PAUSE_S = 1.8  # пауза дольше — конец фразы: умолчание stt.pseudo_end_pause (как trailing_silence потокового движка)
 MAX_SEGMENT_S = 20.0  # предельный сегмент batch-STT (модели принимают ~20-30 с)
 
 
@@ -39,8 +39,6 @@ def _frames(seconds):
 
 MIN_SPEECH_FRAMES = _frames(MIN_SPEECH_S)
 PREROLL_FRAMES = _frames(0.24)  # preroll до начала речи попадает в сегмент (атака не режется)
-PARTIAL_FRAMES = _frames(PARTIAL_PAUSE_S)
-END_FRAMES = _frames(END_PAUSE_S)
 MAX_SEGMENT_FRAMES = _frames(MAX_SEGMENT_S)
 
 _unavailable = ""  # причина последнего отката на batch (в журнал один раз)
@@ -62,6 +60,33 @@ def enabled(runtime):
             log.warning("Эмуляция потокового режима недоступна (%s) — распознавание целиком", exc)
         return False
     return True
+
+
+def pauses(runtime):
+    """(кадров паузы между словами, кадров паузы конца фразы) из настроек stt:
+    pseudo_partial_pause — 0.2–2.0 с, pseudo_end_pause — 0.5–5.0 с и больше паузы
+    между словами. Ключа нет, не число или вне диапазона — умолчание
+    PARTIAL_PAUSE_S / END_PAUSE_S, без ошибки."""
+    stt = runtime.settings.get("stt") or {}
+    try:
+        partial = float(stt.get("pseudo_partial_pause", PARTIAL_PAUSE_S))
+        if not 0.2 <= partial <= 2.0:
+            partial = PARTIAL_PAUSE_S
+    except (TypeError, ValueError):
+        partial = PARTIAL_PAUSE_S
+    try:
+        end = float(stt.get("pseudo_end_pause", END_PAUSE_S))
+        if not 0.5 <= end <= 5.0 or end <= partial:
+            end = END_PAUSE_S
+    except (TypeError, ValueError):
+        end = END_PAUSE_S
+    return _frames(partial), _frames(end)
+
+
+def level(runtime):
+    """Выравнивание уровня микрофона (settings["stt"].level != "no"): batch-путь и
+    детектор пауз; у deepgram и адаптера stream своя настройка normalize."""
+    return str((runtime.settings.get("stt") or {}).get("level") or "").strip().lower() != "no"
 
 
 def vad_model(runtime):
@@ -109,8 +134,10 @@ class _Accumulator:
     """Речь между паузами: кадры VAD, preroll до начала речи (атака слова не режется),
     счётчик тишины, готовые тексты сегментов. Состояние VAD живёт здесь."""
 
-    def __init__(self, vad, trace=None):
+    def __init__(self, vad, partial_frames, end_frames, trace=None):
         self.vad = vad
+        self.partial_frames = partial_frames  # тишина столько кадров → частичное распознавание
+        self.end_frames = end_frames  # тишина столько кадров подряд → конец фразы
         self.trace = trace
         self.state = np.zeros((2, 1, 128), dtype=np.float32)
         self.pending = np.empty(0, dtype=np.float32)  # хвост меньше кадра
@@ -174,14 +201,14 @@ class _Accumulator:
             self.pre.append(frame)
             if self.texts:  # после частичного распознавания пауза та же: её длина решает конец фразы
                 self.silence += 1
-                if self.silence >= END_FRAMES:
+                if self.silence >= self.end_frames:
                     return "end"
             return None
         self.silence += 1
         self.buffer.append(frame)
-        if self.silence >= END_FRAMES:
+        if self.silence >= self.end_frames:
             return "end"
-        if self.silence >= PARTIAL_FRAMES:
+        if self.silence >= self.partial_frames:
             return "partial"
         return None
 
@@ -287,15 +314,18 @@ def _is_stream_start(frame):
 
 async def _run_one(runtime, transcribe, chunks, fmt, on_partial, vad, trace=None, totals=None):
     """Один логический поток wire-кадров: PCM 16 кГц → Silero VAD → сегменты между
-    паузами; пауза PARTIAL_PAUSE_S — batch-STT сегмента и частичный текст колонке,
-    пауза END_PAUSE_S — финальный {'text': ...} (колонка закроет микрофон сама)."""
-    acc = _Accumulator(vad, trace=trace)
+    паузами; пауза между словами (stt.pseudo_partial_pause) — batch-STT сегмента и
+    частичный текст колонке, пауза конца фразы (stt.pseudo_end_pause) — финальный
+    {'text': ...} (колонка закроет микрофон сама)."""
+    partial_frames, end_frames = pauses(runtime)
+    acc = _Accumulator(vad, partial_frames, end_frames, trace=trace)
     last = ""
     try:
         async with asyncio.timeout(120):
             # микрофон колонки тихий (пик около −55 dBFS): Silero VAD на таком уровне речи не
             # видит — уровень выравнивается при декодировании, сегмент распознаётся выровненным
-            async for chunk in transcode(chunks, fmt, "pcm16", level=True):
+            # (stt.level="no" выключает выравнивание)
+            async for chunk in transcode(chunks, fmt, "pcm16", level=level(runtime)):
                 samples = np.frombuffer(chunk, dtype="<i2").astype(np.float32) / 32768.0
                 if totals is not None:
                     totals["samples"] += len(samples)
