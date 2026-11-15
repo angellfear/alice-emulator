@@ -109,6 +109,42 @@ def test_value_tiles(tmp_path):
     assert "device_ha_sensor_v_on_off_state" not in variables  # у датчика вкл/выкл нет
 
 
+def test_station_tiles(tmp_path):
+    runtime = SimpleNamespace(
+        identities=SimpleNamespace(data={"devices": [
+            {"sn": SN, "user_id": "u1", "name": "Эта", "profile": {"platform": "chiron"}},
+            {"sn": "C00TEST0000001", "user_id": "u1", "name": "Дуо", "room": "Зал",
+             "profile": {"platform": "chiron"}},
+            {"sn": "X00TEST0000002", "user_id": "u1", "name": "Макс",
+             "profile": {"platform": "yandexstation_2"}},
+            {"sn": "C00TEST0000003", "user_id": "u2", "name": "Чужая",
+             "profile": {"platform": "chiron"}}]}),
+        sessions={"a": {"device_sn": "C00TEST0000001", "send": object()},
+                  "b": {"device_sn": SN, "send": object()}})
+    found = smart_home.stations(runtime, SN)
+    assert [(s["name"], s["online"]) for s in found] == [("Дуо", True), ("Макс", False)]
+    empty = smart_home.SmartHomeRegistry(SimpleNamespace(directory=tmp_path, extensions=None))
+    body = upper_shutter.card(empty, found)
+    assert "@@" not in body
+    card = json.loads(body)
+    filters, devices = card["card"]["states"][0]["div"]["items"][0]["items"][:2]
+    assert [_texts(chip) for chip in filters["items"]] == [["Колонки"]]
+    tiles = devices["items"]
+    assert [_texts(tile)[0] for tile in tiles] == ["Дуо", "Макс", "Показать все"]
+    assert "Не в сети" not in _texts(tiles[0]) and "Не в сети" in _texts(tiles[1])
+    assert "devices/station-Duo-max-black@2x.png" in json.dumps(tiles[0])
+    urls = re.findall(r'"url":"(dialog://[^"]+)"', json.dumps(tiles[0], ensure_ascii=False,
+                                                           separators=(",", ":")))
+    directives = [d for url in urls
+                  for d in json.loads(urllib.parse.unquote(url.split("=", 1)[1]))]
+    call = next(d for d in directives if d["name"] == "phone_calls_open_device_call_ui")
+    info = call["payload"]["DeviceInfo"]
+    assert (info["DeviceId"], info["DeviceName"], info["RoomName"]) ==         ("C00TEST0000001", "Дуо", "Зал")
+    page = next(d for d in directives if d["name"] == "open_smart_home_page_directive")
+    assert page["payload"]["move_options"]["onto_id"] == smart_home.station_device_id(
+        "C00TEST0000001")
+
+
 def test_variable_names_match_set_div_variables():
     raw = smart_home.div_variables_raw({"lights:light.kitchen": {"on_off": True}})
     message = load_type(schemas_dir(), station_file(),

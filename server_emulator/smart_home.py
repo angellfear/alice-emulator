@@ -493,6 +493,31 @@ def station_info(runtime, sn):
             "platform": device_platform(device)}
 
 
+def station_device_id(sn):
+    """Постоянный uuid устройства-колонки по серийнику (Id в кадре iot, onto_id в шторке)."""
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, "emulator-station:" + str(sn)))
+
+
+def stations(runtime, sn):
+    """Колонки того же пользователя, кроме колонки sn, для шторки: [{id, sn, name,
+    platform, room, online}]; online — у колонки есть живая сессия."""
+    identities = getattr(runtime, "identities", None)
+    if identities is None or not sn:
+        return []
+    from .quasar_config import device_platform
+    devices = identities.data["devices"]
+    own = next((d for d in devices if d.get("sn") == str(sn)), None)
+    if own is None:
+        return []
+    live = {s.get("device_sn") for s in (getattr(runtime, "sessions", None) or {}).values()
+            if s.get("send")}
+    return [{"id": station_device_id(d["sn"]), "sn": str(d["sn"]),
+             "name": str(d.get("name") or d["sn"]), "platform": device_platform(d),
+             "room": str(d.get("room") or ""), "online": d["sn"] in live}
+            for d in devices
+            if d.get("sn") and d["sn"] != str(sn) and d.get("user_id") == own.get("user_id")]
+
+
 def user_info_raw(registry, station=None):
     """PayloadRaw директивы set_iot_user_info: TSetIoTUserInfoDirective c
     IoTClientUserInfo (Rooms/Households/Devices) — поля по образцу 2026-11-10.
@@ -552,7 +577,7 @@ def user_info_raw(registry, station=None):
             # форма настоящего кадра (2026-11-14): Id — постоянный uuid по серийнику,
             # ExternalId/Endpoint.Id — «<серийник>.<платформа>», SkillId «Q», Endpoint
             # без умений; дом — общий с устройствами реестра
-            "Id": str(uuid.uuid5(uuid.NAMESPACE_URL, "emulator-station:" + station["sn"])),
+            "Id": station_device_id(station["sn"]),
             "Name": str(station.get("name") or station["sn"]),
             "Type": STATION_TYPES.get(str(station.get("platform") or ""),
                                       "SmartSpeakerDeviceType"),

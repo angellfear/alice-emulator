@@ -1794,6 +1794,564 @@
    "value": 464
   }
  },
+ "tile_station": {
+  "type": "container",
+  "background": [
+   {
+    "type": "solid",
+    "color": "#1ae6eef9"
+   }
+  ],
+  "border": {
+   "corner_radius": 24
+  },
+  "content_alignment_horizontal": "center",
+  "content_alignment_vertical": "center",
+  "height": {
+   "type": "fixed",
+   "value": 264
+  },
+  "items": [
+   {
+    "type": "container",
+    "actions": [
+     {
+      "log_id": "open_smart_home",
+      "url": {
+       "$dialog": [
+        {
+         "type": "client_action",
+         "name": "open_smart_home_page_directive",
+         "payload": {
+          "move_options": {
+           "move_to": "Remote",
+           "onto_id": "@@ID@@"
+          }
+         }
+        }
+       ]
+      }
+     },
+     {
+      "log_id": "close_upper_shutter",
+      "url": {
+       "$dialog": [
+        {
+         "type": "client_action",
+         "name": "close_top_sheet"
+        }
+       ]
+      }
+     }
+    ],
+    "content_alignment_horizontal": "center",
+    "content_alignment_vertical": "center",
+    "height": {
+     "type": "match_parent"
+    },
+    "items": [
+     {
+      "type": "container",
+      "alignment_vertical": "top",
+      "content_alignment_horizontal": "center",
+      "items": [
+       {
+        "type": "container",
+        "height": {
+         "type": "fixed",
+         "value": 82
+        },
+        "items": [
+         {
+          "type": "image",
+          "height": {
+           "type": "fixed",
+           "value": 82
+          },
+          "image_url": "https://yastatic.net/s3/smart-display-res/iot/devices/@@ICON@@@2x.png",
+          "placeholder_color": "#0fff",
+          "visibility": "@{device_@@VAR@@_on_off_state ? 'gone' : 'visible'}",
+          "width": {
+           "type": "fixed",
+           "value": 82
+          }
+         },
+         {
+          "type": "image",
+          "height": {
+           "type": "fixed",
+           "value": 82
+          },
+          "image_url": "https://yastatic.net/s3/smart-display-res/iot/devices/@@ICON@@@2x.png",
+          "placeholder_color": "#0fff",
+          "visibility": "@{device_@@VAR@@_on_off_state ? 'visible' : 'gone'}",
+          "width": {
+           "type": "fixed",
+           "value": 82
+          }
+         }
+        ],
+        "orientation": "overlap",
+        "width": {
+         "type": "fixed",
+         "value": 82
+        }
+       },
+       {
+        "type": "text",
+        "auto_ellipsize": 1,
+        "font_size": 24,
+        "line_height": 28,
+        "max_lines": 1,
+        "text": "@@NAME@@",
+        "text_alignment_horizontal": "center",
+        "text_color": "#e6eef9",
+        "width": {
+         "type": "wrap_content",
+         "constrained": true
+        }
+       },
+       {
+        "type": "text",
+        "font_size": 22,
+        "line_height": 28,
+        "max_lines": 1,
+        "text": "@@ROOM@@",
+        "text_alignment_horizontal": "center",
+        "text_color": "#80e6eef9",
+        "width": {
+         "type": "wrap_content",
+         "constrained": true
+        }
+       }
+      ],
+      "margins": {
+       "bottom": 14
+      },
+      "orientation": "vertical"
+     },
+     {
+      "type": "container",
+      "alignment_vertical": "bottom",
+      "content_alignment_horizontal": "center",
+      "items": [],
+      "layout_mode": "wrap",
+      "orientation": "horizontal",
+      "width": {
+       "type": "match_parent"
+      }
+     }
+    ],
+    "orientation": "overlap",
+    "paddings": {
+     "left": 16,
+     "right": 16,
+     "top": 10,
+     "bottom": 10
+    },
+    "width": {
+     "type": "match_parent"
+    }
+   },
+   {
+    "type": "container",
+    "actions": [
+     {
+      "log_id": "open_call_ui",
+      "url": {
+       "$dialog": [
+        {
+         "type": "client_action",
+         "name": "phone_calls_open_device_call_ui",
+         "payload": {
+          "Name": "@@NAME@@",
+          "DeviceInfo": {
+           "DeviceId": "@@SN@@",
+           "DeviceName": "@@NAME@@",
+           "DeviceIconUrl": "https://yastatic.net/s3/smart-display-res/iot/devices/@@ICON@@@2x.png",
+           "RoomName": "@@ROOM@@",
+           "DropInEnabled": false,
+           "RadioNannyEnabled": false,
+           "HouseholdName": "@@HOUSEHOLD@@"
+          }
+         }
+        }
+       ]
+      }
+     }
+    ],
+    "alignment_horizontal": "left",
+    "alignment_vertical": "bottom",
+    "background": [
+     {
+      "type": "solid",
+      "color": "#1ae6eef9"
+     }
+    ],
+    "border": {
+     "corner_radius": 100
+    },
+    "height": {
+     "type": "fixed",
+     "value": 64
+    },
+    "items": [
+     {
+      "type": "image",
+      "appearance_animation": {
+       "type": "fade",
+       "duration": 300,
+       "interpolator": "ease_in_out"
+      },
+      "height": {
+       "type": "match_parent"
+      },
+      "high_priority_preview_show": true,
+      "image_url": "",
+      "preview": "iVBORw0KGgoAAAANSUhEUgAAAEgAAABICAYAAABV7bNHAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAAZiS0dEAP8A/wD/oL2nkwAAAAlwSFlzAAAQnAAAEJwBJs06NAAABEpJREFUeNrtm1FSIzcQhv/WgO15m8FsqrCXlOcEwAkwuUDgBOucADjBmhOsuQE5QdgT4JwA5wR2BTBbYWHmzdjY6jwsVFgKYmlGtsa1+l5Hck//1SOpu2XA4XA4HA6Hw+FwOBzzhkz/YDfmwMOoLsZcJ09sA4BgdCAmR2uh37Pt8NwF6sYcLOF+k8a0KzyxAXD9tXEM6lRXClu2HZ6LQN2YgxLG+8xcB3gTQKBkjKixFhZ+t+20DtoCXceDGrM4A1BLYa5dWSns2HZaB6E7QU7QRCpxAIDrFzeDum2nddAWiITYyGLQ87yPtp3WQVug7HD9Mh5t2nZcFW2BmOVfma1K2bDtuCr6nxi4k9ko0YduzIFt55XeVXfCRFLHgN2gIO8PbDuvgvY23405KPIoNmA7GVIhikJKbIvwf2hH0KNDHQO2gxIefrUtwDRS7WKS+U8TxpnRsC3ANFIJxJJPzZh/PW/LE6kEWn/ntwEkBuz3bAswjdQHRcmcOelklrlPXFMLlPUzY5ZH1bLftC3ANDLVg/p3wxiKpY5nJFLKw/er/olt51XIlIsxy2PNKT1JDzuLIg6QMYIeD41dKEURt4dU3Mv7wfAlmSIoCilRXawXURzAQLnDE9xSGbcouddLjHQ1rm4HJ0Tiw7Rxckxb738qdGw7rYMRgTTWot6QCluL9KkZqShGISWKO1qtKB9+zJLrSJRaUEkdiA/6t4uzHhntrF7cDOqeJ85Uxk4mcucxp8s1Rov26+/8tmRWOjx6nvjj8p/8F+9n0psv8ugcar2zHpHcyXPP3njbJwopkeOHPaiVQ2rM4uw6HtR0bHyJR/v9u2Hcvxvy1d3o/DoeTT1ipMV4BD3Rv70/ANEnxeHJZCL3VNak6/jhI7NsvvKoJ4hajMlnkxE5M4EA4PL2viWI9pUnMB9WyqXWW4+/xKN9ydNP7sR0Yuq6zUwFAoCrr4MTEtNP2f+JRK2hWD56eZh8vDRxDp3yCuN0IuTxeph+t5y5QI+L9hmATY1p3y3e2W6UPP0eNdNcvZm5QBlEApForoXLR/270ZmhAr92qjMXgbKIhG+7YWDqPXRLvXO73RGFlAypsMNSu1AfmHwPlarDc+Z6/SUKKamu+g1meTRPuy9IdAZbuB8EVMt+E8yHNmzrdoWtCAQAlXKpRSQjzLl5uCRIKZl+wppAALAW+r0hFbZUE1wTDFDQiqC57WLT+PvrcHdJ4BPSn3UU4HZlpaR1y9ZqBD3n59XiaWWlGM1yAZcM7euDuRHoiWrZbxLJaBZ9+zTt8tx8Yq9xHQ9qUqKpe3Z5i8pKUdvf3EXQc9ZCv1ct+w0iGZGUvyHTjsftNLNyHUGvcXEzqAuBBpHYhsaCnvZ/Igsn0HMubgZ1ErQriLbxLcfjN/zqEslf0tSHFlqg7xSIOVga328uL9GGlLQNogCQNcn47Ak+znPd2+FwOBwOh8PhcPxw/AunrqgRoxjFZAAAAABJRU5ErkJggg==",
+      "tint_color": "#e6eef9",
+      "width": {
+       "type": "match_parent"
+      }
+     }
+    ],
+    "margins": {
+     "bottom": 20,
+     "left": 80
+    },
+    "paddings": {
+     "top": 12,
+     "bottom": 12,
+     "left": 12,
+     "right": 12
+    },
+    "width": {
+     "type": "fixed",
+     "value": 64
+    }
+   }
+  ],
+  "margins": {
+   "right": 8
+  },
+  "orientation": "overlap",
+  "visibility": "@{@@FILTER@@ ? 'visible' : 'gone'}",
+  "width": {
+   "type": "fixed",
+   "value": 224
+  }
+ },
+ "tile_station_offline": {
+  "type": "container",
+  "background": [
+   {
+    "type": "solid",
+    "color": "#1ae6eef9"
+   }
+  ],
+  "border": {
+   "corner_radius": 24
+  },
+  "content_alignment_horizontal": "center",
+  "content_alignment_vertical": "center",
+  "height": {
+   "type": "fixed",
+   "value": 264
+  },
+  "items": [
+   {
+    "type": "container",
+    "actions": [
+     {
+      "log_id": "open_smart_home",
+      "url": {
+       "$dialog": [
+        {
+         "type": "client_action",
+         "name": "open_smart_home_page_directive",
+         "payload": {
+          "move_options": {
+           "move_to": "Remote",
+           "onto_id": "@@ID@@"
+          }
+         }
+        }
+       ]
+      }
+     },
+     {
+      "log_id": "close_upper_shutter",
+      "url": {
+       "$dialog": [
+        {
+         "type": "client_action",
+         "name": "close_top_sheet"
+        }
+       ]
+      }
+     }
+    ],
+    "content_alignment_horizontal": "center",
+    "content_alignment_vertical": "center",
+    "height": {
+     "type": "match_parent"
+    },
+    "items": [
+     {
+      "type": "container",
+      "alignment_vertical": "top",
+      "content_alignment_horizontal": "center",
+      "items": [
+       {
+        "type": "container",
+        "height": {
+         "type": "fixed",
+         "value": 82
+        },
+        "items": [
+         {
+          "type": "image",
+          "height": {
+           "type": "fixed",
+           "value": 82
+          },
+          "image_url": "https://yastatic.net/s3/smart-display-res/iot/devices/@@ICON@@@2x.png",
+          "placeholder_color": "#0fff",
+          "visibility": "@{device_@@VAR@@_on_off_state ? 'gone' : 'visible'}",
+          "width": {
+           "type": "fixed",
+           "value": 82
+          }
+         },
+         {
+          "type": "image",
+          "height": {
+           "type": "fixed",
+           "value": 82
+          },
+          "image_url": "https://yastatic.net/s3/smart-display-res/iot/devices/@@ICON@@@2x.png",
+          "placeholder_color": "#0fff",
+          "visibility": "@{device_@@VAR@@_on_off_state ? 'visible' : 'gone'}",
+          "width": {
+           "type": "fixed",
+           "value": 82
+          }
+         }
+        ],
+        "orientation": "overlap",
+        "width": {
+         "type": "fixed",
+         "value": 82
+        }
+       },
+       {
+        "type": "text",
+        "auto_ellipsize": 1,
+        "font_size": 24,
+        "line_height": 28,
+        "max_lines": 1,
+        "text": "@@NAME@@",
+        "text_alignment_horizontal": "center",
+        "text_color": "#e6eef9",
+        "width": {
+         "type": "wrap_content",
+         "constrained": true
+        }
+       },
+       {
+        "type": "text",
+        "font_size": 22,
+        "line_height": 28,
+        "max_lines": 1,
+        "text": "@@ROOM@@",
+        "text_alignment_horizontal": "center",
+        "text_color": "#80e6eef9",
+        "width": {
+         "type": "wrap_content",
+         "constrained": true
+        }
+       }
+      ],
+      "margins": {
+       "bottom": 14
+      },
+      "orientation": "vertical"
+     },
+     {
+      "type": "container",
+      "alignment_vertical": "bottom",
+      "content_alignment_horizontal": "center",
+      "items": [],
+      "layout_mode": "wrap",
+      "orientation": "horizontal",
+      "width": {
+       "type": "match_parent"
+      }
+     }
+    ],
+    "orientation": "overlap",
+    "paddings": {
+     "left": 16,
+     "right": 16,
+     "top": 10,
+     "bottom": 10
+    },
+    "width": {
+     "type": "match_parent"
+    }
+   },
+   {
+    "type": "container",
+    "actions": [
+     {
+      "log_id": "open_call_ui",
+      "url": {
+       "$dialog": [
+        {
+         "type": "client_action",
+         "name": "phone_calls_open_device_call_ui",
+         "payload": {
+          "Name": "@@NAME@@",
+          "DeviceInfo": {
+           "DeviceId": "@@SN@@",
+           "DeviceName": "@@NAME@@",
+           "DeviceIconUrl": "https://yastatic.net/s3/smart-display-res/iot/devices/@@ICON@@@2x.png",
+           "RoomName": "@@ROOM@@",
+           "DropInEnabled": false,
+           "RadioNannyEnabled": true,
+           "HouseholdName": "@@HOUSEHOLD@@"
+          }
+         }
+        }
+       ]
+      }
+     }
+    ],
+    "alignment_horizontal": "left",
+    "alignment_vertical": "bottom",
+    "background": [
+     {
+      "type": "solid",
+      "color": "#1ae6eef9"
+     }
+    ],
+    "border": {
+     "corner_radius": 100
+    },
+    "height": {
+     "type": "fixed",
+     "value": 64
+    },
+    "items": [
+     {
+      "type": "image",
+      "appearance_animation": {
+       "type": "fade",
+       "duration": 300,
+       "interpolator": "ease_in_out"
+      },
+      "height": {
+       "type": "match_parent"
+      },
+      "high_priority_preview_show": true,
+      "image_url": "",
+      "preview": "iVBORw0KGgoAAAANSUhEUgAAAEgAAABICAYAAABV7bNHAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAAZiS0dEAP8A/wD/oL2nkwAAAAlwSFlzAAAQnAAAEJwBJs06NAAABEpJREFUeNrtm1FSIzcQhv/WgO15m8FsqrCXlOcEwAkwuUDgBOucADjBmhOsuQE5QdgT4JwA5wR2BTBbYWHmzdjY6jwsVFgKYmlGtsa1+l5Hck//1SOpu2XA4XA4HA6Hw+FwOBzzhkz/YDfmwMOoLsZcJ09sA4BgdCAmR2uh37Pt8NwF6sYcLOF+k8a0KzyxAXD9tXEM6lRXClu2HZ6LQN2YgxLG+8xcB3gTQKBkjKixFhZ+t+20DtoCXceDGrM4A1BLYa5dWSns2HZaB6E7QU7QRCpxAIDrFzeDum2nddAWiITYyGLQ87yPtp3WQVug7HD9Mh5t2nZcFW2BmOVfma1K2bDtuCr6nxi4k9ko0YduzIFt55XeVXfCRFLHgN2gIO8PbDuvgvY23405KPIoNmA7GVIhikJKbIvwf2hH0KNDHQO2gxIefrUtwDRS7WKS+U8TxpnRsC3ANFIJxJJPzZh/PW/LE6kEWn/ntwEkBuz3bAswjdQHRcmcOelklrlPXFMLlPUzY5ZH1bLftC3ANDLVg/p3wxiKpY5nJFLKw/er/olt51XIlIsxy2PNKT1JDzuLIg6QMYIeD41dKEURt4dU3Mv7wfAlmSIoCilRXawXURzAQLnDE9xSGbcouddLjHQ1rm4HJ0Tiw7Rxckxb738qdGw7rYMRgTTWot6QCluL9KkZqShGISWKO1qtKB9+zJLrSJRaUEkdiA/6t4uzHhntrF7cDOqeJ85Uxk4mcucxp8s1Rov26+/8tmRWOjx6nvjj8p/8F+9n0psv8ugcar2zHpHcyXPP3njbJwopkeOHPaiVQ2rM4uw6HtR0bHyJR/v9u2Hcvxvy1d3o/DoeTT1ipMV4BD3Rv70/ANEnxeHJZCL3VNak6/jhI7NsvvKoJ4hajMlnkxE5M4EA4PL2viWI9pUnMB9WyqXWW4+/xKN9ydNP7sR0Yuq6zUwFAoCrr4MTEtNP2f+JRK2hWD56eZh8vDRxDp3yCuN0IuTxeph+t5y5QI+L9hmATY1p3y3e2W6UPP0eNdNcvZm5QBlEApForoXLR/270ZmhAr92qjMXgbKIhG+7YWDqPXRLvXO73RGFlAypsMNSu1AfmHwPlarDc+Z6/SUKKamu+g1meTRPuy9IdAZbuB8EVMt+E8yHNmzrdoWtCAQAlXKpRSQjzLl5uCRIKZl+wppAALAW+r0hFbZUE1wTDFDQiqC57WLT+PvrcHdJ4BPSn3UU4HZlpaR1y9ZqBD3n59XiaWWlGM1yAZcM7euDuRHoiWrZbxLJaBZ9+zTt8tx8Yq9xHQ9qUqKpe3Z5i8pKUdvf3EXQc9ZCv1ct+w0iGZGUvyHTjsftNLNyHUGvcXEzqAuBBpHYhsaCnvZ/Igsn0HMubgZ1ErQriLbxLcfjN/zqEslf0tSHFlqg7xSIOVga328uL9GGlLQNogCQNcn47Ak+znPd2+FwOBwOh8PhcPxw/AunrqgRoxjFZAAAAABJRU5ErkJggg==",
+      "tint_color": "#e6eef9",
+      "width": {
+       "type": "match_parent"
+      }
+     }
+    ],
+    "margins": {
+     "bottom": 20,
+     "left": 80
+    },
+    "paddings": {
+     "top": 12,
+     "bottom": 12,
+     "left": 12,
+     "right": 12
+    },
+    "width": {
+     "type": "fixed",
+     "value": 64
+    }
+   },
+   {
+    "type": "container",
+    "alignment_horizontal": "center",
+    "alignment_vertical": "top",
+    "background": [
+     {
+      "type": "solid",
+      "color": "#0b0f14"
+     }
+    ],
+    "border": {
+     "corner_radius": 12
+    },
+    "content_alignment_horizontal": "center",
+    "content_alignment_vertical": "center",
+    "height": {
+     "type": "fixed",
+     "value": 32
+    },
+    "items": [
+     {
+      "type": "image",
+      "appearance_animation": {
+       "type": "fade",
+       "duration": 300,
+       "interpolator": "ease_in_out"
+      },
+      "height": {
+       "type": "fixed",
+       "value": 16
+      },
+      "image_url": "https://yastatic.net/s3/smart-display-res/iot/icons/wifi.webp?centaur_cache=1",
+      "margins": {
+       "right": 4
+      },
+      "width": {
+       "type": "fixed",
+       "value": 16
+      }
+     },
+     {
+      "type": "text",
+      "font_size": 16,
+      "line_height": 14,
+      "text": "Не в сети",
+      "text_alignment_horizontal": "center",
+      "text_color": "#FF5555"
+     }
+    ],
+    "margins": {
+     "top": 12
+    },
+    "orientation": "horizontal",
+    "paddings": {
+     "left": 8,
+     "right": 8,
+     "top": 8,
+     "bottom": 8
+    },
+    "width": {
+     "type": "fixed",
+     "value": 110
+    }
+   }
+  ],
+  "margins": {
+   "right": 8
+  },
+  "orientation": "overlap",
+  "visibility": "@{@@FILTER@@ ? 'visible' : 'gone'}",
+  "width": {
+   "type": "fixed",
+   "value": 224
+  }
+ },
  "tile_show_all": {
   "type": "container",
   "actions": [
