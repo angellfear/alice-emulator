@@ -1552,15 +1552,19 @@ def mount_ui(app, runtime, prefix="/emulator"):
     app.router.add_route("DELETE", prefix + "/api/catalog/apps/{id}", guarded(runtime.catalog.delete))
     from .ui.api import me as me_api  # кабинет пользователя: /me и /api/me/*
     me_api.mount(app, runtime, prefix)
-    # Файл кольца для draw_animation_directive: колонка качает его сама, без guard и
-    # без заголовков интерфейса; платформа/проект — сегменты пути, хвост (имя файла
-    # внутри S3Directory у прошивки своё) игнорируется. Запрос колонки — в лог сервера:
-    # имя, которое запрашивает прошивка, директивой не передаётся.
+    # Каталог кольца для draw_animation_directive (как S3Directory настоящего сервера):
+    # колонка качает <Path>/<платформа>/meta.txt — список ключей файлов от корня Bucket,
+    # по строке на файл, суффикс имени — дисплей (_ring), затем каждый файл по
+    # Bucket + "/" + ключ. Без guard и заголовков интерфейса; запрос — в лог сервера.
     async def ring_led(request):
         tail = request.match_info.get("tail", "")
+        platform, project_id = request.match_info["platform"], request.match_info["project_id"]
         try:
-            name, content_type, data = runtime.animation_projects.export(
-                request.match_info["platform"], request.match_info["project_id"])
+            name, content_type, data = runtime.animation_projects.export(platform, project_id)
+            if tail.rsplit("/", 1)[-1] == "meta.txt":
+                name, content_type = "meta.txt", "text/plain; charset=utf-8"
+                data = (f"emulator/api/animations-ring/{platform}/{project_id}/"
+                        f"{platform}/{project_id}_ring.led\n").encode()
         except ValueError as exc:
             runtime.server_log.log("warning", "animations", f"Файл кольца не отдан: {exc}",
                                    client=request.remote, tail=tail)

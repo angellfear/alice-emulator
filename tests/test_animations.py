@@ -490,14 +490,19 @@ async def test_api_play_project(tmp_path, monkeypatch):
             assert directory.Bucket == 'https://alica.lan'   # local_domain из server.json (по умолчанию alica.lan)
             assert directory.Path == 'emulator/api/animations-ring/yandexmini_2/r'
             assert body.SpeakingAnimationPolicy == 1          # PlaySpeakingEndOfTts — форма настоящего сервера
-            async with client.get(url + '/emulator/api/animations-ring/yandexmini_2/r/firmware-name.led') as response:
+            # каталог как у S3 настоящего сервера: <Path>/<платформа>/meta.txt — ключи файлов от Bucket
+            async with client.get(url + '/emulator/api/animations-ring/yandexmini_2/r/yandexmini_2/meta.txt') as response:
+                assert response.status == 200
+                keys = (await response.text()).splitlines()
+            assert keys == ['emulator/api/animations-ring/yandexmini_2/r/yandexmini_2/r_ring.led']
+            async with client.get(url + '/' + keys[0]) as response:
                 assert response.status == 200 and (await response.text()).startswith('name r')
             # запрос колонки — в логе сервера: какой хвост запросила прошивка
             await runtime.server_log.flush()
             import sqlite3
             with sqlite3.connect(runtime.server_log.path) as db:
                 rows = db.execute("SELECT message, detail FROM entries WHERE source='animations'").fetchall()
-            assert rows and 'firmware-name.led' in rows[-1][1]
+            assert rows and 'r_ring.led' in rows[-1][1] and 'meta.txt' in rows[-2][1]
             async with client.get(url + '/emulator/api/animations-ring/yandexmini_2/missing/x.led') as response:
                 assert response.status == 404
             await runtime.server_log.flush()
