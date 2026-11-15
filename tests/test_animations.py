@@ -327,6 +327,35 @@ def _gif_bytes(frames, size=(25, 16), duration=100):
     return out.getvalue()
 
 
+def test_gif_import_delta_frames_loop_and_durations(tmp_path):
+    """Импорт GIF: частичные кадры (дельта с disposal) композитятся с предыдущими,
+    метка цикла источника сохраняется (loop_from), длительность кадра — из источника."""
+    from PIL import Image
+    store = AnimationProjectStore(tmp_path)
+    first = Image.new("RGB", (25, 16), (255, 255, 255))
+    second = Image.new("RGB", (25, 16), (255, 255, 255))
+    for x in range(5, 10):
+        for y in range(5, 10):
+            second.putpixel((x, y), (0, 0, 0))
+    out = io.BytesIO()
+    first.save(out, format="GIF", save_all=True, append_images=[second],
+               duration=[100, 250], loop=0, disposal=1)
+    project = store.import_file("yandexstation_2", "delta", "Дельта", "frontal", out.getvalue(), "delta.gif")
+    assert len(project["frames"]) == 2 and project["loop_from"] == 0    # зацикленный источник
+    assert project["frames"][1]["delayMs"] == 250
+    assert project["frames"][1]["colors"][0] == [255, 255, 255]         # дельта легла на первый кадр
+    assert project["frames"][1]["colors"][7 * 25 + 7] == [0, 0, 0]
+    once = io.BytesIO()
+    first.save(once, format="GIF", save_all=True, append_images=[second], duration=100, disposal=1)
+    project = store.import_file("yandexstation_2", "once", "Раз", "frontal", once.getvalue(), "once.gif")
+    assert project["loop_from"] == -1                                   # без метки цикла — играет раз
+    # экспорт: с циклом — метка Netscape loop в файле, без — нет
+    with Image.open(io.BytesIO(store.export("yandexstation_2", "delta")[2])) as gif:
+        assert gif.info.get("loop") == 0 and gif.n_frames == 2
+    with Image.open(io.BytesIO(store.export("yandexstation_2", "once")[2])) as gif:
+        assert "loop" not in gif.info
+
+
 def test_frontal_gif_import_render_and_export(tmp_path):
     from PIL import Image
     store = AnimationProjectStore(tmp_path)
@@ -454,6 +483,7 @@ async def test_api_play_project(tmp_path, monkeypatch):
             sn, message = pushes[-1]
             directive = message.Event.Push.Directives[0]
             assert directive.Name == 'draw_animation_directive' and directive.Type == 'client_action' and directive.IsLedSilent
+            assert directive.AnalyticsType == 'draw_animation_directive'   # форма настоящего сервера
             body = message_class(schemas, 'NAlice.TAnimationCapability.TDrawAnimationDirective', 'centaur')\
                 .FromString(directive.PayloadRaw)
             directory = body.Animations[0].S3Directory
@@ -462,6 +492,19 @@ async def test_api_play_project(tmp_path, monkeypatch):
             assert body.SpeakingAnimationPolicy == 1          # PlaySpeakingEndOfTts — форма настоящего сервера
             async with client.get(url + '/emulator/api/animations-ring/yandexmini_2/r/firmware-name.led') as response:
                 assert response.status == 200 and (await response.text()).startswith('name r')
+            # запрос колонки — в логе сервера: какой хвост запросила прошивка
+            await runtime.server_log.flush()
+            import sqlite3
+            with sqlite3.connect(runtime.server_log.path) as db:
+                rows = db.execute("SELECT message, detail FROM entries WHERE source='animations'").fetchall()
+            assert rows and 'firmware-name.led' in rows[-1][1]
+            async with client.get(url + '/emulator/api/animations-ring/yandexmini_2/missing/x.led') as response:
+                assert response.status == 404
+            await runtime.server_log.flush()
+            with sqlite3.connect(runtime.server_log.path) as db:
+                level, message = db.execute(
+                    "SELECT level, message FROM entries WHERE source='animations' ORDER BY id DESC LIMIT 1").fetchone()
+            assert level == 'warning' and 'не отдан' in message
             assert 'платформа' in (await post(platform='yandexmini_2', id='c', sn='X00T10001B6SAK'))['error']
             assert 'не найден' in (await post(platform='yandexmini_2', id='zz', sn='M00T10001B6SAK'))['error']
             # фронтальный дисплей: GIF по адресу local_domain (сертификат эмулятора ему выдан)

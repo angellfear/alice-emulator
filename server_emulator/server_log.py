@@ -37,7 +37,7 @@ log = logging.getLogger(__name__)
 
 LEVELS = ("info", "warning", "error")
 SOURCES = ("server", "tls", "http", "ws", "upstream", "quasar", "extensions", "scripts",
-           "scenarios", "updates", "self_update", "auth")
+           "scenarios", "updates", "self_update", "auth", "animations")
 RETENTION_DAYS = 3
 MAX_ROWS = 100_000
 GLUE_WINDOW = 3600  # секунды: повторы с тем же ключом склеиваются

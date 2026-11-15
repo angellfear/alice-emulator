@@ -1554,10 +1554,19 @@ def mount_ui(app, runtime, prefix="/emulator"):
     me_api.mount(app, runtime, prefix)
     # Файл кольца для draw_animation_directive: колонка качает его сама, без guard и
     # без заголовков интерфейса; платформа/проект — сегменты пути, хвост (имя файла
-    # внутри S3Directory у прошивки своё) игнорируется.
+    # внутри S3Directory у прошивки своё) игнорируется. Запрос колонки — в лог сервера:
+    # имя, которое запрашивает прошивка, директивой не передаётся.
     async def ring_led(request):
-        name, content_type, data = runtime.animation_projects.export(
-            request.match_info["platform"], request.match_info["project_id"])
+        tail = request.match_info.get("tail", "")
+        try:
+            name, content_type, data = runtime.animation_projects.export(
+                request.match_info["platform"], request.match_info["project_id"])
+        except ValueError as exc:
+            runtime.server_log.log("warning", "animations", f"Файл кольца не отдан: {exc}",
+                                   client=request.remote, tail=tail)
+            return web.Response(status=404, text=str(exc))
+        runtime.server_log.log("info", "animations", f"Файл кольца отдан: {name}",
+                               client=request.remote, tail=tail, size=len(data))
         return web.Response(body=data, content_type=content_type.split(";")[0],
                             charset="utf-8" if "charset" in content_type else None,
                             headers={"Cache-Control": "no-cache"})

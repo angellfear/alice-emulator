@@ -108,6 +108,7 @@ def push_message(schemas_root, items):
     from . import actions
     server_type = load_type(schemas_root, "alice-api.pb", "NAlice.NAliceApi.TServerMessage")
     encoded = [{"name": item["name"], "is_led_silent": True,
+                "analytics": item.get("analytics"),
                 "payload_raw": encode(schemas_root, item["proto"], item.get("fields") or {},
                                       item.get("schema") or "centaur")}
                for item in items]

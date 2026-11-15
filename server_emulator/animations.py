@@ -403,10 +403,13 @@ async def play_project(runtime, platform, project_id, sn, request_base):
         return await runtime.push_action(sn, "draw_led_screen",
                                          {"frames": [f"{base_url}/emulator/api/animations-media?file={name}"]})
     # кольцо: draw_animation_directive (PayloadRaw по схеме станции) + файл с эмулятора;
-    # SpeakingAnimationPolicy — из формы настоящего сервера (образцы плеера, см. контракт)
+    # SpeakingAnimationPolicy и AnalyticsType — из формы настоящего сервера (образец
+    # погоды: Animations[S3Directory{Bucket, Path}] + f3=PlaySpeakingEndOfTts + Name,
+    # в конверте AnalyticsType; см. контракт)
     from . import clock_directives
     from .screen_templates import ANIMATION_PROTO
     item = {"name": "draw_animation_directive", "proto": ANIMATION_PROTO,
+            "analytics": "draw_animation_directive",
             "fields": {"Name": "draw_animation_directive",
                        "Animations": [{"S3Directory": {"Bucket": base_url,
                                                        "Path": f"emulator/api/animations-ring/{platform}/{project_id}"}}],

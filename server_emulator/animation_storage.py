@@ -177,7 +177,7 @@ class AnimationProjectStore:
             parsed = formats.parse_scled_bytes(data)
             frames, loop_from = parsed.frames, parsed.loop_from
         elif extension == ".gif" and kind == "frontal":
-            frames = _gif_frames(data, tuple(display["size"]))
+            frames, loop_from = _gif_frames(data, tuple(display["size"]))
         else:
             raise ValueError(f"Файл {extension or 'без расширения'} не подходит дисплею «{kind}»: "
                              "ring/panel/oknix — .led, clock — .scled, frontal — .gif")
@@ -234,16 +234,21 @@ def render_gif(project: dict) -> bytes:
     return out.getvalue()
 
 
-def _gif_frames(data: bytes, size: tuple) -> list[dict]:
-    """GIF → кадры frontal заданного размера (другой размер — масштаб ближайшим соседом).
+def _gif_frames(data: bytes, size: tuple) -> tuple[list[dict], int]:
+    """GIF → (кадры frontal, loop_from). Другой размер — масштаб к размеру матрицы:
+    уменьшение усредняет по площади (Resampling.BOX — при сильном сжатии сосед
+    теряет линии), увеличение — ближайшим соседом. Частичные кадры GIF (дельта
+    с disposal) Pillow композитит с предыдущими при seek — кадр полный.
     Дисплей чёрно-белый, градаций нет: кадр переводится в серый и порогом (127) —
     в пиксели вкл/выкл; цветной источник не отклоняется — приводится к тому, что
-    реально показала бы колонка."""
+    реально показала бы колонка. Цикл источника (метка Netscape loop) — loop_from=0:
+    частичный цикл GIF не выражает, повторяется целиком; без метки — играет раз."""
     Image = _pillow()
     if not data.startswith(b"GIF8"):
         raise ValueError("Файл не GIF")
     try:
         gif = Image.open(io.BytesIO(data))
+        loop_from = 0 if gif.info.get("loop", -1) >= 0 else -1
         frames = []
         for index in range(min(getattr(gif, "n_frames", 1), MAX_FRAMES)):
             gif.seek(index)
@@ -251,10 +256,13 @@ def _gif_frames(data: bytes, size: tuple) -> list[dict]:
             background = Image.new("RGBA", image.size, (0, 0, 0, 255))
             image = Image.alpha_composite(background, image).convert("L")
             if image.size != size:
-                image = image.resize(size, Image.NEAREST)
+                if image.size[0] > size[0] or image.size[1] > size[1]:
+                    image = image.resize(size, Image.Resampling.BOX)
+                else:
+                    image = image.resize(size, Image.Resampling.NEAREST)
             delay = max(MIN_GIF_DELAY_MS, min(int(gif.info.get("duration", 100) or 100), MAX_DELAY_MS))
             raw = image.tobytes()
             frames.append({"colors": [[255, 255, 255] if v > 127 else [0, 0, 0] for v in raw], "delayMs": delay})
     except (OSError, EOFError, ValueError) as exc:
         raise ValueError(f"GIF не разобран: {exc}") from None
-    return frames
+    return frames, loop_from

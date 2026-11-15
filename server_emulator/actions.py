@@ -190,8 +190,8 @@ async def send_action(runtime, sn, action, arguments):
 def push_directive(server_type, name, payload=None, items=None):
     """Push с одной произвольной директивой (sdk.send_directive) — тот же
     конверт, что у push_message, без проверки каталога. items — перечень
-    элементов [{"name", "payload"?, "payload_raw"?, "is_led_silent"?}]: несколько штатных
-    директив (таймеры/будильники) уходят одним Push-сообщением."""
+    элементов [{"name", "payload"?, "payload_raw"?, "analytics"?, "is_led_silent"?}]:
+    несколько штатных директив (таймеры/будильники) уходят одним Push-сообщением."""
     output = server_type()
     output.Event.Header.MessageId = uuid.uuid4().hex
     output.Event.Header.Ack = int(time.time() * 1000)
@@ -203,6 +203,8 @@ def push_directive(server_type, name, payload=None, items=None):
         directive = push.Directives.add()
         directive.Name = str(element["name"])
         directive.Type = 'client_action'
+        if element.get("analytics"):
+            directive.AnalyticsType = str(element["analytics"])
         if element.get("is_led_silent") is not None:
             directive.IsLedSilent = bool(element["is_led_silent"])
         if element.get("payload"):
