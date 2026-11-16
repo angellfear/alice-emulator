@@ -25,6 +25,12 @@ def _manifest_version():
         return "0.0.0"
 
 
+def released():
+    """Номер релиза из манифеста — чистый semver без суффикса `+N.g<sha>`: по нему
+    сверяются требования расширений (requires.emulator)."""
+    return _manifest_version()
+
+
 _RUNNING = None  # версия запущенного кода: считается один раз за процесс (current без path)
 
 

@@ -7,10 +7,12 @@ fallback на manifest.
 import json
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
 
+from server_emulator.extensions import EMULATOR_VERSION
 from server_emulator.version import current
 
 pytestmark = pytest.mark.no_state_template  # git-репозитории создаются в каталоге теста:
@@ -118,3 +120,13 @@ def test_server_run_leaves_working_copy_clean(tmp_path):
     status = subprocess.run(["git", "status", "--porcelain"], cwd=repo,
                             capture_output=True, text=True).stdout.strip()
     assert status == ""
+
+
+def test_release_version_is_the_same_in_manifest_pyproject_and_extensions():
+    """Номер релиза один: манифест, версия пакета в pyproject.toml (её поднимает
+    release-please через extra-files) и EMULATOR_VERSION расширений."""
+    root = Path(__file__).resolve().parent.parent
+    released = json.loads((root / ".release-please-manifest.json").read_text(encoding="utf-8"))["."]
+    package = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+    assert package == released
+    assert EMULATOR_VERSION == released

@@ -3,8 +3,8 @@
 Сервер пишет план в state/update/plan.json, копирует этот файл в state/update/ и запускает
 отделённым процессом тем же интерпретатором, затем штатно завершается (код UPDATE_CODE).
 Updater ждёт выхода сервера, бэкапит данные state/ в zip с ротацией, fetch'ит теги origin и
-переключается на целевой тег (ветка — fast-forward, иначе checkout), при изменении pyproject
-между релизами — pip install -e ".[emulator]", запускает сервер с прежними аргументами и ждёт
+переключается на целевой тег (ветка — fast-forward, иначе checkout), при изменении зависимостей
+в pyproject между релизами — pip install -e ".[emulator]", запускает сервер с прежними аргументами и ждёт
 ответа /__control/status с новой версией. Сбой на любом шаге — возврат на прежний коммит,
 повтор шага зависимостей, запуск; в план пишется failed с логом. Под треем и менеджером служб
 (launch: tray|manager) сервер updater'ом не запускается: трей ждёт план после UPDATE_CODE,
@@ -20,6 +20,7 @@ import ssl
 import subprocess
 import sys
 import time
+import tomllib
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -116,9 +117,23 @@ def backup(state, target_tag):
 
 
 def deps_changed(repo, old_commit, new_commit):
-    """Сравнение pyproject.toml между релизами по деревьям коммитов, без git CLI."""
+    """Сравнение зависимостей между релизами по pyproject.toml в деревьях коммитов, без git CLI.
+    Номер версии пакета release-please поднимает в каждом релизе — к зависимостям он не
+    относится, иначе pip запускался бы при любом обновлении."""
     from server_emulator.self_update import repo as git_repo
-    return git_repo.blob_at(repo, old_commit, "pyproject.toml") != git_repo.blob_at(repo, new_commit, "pyproject.toml")
+    return _installed(git_repo.blob_at(repo, old_commit, "pyproject.toml")) != \
+        _installed(git_repo.blob_at(repo, new_commit, "pyproject.toml"))
+
+
+def _installed(blob):
+    """Что pip ставит по pyproject: requires-python, зависимости и extras; None — файла нет."""
+    if blob is None:
+        return None
+    try:
+        project = tomllib.loads(blob.decode("utf-8")).get("project", {})
+    except (UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return blob  # нечитаемый pyproject — сравниваем как есть
+    return project.get("requires-python"), project.get("dependencies"), project.get("optional-dependencies")
 
 
 def pip_install(state, root, python, log):

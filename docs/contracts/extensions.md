@@ -99,7 +99,7 @@ docs/contracts/scripts-sdk.md).
 | `license` | string, обязателен | SPDX-идентификатор |
 | `homepage` | string | |
 | `category` | string | группа в дереве расширений («Дом»), до 40 символов; без неё — по видам поставщиков или «Прочее» |
-| `requires` | object, обязателен | `emulator` — диапазон semver версий эмулятора; `sdk` — диапазон `SDK_VERSION` из `server_emulator/sdk.py` (актуальное значение — константа в файле); `python_packages` — список pip-требований |
+| `requires` | object, обязателен | `emulator` — диапазон semver версий эмулятора (номер релиза из `.release-please-manifest.json`); `sdk` — диапазон `SDK_VERSION` из `server_emulator/sdk.py` (актуальное значение — константа в файле); `python_packages` — список pip-требований |
 | `permissions` | object, обязателен | см. «Разрешения»; `{}` для data-расширения |
 | `settings` | object | схема настроек расширения: `fields` + `defaults` — формат как `fields`/`defaults` в `voice_stack/packages/*.json` |
 | `contributes` | object | переопределяет поиск по папкам (ниже) |

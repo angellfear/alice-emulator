@@ -4,6 +4,8 @@
 docs/contracts/extensions.md. Точки подключения берут включённые
 расширения из runtime.extensions (ExtensionManager.loaded, contribution_dirs()).
 """
+from ..version import released
 
-# Версия эмулятора для сверки requires.emulator (зеркало version в pyproject.toml).
-EMULATOR_VERSION = "0.1.0"
+# Версия эмулятора для сверки requires.emulator и версии встроенных расширений —
+# номер релиза из .release-please-manifest.json, его поднимает release-please.
+EMULATOR_VERSION = released()

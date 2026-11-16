@@ -41,7 +41,7 @@ Conventional Commits: PR релиза, `CHANGELOG.md`, тег `vX.Y.Z`, GitHub R
 `state/update/`, чтобы замена файлов рабочей копии не задевала исполняемый код updater'а):
 ждёт выхода сервера (код `UPDATE_CODE` = 76 в `server_config.py`), бэкапит данные `state/` в zip
 с ротацией до 5, fetch тегов и переключение на тег (ветка релизов — fast-forward через
-`reset --hard`, иначе checkout detached), при изменении pyproject между релизами —
+`reset --hard`, иначе checkout detached), при изменении зависимостей в pyproject между релизами —
 `pip install -e ".[emulator]"`, запуск сервера и ожидание `/__control/status` с новой версией.
 Сбой любого шага — возврат на прежний коммит, повтор шага зависимостей, запуск; итог ok/failed —
 в `state/update/plan.json`, лог — `state/update/update.log`.

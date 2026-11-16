@@ -303,3 +303,30 @@ async def test_manual_check_and_button_do_not_need_enabled(monkeypatch, service)
         await runner.cleanup()
 
 
+
+
+def test_deps_changed_ignores_version_bump(tmp_path):
+    """Номер версии поднимает release-please в каждом релизе: обновление зависимостей
+    нужно только при смене того, что ставит pip."""
+    from dulwich.repo import Repo
+
+    work = tmp_path / "work"
+    work.mkdir()
+    git("init", "-q", cwd=work)
+    git("config", "user.email", "test@example.com", cwd=work)
+    git("config", "user.name", "Test", cwd=work)
+
+    def commit(version, dependency):
+        (work / "pyproject.toml").write_text(
+            f"[project]\nversion = '{version}'\ndependencies = ['aiohttp{dependency}']\n", encoding="utf-8")
+        git("add", ".", cwd=work)
+        git("commit", "-q", "-m", version, cwd=work)
+        return subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(work), check=True,
+                              capture_output=True, text=True).stdout.strip()
+
+    first = commit("1.0.0", ">=3.11")
+    second = commit("1.0.1", ">=3.11")   # только версия
+    third = commit("1.0.2", ">=4")       # версия и зависимость
+    head = Repo(str(work))
+    assert updater.deps_changed(head, first, second) is False
+    assert updater.deps_changed(head, second, third) is True
