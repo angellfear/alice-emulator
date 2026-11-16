@@ -33,7 +33,7 @@ def test_direct_write_without_loop(tmp_path):
 
 async def test_write_read_and_filters(store):
     store.log("info", "server", "Сервер запущен")
-    store.log("warning", "tls", "Домен a.b.example.test не найден в сертификате", device_sn="SN-1", host="a.b.example.test")
+    store.log("warning", "tls", "Домен a.b.example.test не обслуживается", device_sn="SN-1", host="a.b.example.test")
     store.log("error", "http", "Ошибка обработки запроса", path="/x")
     await store.flush()
     everything = await store.query()
@@ -42,7 +42,7 @@ async def test_write_read_and_filters(store):
     assert (await store.query(level="warning,error"))["items"][0]["source"] == "http"  # новые сверху
     assert [item["source"] for item in (await store.query(level="warning"))["items"]] == ["tls"]
     assert (await store.query(source="tls"))["items"][0]["device_sn"] == "SN-1"
-    assert (await store.query(q="сертификат"))["items"][0]["source"] == "tls"
+    assert (await store.query(q="обслуживается"))["items"][0]["source"] == "tls"
     assert (await store.query(q="SN-1"))["items"][0]["device_sn"] == "SN-1"
     assert (await store.query(q="нет такого"))["items"] == []
     detail = (await store.query(source="tls"))["items"][0]["detail"]
@@ -65,20 +65,20 @@ async def test_pagination_before(store):
 
 async def test_glue_repeats_within_hour_new_row_after(store):
     now = time.time()
-    store.log("warning", "tls", "Домен x.y.test не найден в сертификате", ts=now)
-    store.log("warning", "tls", "Домен x.y.test не найден в сертификате", ts=now + 60)
-    store.log("warning", "tls", "Домен x.y.test не найден в сертификате", ts=now + 120)
+    store.log("warning", "tls", "Домен x.y.test не обслуживается", ts=now)
+    store.log("warning", "tls", "Домен x.y.test не обслуживается", ts=now + 60)
+    store.log("warning", "tls", "Домен x.y.test не обслуживается", ts=now + 120)
     await store.flush()
     glued = (await store.query())["items"]
     assert len(glued) == 1 and glued[0]["count"] == 3
     assert glued[0]["last_ts"] == now + 120 and glued[0]["ts"] == now  # время первого случая сохранено
-    store.log("warning", "tls", "Домен x.y.test не найден в сертификате", ts=now + 2 * 3600)
+    store.log("warning", "tls", "Домен x.y.test не обслуживается", ts=now + 2 * 3600)
     await store.flush()
     rows = (await store.query())["items"]
     assert len(rows) == 2 and rows[0]["count"] == 1  # после часа — новая строка
     # другой источник или устройство — отдельные строки даже в пределах часа
-    store.log("error", "tls", "Домен x.y.test не найден в сертификате", ts=now)
-    store.log("warning", "tls", "Домен x.y.test не найден в сертификате", device_sn="SN-2", ts=now)
+    store.log("error", "tls", "Домен x.y.test не обслуживается", ts=now)
+    store.log("warning", "tls", "Домен x.y.test не обслуживается", device_sn="SN-2", ts=now)
     await store.flush()
     assert len((await store.query())["items"]) == 4
 

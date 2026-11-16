@@ -87,9 +87,10 @@ async def start_real_tls_server(tmp_path, port):
     return await asyncio.start_server(handle, "127.0.0.2", port, ssl=context)
 
 
-async def start_front(runtime, tmp_path, resolve_map):
+async def start_front(runtime, tmp_path, resolve_map, extra_sans=()):
     """Фронт + внутренний aiohttp на эфемерных портах; SNI-разбор и сплайс — как в бою."""
-    cert, key = make_cert(tmp_path, "server", "example.test", ("*.example.test", "example.test"))
+    cert, key = make_cert(tmp_path, "server", "example.test",
+                          ("*.example.test", "example.test", *extra_sans))
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.load_cert_chain(cert, key)
     front = Front(runtime)
@@ -147,6 +148,8 @@ def test_cert_covers_and_sans(tmp_path):
 
 async def test_covered_sni_splices_with_client_ip(tmp_path):
     runtime = Runtime(tmp_path)
+    # a.example.test покрыт сертификатом, но обслуживаемым его делает пользовательский список
+    server_config.save(tmp_path, server_config.validate(tmp_path, {"ssl": False, "serve_extra": ["a.example.test"]}))
     front, runner, port, _cert = await start_front(runtime, tmp_path, {"x.y.example.test": ["127.0.0.2"]})
     try:
         body, local = await asyncio.to_thread(tls_exchange, port, "a.example.test", "/whoami")
@@ -236,6 +239,8 @@ async def test_serve_starts_front_and_keeps_client_peer(tmp_path):
     main_port, http_port = free_port(), free_port()
     config = {"host": "127.0.0.1", "port": main_port, "ssl": True, "cert": str(cert), "key": str(key),
               "http_port": http_port, "front": True, "front_dns": ["8.8.8.8", "1.1.1.1"]}
+    # фронт читает списки обслуживаемых из server.json: localhost там должен быть
+    server_config.save(tmp_path, server_config.validate(tmp_path, {**config, "serve_extra": ["localhost"]}))
     runtime = Runtime(tmp_path)
     token = control.write_token(tmp_path)
     app = server.create_app(runtime=runtime, control_token=token)

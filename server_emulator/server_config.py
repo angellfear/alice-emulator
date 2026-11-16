@@ -4,9 +4,10 @@
 перекрывают файл (`effective`). Применение — перезапуском: `save` хранит прежний файл
 (`server.json.prev`) и метку `server.json.pending`; если сервер с новыми настройками не поднялся,
 `rollback` возвращает прежние. Колонкам нужны 443 (TLS) и 80 (HTTP, `quasar.yandex.net`).
-Кроме политики фронта для доменов вне сертификата (`front_uncovered`, `front_allow`): её фронт
-читает из файла на каждое соединение — она применяется без перезапуска. И кроме
-локального домена (`local_domain`): его читает сборка get_sync_info на каждый запрос колонки.
+Кроме политики фронта для доменов вне обслуживаемых (`front_uncovered`, `serve_off`,
+`serve_extra`): её фронт читает из файла на каждое соединение — она применяется без
+перезапуска. И кроме локального домена (`local_domain`): его читает сборка get_sync_info
+на каждый запрос колонки.
 """
 from __future__ import annotations
 
@@ -22,18 +23,22 @@ from pathlib import Path
 FILE = "server.json"
 DEFAULTS = {"host": "0.0.0.0", "port": 443, "ssl": True, "cert": "", "key": "", "http_port": 80,
             "front": True, "front_dns": ["8.8.8.8", "1.1.1.1"],  # фронт TLS и DNS туннелей
-            "front_uncovered": "tunnel", "front_allow": [],  # домены вне сертификата: режимы фронта
+            "front_uncovered": "tunnel",  # домены вне обслуживаемых: tunnel (прозрачно) или block
+            "serve_off": [],   # дополнительные домены, которые НЕ обслуживаем (туннель/блок по политике)
+            "serve_extra": [],  # пользовательский список обслуживаемых доменов
             "local_domain": "alica.lan",  # имя сервера в DNS сети для колонок; пусто — конфиг колонок не меняется
             "speech_dir": ""}  # папка пакетов голосового стека; пусто — data/speech внутри проекта (voice_stack.resolve_speech_dir)
-# Домены, которые колонка открывает по HTTPS и на которые отвечает эмулятор: их должен покрывать
-# сертификат (к ним добавляется local_domain). Голос на local_domain идёт по ws:// без TLS.
-# Хосты авторизации (паспорт/oauth) здесь не нужны: эмулятор на них не отвечает — фронт
+# Обслуживаемые домены: фронт терминирует TLS, эмулятор отвечает/маршрутизирует. Голос на
+# local_domain идёт по ws:// без TLS, но https на имя сервера терминировать нужно всё равно.
+MANDATORY_DOMAINS = ("quasar.yandex.net", "rpc.alice.yandex.net", "uniproxy.alice.yandex.net")
+# Для офлайн и приватности: включён — отвечаем сами (замкнутость на эмулятор, работа без сети),
+# выключен — домен ведёт себя как необслуживаемый (политика ниже).
+OPTIONAL_DOMAINS = ("scbh.yandex.net", "clck.yandex.net", "report.appmetrica.yandex.net",
+                    "push.yandex.ru", "startup.mobile.yandex.net", "iot.quasar.yandex.ru")
+# Хосты авторизации (паспорт/oauth) в списках не нужны: эмулятор на них не отвечает — фронт
 # всегда туннелирует их настоящему Яндексу (front.py).
-CERT_DOMAINS = ("quasar.yandex.net", "uniproxy.alice.yandex.net", "rpc.alice.yandex.net", "push.yandex.ru",
-                "iot.quasar.yandex.ru", "scbh.yandex.net", "clck.yandex.net",
-                "report.appmetrica.yandex.net", "startup.mobile.yandex.net")
 # Применяются без перезапуска: фронт читает их из файла на каждое соединение (front.py::_policy).
-FRONT_MODES = ("tunnel", "allowlist", "block")
+FRONT_MODES = ("tunnel", "block")
 _DOMAIN_LABEL = r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"
 DOMAIN_RE = re.compile(rf"^(?:\*\.)?{_DOMAIN_LABEL}(?:\.{_DOMAIN_LABEL})*$")  # wildcard — только первым ярлыком
 CERT_DIR = "certs"          # загруженные в интерфейсе сертификаты и ключи: <state>/certs/
@@ -64,14 +69,18 @@ def resolve(state, value):
 
 
 def load(state):
-    """Настройки из файла поверх значений по умолчанию; битый файл — значения по умолчанию."""
+    """Настройки из файла поверх значений по умолчанию; битый файл — значения по умолчанию.
+    Старый ключ front_allow и режим allowlist не читаются: разовый перенос — allowlist → tunnel."""
     try:
         value = json.loads(_path(state).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         value = {}
     if not isinstance(value, dict):
         value = {}
-    return {key: value.get(key, default) for key, default in DEFAULTS.items()}
+    config = {key: value.get(key, default) for key, default in DEFAULTS.items()}
+    if config["front_uncovered"] not in FRONT_MODES:
+        config["front_uncovered"] = "tunnel"
+    return config
 
 
 def effective(config, overrides):
@@ -90,35 +99,51 @@ def _port(value, name, allow_zero=False):
     return number
 
 
-def front_policy(value):
-    """Политика доменов вне сертификата из формы или файла → (режим, лист); ошибка — ValueError.
+def serve_policy(value):
+    """Списки обслуживаемых доменов из формы или файла → (off, extra); ошибка — ValueError.
 
-    Лист — список или строка с одним доменом на строку (из textarea): нормализация (строчные,
-    без пробелов и завершающей точки), пустые строки и повторы убираются; разрешены ярлыки из
-    букв, цифр и `-`, wildcard `*.` — только первым ярлыком (на один уровень, как в TLS).
+    И off, и extra — список или строка с одним доменом на строку (из textarea): нормализация
+    (строчные, без пробелов и завершающей точки), пустые строки и повторы убираются. off —
+    только имена из OPTIONAL_DOMAINS (лишние отбрасываются: включённость — по умолчанию).
+    extra — пользовательский список: домен без шаблонов, wildcard `*` запрещён.
     """
-    mode = str(value.get("front_uncovered", DEFAULTS["front_uncovered"]))
-    if mode not in FRONT_MODES:
-        raise ValueError("Домены вне сертификата: режим tunnel (прозрачно), allowlist (по листу) или block")
-    items = value.get("front_allow", DEFAULTS["front_allow"])
+    items = value.get("serve_off", DEFAULTS["serve_off"])
     if isinstance(items, str):
         items = items.splitlines()
     if not isinstance(items, list):
-        raise ValueError("Домены вне сертификата: список или по домену на строку")
-    allow = []
+        raise ValueError("Дополнительные домены: список или по домену на строку")
+    off = []
+    for item in items:
+        name = str(item).strip().lower().strip(".")
+        if name in OPTIONAL_DOMAINS and name not in off:
+            off.append(name)
+    items = value.get("serve_extra", DEFAULTS["serve_extra"])
+    if isinstance(items, str):
+        items = items.splitlines()
+    if not isinstance(items, list):
+        raise ValueError("Пользовательский список: по домену на строку")
+    extra = []
     for item in items:
         name = str(item).strip().lower().strip(".")
         if not name:
             continue
         if len(name) > 253:
-            raise ValueError(f"Домены вне сертификата: «{name[:40]}…» длиннее 253 символов")
-        if not DOMAIN_RE.match(name):
-            raise ValueError(f"Домены вне сертификата: «{name[:60]}» — не домен (`*` — только первым ярлыком)")
-        if name not in allow:
-            allow.append(name)
-    if len(allow) > 100:
-        raise ValueError("Домены вне сертификата: не больше 100 записей")
-    return mode, allow
+            raise ValueError(f"Пользовательский список: «{name[:40]}…» длиннее 253 символов")
+        if "*" in name or not DOMAIN_RE.match(name):
+            raise ValueError(f"Пользовательский список: «{name[:60]}» — домен без шаблонов (`*` запрещён)")
+        if name not in extra:
+            extra.append(name)
+    if len(extra) > 100:
+        raise ValueError("Пользовательский список: не больше 100 записей")
+    return off, extra
+
+
+def front_mode(value):
+    """Режим для доменов вне обслуживаемых из формы или файла → "tunnel"|"block"; ошибка — ValueError."""
+    mode = str(value.get("front_uncovered", DEFAULTS["front_uncovered"]))
+    if mode not in FRONT_MODES:
+        raise ValueError("Домены вне сертификата: режим tunnel (прозрачно) или block")
+    return mode
 
 
 def ssl_context(state, config):
@@ -153,7 +178,8 @@ def validate(state, value):
     if not isinstance(dns, list) or not dns or len(dns) > 4 \
             or not all(isinstance(item, str) and item.strip() for item in dns):
         raise ValueError("DNS туннелей: адреса через запятую (до 4)")
-    mode, allow = front_policy(value)
+    mode = front_mode(value)
+    off, extra = serve_policy(value)
     local_domain = str(value.get("local_domain", DEFAULTS["local_domain"]) or "").strip().lower().strip(".")
     if local_domain and (len(local_domain) > 253 or local_domain.startswith("*")
                          or not DOMAIN_RE.match(local_domain)):
@@ -164,7 +190,7 @@ def validate(state, value):
               "http_port": _port(value.get("http_port", DEFAULTS["http_port"]), "HTTP-порт", allow_zero=True),
               "front": bool(value.get("front", DEFAULTS["front"])),
               "front_dns": [item.strip() for item in dns],
-              "front_uncovered": mode, "front_allow": allow, "local_domain": local_domain,
+              "front_uncovered": mode, "serve_off": off, "serve_extra": extra, "local_domain": local_domain,
               "speech_dir": clean_path(value.get("speech_dir", DEFAULTS["speech_dir"]))}
     if config["port"] == config["http_port"]:
         raise ValueError("Порт и HTTP-порт должны различаться")

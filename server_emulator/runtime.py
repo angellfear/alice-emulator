@@ -1547,6 +1547,13 @@ def mount_ui(app, runtime, prefix="/emulator"):
         raise web.HTTPNotFound()
 
     app.router.add_get("/favicon.ico", icon)
+
+    # Браузер на корне: с парольной системой — в кабинет (вход), без неё — в панель.
+    # Колонки на "/" не ходят — их пути ведут на API-хосты и legacy-цепочку.
+    async def root(request):
+        raise web.HTTPFound("/me" if runtime.auth.enabled else "/emulator/")
+
+    app.router.add_get("/", root)
     app.router.add_post(prefix + "/api/setup/protocol", guarded(lambda request: setup_api.upload(request, runtime)))
     app.router.add_post(prefix + "/api/setup/images", guarded(lambda request: setup_api.refresh_images(request, runtime)))
     app.router.add_route("PUT", prefix + "/api/catalog/apps/{id}", guarded(runtime.catalog.edit))

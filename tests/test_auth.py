@@ -134,3 +134,35 @@ def test_set_user_login_creates_updates_and_links_session(tmp_path):
     assert store.login("bobby", "new-pass2") is not None
     assert store.user_login("u1")["name"] == "bobby"
     assert AuthStore(tmp_path).login("bobby", "new-pass2") is not None
+
+
+async def test_root_redirects_by_auth_mode(tmp_path):
+    """Браузер на «/»: открытый режим — в панель (/emulator/), с парольной системой — в
+    кабинет (/me); устройство на своих путях редирект не задевает."""
+    runtime = Runtime(tmp_path)
+    runner, port = await run_app(create_app(runtime=runtime))
+    try:
+        async with ClientSession(cookie_jar=CookieJar(unsafe=True)) as client:
+            base = f"http://127.0.0.1:{port}"
+            async with client.get(base + "/", allow_redirects=False) as response:
+                assert response.status == 302
+                assert response.headers["Location"] == "/emulator/"
+            async with client.get(base + "/check_updates",
+                                  headers={"Host": "quasar.yandex.net"}) as response:
+                assert response.status == 200  # путь устройства — мимо редиректа
+    finally:
+        await runner.cleanup()
+    await runtime.close()
+
+    runtime = Runtime(tmp_path)
+    runtime.auth.bootstrap("Admin", password="pw-123456")
+    runner, port = await run_app(create_app(runtime=runtime))
+    try:
+        async with ClientSession(cookie_jar=CookieJar(unsafe=True)) as client:
+            base = f"http://127.0.0.1:{port}"
+            async with client.get(base + "/", allow_redirects=False) as response:
+                assert response.status == 302
+                assert response.headers["Location"] == "/me"
+    finally:
+        await runner.cleanup()
+    await runtime.close()

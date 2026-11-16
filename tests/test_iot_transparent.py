@@ -1,4 +1,4 @@
-"""Перехват iot.quasar.yandex.ru в маршруте «Прозрачно»: домен в сертификате фронта,
+"""Перехват iot.quasar.yandex.ru в маршруте «Прозрачно»: дополнительный обслуживаемый домен,
 пересылка на настоящий iot и запись в журнал по опции «Запись» устройства
 (по образцу quasar.yandex.net — tests/test_device_route_modes.py).
 
@@ -13,8 +13,9 @@ from tests.conftest import listen
 
 
 def test_iot_host_in_certificate():
-    """Домен в списке сертификата — фронт расшифровывает TLS и видит запросы iot."""
-    assert "iot.quasar.yandex.ru" in server_config.CERT_DOMAINS
+    """Дополнительный домен включён по умолчанию — фронт расшифровывает TLS и видит запросы iot."""
+    assert "iot.quasar.yandex.ru" in server_config.OPTIONAL_DOMAINS
+    assert "iot.quasar.yandex.ru" not in server_config.DEFAULTS["serve_off"]
 
 
 async def start_upstream(calls):

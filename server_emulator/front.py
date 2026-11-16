@@ -3,27 +3,30 @@
 Слушатель публичного TLS-порта — сырой TCP. На каждое соединение читается
 ClientHello (до 32 КиБ, без расшифровки), из него — SNI:
 
-- имени нет, оно покрыто сертификатом сервера (DNS-SAN листового PEM, wildcard
-  ровно на один уровень — как проверяет сам TLS) или это литеральный IP/.local
-  (публично не резолвится) — соединение целиком передаётся внутреннему
-  aiohttp-слушателю с тем же ssl_context (сплайс, накопленные байты идут
-  первыми, ничего не теряется);
+- имени нет, оно литеральный IP/.local (публично не резолвится) или это обслуживаемый
+  домен — соединение целиком передаётся внутреннему aiohttp-слушателю с тем же
+  ssl_context (сплайс, накопленные байты идут первыми, ничего не теряется).
+  Обслуживаемые (server_config): обязательные (quasar.yandex.net, rpc.alice.yandex.net,
+  uniproxy.alice.yandex.net; непокрытый сертификатом обязательный отклоняется — иначе
+  эмуляция молча подменяется настоящим облаком), дополнительные для офлайн и
+  приватности из OPTIONAL_DOMAINS, кроме выключенных (serve_off), и пользовательский
+  список serve_extra — каждый при покрытии DNS-SAN листового сертификата (wildcard
+  ровно на один уровень — как проверяет сам TLS); сертификат не читается — всё сплайсом;
 - хосты авторизации (passport.yandex.ru, oauth.yandex.ru, суффиксы
   .passport.yandex.ru/.passport.yandex.net) — всегда слепой туннель в Яндекс,
-  до проверки сертификата и независимо от front_uncovered (даже block/allowlist):
-  вход и привязка аккаунта идут только в настоящий Яндекс — экран входа на колонке
-  WebView паспорта, Chromium отвергает наш сертификат (net_error -213);
-- иначе (домен не покрыт — например strm-хосты музыки) — по настроенному
-  front_uncovered (режим и лист читаются живьём из server.json на каждое
-  соединение, применяются без перезапуска): "tunnel" (по умолчанию) — слепой TCP-туннель
-  к настоящему адресу хоста: A-записи у внешних DNS (настройка server.json
-  front_dns, aiodns), порт тот же; настоящий TLS с настоящим сертификатом,
-  содержимое фронту не видно. Адрес самого сервера в адреса туннеля не
-  попадает (защита от петли — upstream.resolver.local_addresses).
-  "allowlist" — туннель только доменам из front_allow (wildcard на один уровень —
-  cert_covers), прочие отклоняются; "block" — все непокрытые отклоняются:
-  соединение закрывается сразу после чтения SNI, TLS не состоялся.
-- каждое непокрытое имя фиксируется в Front.seen (имя → счётчик, в памяти с запуска
+  до проверки списков и независимо от front_uncovered (даже block): вход и привязка
+  аккаунта идут только в настоящий Яндекс — экран входа на колонке WebView паспорта,
+  Chromium отвергает наш сертификат (net_error -213);
+- иначе (домен не обслуживается — не в списках, выключен или не покрыт — например
+  strm-хосты музыки) — по настроенному front_uncovered (режим и списки читаются живьём
+  из server.json на каждое соединение, применяются без перезапуска): "tunnel" (по
+  умолчанию) — слепой TCP-туннель к настоящему адресу хоста: A-записи у внешних DNS
+  (настройка server.json front_dns, aiodns), порт тот же; настоящий TLS с настоящим
+  сертификатом, содержимое фронту не видно. Адрес самого сервера в адреса туннеля не
+  попадает (защита от петли — upstream.resolver.local_addresses). "block" — все
+  необслуживаемые отклоняются: соединение закрывается сразу после чтения SNI, TLS
+  не состоялся.
+- каждое необслуживаемое имя фиксируется в Front.seen (имя → счётчик, в памяти с запуска
   фронта) — наружу через runtime.front_observed (api/server-front, «Дополнительно → Сервер»).
 
 Реальный адрес колонки сохраняется таблицей peers (исходящий сокет сплайса →
@@ -62,8 +65,8 @@ LOCAL_SUFFIXES = (".local", ".lan", ".home", ".localdomain")
 # меняется на каждый трек), чтобы повторы склеивал журнал (не по записи на NNN).
 EXPECTED_TUNNEL_SUFFIXES = (".strm.yandex.net",)
 EXPECTED_TUNNEL_HOSTS = ("storage.yandex.net",)
-# Хосты авторизации — всегда слепой туннель в Яндекс, до проверки сертификата и
-# независимо от front_uncovered (даже block/allowlist): экран входа на колонке —
+# Хосты авторизации — всегда слепой туннель в Яндекс, до проверки списков и
+# независимо от front_uncovered (даже block): экран входа на колонке —
 # WebView паспорта, Chromium отвергает наш сертификат (net_error -213) — подменить
 # эти хосты нельзя, эмулятор в авторизацию не вмешивается.
 AUTH_HOSTS = ("passport.yandex.ru", "oauth.yandex.ru")
@@ -163,7 +166,7 @@ class Front:
         self.connections = set()
         self.tunnels = {}  # host → число туннелей (для статуса/журнала)
         self.local_domain = ""  # server.json local_domain, обновляется в _policy
-        self.seen = {}  # домены вне сертификата с запуска фронта: host → {"count", "first"}
+        self.seen = {}  # домены вне обслуживаемых с запуска фронта: host → {"count", "first"}
         self._server = None
         self._tasks = set()  # задачи _connection: stop() отменяет их, ничего не дожидаясь
 
@@ -226,11 +229,11 @@ class Front:
             if name is None and not buffered.startswith(b"\x16"):
                 return  # не TLS (не handshake-запись) — тихо закрыть: handshake колонки не состоялся
             # TLS без SNI — тоже эмулятор: сертификат по умолчанию
-            mode, allow = self._policy()
-            decision = self._decision(name, mode, allow)
+            mode, off, extra = self._policy()
+            decision = self._decision(name, mode, off, extra)
             if decision == "block":
                 self._note_seen(name)
-                log_event("warning", "tls", f"Домен {name} не в сертификате — соединение отклонено",
+                log_event("warning", "tls", f"Домен {name} не обслуживается — соединение отклонено",
                           host=name, mode=mode)
                 return  # TLS не состоялся; поток закроет finally
             if decision == "splice":
@@ -244,7 +247,7 @@ class Front:
             else:
                 if not is_auth_host(name):
                     # хосты авторизации обходят политику (туннель всегда) — «вне
-                    # сертификата» их не отмечаем: в лист front_allow их добавлять не нужно
+                    # обслуживаемых» их не отмечаем: в пользовательский список их добавлять не нужно
                     self._note_seen(name)
                 upstream_reader, upstream_writer = await self._tunnel(name)
                 if upstream_writer is None:
@@ -269,15 +272,18 @@ class Front:
                 self._tasks.discard(task)
 
     def _policy(self):
-        """Режим и лист — живьём из server.json: применяются без перезапуска."""
+        """Режим и списки обслуживаемых — живьём из server.json: применяются без перезапуска."""
         config = server_config.load(self.runtime.directory)
         self.local_domain = config.get("local_domain") or ""  # имя эмулятора в сети — всегда сплайсом
         return (config.get("front_uncovered") or "tunnel",
-                tuple(config.get("front_allow") or ()))
+                tuple(config.get("serve_off") or ()),
+                tuple(config.get("serve_extra") or ()))
 
-    def _decision(self, name, mode, allow):
-        """Покрытое имя, отсутствие SNI, IP и `.local` — "splice"; прочее — по
-        front_uncovered: "tunnel" | "block" ("allowlist" туннелирует только лист)."""
+    def _decision(self, name, mode, off, extra):
+        """Сплайс — то, что эмулятор обслуживает: отсутствие SNI, IP, `.local`, обязательные
+        домены (непокрытый сертификатом обязательный отклоняется — иначе эмуляция молча
+        подменяется настоящим облаком), включённые дополнительные и пользовательский список
+        (при покрытии сертификатом). Прочее — по front_uncovered: "tunnel" | "block"."""
         if not name:
             return "splice"  # SNI нет — решает aiohttp (сертификат по умолчанию)
         try:
@@ -289,14 +295,19 @@ class Front:
             return "splice"
         if is_auth_host(name):
             return "tunnel"  # хосты авторизации — всегда настоящий Яндекс
-        if not self.sans or cert_covers(name, self.sans):
-            return "splice"  # сертификат не читается (всё сплайсом) или имя покрыто
-        if mode == "allowlist":
-            return "tunnel" if cert_covers(name, allow) else "block"
+        if not self.sans:
+            return "splice"  # сертификат не читается — всё сплайсом
+        covered = cert_covers(name, self.sans)
+        if name in server_config.MANDATORY_DOMAINS:
+            return "splice" if covered else "block"
+        if covered and ((name in server_config.OPTIONAL_DOMAINS and name not in off)
+                        or name in extra):
+            return "splice"
         return "block" if mode == "block" else "tunnel"
 
     def _note_seen(self, name):
-        """Зафиксировать непокрытый домен: api/server-front покажет его с кнопкой «Добавить»."""
+        """Зафиксировать необслуживаемый домен: api/server-front покажет его с кнопкой
+        «Добавить» в пользовательский список обслуживаемых."""
         entry = self.seen.setdefault(name, {"count": 0, "first": datetime.datetime.now(
             datetime.timezone.utc).isoformat(timespec="seconds")})
         entry["count"] += 1
@@ -329,7 +340,7 @@ class Front:
             expected = name in EXPECTED_TUNNEL_HOSTS or name.endswith(EXPECTED_TUNNEL_SUFFIXES)
             level = "info" if expected else "warning"
             log_name = _tunnel_log_name(name)
-            log_event(level, "tls", f"Домен {log_name} не найден в сертификате — соединение идёт туннелем",
+            log_event(level, "tls", f"Домен {log_name} не обслуживается — соединение идёт туннелем",
                       host=name, ip=ip)
             return reader, writer
         return None, None

@@ -339,10 +339,10 @@ async def test_api_warns_when_speech_dir_changes_to_empty_location(tmp_path, mon
         await runtime.close()
 
 
-def test_local_domain_validation_and_cert_domains(tmp_path):
-    """Локальный домен: нормализуется, пусто — выключен, не домен — ошибка; список доменов
-    сертификата — локальный первым, покрытие по SAN файла сертификата."""
-    from server_emulator.ui.api.server_config import cert_domains
+def test_local_domain_validation_and_serve_domains(tmp_path):
+    """Локальный домен: нормализуется, пусто — выключен, не домен — ошибка; обслуживаемые
+    домены — локальный первым, покрытие по SAN файла сертификата, включённость — serve_off."""
+    from server_emulator.ui.api.server_config import serve_domains
     from tests.test_front_passthrough import make_cert
     assert server_config.DEFAULTS["local_domain"] == "alica.lan"
     assert server_config.validate(tmp_path, {"ssl": False, "local_domain": " Emu.LAN. "})["local_domain"] == "emu.lan"
@@ -351,10 +351,47 @@ def test_local_domain_validation_and_cert_domains(tmp_path):
         with pytest.raises(ValueError, match="Локальный домен"):
             server_config.validate(tmp_path, {"ssl": False, "local_domain": bad})
     cert, _key = make_cert(tmp_path, "srv", "x", ["alica.lan", "*.yandex.net"])
-    listed = cert_domains(tmp_path, {"cert": str(cert), "local_domain": "alica.lan"})
-    assert listed[0] == {"host": "alica.lan", "covered": True}
+    listed = serve_domains(tmp_path, {"cert": str(cert), "local_domain": "alica.lan"})
+    assert listed[0] == {"host": "alica.lan", "mandatory": True, "enabled": True, "covered": True}
     covered = {d["host"]: d["covered"] for d in listed}
     assert covered["quasar.yandex.net"] is True and covered["push.yandex.ru"] is False
     assert covered["uniproxy.alice.yandex.net"] is False  # wildcard — ровно на один уровень
-    assert all(not d["covered"] for d in cert_domains(tmp_path, {"cert": "", "local_domain": ""}))
-    assert cert_domains(tmp_path, {"cert": "", "local_domain": ""})[0]["host"] == "quasar.yandex.net"
+    assert all(d["enabled"] for d in listed)  # serve_off пуст — дополнительные включены
+    assert all(d["mandatory"] for d in listed if d["host"] in server_config.MANDATORY_DOMAINS
+               or d["host"] == "alica.lan")
+    off = serve_domains(tmp_path, {"cert": "", "local_domain": "", "serve_off": ["clck.yandex.net"]})
+    assert all(not d["covered"] for d in off)
+    assert off[0]["host"] == "quasar.yandex.net" and off[0]["mandatory"] is True
+    assert {d["host"]: d["enabled"] for d in off}["clck.yandex.net"] is False
+    assert "report.appmetrica.yandex.net" in {d["host"] for d in off}  # дополнительный, как clck
+
+
+async def test_server_dns_check(tmp_path):
+    """Проверка DNS: обслуживаемые домены через системный резолвер сверяются с адресами машины.
+    localhost указывает на машину (loopback в local_addresses), имя из .invalid не разрешается;
+    выключенные дополнительные домены проверка не затрагивает. Обязательные домены тут
+    разрешаются как получится у машины теста — их строки не проверяются."""
+    from server_emulator.ui.api.server_config import _served_hosts
+    from server_emulator.upstream.resolver import local_addresses
+    runtime = Runtime(tmp_path)
+    # localhost — и локальный домен, и пользовательский список: повтор убирается
+    server_config.save(tmp_path, server_config.validate(tmp_path, {"ssl": False, "local_domain": "localhost",
+                                                                   "serve_off": ["clck.yandex.net"],
+                                                                   "serve_extra": ["localhost", "dns-check.invalid"]}))
+    assert _served_hosts(server_config.load(tmp_path)) == [
+        "localhost", "quasar.yandex.net", "rpc.alice.yandex.net", "uniproxy.alice.yandex.net",
+        "scbh.yandex.net", "report.appmetrica.yandex.net", "push.yandex.ru",
+        "startup.mobile.yandex.net", "iot.quasar.yandex.ru", "dns-check.invalid"]  # clck выключен
+    runner, url = await listen(server.create_app(runtime=runtime))
+    try:
+        async with ClientSession() as client:
+            async with client.post(url + "/emulator/api/server-dns-check", headers={"X-Emulator": "1"}) as response:
+                assert response.status == 200
+                data = await response.json()
+            rows = {item["host"]: item for item in data["items"]}
+            assert len(rows) == 10 and "127.0.0.1" in data["local"]
+            assert rows["localhost"]["ok"] is True and "127.0.0.1" in rows["localhost"]["ips"]
+            assert rows["dns-check.invalid"] == {"host": "dns-check.invalid", "ips": [], "ok": False}
+    finally:
+        await runner.cleanup()
+        await runtime.close()

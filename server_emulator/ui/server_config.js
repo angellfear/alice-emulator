@@ -80,17 +80,18 @@
     };
     const sslRow = make('label', { className: 'srv-check' }, inputs.ssl, make('span', {}, 'SSL на основном порту'));
     const uploaded = s => notify('Загружено: ' + s.path + '. Нажмите «Сохранить и перезапустить», чтобы применить.');
+    const serveBox = serveDomainsPanel();
     const certBox = make('div', { className: 'srv-cert' },
       field('Сертификат', inputs.cert, { kind: 'cert', done: s => {
         if (s.has_key) inputs.key.value = '';  // ключ лежит в том же файле
         uploaded(s);
       } }),
-      field('Ключ', inputs.key, { kind: 'key', done: uploaded }), certDomainsBox());
+      field('Ключ', inputs.key, { kind: 'key', done: uploaded }), serveBox);
     const frontRow = make('label', { className: 'srv-check' }, inputs.front,
       make('span', {}, 'Фронт TLS (SNI)', make('small', { className: 'hint' },
         ' — режимы для доменов вне сертификата выбираются ниже')));
     const dnsRow = field('DNS туннелей (через запятую)', inputs.front_dns);
-    const policyBox = frontPolicyBox();
+    const policyBox = frontPolicyBox(serveBox);
     const syncSsl = () => {
       certBox.hidden = !inputs.ssl.checked;
       frontRow.hidden = !inputs.ssl.checked;
@@ -140,26 +141,92 @@
       form, selfUpdatePanel(), journalPanel(), protocolPanel(), appearancePanel());
   }
 
-  // Домены, которые должен покрывать сертификат для HTTPS (cert_domains из GET api/server):
-  // отмечены покрытые текущим файлом сертификата. Старый сервер без поля — блок не показывается.
-  function certDomainsBox() {
-    const list = state.cert_domains;
+  // Обслуживаемые домены (serve_domains из GET api/server, покрытие — SAN текущего сертификата):
+  // обязательные всегда включены, дополнительные выключаются, пользовательский список — textarea.
+  // Правка применяется без перезапуска через api/server-front. Старый сервер без поля — блок не показывается.
+  function serveDomainsPanel() {
+    const list = state.serve_domains;
     if (!Array.isArray(list)) return make('div', { hidden: true });
-    const missing = list.filter(d => !d.covered).length;
-    return make('div', { className: 'srv-cert-domains' },
-      make('p', { className: 'hint' }, 'Домены в сертификате для HTTPS' + (missing ? ' · не покрыто: ' + missing : ' · все покрыты') + ':'),
-      make('ul', {}, ...list.map(d => make('li', { className: d.covered ? '' : 'sc-err' }, (d.covered ? '✓ ' : '✕ ') + d.host))));
+    const box = make('div', { className: 'srv-serve' });
+    const rows = list.map(d => {
+      const input = make('input', { type: 'checkbox', checked: d.enabled, disabled: d.mandatory });
+      const mark = make('span', { className: 'srv-serve-mark ' + (d.covered ? 'ok' : 'err') }, d.covered ? '✓' : '✕');
+      const row = make('label', { className: 'srv-check srv-serve-row' }, input, mark,
+        make('span', {}, d.host, d.covered ? null : make('small', { className: 'hint sc-err' }, ' — нет в сертификате')));
+      return { data: d, input, row };
+    });
+    const mandatory = rows.filter(r => r.data.mandatory), optional = rows.filter(r => !r.data.mandatory);
+    const extraArea = make('textarea', { rows: 4, spellcheck: false, placeholder: 'avatars.yandex.net' });
+    const extras = make('div', { className: 'srv-observed' });
+    function renderExtras() {
+      const fp = state.front_policy || {};
+      const coverage = new Map((fp.extra || []).map(e => [e.host, e.covered]));
+      extras.replaceChildren(...(fp.serve_extra || []).map(host => make('div', { className: 'srv-observed-row' },
+        make('span', { className: coverage.get(host) === false ? 'sc-err' : '' },
+          (coverage.has(host) ? (coverage.get(host) ? '✓ ' : '✕ ') : '') + host,
+          coverage.get(host) === false ? make('small', { className: 'hint' }, ' — нет в сертификате') : null))));
+    }
+    async function refreshFront() {
+      state.front_policy = await callFront('GET');
+      renderExtras();
+    }
+    renderExtras();  // state.front_policy уже загружен в load()
+    const error = make('p', { className: 'sc-err', hidden: true, role: 'alert' });
+    const apply = make('button', { type: 'button' }, 'Применить');
+    apply.onclick = async () => {
+      if (busy) return;
+      busy = true; apply.disabled = true; error.hidden = true;
+      try {
+        await callFront('PUT', { serve_off: optional.filter(r => !r.input.checked).map(r => r.data.host),
+                                 serve_extra: extraArea.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean) });
+        await refreshFront();
+        notify('Применено без перезапуска');
+      } catch (e) { error.textContent = e.message; error.hidden = false; }
+      finally { busy = false; apply.disabled = false; }
+    };
+    // Проверка DNS: системный резолвер машины с сервером → все ли обслуживаемые домены
+    // указывают на этот компьютер (эндпоинт api/server-dns-check). Read-only.
+    const dns = make('div', { className: 'srv-observed' });
+    const dnsBtn = make('button', { type: 'button', className: 'secondary' }, 'Проверить DNS');
+    dnsBtn.onclick = async () => {
+      if (busy) return;
+      busy = true; dnsBtn.disabled = true; error.hidden = true;
+      dns.replaceChildren(make('p', { className: 'hint' }, 'Проверяю…'));
+      try {
+        const r = await fetch('api/server-dns-check', { method: 'POST', headers: { 'X-Emulator': '1' } });
+        const v = await r.json().catch(() => ({}));
+        if (!r.ok) throw Error(v.error || r.statusText);
+        const good = v.items.filter(i => i.ok).length;
+        dns.replaceChildren(
+          make('p', { className: 'hint' }, 'Системный DNS машины с сервером; адреса сервера: '
+            + v.local.join(', ') + '. На эмулятор указывают ' + good + ' из ' + v.items.length + '.'),
+          ...v.items.map(i => make('div', { className: 'srv-observed-row' },
+            make('span', { className: i.ok ? 'srv-serve-mark ok' : 'sc-err' },
+              (i.ok ? '✓ ' : '✕ ') + i.host + ' → '
+              + (i.ips.length ? i.ips.join(', ') + (i.ok ? '' : ' (мимо)') : 'не разрешается')))));
+      } catch (e) { error.textContent = e.message; error.hidden = false; dns.replaceChildren(); }
+      finally { busy = false; dnsBtn.disabled = false; }
+    };
+    box.append(
+      make('p', { className: 'hint' }, 'Какие домены фронт отдаёт эмулятору, а не туннелирует настоящему Яндексу. Правка применяется без перезапуска; домен без покрытия сертификатом соединением колонки не обслуживается.'),
+      ...mandatory.map(r => r.row), ...optional.map(r => r.row),
+      make('label', {}, 'Пользовательский список (1 домен на строку, без *)', extraArea),
+      extras, error, make('div', { className: 'actions' }, dnsBtn, apply), dns);
+    return Object.assign(box, { addExtra: host => {
+      const lines = extraArea.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      if (!lines.includes(host)) lines.push(host);
+      extraArea.value = lines.join('\n');
+    } });
   }
 
-  // Политика доменов вне сертификата: три режима; для «по листу» — поле (1 домен на строку)
-  // и список зафиксированных с кнопкой «Добавить». Применяется сразу, без перезапуска сервера —
-  // фронт читает server.json на каждое соединение. API — api/server-front; API нет (или старый
-  // сервер) — блок не показывается.
-  function frontPolicyBox() {
+  // Политика для необслуживаемых доменов: два режима и список замеченных с кнопкой «Добавить» —
+  // домен уходит в пользовательский список обслуживаемых (serveBox). Применяется сразу,
+  // без перезапуска сервера — фронт читает server.json на каждое соединение. API — api/server-front;
+  // API нет (или старый сервер) — блок не показывается.
+  function frontPolicyBox(serveBox) {
     const fp = state.front_policy;
     if (!fp) return make('div', { hidden: true });
-    const modes = [['tunnel', 'Пропускать прозрачно', 'слепой туннель к настоящему серверу — как сейчас'],
-                   ['allowlist', 'Пропускать только по листу', 'туннель доменам из списка, остальные отклонять'],
+    const modes = [['tunnel', 'Пропускать прозрачно', 'слепой туннель к настоящему серверу'],
                    ['block', 'Блокировать', 'отклонять все домены, которых нет в сертификате']];
     const radio = {};
     const rows = modes.map(([value, label, hint]) => {
@@ -169,28 +236,19 @@
       return make('label', { className: 'srv-check' }, input,
         make('span', {}, label, make('small', { className: 'hint' }, ' — ' + hint)));
     });
-    const listArea = make('textarea', { rows: 6, spellcheck: false, placeholder: '*.strm.yandex.net',
-                                        value: (fp.front_allow || []).join('\n') });
     const observed = make('div', { className: 'srv-observed' });
-    function addLine(host) {
-      const lines = listArea.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-      if (!lines.includes(host)) lines.push(host);
-      listArea.value = lines.join('\n');
-    }
     function renderObserved() {
       const seen = fp.observed || [];
       observed.replaceChildren(...(seen.length
         ? seen.map(item => make('div', { className: 'srv-observed-row' },
             make('span', {}, item.host + ' ', make('small', { className: 'hint' }, '×' + item.count)),
-            make('button', { type: 'button', className: 'secondary', onclick: () => addLine(item.host) }, 'Добавить')))
-        : [make('p', { className: 'hint' }, 'Домены, которые фронт видел после запуска сервера, появятся здесь.')]));
+            make('button', { type: 'button', className: 'secondary', onclick: () => {
+              if (serveBox) serveBox.addExtra(item.host);
+              notify('Добавлено в пользовательский список обслуживаемых — не забудьте «Применить»');
+            } }, 'Добавить')))
+        : [make('p', { className: 'hint' }, 'Домены, которые фронт не обслуживал после запуска сервера, появятся здесь.')]));
     }
     renderObserved();
-    const listBox = make('div', {},
-      make('label', {}, 'Домены вне сертификата (1 домен на строку)', listArea), observed);
-    const syncMode = () => { listBox.hidden = !radio.allowlist.checked; };
-    modes.forEach(([value]) => { radio[value].onchange = syncMode; });
-    syncMode();
     const error = make('p', { className: 'sc-err', hidden: true, role: 'alert' });
     const apply = make('button', { type: 'button' }, 'Применить');
     apply.onclick = async () => {
@@ -198,18 +256,16 @@
       busy = true; apply.disabled = true; error.hidden = true;
       try {
         const mode = modes.find(([value]) => radio[value].checked)[0];
-        const saved = await callFront('PUT', { front_uncovered: mode,
-          front_allow: listArea.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean) });
+        const saved = await callFront('PUT', { front_uncovered: mode });
         fp.front_uncovered = saved.front_uncovered;
-        fp.front_allow = saved.front_allow;
         notify('Применено без перезапуска');
       } catch (e) { error.textContent = e.message; error.hidden = false; }
       finally { busy = false; apply.disabled = false; }
     };
     return make('div', { className: 'panel' },
       make('h3', {}, 'Домены вне сертификата'),
-      make('p', { className: 'hint' }, 'Как фронт поступает с доменами, отсутствующими в сертификате. Применяется сразу, без перезапуска сервера; уже открытые соединения не затрагиваются.'),
-      ...rows, listBox, error, make('div', { className: 'actions' }, apply));
+      make('p', { className: 'hint' }, 'Как фронт поступает с доменами, которые не обслуживает. Применяется сразу, без перезапуска сервера; уже открытые соединения не затрагиваются.'),
+      ...rows, observed, error, make('div', { className: 'actions' }, apply));
   }
 
   // Обновление: настройки проверки релизов — настройки эмулятора, а не server.json,
