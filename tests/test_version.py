@@ -76,12 +76,12 @@ def test_without_git_falls_back_to_manifest(monkeypatch):
     import tempfile
     manifest = Path(__file__).resolve().parent.parent / ".release-please-manifest.json"
     monkeypatch.setattr("server_emulator.version.MANIFEST", manifest)
+    released = json.loads(manifest.read_text(encoding="utf-8"))["."]  # версия релиза, её ведёт release-please
     empty = Path(tempfile.mkdtemp(prefix="zip-install-"))
     try:
-        (empty / ".release-please-manifest.json").write_text(
-            json.dumps({".": json.loads(manifest.read_text(encoding="utf-8"))["."]}), encoding="utf-8")
+        (empty / ".release-please-manifest.json").write_text(json.dumps({".": released}), encoding="utf-8")
         result = current(empty)
-        assert result["version"] == "0.1.0" and result["commit"] == "" and result["dirty"] is False
+        assert result["version"] == released and result["commit"] == "" and result["dirty"] is False
     finally:
         import shutil
         shutil.rmtree(empty, ignore_errors=True)
