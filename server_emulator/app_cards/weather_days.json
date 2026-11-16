@@ -1,0 +1,497 @@
+{
+ "title": "Погода — карточка weather_days (на неделю)",
+ "proves": "Ответ настоящего сервера на «Погода на неделю» (upstream, колонка C00JN, запись 2026-11-17 03:29, обмен 462155): divui_show_view (CardName WeatherDaysRangeData, CardId weather_day_key_static_key, Layer Dialog, карточка weather_days: иконка-глобальный-шаблон, постер и прозрачное видео погоды, «Погода в <город> на неделю», температура, «Ощущается как …», галерея 7 дней — день недели, иконка, температура днём и ночью (приглушённая), кнопка закрытия) + tts_play_placeholder. Данные — подстановки {{…}}; глобальные шаблоны иконок и галерею дней собирает сценарий informers/weather.py.",
+ "name": "divui_show_view",
+ "analytics_type": "divui_show_view",
+ "directive": {
+  "Name": "divui_show_view",
+  "Layer": {
+   "Dialog": {}
+  },
+  "InactivityTimeout": "Long",
+  "OverlayBehaviour": "Hide",
+  "Div2Card": {
+   "CardName": "WeatherDaysRangeData",
+   "Id": {
+    "CardName": "weather",
+    "CardId": "weather_day_key_static_key"
+   },
+   "StringBody": {
+    "templates": {},
+    "card": {
+     "variable_triggers": [
+      {
+       "condition": "@{isPortrait}",
+       "actions": [
+        {
+         "log_id": "chvr1",
+         "url": "div-action://set_variable?name=isVertical&value=true"
+        }
+       ]
+      },
+      {
+       "condition": "@{!isPortrait}",
+       "actions": [
+        {
+         "log_id": "chvr2",
+         "url": "div-action://set_variable?name=isVertical&value=false"
+        }
+       ]
+      }
+     ],
+     "variables": [
+      {
+       "type": "boolean",
+       "name": "isVertical",
+       "value": false
+      }
+     ],
+     "log_id": "weather_days",
+     "states": [
+      {
+       "state_id": 0,
+       "div": {
+        "type": "container",
+        "extensions": [
+         {
+          "id": "alice_voice_control",
+          "params": {
+           "voice_controls_raw": [
+            "CgISABKXAQoD4hAAIo8BCmUKOnR5cGUuZ29vZ2xlYXBpcy5jb20vTkFsaWNlLlRDZW50YXVyR29CYWNrd2FyZFR5cGVkQ2FsbGJhY2sSJwolCgd3ZWF0aGVyEhp3ZWF0aGVyX2RheV9rZXlfc3RhdGljX2tleRIcCghjb21tYW5kcxACGgxnb19iYWNrd2FyZHMiACIICAAQARgAIAE="
+           ]
+          }
+         }
+        ],
+        "height": {
+         "type": "match_parent"
+        },
+        "items": [
+         {
+          "type": "container",
+          "background": [
+           {
+            "type": "solid",
+            "color": "#0b0f14"
+           }
+          ],
+          "height": {
+           "type": "match_parent",
+           "weight": 1
+          },
+          "items": [
+           {
+            "type": "container",
+            "alignment_horizontal": "center",
+            "alignment_vertical": "center",
+            "aspect": {
+             "ratio": 1.7777777777777777
+            },
+            "id": "bd26ca4c-9501-4585-9582-aad9a4a2a421_weather_bg_container",
+            "items": [
+             {
+              "type": "{{icon_template}}"
+             },
+             {
+              "type": "image",
+              "appearance_animation": {
+               "type": "fade",
+               "duration": 300,
+               "interpolator": "ease_in_out"
+              },
+              "height": {
+               "type": "match_parent"
+              },
+              "image_url": "{{preview_uri}}",
+              "scale": "stretch",
+              "width": {
+               "type": "match_parent"
+              }
+             },
+             {
+              "type": "container",
+              "height": {
+               "type": "match_parent"
+              },
+              "id": "weather_custom_container_{{slug}}",
+              "items": [
+               {
+                "type": "custom",
+                "custom_props": {
+                 "source_uri": "{{video_uri}}",
+                 "is_transparent": false,
+                 "div_id": {
+                  "card_name": "weather",
+                  "card_id": "weather_day_key_static_key"
+                 }
+                },
+                "custom_type": "transparent_video",
+                "height": {
+                 "type": "match_parent"
+                },
+                "id": "weather_custom_{{slug}}",
+                "width": {
+                 "type": "match_parent"
+                }
+               }
+              ],
+              "width": {
+               "type": "match_parent"
+              }
+             }
+            ],
+            "orientation": "overlap",
+            "width": {
+             "type": "fixed",
+             "value": "@{isVertical ? 2275.5555555555557 : 1422.2222222222222}"
+            }
+           },
+           {
+            "type": "text",
+            "alignment_horizontal": "center",
+            "alignment_vertical": "top",
+            "font_size": 32,
+            "font_weight": "medium",
+            "line_height": 40,
+            "margins": {
+             "top": 48,
+             "left": 144,
+             "right": 144
+            },
+            "text": "{{title}}",
+            "text_alignment_horizontal": "center",
+            "text_color": "#b3e6eef9",
+            "width": {
+             "type": "wrap_content",
+             "constrained": 1
+            }
+           },
+           {
+            "type": "container",
+            "alignment_horizontal": "center",
+            "alignment_vertical": "center",
+            "items": [
+             {
+              "type": "text",
+              "font_size": 240,
+              "font_weight": "light",
+              "letter_spacing": 1.2,
+              "line_height": 240,
+              "text": "{{temp}}",
+              "text_alignment_horizontal": "center",
+              "text_color": "#fff",
+              "text_shadow": {
+               "alpha": 0.12,
+               "blur": 14,
+               "offset": {
+                "x": {
+                 "value": 0
+                },
+                "y": {
+                 "value": 4
+                }
+               },
+               "color": "#000"
+              }
+             },
+             {
+              "type": "text",
+              "font_size": 32,
+              "line_height": 40,
+              "text": "{{feels}}",
+              "text_alignment_horizontal": "center",
+              "text_color": "#fff",
+              "text_shadow": {
+               "alpha": 0.12,
+               "blur": 14,
+               "offset": {
+                "x": {
+                 "value": 0
+                },
+                "y": {
+                 "value": 4
+                }
+               },
+               "color": "#000"
+              }
+             }
+            ],
+            "margins": {
+             "bottom": 84
+            },
+            "width": {
+             "type": "fixed",
+             "value": 691
+            }
+           },
+           {
+            "type": "gallery",
+            "alignment_horizontal": "center",
+            "alignment_vertical": "bottom",
+            "disappear_actions": [
+             {
+              "log_id": "unreg_voice_scroll_for_info_line_gallery_1",
+              "url": "centaur://scroll_command?local_commands=%5B%22unreg_scroll%22%5D&card_id=weather_day_key_static_key&card_name=weather&id=info_line_gallery",
+              "log_limit": 0,
+              "visibility_percentage": 20,
+              "disappear_duration": 0
+             }
+            ],
+            "height": {
+             "type": "fixed",
+             "value": 148
+            },
+            "id": "info_line_gallery",
+            "item_spacing": 0,
+            "items": [
+             {
+              "type": "container",
+              "background": [
+               {
+                "type": "solid",
+                "color": "#0b0f14"
+               }
+              ],
+              "border": {
+               "corners_radius": {
+                "top-left": 24,
+                "bottom-left": 24
+               }
+              },
+              "content_alignment_horizontal": "center",
+              "content_alignment_vertical": "center",
+              "height": {
+               "type": "match_parent",
+               "weight": 1
+              },
+              "items": [
+               {
+                "type": "text",
+                "font_size": 28,
+                "line_height": 32,
+                "text": "Вт",
+                "text_alignment_horizontal": "center",
+                "text_color": "#fff"
+               },
+               {
+                "type": "container",
+                "alignment_vertical": "center",
+                "items": [
+                 {
+                  "type": "image",
+                  "appearance_animation": {
+                   "type": "fade",
+                   "duration": 300,
+                   "interpolator": "ease_in_out"
+                  },
+                  "height": {
+                   "type": "fixed",
+                   "value": 40
+                  },
+                  "image_url": "https://yastatic.net/weather/i/icons/portal/png/128x128/light/ovc.png",
+                  "margins": {
+                   "right": 8
+                  },
+                  "preload_required": 1,
+                  "width": {
+                   "type": "fixed",
+                   "value": 40
+                  }
+                 },
+                 {
+                  "type": "text",
+                  "font_size": 32,
+                  "line_height": 40,
+                  "text": "+1°",
+                  "text_alignment_horizontal": "center",
+                  "text_color": "#fff"
+                 },
+                 {
+                  "type": "text",
+                  "alpha": 0.5,
+                  "font_size": 32,
+                  "line_height": 40,
+                  "text": "0°",
+                  "text_alignment_horizontal": "center",
+                  "text_color": "#fff"
+                 }
+                ],
+                "margins": {
+                 "top": 8
+                },
+                "orientation": "horizontal",
+                "width": {
+                 "type": "wrap_content"
+                }
+               }
+              ],
+              "orientation": "vertical",
+              "paddings": {
+               "left": 8,
+               "right": 8
+              },
+              "width": {
+               "type": "fixed",
+               "value": 212
+              },
+              "log_id": "weather_days_template"
+             }
+            ],
+            "margins": {
+             "bottom": 24
+            },
+            "orientation": "horizontal",
+            "paddings": {
+             "left": 24,
+             "right": 24
+            },
+            "visibility_actions": [
+             {
+              "log_id": "reg_voice_scroll_for_info_line_gallery_1",
+              "url": "centaur://scroll_command?local_commands=%5B%22reg_scroll%22%5D&card_id=weather_day_key_static_key&card_name=weather&id=info_line_gallery&orientation=horizontal&weight=1&scroll_to_next=div-action%3A%2F%2Fset_next_item%3Fid%3Dinfo_line_gallery%26overflow%3Dclamp&scroll_to_prev=div-action%3A%2F%2Fset_previous_item%3Fid%3Dinfo_line_gallery%26overflow%3Dclamp&scroll_to_start=div-action%3A%2F%2Fset_current_item%3Fid%3Dinfo_line_gallery%26item%3D0",
+              "log_limit": 0,
+              "visibility_duration": 0,
+              "visibility_percentage": 80
+             }
+            ],
+            "width": {
+             "type": "wrap_content",
+             "constrained": true
+            }
+           },
+           {
+            "type": "container",
+            "actions": [
+             {
+              "log_id": "weather_close_button_element_click",
+              "payload": {
+               "data": {},
+               "meta": {
+                "instanceId": "instanceId",
+                "cardId": "weather_day_key_static_key",
+                "cardName": "weather",
+                "elementName": "close_button"
+               }
+              }
+             },
+             {
+              "log_id": "close_fullscreen",
+              "url": "centaur://local_command?local_commands=%5B%22execute_terminate_actions%22%5D&id=%7B%22cardId%22%3A+%22weather_day_key_static_key%22%2C+%22cardName%22%3A+%22weather%22%7D"
+             }
+            ],
+            "alignment_horizontal": "right",
+            "background": [
+             {
+              "type": "solid",
+              "color": "#0b0f14"
+             }
+            ],
+            "border": {
+             "corner_radius": 100
+            },
+            "height": {
+             "type": "fixed",
+             "value": 72
+            },
+            "items": [
+             {
+              "type": "image",
+              "appearance_animation": {
+               "type": "fade",
+               "duration": 300,
+               "interpolator": "ease_in_out"
+              },
+              "height": {
+               "type": "match_parent"
+              },
+              "high_priority_preview_show": true,
+              "image_url": "",
+              "preview": "iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAMAAADVRocKAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAClUExURQAAAOXs+Obv+ubu+ebt+eTv+OXu+eXu+ufu+ebu+uXt+ufv+ubt9+bv+Obu+OXt+Ofu+OXu+OXv++Xt+ebv+eTs+OXs9+Xt9+Ts9+fv+eTt+Ojv+ebu9+Xu++bu+ebu+eXu+Obu+ebu+ebu+ebu+ebu+ebu+ebu+ebu+ebu+ebu+eXt+eXu+Obu+Obu+ebu+ebu+Obt+Obu+OXt+OXu+ebu+f///5p967YAAAA1dFJOUwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUZBTin2Teo3Ube36YFGRlF5UVGBQUFCeFZ0wAAAAFiS0dENke/iNEAAAAJcEhZcwAACxMAAAsTAQCanBgAAAAHdElNRQfnCxsLBgfzNr3RAAAB+klEQVRo3u2Y21LCQBBEkQExrLAiN0EFN3dAQcX8/6+ZBC2TkGQm7lTpw/bzcA4VqFRXt1omJiYmJiYm/zgXbYAOQJdy2+1cAkDvqgnfsmC1Xq+g18dvhYCn9LZH519bA2U7ju0O+6hBCKk8x/HUTW9EFtyC8qM4fgCYIf7+QZjeKrDIAlh5UZoNZkj4m9PtdndJFoyenYhkyPAjZw1kwfDlW1BvyPIbCcY7LyIYcvzIXtEFE1AhbsjzfRcEWTCdicxHKwx5/mYv5ndkQUvO2pihwA+suaTzCQZNPmrQ5iMGBn6tgYVfY2DiVxrY+BUGRn6pgZVfZuDllxiY+ecGbn7RcDhw84sGfn6FgZFfamDllxiY+SfDz88bHfbM/PT9kBXgjaw5v/CIWA1nfGZDCZ/VUMpnNOT5uVcFi6Hw/n99QxuZFj+ACd75dPjWHO98enxJaJVafFJv1eIzGir7A5Ohpp+wGGr7D4MB6VfaBrS/aRoI/VDL0BUS71dFw6A/JQs64PoYv2gIFSzIguG7jfOLBu/4m62ivp/kDE2mhOwYUttPsoYmAviwSfycoclWAV+DVIj3t8RwGq8UjOmPaHmfTGqeEnh/iw1ufLtVC0n/F7XkMhkFj0Dph3J2GgVloy758AgAEkj7yRSG8THQJ0ETExMTExOTP8gnSj786B/T6zMAAAAldEVYdGRhdGU6Y3JlYXRlADIwMjMtMTEtMjdUMTE6MDU6MDQrMDA6MDD8W8+6AAAAJXRFWHRkYXRlOm1vZGlmeQAyMDIzLTExLTI3VDExOjA1OjA0KzAwOjAwjQZ3BgAAACh0RVh0ZGF0ZTp0aW1lc3RhbXAAMjAyMy0xMS0yN1QxMTowNjowNyswMDowMADM90cAAAAASUVORK5CYII=",
+              "tint_color": "#80e6eef9",
+              "width": {
+               "type": "match_parent"
+              }
+             }
+            ],
+            "margins": {
+             "top": 36,
+             "right": 36
+            },
+            "paddings": {
+             "top": 12,
+             "right": 12,
+             "left": 12,
+             "bottom": 12
+            },
+            "visibility_actions": [
+             {
+              "log_id": "weather_close_button_element_show",
+              "payload": {
+               "data": {},
+               "meta": {
+                "instanceId": "instanceId",
+                "cardId": "weather_day_key_static_key",
+                "cardName": "weather",
+                "elementName": "close_button"
+               }
+              }
+             }
+            ],
+            "width": {
+             "type": "fixed",
+             "value": 72
+            }
+           }
+          ],
+          "orientation": "overlap",
+          "width": {
+           "type": "match_parent",
+           "weight": 1
+          }
+         },
+         {
+          "type": "separator",
+          "alignment_horizontal": "left",
+          "alignment_vertical": "top",
+          "delimiter_style": {
+           "color": "#0fff"
+          },
+          "height": {
+           "type": "fixed",
+           "value": 1
+          },
+          "id": "block_for_on_load_actions",
+          "width": {
+           "type": "fixed",
+           "value": 1
+          }
+         }
+        ],
+        "orientation": "overlap",
+        "visibility_actions": [
+         {
+          "log_id": "weather_day_key_static_key_page_show",
+          "payload": {
+           "data": {
+            "city": "в Березниках",
+            "title": "пасмурно"
+           },
+           "meta": {
+            "cardName": "weather",
+            "cardId": "weather_day_key_static_key"
+           }
+          },
+          "visibility_duration": 0,
+          "visibility_percentage": 80
+         }
+        ],
+        "width": {
+         "type": "match_parent"
+        }
+       }
+      }
+     ]
+    }
+   }
+  }
+ }
+}

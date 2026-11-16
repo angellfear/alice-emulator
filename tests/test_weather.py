@@ -17,10 +17,15 @@ FORECAST = {
     "hourly": {"time": [f"2026-10-27T{h % 24:02d}:00" for h in range(12, 36)],
                "temperature_2m": [10 + h % 5 for h in range(24)], "weather_code": [3] * 24, "is_day": [1] * 24,
                "precipitation_probability": [0] * 24},
-    "daily": {"temperature_2m_max": [14.2, 15.0], "temperature_2m_min": [8.1, 9.0],
-              "precipitation_probability_max": [10, 20], "weather_code": [3, 67],
-              "wind_speed_10m_max": [2.0, 3.0], "wind_gusts_10m_max": [5.0, 6.0],
-              "wind_direction_10m_dominant": [0.0, 180.0]},
+    "daily": {"time": ["2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30", "2026-10-31",
+                       "2026-11-01", "2026-11-02"],  # с вторника, как в оригинале
+              "temperature_2m_max": [14.2, 15.0, 13.0, 12.0, 14.0, 11.0, 10.0],
+              "temperature_2m_min": [8.1, 9.0, 7.0, 6.0, 8.0, 5.0, 6.0],
+              "precipitation_probability_max": [10, 20, 30, 40, 10, 0, 20],
+              "weather_code": [3, 67, 3, 3, 71, 3, 3],
+              "wind_speed_10m_max": [2.0, 3.0, 4.0, 5.0, 2.0, 3.0, 2.0],
+              "wind_gusts_10m_max": [5.0, 6.0, 7.0, 8.0, 5.0, 6.0, 5.0],
+              "wind_direction_10m_dominant": [0.0, 180.0, 90.0, 270.0, 0.0, 45.0, 90.0]},
 }
 
 
@@ -154,7 +159,10 @@ async def test_weather_card_matches_sample(tmp_path):
         gallery = left["items"][3]
         assert len(gallery["items"]) == 24
         first = gallery["items"][0]
-        assert first["items"][0]["text"] == "12"  # час без секунд и минут
+        assert first["items"][0]["text"] == "12:00"  # полное время, как в оригинале
+        assert first["border"] == {"corners_radius": {"top-left": 24, "bottom-left": 24}}
+        assert "border" not in gallery["items"][1]  # середина ленты — квадратные стыки
+        assert gallery["items"][-1]["border"] == {"corners_radius": {"top-right": 24, "bottom-right": 24}}
         assert first["items"][1]["items"][0]["image_url"] == \
             "https://yastatic.net/weather/i/icons/portal/png/128x128/light/ovc.png"
         assert first["items"][1]["items"][1]["text"] == "+10°"
@@ -167,6 +175,43 @@ async def test_weather_card_matches_sample(tmp_path):
             "https://yastatic.net/s3/smart-display-res/generated/weather_video/preview_chiron_")
         close_button = left["items"][4]
         assert close_button["actions"][0]["log_id"] == "weather_close_button_element_click"
+    finally:
+        await runtime.close()
+        await provider.cleanup()
+
+
+async def test_weather_week_days_card(tmp_path):
+    """«погода на неделю» — карточка-оригинал 462155: WeatherDaysRangeData, галерея
+    7 дней (день недели, иконка, днём и ночью — ночная приглушённая), лента без
+    зазоров со скруглением краёв; анимации в ответе нет."""
+    provider, url, hits = await _provider()
+    runtime = _runtime(tmp_path, url)
+    try:
+        report, sent = await _say(runtime, "погода на неделю")
+        assert report["handled"] and report["scenario"] == "informers.weather"
+        # оригинал 462155: карточка + tts_play_placeholder, анимации нет
+        assert [d.Name for d in _response(sent).Response.Directives] == \
+            ["divui_show_view", "tts_play_placeholder"]
+        card = _card(sent)
+        assert card["CardName"] == "WeatherDaysRangeData"
+        assert card["Id"] == {"CardName": "weather", "CardId": "weather_day_key_static_key"}
+        body = json.loads(card["StringBody"])["card"]
+        assert body["log_id"] == "weather_days"
+        left = body["states"][0]["div"]["items"][0]
+        assert left["items"][1]["text"] == "Погода на неделю"  # заголовок оригинала
+        gallery = left["items"][3]
+        assert len(gallery["items"]) == 7
+        first = gallery["items"][0]
+        assert first["items"][0]["text"] == "Вт"  # 2026-10-27 — вторник
+        assert first["items"][1]["items"][1]["text"] == "+14°"  # днём
+        assert first["items"][1]["items"][2]["text"] == "+8°"  # ночью
+        assert first["items"][1]["items"][2]["alpha"] == 0.5  # приглушённая, как в оригинале
+        assert first["items"][1]["items"][0]["image_url"].endswith("/ovc.png")
+        assert first["border"] == {"corners_radius": {"top-left": 24, "bottom-left": 24}}
+        assert "border" not in gallery["items"][1]  # середина ленты — квадратные стыки
+        last = gallery["items"][-1]
+        assert last["border"] == {"corners_radius": {"top-right": 24, "bottom-right": 24}}
+        assert last["items"][0]["text"] == "Пн"
     finally:
         await runtime.close()
         await provider.cleanup()
@@ -289,7 +334,9 @@ async def test_user_reply_scenario_v2(tmp_path):
 
 def test_parse_query_strips_time_words_from_city():
     from server_emulator.scenarios.informers.weather import _parse_query
-    assert _parse_query("в москве на завтра") == (True, "москва")
-    assert _parse_query("на завтра в москве") == (True, "москва")
-    assert _parse_query("в нижнем новгороде сегодня") == (False, "нижний новгород")
-    assert _parse_query("завтра") == (True, None)
+    assert _parse_query("в москве на завтра") == (True, False, "москва")
+    assert _parse_query("на завтра в москве") == (True, False, "москва")
+    assert _parse_query("в нижнем новгороде сегодня") == (False, False, "нижний новгород")
+    assert _parse_query("завтра") == (True, False, None)
+    assert _parse_query("на неделю") == (False, True, None)
+    assert _parse_query("на неделю в москве") == (False, True, "москва")

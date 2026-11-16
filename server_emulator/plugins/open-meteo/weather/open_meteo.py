@@ -2,7 +2,7 @@
 
 Что отдаёт: прогноз по координатам в форме Open-Meteo — current (температура,
 ощущается, код погоды, день/ночь), hourly (лента на сутки с кодами и вероятностью
-осадок), daily (два дня: мин/макс, код погоды, вероятность осадок, ветер — скорость,
+осадок), daily (неделя: мин/макс, код погоды, вероятность осадок, ветер — скорость,
 порывы, направление) — эту форму читают сценарий informers.weather (карточка и речь
 как у настоящего сервера: «Завтра …, слабый южный ветер 2 м/с, порывы до 6 м/с.») и
 виджет погоды; свежесть и кеш обеспечивает датасет weather (записи в БД), поставщик
@@ -68,10 +68,11 @@ def _is_day(symbol, local):
     return 1 if 7 <= local.hour < 19 else 0
 
 
-def met_no_to_open_meteo(data, timezone=None, hours=48):
+def met_no_to_open_meteo(data, timezone=None, hours=168):
     """Ответ met.no (complete) → форма Open-Meteo, которую читают сценарии; дневные
-    поля — по суткам (два дня: температура, код погоды по частому коду суток, осадки,
-    ветер/порывы/направление)."""
+    поля — по суткам (неделя: температура, код погоды по частому коду суток, осадки,
+    ветер/порывы/направление). hours — потолок строк серии: у met.no первые сутки
+    почасово, дальше раз в 6 часов, 168 строк хватает на неделю."""
     from zoneinfo import ZoneInfo
     try:
         tz = ZoneInfo(timezone) if timezone else datetime.timezone.utc
@@ -106,7 +107,7 @@ def met_no_to_open_meteo(data, timezone=None, hours=48):
             days.append({"date": date, "rows": []})
         days[-1]["rows"].append(row)
     temps_max, temps_min, precip_max, codes, wind_max, gust_max, dir_dominant = [], [], [], [], [], [], []
-    for day in days[:2]:
+    for day in days[:7]:
         day_rows = day["rows"]
         day_temps = [r["temp"] for r in day_rows if r["temp"] is not None]
         temps_max.append(max(day_temps) if day_temps else None)
@@ -139,7 +140,7 @@ def met_no_to_open_meteo(data, timezone=None, hours=48):
 
 def _query(location):
     """Координаты → query Open-Meteo: текущая, сутки почасово (с вероятностью осадок),
-    два дня (код погоды, ветер и порывы — для речи и карточки «завтра»)."""
+    неделя (код погоды, ветер и порывы — для речи, карточек «завтра» и недели)."""
     return {"latitude": str(location.get("latitude") or ""),
             "longitude": str(location.get("longitude") or ""),
             "current": "temperature_2m,apparent_temperature,weather_code,is_day",
@@ -147,7 +148,7 @@ def _query(location):
             "daily": ("temperature_2m_max,temperature_2m_min,precipitation_probability_max,"
                       "weather_code,wind_speed_10m_max,wind_gusts_10m_max,"
                       "wind_direction_10m_dominant"),
-            "forecast_hours": "24", "forecast_days": "2", "timezone": "auto",
+            "forecast_hours": "24", "forecast_days": "7", "timezone": "auto",
             "wind_speed_unit": "ms"}  # речь — «м/с», как у met.no; по умолчанию Open-Meteo отдаёт км/ч
 
 
@@ -190,7 +191,7 @@ async def geocode(ctx, name):
 
 async def forecast(ctx, location):
     """Прогноз по координатам или городу (интерфейс ядра): форма Open-Meteo —
-    current/hourly/daily (два дня). location {"city": …} — геокодирование
+    current/hourly/daily (неделя). location {"city": …} — геокодирование
     (api.open-meteo.com); в ответ добавляется "city" — имя города от геокодера.
     Сбой источника — исключение (датасет откатится на старую запись или честный отказ)."""
     location = dict(location or {})

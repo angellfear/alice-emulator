@@ -117,6 +117,7 @@ async def test_forecast_primary_source(provider, fake_http):
     assert kind == "open-meteo"
     assert query["latitude"] == "55.755826" and query["timezone"] == "auto"
     assert "temperature_2m" in query["hourly"] and "precipitation_probability_max" in query["daily"]
+    assert query["forecast_days"] == "7"  # карточка недели читает daily целиком
 
 
 async def test_forecast_url_from_plugin_settings(provider, fake_http):
@@ -134,6 +135,27 @@ async def test_forecast_falls_back_to_met_no(provider, fake_http):
     assert result["current"]["weather_code"] == 2  # partlycloudy → WMO 2
     assert [kind for kind, _ in fake_http["calls"]] == ["open-meteo", "met.no"]
     assert fake_http["calls"][1][1]["lat"] == "55.755826"
+
+
+async def test_forecast_met_no_week(provider, fake_http):
+    """Резерв met.no тоже отдаёт неделю дневных полей: за пределами первых суток шаг
+    6-часовой, но строк серии хватает, и конвертер собирает все 7 дней."""
+    base = datetime.date(2026, 10, 27)
+    timeseries = []
+    for day in range(7):
+        date = base + datetime.timedelta(days=day)
+        for hour, temp in ((6, 10 + day), (15, 14 + day)):
+            timeseries.append({
+                "time": f"{date.isoformat()}T{hour:02d}:00:00Z",
+                "data": {"instant": {"details": {"air_temperature": temp}},
+                         "next_6_hours": {"summary": {"symbol_code": "cloudy_day"},
+                                          "details": {"precipitation_amount": 0}}}})
+    fake_http["metno_payload"] = {"properties": {"timeseries": timeseries}}
+    fake_http["open_meteo_status"] = 500
+    result = await provider.forecast(ExtCtx(), LOCATION)
+    assert result["source"] == "met.no"
+    assert result["daily"]["temperature_2m_max"] == [14 + day for day in range(7)]
+    assert result["daily"]["temperature_2m_min"] == [10 + day for day in range(7)]
 
 
 async def test_forecast_hanging_primary_does_not_hold_the_answer(provider, fake_http):
