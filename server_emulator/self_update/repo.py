@@ -7,6 +7,7 @@ Stash — коммит правок в refs/stash (см. stash()); в git stash 
 нам достаточно сохранённых объектов и ссылки.
 """
 from pathlib import Path
+import stat
 import time
 
 from dulwich import porcelain
@@ -116,14 +117,59 @@ def descendant(repo, ancestor_sha, commit_sha):
 
 def switch(repo, tag, tag_sha):
     """Переключение на релиз: ветка HEAD — fast-forward (reset --hard двигает ветку и дерево),
-    иначе checkout тега (detached)."""
+    иначе checkout тега (detached). Dulwich при переключении может оставить часть файлов
+    рабочей копии прежними (наблюдалось на fast-forward v1.0.0 → v1.0.1: HEAD уже новый,
+    а install.bat, start.bat, .gitattributes на диске — старые, копия считалась dirty и
+    следующее обновление блокировалось) — repair_tree перезаписывает расхождения,
+    при них выравнивается и индекс."""
     follow = repo.refs.follow(b"HEAD")
     branch = follow[0][-1] if follow else None  # цепочка symbolic-ссылок; последний — ветка
     if branch and branch.startswith(b"refs/heads/") and descendant(repo, repo.head().decode(), tag_sha):
         porcelain.reset(repo, "hard", tag_sha)
-        return "fast-forward"
-    porcelain.checkout(repo, target=tag_sha)
-    return "checkout"
+        mode = "fast-forward"
+    else:
+        porcelain.checkout(repo, target=tag_sha)
+        mode = "checkout"
+    repaired = repair_tree(repo, tag_sha)
+    if repaired:
+        porcelain.reset(repo, "mixed", tag_sha)  # индекс вслед за деревом
+        mode += "; дозаписаны: " + ", ".join(repaired[:6]) + ("…" if len(repaired) > 6 else "")
+    return mode
+
+
+def repair_tree(repo, commit_sha):
+    """Файлы целевого дерева — на диск: после reset/checkout dulwich часть файлов может
+    остаться от прежнего релиза, поэтому сверяем каждый blob с файлом и перезаписываем
+    расхождения. Переводы строк не считаются расхождением: git расставляет их сам по
+    autocrlf и .gitattributes. Возвращает список перезаписанных путей."""
+    repaired = []
+    root = Path(repo.path)
+    stack = [("", repo[repo[commit_sha.encode()].tree])]
+    while stack:
+        prefix, tree = stack.pop()
+        for entry in tree.items():
+            name = prefix + entry.path.decode()
+            if stat.S_ISDIR(entry.mode):
+                stack.append((name + "/", repo[entry.sha]))
+            elif stat.S_ISREG(entry.mode):
+                target = root / name
+                content = repo[entry.sha].data
+                try:
+                    if target.is_file() and _same_bytes(target.read_bytes(), content):
+                        continue
+                except OSError:
+                    pass
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(content)
+                repaired.append(name)
+    return repaired
+
+
+def _same_bytes(disk, blob):
+    """Равенство с точностью до CRLF↔LF: «старый файл» — это про содержимое, не про переводы строк."""
+    if disk == blob:
+        return True
+    return disk.replace(b"\r\n", b"\n") == blob.replace(b"\r\n", b"\n")
 
 
 def stash(repo):
