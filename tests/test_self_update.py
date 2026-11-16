@@ -194,6 +194,25 @@ def test_updater_switches_tag_and_writes_ok(monkeypatch, tmp_path):
     assert json.loads((state / "update" / "plan.json").read_text(encoding="utf-8"))["log"]
 
 
+def test_repair_tree_restores_stale_files(tmp_path):
+    """Сбой dulwich, наблюдавшийся на v1.0.0 → v1.0.1: HEAD уже новый, а часть файлов на диске
+    осталась от прежнего релиза — repair_tree перезаписывает их содержимым целевого дерева,
+    а отличие только в переводах строк расхождением не считает."""
+    _, work = make_origin(tmp_path)
+    git("reset", "-q", "--hard", "v0.2.0", cwd=work)
+    (work / "b.txt").write_bytes(b"line1\nline2\n")
+    git("add", ".", cwd=work)
+    git("commit", "-q", "-m", "multiline", cwd=work)
+    r = repo.discover(work)
+    (work / "a.txt").write_text("release 0.1.0", encoding="utf-8")  # файл от прежнего релиза
+    (work / "pyproject.toml").unlink()  # а этот dulwich не создал вовсе
+    (work / "b.txt").write_bytes(b"line1\r\nline2\r\n")  # только переводы строк
+    assert repo.repair_tree(r, r.head().decode()) == ["a.txt", "pyproject.toml"]
+    assert (work / "a.txt").read_text(encoding="utf-8") == "release 0.2.0"
+    assert (work / "pyproject.toml").read_text(encoding="utf-8") == "[project]\nname = 't'\n"
+    assert (work / "b.txt").read_bytes() == b"line1\r\nline2\r\n"
+
+
 def test_updater_failure_rolls_back(monkeypatch, tmp_path):
     _, work = make_origin(tmp_path)
     state = tmp_path / "state"
