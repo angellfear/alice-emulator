@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/angellfear/alice-emulator/compare/v1.0.0...v1.0.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* версия эмулятора из манифеста релиза, pyproject поднимает release-please ([1936750](https://github.com/angellfear/alice-emulator/commit/1936750aa6913f1b5df0628db6b7d84af2d375c1))
+
 ## [1.0.0](https://github.com/angellfear/alice-emulator/compare/v0.1.0...v1.0.0) (2026-11-16)
 
 
