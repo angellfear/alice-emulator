@@ -94,7 +94,7 @@ async def test_streaming_asr_break_replies_instead_of_closing(tmp_path):
     runtime.settings.update(aapi_voice=True, aapi_tts=False)
     runtime.asr_streaming = lambda: True
 
-    async def recognize_stream(chunks, fmt, on_partial=None, trace=None):
+    async def recognize_stream(chunks, fmt, on_partial=None, trace=None, sn=None):
         raise OSError("connection closed")  # сервер распознавания оборвал поток
     runtime.recognize_stream = recognize_stream
     client, server = types()

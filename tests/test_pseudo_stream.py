@@ -148,6 +148,40 @@ async def test_level_no_disables_gain(pipeline, monkeypatch):
     assert levels == [False]
 
 
+async def test_sn_selects_profile_and_column_meter(pipeline, monkeypatch):
+    """sn колонки: профиль stt.profiles[sn] сильнее общих колёс, уровни — в метр
+    колонки audio_meter.HUB, а не в общий LEVELS; колонка с level="no" идёт без
+    выравнивания, но со своим метром."""
+    from server_emulator import audio_meter
+    transcribe, calls = pipeline
+    captured = []
+    real_transcode = asr_pseudo_stream.transcode
+
+    async def spy(chunks, source, target, **kwargs):
+        captured.append(kwargs)
+        async for chunk in real_transcode(chunks, source, target, **kwargs):
+            yield chunk
+
+    monkeypatch.setattr(asr_pseudo_stream, "transcode", spy)
+    settings = {"stt": {"pre_gain_db": 0, "level_target_dbfs": -6,
+                        "profiles": {"C00T1000TESTK": {"level": "yes", "pre_gain_db": 7,
+                                                       "level_target_dbfs": -12},
+                                     "C00T2000TESTK": {"level": "no"}}}}
+    await asr_pseudo_stream.recognize_stream(
+        _Runtime(settings), transcribe, _chunks(_tone(0.8) + _silence(2.2)), PCM48, None,
+        sn="C00T1000TESTK")
+    kwargs = captured[-1]
+    assert kwargs["level"] is True
+    assert kwargs["level_gain"] == {"pre_gain_db": 7.0,
+                                    "target": pytest.approx(10 ** (-12 / 20), abs=1e-4)}
+    assert kwargs["meter"] is audio_meter.HUB.meter("C00T1000TESTK")
+    await asr_pseudo_stream.recognize_stream(
+        _Runtime(settings), transcribe, _chunks(_silence(2.0)), PCM48, None, sn="C00T2000TESTK")
+    kwargs = captured[-1]
+    assert kwargs["level"] is False
+    assert kwargs["meter"] is audio_meter.HUB.meter("C00T2000TESTK")
+
+
 async def test_internal_pause_splits_into_progressive_text(pipeline):
     """Пауза 0.5 с внутри фразы: каждый частичный текст — вся накопленная фраза
     на момент вызова (заменяет прежний); финал — вся фраза распознаётся ещё раз."""

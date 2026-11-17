@@ -84,10 +84,16 @@ def pauses(runtime):
     return _frames(partial), _frames(end)
 
 
-def level(runtime):
-    """Выравнивание уровня микрофона (settings["stt"].level != "no"): batch-путь и
-    детектор пауз; у deepgram и адаптера stream своя настройка normalize."""
-    return str((runtime.settings.get("stt") or {}).get("level") or "").strip().lower() != "no"
+def level(runtime, sn=None):
+    """Выравнивание уровня микрофона (batch-путь и детектор пауз): профиль колонки
+    (stt.profiles[sn].level, пишут селектор и «Автонастройка» вкладки) сильнее общей
+    настройки stt.level. У deepgram и адаптера stream своя настройка normalize."""
+    stt = runtime.settings.get("stt") or {}
+    profile = (stt.get("profiles") or {}).get(sn or "") if sn else None
+    value = profile.get("level") if profile else None
+    if value is None:
+        value = stt.get("level")
+    return str(value or "").strip().lower() != "no"
 
 
 PRE_GAIN_DB = (0.0, -12.0, 24.0)      # предусиление: умолчание, минимум, максимум (дБ)
@@ -104,15 +110,31 @@ def _tuned(value, default, low, high):
     return value if low <= value <= high else default
 
 
-def gain_config(runtime):
-    """Колёса выравнивания для transcode ({'pre_gain_db': …, 'target': …}): pre_gain_db —
-    предусиление микрофона до выравнивания (stt.pre_gain_db, дБ), target — цель
-    нормализации (stt.level_target_dbfs, dBFS → линейный пик). Ключей нет, мусор или
-    вне диапазона — умолчания: 0 дБ и −6 dBFS (TARGET_PEAK AutoGain), без ошибки."""
+def _pick(profile, stt, key):
+    """Значение профиля колонки, при его отсутствии — общее; None — ключа нет нигде."""
+    value = (profile or {}).get(key)
+    return value if value is not None else stt.get(key)
+
+
+def gain_config(runtime, sn=None):
+    """Колёса выравнивания для transcode ({'pre_gain_db': …, 'target': …}): профиль
+    колонки (stt.profiles[sn]) сильнее общих stt.pre_gain_db и stt.level_target_dbfs.
+    Ключей нет ни там ни там, мусор или вне диапазона — умолчания: 0 дБ и −6 dBFS
+    (TARGET_PEAK AutoGain), без ошибки."""
     stt = runtime.settings.get("stt") or {}
-    pre = _tuned(stt.get("pre_gain_db"), *PRE_GAIN_DB)
-    target_dbfs = _tuned(stt.get("level_target_dbfs"), *LEVEL_TARGET_DBFS)
+    profile = (stt.get("profiles") or {}).get(sn or "") if sn else None
+    pre = _tuned(_pick(profile, stt, "pre_gain_db"), *PRE_GAIN_DB)
+    target_dbfs = _tuned(_pick(profile, stt, "level_target_dbfs"), *LEVEL_TARGET_DBFS)
     return {"pre_gain_db": pre, "target": 10 ** (target_dbfs / 20)}
+
+
+def meter(sn):
+    """Метр колонки sn (audio_meter.HUB): уровни этого микрофона — в её метр; без
+    sn колонка не различима — общий LEVELS (None: transcode пишет туда по умолчанию)."""
+    if not sn:
+        return None
+    from .audio_meter import HUB
+    return HUB.meter(sn)
 
 
 def vad_model(runtime):
@@ -290,19 +312,20 @@ class _Accumulator:
         return text
 
 
-async def recognize_stream(runtime, transcribe, chunks, fmt, on_partial=None, trace=None):
+async def recognize_stream(runtime, transcribe, chunks, fmt, on_partial=None, trace=None, sn=None):
     """Как recognize_stream адаптера: consume wire-кадров, частичные тексты через
     on_partial, финальный {'text': ...}. Слово активации и реплика приходят разными
     логическими потоками Ogg — распознаётся последний (BOS сбрасывает накопление),
     как у stream-адаптера; PCM и прочие форматы — один поток. trace — трасса речи
-    (SpeechTrace из voice.py): события pseudo_* показывают ход детектора пауз."""
+    (SpeechTrace из voice.py): события pseudo_* показывают ход детектора пауз.
+    sn — колонка: профиль выравнивания stt.profiles[sn], уровни — в метр колонки."""
     vad = _Vad(vad_model(runtime))
     totals = {"samples": 0}  # сэмплов звука за все логические потоки (pseudo_done)
     if fmt not in ("audio/opus", "audio/ogg"):
         if trace is not None:
             trace.event("pseudo_stream_start", "server", fmt=fmt)
         return await _run_one(runtime, transcribe, chunks, fmt, on_partial, vad,
-                              trace=trace, totals=totals)
+                              trace=trace, totals=totals, sn=sn)
     result = asyncio.get_running_loop().create_future()
     current = {"generation": 0, "queue": None, "task": None, "frames": 0}
 
@@ -318,7 +341,7 @@ async def recognize_stream(runtime, transcribe, chunks, fmt, on_partial=None, tr
         try:
             value = await _run_one(runtime, transcribe, frames(), fmt, partial, vad,
                                    trace=trace if generation == current["generation"] else None,
-                                   totals=totals)
+                                   totals=totals, sn=sn)
         except asyncio.CancelledError:
             raise
         except Exception as exc:  # noqa: BLE001 — ошибку отдаёт только актуальный поток
@@ -365,12 +388,13 @@ def _is_stream_start(frame):
     return frame[:4] == b"OggS" and len(frame) > 5 and bool(frame[5] & 2)
 
 
-async def _run_one(runtime, transcribe, chunks, fmt, on_partial, vad, trace=None, totals=None):
+async def _run_one(runtime, transcribe, chunks, fmt, on_partial, vad, trace=None, totals=None, sn=None):
     """Один логический поток wire-кадров: PCM 16 кГц → Silero VAD → фразы между паузами
     конца (stt.pseudo_end_pause). Пауза между словами (stt.pseudo_partial_pause) —
     batch-STT всей накопленной фразы и частичный текст колонке (заменяет прежний),
     конец фразы или закрытие микрофона — вся фраза распознаётся ещё раз → финальный
-    {'text': ...} (колонка закроет микрофон сама)."""
+    {'text': ...} (колонка закроет микрофон сама). sn — колонка: профиль выравнивания
+    stt.profiles[sn], уровни — в метр колонки audio_meter.HUB."""
     partial_frames, end_frames = pauses(runtime)
     acc = _Accumulator(vad, partial_frames, end_frames, trace=trace)
     last = ""
@@ -378,10 +402,11 @@ async def _run_one(runtime, transcribe, chunks, fmt, on_partial, vad, trace=None
         async with asyncio.timeout(120):
             # микрофон колонки тихий (пик около −55 dBFS): Silero VAD на таком уровне речи не
             # видит — уровень выравнивается при декодировании, фраза распознаётся выровненной
-            # (stt.level="no" выключает выравнивание; колёса — stt.pre_gain_db и
-            # stt.level_target_dbfs, метр уровней при этом живёт в audio_meter.LEVELS)
-            async for chunk in transcode(chunks, fmt, "pcm16", level=level(runtime),
-                                         level_gain=gain_config(runtime)):
+            # (stt.level="no" выключает выравнивание; колёса — профиль колонки
+            # stt.profiles[sn] или общие stt.pre_gain_db и stt.level_target_dbfs)
+            async for chunk in transcode(chunks, fmt, "pcm16", level=level(runtime, sn),
+                                         level_gain=gain_config(runtime, sn),
+                                         meter=meter(sn)):
                 samples = np.frombuffer(chunk, dtype="<i2").astype(np.float32) / 32768.0
                 if totals is not None:
                     totals["samples"] += len(samples)

@@ -641,8 +641,7 @@ small.warn{color:var(--warning)}
 .vs-meter-head{display:flex;align-items:center;gap:10px}
 .vs-meter-head h3{flex:1}
 .vs-meter-gain{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
-.vs-meter-led{width:14px;height:14px;padding:0;border-radius:50%;border:1px solid var(--border);background:transparent;cursor:pointer;flex-shrink:0}
-.vs-meter-led.on{background:var(--danger);border-color:var(--danger);box-shadow:0 0 6px color-mix(in srgb,var(--danger) 60%,transparent)}
+.vs-meter-led{width:14px;height:14px;min-height:14px;padding:0;border-radius:50%;border:none;background:var(--danger);box-shadow:0 0 6px color-mix(in srgb,var(--danger) 60%,transparent);cursor:pointer;flex-shrink:0}
 .vs-meter-row{display:grid;grid-template-columns:56px 1fr 120px;align-items:center;gap:10px}
 .vs-meter-label{font-size:12.5px;color:var(--muted);white-space:nowrap}
 .vs-meter-track{position:relative;height:14px;border-radius:4px;background:var(--surface-3);overflow:hidden;min-width:0}
@@ -655,6 +654,10 @@ small.warn{color:var(--warning)}
 .vs-meter-scale-row{margin-top:-6px}
 .vs-meter-scale{display:flex;justify-content:space-between;font-size:10px;color:var(--faint);font-variant-numeric:tabular-nums}
 .vs-meter-history{width:100%;height:44px;border-radius:4px;background:var(--surface-3)}
+.vs-meter-devices{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:2px 0 10px}
+.vs-meter-device{max-width:100%;font-size:13px}
+.vs-meter-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.vs-meter-actions button{flex-shrink:0}
 .vs-meter-knob{display:flex;flex-direction:column;gap:4px;font-size:13px}
 .vs-meter-knob span{color:var(--muted)}
 .vs-meter-knob input{width:min(240px,100%)}

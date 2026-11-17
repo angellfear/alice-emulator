@@ -27,7 +27,12 @@ POST   voice-stack-preset-file — ?service=&id=&key= тело — WAV этал�
 POST   voice-stack-login       — {service} запустить вход подписки кодом устройства (отдельный процесс);
                                 GET — его состояние и вывод {running, done, exit, output, auth_ready, cooldown}; DELETE — отменить
 GET    voice-levels            — живые уровни микрофона для метра вкладки (окно ~100 мс + история):
-                                {active, gain, in, out, history}
+                                {active, gain, in, out, history}; ?sn= — метр колонки,
+                                ответ несёт sn и columns (сводка хаба для селектора UI)
+POST   voice-autotune          — {sn, seconds?} автонастройка колонки: слушать микрофон, измерить
+                                шум и речь, подобрать предусиление и цель, записать профиль
+                                stt.profiles[sn] → {pre_gain_db, level_target_dbfs, speech_dbfs,
+                                noise_dbfs, note}
 """
 import json
 import logging
@@ -352,7 +357,81 @@ async def _transcribe(runtime, path):
 @route("voice-levels", methods=("GET",))
 async def voice_levels(request, runtime, app):
     """Живые уровни микрофона для метра вкладки «Голосовой стек»: текущее окно
-    (~100 мс) и история audio_meter.LEVELS — «Вход» и «В ASR» (после выравнивания).
-    Опрос UI ~10 Гц, пока вкладка видима; чтение состояние измерителя не меняет."""
-    from ...audio_meter import LEVELS
-    return web.json_response(LEVELS.snapshot())
+    (~100 мс) и история — «Вход» (микрофон как есть) и «В ASR» (после выравнивания).
+    ?sn=<колонка> — метр её микрофона (audio_meter.HUB); без sn — колонка со свежим
+    звуком, иначе последняя говорившая, иначе общий. Ответ несёт sn выбранной колонки
+    и columns — сводку хаба (селектор и слежение UI). Опрос UI ~10 Гц, пока вкладка
+    видима; чтение состояние измерителя не меняет."""
+    from ...audio_meter import HUB, LEVELS
+    sn = request.query.get("sn") or HUB.active() or ""
+    payload = (HUB.meter(sn) if sn else LEVELS).snapshot()
+    payload["sn"] = sn
+    payload["columns"] = HUB.columns()
+    return web.json_response(payload)
+
+
+AUTOTUNE_SECONDS = 8.0   # сколько слушать микрофон по умолчанию (вилка 2–12)
+SPEECH_FLOOR_DB = 10.0   # окна громче шума на столько дБ считаются речью
+GAIN_HEADROOM_DB = 5.0   # запас усиления до потолка AutoGain (~+50 дБ)
+
+
+@route("voice-autotune", methods=("POST",))
+async def voice_autotune(request, runtime, app):
+    """Автонастройка колонки: слушает её микрофон seconds секунд (2–12), измеряет шум
+    и пики речи, подбирает предусиление и цель нормализации и записывает профиль
+    колонки (stt.profiles[sn], выравнивание включено). Звук не дошёл до распознавания
+    или речь не услышана — ValueError с подсказкой; шумное окружение — предупреждение
+    в note, настройка всё равно применяется."""
+    import asyncio
+
+    from ...audio_meter import HUB
+    body = await _body(request)
+    sn = str(body.get("sn") or "").strip()
+    if not sn:
+        raise ValueError("Выберите колонку для настройки")
+    try:
+        seconds = float(body.get("seconds") or AUTOTUNE_SECONDS)
+    except (TypeError, ValueError):
+        seconds = AUTOTUNE_SECONDS
+    seconds = min(12.0, max(2.0, seconds))
+    meter = HUB.meter(sn)
+    meter.seal()  # хвост чужого измерения (метр живёт с первого звука колонки) в запись не попадёт
+    meter.start_record()
+    done = False
+    try:
+        await asyncio.sleep(seconds)
+        entries = meter.stop_record()
+        done = True
+        levels = sorted(entry["i"] for entry in entries if entry["i"] is not None)
+        if len(levels) < 5:
+            raise ValueError("Звук колонки не дошёл до сервера — скажите что-нибудь в колонку во время настройки")
+        noise = levels[max(0, int(len(levels) * 0.1) - 1)]  # самые тихие окна — шум микрофона и комнаты
+        speech = [entry for entry in entries if entry["i"] is not None and entry["i"] >= noise + SPEECH_FLOOR_DB]
+        peaks = [entry["ip"] for entry in speech if entry["ip"] is not None]
+        if len(peaks) < 8:
+            raise ValueError("Речь не услышана — повторите, говоря в колонку обычным голосом")
+        peak = max(peaks)
+        typical = sorted(entry["i"] for entry in speech)[int(len(speech) * 0.75)]
+        target = -6.0
+        # Выравнивание тянет пик речи к цели, но потолок усиления AutoGain около +50 дБ:
+        # недостающие до цели−45 дБ добавляет предусиление (до +24); при исключительно
+        # тихом микрофоне цель опускается до достижимой.
+        needed = target - peak
+        pre = min(24.0, max(0.0, needed - (50.0 - GAIN_HEADROOM_DB)))
+        if needed > 70.0:
+            target = max(-18.0, peak + 70.0)
+        stt = {**(runtime.settings.get("stt") or {})}
+        profiles = {**(stt.get("profiles") or {})}
+        profiles[sn] = {"level": "yes", "pre_gain_db": round(pre, 1),
+                        "level_target_dbfs": round(target, 1)}
+        stt["profiles"] = profiles
+        await runtime.save_settings({**runtime.settings, "stt": stt})
+        return web.json_response({
+            "sn": sn, "pre_gain_db": profiles[sn]["pre_gain_db"],
+            "level_target_dbfs": profiles[sn]["level_target_dbfs"],
+            "speech_dbfs": round(typical, 1), "noise_dbfs": round(noise, 1),
+            "note": "" if typical - noise >= SPEECH_FLOOR_DB + 12 else
+                    "Много шума относительно речи — говорите ближе к колонке"})
+    finally:
+        if not done:
+            meter.stop_record()  # клиент оборвался — запись измерения всё равно сбросить

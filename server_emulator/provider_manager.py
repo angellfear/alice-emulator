@@ -57,7 +57,10 @@ class ProviderManager:
             return False
         return hasattr(adapter, "recognize_stream") or asr_pseudo_stream.enabled(runtime)
 
-    async def recognize_stream(self, runtime, chunks, fmt, on_partial=None, trace=None):
+    async def recognize_stream(self, runtime, chunks, fmt, on_partial=None, trace=None, sn=None):
+        """sn — колонка (voice.py берёт из trace_context): профиль выравнивания
+        stt.profiles[sn] и метр уровней колонки действуют в эмуляции потока; у
+        stream-адаптеров своя нормализация в пресете, уровни идут в общий метр."""
         adapter = self.adapter(runtime, "stt")
         if hasattr(adapter, "recognize_stream"):
             from .voice_stack import call_adapter
@@ -65,7 +68,7 @@ class ProviderManager:
                                       chunks, fmt, on_partial)
         # эмуляция потока: тот же batch-STT распознаёт сегменты между паузами
         return await asr_pseudo_stream.recognize_stream(runtime, self._transcribe_audio,
-                                                        chunks, fmt, on_partial, trace=trace)
+                                                        chunks, fmt, on_partial, trace=trace, sn=sn)
 
     async def _transcribe_audio(self, runtime, audio, filename="input.wav"):
         """batch-STT: WAV → текст адаптера — сегменты эмуляции потока им же и теми

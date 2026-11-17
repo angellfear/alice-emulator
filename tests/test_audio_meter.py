@@ -1,10 +1,13 @@
-"""Метр микрофона перед ASR: audio_meter (уровни dBFS, окна, история), колёса
-выравнивания audio_gain (предусиление, цель нормализации) и их чтение из
-настроек stt (asr_pseudo_stream.gain_config), запись уровней из transcode и
-домен api/voice-levels. Звук — синтетический тон, микрофон не нужен."""
+"""Метр микрофона перед ASR: audio_meter (уровни dBFS, окна, история, хаб метров
+по колонкам, запись измерения), колёса выравнивания audio_gain (предусиление,
+цель нормализации) и их чтение из настроек stt (профиль колонки stt.profiles[sn]
+сильнее общих), запись уровней из transcode и input_audio, домен api/voice-levels
+(?sn= — метр колонки) и автонастройка api/voice-autotune. Звук — синтетический
+тон, микрофон не нужен."""
 import asyncio
 import json
 import math
+import time
 
 import numpy as np
 import pytest
@@ -12,7 +15,7 @@ from aiohttp.test_utils import make_mocked_request
 
 from server_emulator import asr_pseudo_stream, audio_meter
 from server_emulator.audio_gain import AutoGain
-from server_emulator.audio_meter import LevelMeter, to_db
+from server_emulator.audio_meter import LevelMeter, MeterHub, to_db
 from server_emulator.audio_stream import transcode
 
 
@@ -102,6 +105,33 @@ def test_autogain_silence_keeps_preamplifier():
     assert gain.gain_db == pytest.approx(12.0)
 
 
+def test_autogain_gate_ignores_preamplified_noise():
+    """Гейт тишины — в сырых сэмплах: предусиление поднимает шум над порогом,
+    но огибающую он не открывает (иначе тишина усиливается до цели)."""
+    gain = AutoGain(16000, pre_gain_db=12)
+    noise = np.full(16000, 0.0003, dtype=np.float32)  # пик ниже NOISE_PEAK в сыром сигнале
+    out = np.frombuffer(gain.process(noise.astype("<f4").tobytes()), dtype="<f4")
+    assert float(np.abs(out).max()) == pytest.approx(0.0003 * 10 ** (12 / 20), rel=0.02)
+    assert gain.gain_db == pytest.approx(12.0)  # только предусиление, огибающая спит
+
+
+def test_gain_config_profile_overrides_global():
+    """Профиль колонки stt.profiles[sn] сильнее общих колёс; у колонки с пустым
+    профилем или вовсе без профиля — общие; level() читает профиль так же."""
+    runtime = _Runtime({"stt": {"pre_gain_db": 3, "level_target_dbfs": -9,
+                                "profiles": {"C00T1000TESTK": {"pre_gain_db": 7, "level_target_dbfs": -12,
+                                                               "level": "no"},
+                                             "C00T2000TESTK": {}}}})
+    cfg = asr_pseudo_stream.gain_config(runtime, "C00T1000TESTK")
+    assert cfg["pre_gain_db"] == 7.0
+    assert cfg["target"] == pytest.approx(10 ** (-12 / 20), abs=1e-4)
+    assert asr_pseudo_stream.gain_config(runtime, "C00T2000TESTK")["pre_gain_db"] == 3.0
+    assert asr_pseudo_stream.gain_config(runtime, "C00T3000TESTK")["pre_gain_db"] == 3.0
+    assert asr_pseudo_stream.gain_config(runtime) == asr_pseudo_stream.gain_config(runtime, None)
+    assert asr_pseudo_stream.level(runtime, "C00T1000TESTK") is False
+    assert asr_pseudo_stream.level(runtime, "C00T3000TESTK") is True
+
+
 def test_gain_config_reads_and_clamps_stt_settings():
     """Колёса из stt: числа в диапазоне — берутся (цель dBFS → линейный пик); ключа
     нет, не число или вне диапазона — умолчания 0 дБ и −6 dBFS, без ошибки."""
@@ -152,5 +182,166 @@ async def test_voice_levels_endpoint(tmp_path):
         assert payload["active"] is True
         assert payload["in"]["rms"] is not None
         assert {"t", "i", "ip", "ic", "o", "op", "oc", "g"} <= set(payload["history"][-1])
+    finally:
+        await runtime.close()
+
+
+def test_meter_hub_keeps_columns_apart():
+    """Хаб метров: у каждой колонки свой метр (одни и те же sn — один и тот же метр),
+    без sn — общий LEVELS; columns()/active() — сводка для селектора и слежения UI."""
+    hub = MeterHub()
+    first, second = hub.meter("C00T1000TESTK"), hub.meter("C00T2000TESTK")
+    assert first is not second and hub.meter("C00T1000TESTK") is first
+    assert hub.meter("") is audio_meter.LEVELS and hub.meter(None) is audio_meter.LEVELS
+    assert hub.active() is None  # все молчат
+    first.observe_in(_tone(0.05, amp=0.3))
+    time.sleep(0.03)
+    second.observe_in(_tone(0.05, amp=0.01))
+    columns = {c["sn"]: c for c in hub.columns()}
+    assert set(columns) == {"C00T1000TESTK", "C00T2000TESTK"}
+    assert all(c["active"] for c in columns.values())
+    assert hub.active() == "C00T2000TESTK"  # самая свежая говорившая
+
+
+async def test_meter_record_captures_windows():
+    """Запись измерения (автонастройка): окна истории дублируются в запись плюс хвост
+    текущего окна; повторный stop — пусто, записи не мешают истории."""
+    meter = LevelMeter()
+    meter.start_record()
+    for _ in range(3):
+        meter.observe_in(_tone(0.05, amp=0.3))
+        await asyncio.sleep(0.12)
+    record = meter.stop_record()
+    assert len(record) >= 2 and all(entry["i"] is not None for entry in record)
+    assert meter.stop_record() == []
+    meter.seal()  # хвост прошлой фазы закрывается досрочно — во вторую запись не попадёт
+    meter.start_record()
+    meter.observe_in(_tone(0.05))
+    assert len(meter.stop_record()) == 1
+    assert len(meter.history) >= 3  # запись не мешает истории: запечатанные окна там же
+
+
+async def test_input_audio_levels_and_gain():
+    """batch-путь: input_audio с gain и meter — WAV выровнен до цели, уровни пошли
+    в метр колонки окнами ~100 мс; WAV по-прежнему валиден и полной длины."""
+    import io
+    import wave
+
+    from server_emulator.audio_buffer import input_audio
+    own = LevelMeter()
+    data, filename = await input_audio(_pcm16(_tone(0.5, rate=48000, amp=0.01)),
+                                       "audio/x-pcm;bit=16;rate=48000;channels=1",
+                                       level=True, gain={"pre_gain_db": 0, "target": 0.5},
+                                       meter=own)
+    assert filename == "input.wav"
+    entries = [e for e in own.snapshot()["history"] if e["i"] is not None]
+    assert len(entries) >= 4
+    assert entries[0]["o"] > entries[0]["i"] + 20  # выравнивание усилило тихий тон
+    with wave.open(io.BytesIO(data)) as wav:
+        assert wav.getnframes() == 24000
+
+
+async def test_voice_levels_sn_and_columns(tmp_path, monkeypatch):
+    """?sn= — метр конкретной колонки (sn в ответе, columns — сводка хаба); без sn —
+    колонка со свежим звуком, иначе последняя говорившая."""
+    from server_emulator.runtime import Runtime
+    from server_emulator.ui.api.voice_stack import voice_levels
+    runtime = Runtime(tmp_path)
+    try:
+        hub = MeterHub()
+        monkeypatch.setattr(audio_meter, "HUB", hub)
+        hub.meter("C00T1000TESTK").observe_in(_tone(0.05, amp=0.3))
+        hub.meter("C00T2000TESTK").observe_in(_tone(0.05, amp=0.2))
+        await asyncio.sleep(0.03)
+        hub.meter("C00T1000TESTK").observe_in(_tone(0.05, amp=0.3))
+        response = await voice_levels(
+            make_mocked_request("GET", "/emulator/api/voice-levels?sn=C00T2000TESTK"), runtime, None)
+        payload = json.loads(response.body)
+        assert payload["sn"] == "C00T2000TESTK"
+        assert {c["sn"] for c in payload["columns"]} == {"C00T1000TESTK", "C00T2000TESTK"}
+        response = await voice_levels(
+            make_mocked_request("GET", "/emulator/api/voice-levels"), runtime, None)
+        payload = json.loads(response.body)
+        assert payload["sn"] == "C00T1000TESTK"  # самая свежая говорившая
+        assert {"sn", "active", "gain", "in", "out", "history", "columns"} <= set(payload)
+    finally:
+        await runtime.close()
+
+
+class _JsonRequest:
+    """Достаточно для обработчиков API: тело JSON (запросы панели)."""
+
+    def __init__(self, body):
+        self._body = body
+
+    async def json(self):
+        return self._body
+
+
+async def _feed(meter, seconds, speech, silence=0.00005):
+    """Синтетический микрофон колонки: bursts речи по 1.0 с и тишина по 0.4 с, пока
+    длится настройка (чистые окна — автотюн мерит шум и пики речи)."""
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        for _ in range(50):
+            if time.monotonic() >= end:
+                break
+            meter.observe_in(_tone(0.02, amp=speech))
+            await asyncio.sleep(0.02)
+        for _ in range(20):
+            if time.monotonic() >= end:
+                break
+            meter.observe_in(_tone(0.02, amp=silence))
+            await asyncio.sleep(0.02)
+
+
+async def test_voice_autotune_writes_column_profile(tmp_path, monkeypatch):
+    """Автонастройка: слушает колонку, мерит шум и пики речи, пишет профиль
+    stt.profiles[sn] (выравнивание включено); громкий микрофон — без предусиления,
+    исключительно тихий — недостающее до цели тянет предусиление."""
+    from server_emulator.runtime import Runtime
+    from server_emulator.ui.api.voice_stack import voice_autotune
+    runtime = Runtime(tmp_path)
+    try:
+        hub = MeterHub()
+        monkeypatch.setattr(audio_meter, "HUB", hub)
+        feeder = asyncio.create_task(_feed(hub.meter("C00T1000TESTK"), 2.3, speech=0.05))  # пик −26 dBFS
+        response = await voice_autotune(_JsonRequest({"sn": "C00T1000TESTK", "seconds": 2.0}),
+                                        runtime, None)
+        await feeder
+        payload = json.loads(response.body)
+        assert payload["sn"] == "C00T1000TESTK"
+        assert payload["pre_gain_db"] == 0.0 and payload["level_target_dbfs"] == -6.0
+        assert payload["speech_dbfs"] == pytest.approx(-29, abs=5)
+        profile = runtime.settings["stt"]["profiles"]["C00T1000TESTK"]
+        assert profile["level"] == "yes" and profile["pre_gain_db"] == 0.0
+        feeder = asyncio.create_task(_feed(hub.meter("C00T2000TESTK"), 2.3, speech=0.002))  # пик −54 dBFS
+        payload = json.loads((await voice_autotune(
+            _JsonRequest({"sn": "C00T2000TESTK", "seconds": 2.0}), runtime, None)).body)
+        await feeder
+        assert payload["pre_gain_db"] == 3.0  # недостающие 48 дБ − (50−5) запаса
+        assert runtime.settings["stt"]["profiles"]["C00T2000TESTK"]["pre_gain_db"] == 3.0
+    finally:
+        await runtime.close()
+
+
+async def test_voice_autotune_no_speech_fails_honest(tmp_path, monkeypatch):
+    """Тишина во время настройки: честный отказ «Речь не услышана», профиль не пишется,
+    запись измерения сброшена; колонка без звука вовсе — отказ «не дошёл»."""
+    from server_emulator.runtime import Runtime
+    from server_emulator.ui.api.voice_stack import voice_autotune
+    runtime = Runtime(tmp_path)
+    try:
+        hub = MeterHub()
+        monkeypatch.setattr(audio_meter, "HUB", hub)
+        meter = hub.meter("C00T1000TESTK")
+        feeder = asyncio.create_task(_feed(meter, 1.0, speech=0.0))  # только тишина
+        with pytest.raises(ValueError, match="Речь не услышана"):
+            await voice_autotune(_JsonRequest({"sn": "C00T1000TESTK", "seconds": 0.6}), runtime, None)
+        await feeder
+        assert meter.stop_record() == []
+        assert "profiles" not in runtime.settings["stt"]
+        with pytest.raises(ValueError, match="не дошёл"):
+            await voice_autotune(_JsonRequest({"sn": "C00T3000TESTK", "seconds": 0.5}), runtime, None)
     finally:
         await runtime.close()

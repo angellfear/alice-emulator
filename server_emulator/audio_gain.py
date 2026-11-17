@@ -29,6 +29,7 @@ class AutoGain:
     def __init__(self, rate=RATE, pre_gain_db=0.0, target=TARGET_PEAK):
         self.frame = rate // 100  # кадр 10 мс: RELEASE отсчитан в кадрах по 10 мс
         self.pre = 10.0 ** (float(pre_gain_db) / 20)
+        self.gate = NOISE_PEAK * self.pre  # порог тишины в сырых сэмплах: предусиление не открывает его шуму
         self.target = float(target)
         self.level = 0.0
         self.tail = np.empty(0, np.float32)
@@ -42,7 +43,7 @@ class AutoGain:
         for start in range(0, whole, self.frame):
             frame = samples[start:start + self.frame] * self.pre
             peak = float(np.abs(frame).max())
-            self.level = max(peak if peak >= NOISE_PEAK else 0.0, self.level * RELEASE)
+            self.level = max(peak if peak >= self.gate else 0.0, self.level * RELEASE)
             gain = min(MAX_GAIN, self.target / self.level) if self.level else 1.0
             out[start:start + self.frame] = frame * gain
             self.gain_db = round(20 * math.log10(gain * self.pre), 1)

@@ -774,7 +774,8 @@ class Conversation:
             async def recognize():
 
                 result = await self.runtime.recognize_stream(chunks(), incoming.Event.VoiceInput.Format,
-                                                             partial, trace=trace)
+                                                             partial, trace=trace,
+                                                             sn=self.trace_context.get('sn') or None)
 
                 if self.channels.get(channel) is state:
 
@@ -1379,7 +1380,12 @@ class Conversation:
 
                 else:
 
-                    body, filename = await input_audio(audio, request.Format, level=asr_pseudo_stream.level(self.runtime))
+                    sn = self.trace_context.get('sn') or None
+
+                    body, filename = await input_audio(audio, request.Format,
+                                                       level=asr_pseudo_stream.level(self.runtime, sn),
+                                                       gain=asr_pseudo_stream.gain_config(self.runtime, sn),
+                                                       meter=asr_pseudo_stream.meter(sn))
 
                     raw, _ = await self.runtime.provider('stt', audio=body, filename=filename)
 

@@ -574,11 +574,31 @@
   // --- Метр микрофона: живые уровни до и после выравнивания (api/voice-levels). ------------
   // «Вход» — микрофон колонки как есть, «В ASR» — после предусиления и выравнивания
   // (то, что слышит распознавание). Уровни снимает transcode у любого источника ASR,
-  // идущего через выравнивание. Шкала −60…0 dBFS, полоса истории — последние окна
-  // (RMS по 100 мс). Опрос 10 Гц, пока вкладка видима; чтение сервер не изменяет.
-  const meter = { refs: null, timer: null, hold: {}, clip: false };
+  // идущего через выравнивание. У каждой колонки свой метр и свои колёса (профиль
+  // stt.profiles[sn]): селектор выбирает колонку, метр сам переключается на говорящую
+  // (после ручного выбора — пауза 15 с, чтобы рассмотреть выбранную), «Автонастройка»
+  // измеряет микрофон и пишет профиль сама, колёса правятся через «Применить»/«Отмена».
+  // Шкала −60…0 dBFS, полоса истории — последние окна (RMS по 100 мс). Опрос 10 Гц,
+  // пока вкладка видима; чтение сервер не изменяет.
+  const meter = { refs: null, timer: null, hold: {}, clip: false, sn: null, pinUntil: 0,
+                  tuning: false, holdStatus: null, names: null, namesAt: 0,
+                  lastT: {}, columnsSignature: null };
   const METER_MIN = -60;  // низ шкалы, dBFS
   const pct = db => Math.max(0, Math.min(100, (db - METER_MIN) / -METER_MIN * 100));
+  const fmtDb = v => (v > 0 ? '+' : '') + Number(v).toFixed(1).replace(/\.0$/, '');
+  const columnLabel = sn => (meter.names || {})[sn] || sn;
+
+  // Имена привязанных устройств (identities) — для подписей селектора; кеш на 30 с,
+  // обновление в фоне: опрос метра не должен ждать лишнего GET.
+  function meterNames() {
+    if (meter.names && Date.now() - meter.namesAt < 30000) return;
+    meter.namesAt = Date.now();
+    api('identities').then(d => {
+      const names = {};
+      (d.devices || []).forEach(dev => { if (dev.sn) names[dev.sn] = dev.name || dev.sn });
+      meter.names = names;
+    }).catch(() => {});
+  }
 
   function meterBar(label) {
     const row = make('div', 'vs-meter-row');
@@ -647,46 +667,110 @@
     return draw;
   }
 
-  // Колёса выравнивания — только когда активный STT идёт через выравнивание
-  // (batch/эмуляция потока); у облачных потоковых своя нормализация в пресете.
-  function meterControls() {
-    const stt = () => (cfg?.stt || {});
+  // Колёса выравнивания выбранной колонки — профиль stt.profiles[sn], без колонки —
+  // общие stt.*. Правки копятся в черновик и применяются «Применить», «Отмена» возвращает
+  // сохранённое — автосохранения нет. Перестраиваются при смене колонки (черновик сбрасывается).
+  // Видны, только когда активный STT идёт через выравнивание (batch/эмуляция потока);
+  // у облачных потоковых своя нормализация в пресете.
+  function meterControlsBox() {
     const box = make('div', 'vs-flags');
-    const levelLabel = make('label', 'vs-flag'), levelBox = make('input');
-    levelBox.type = 'checkbox'; levelBox.checked = stt().level !== 'no';
-    levelLabel.append(levelBox, make('span', null, 'Выравнивание уровня микрофона'));
-    const knob = (key, title, min, max, def) => {
+    const stt = () => (cfg?.stt || {});
+    const prof = () => meter.sn ? ((stt().profiles || {})[meter.sn] || {}) : {};
+    const value = (key, def) => { const n = Number(prof()[key] ?? stt()[key]); return Number.isFinite(n) ? n : def };
+    const draft = {};  // правки колёс до «Применить»: {pre_gain_db: …, level_target_dbfs: …}
+    let apply, cancel;
+    const dirty = () => Object.keys(draft).length > 0;
+    const sync = () => { if (apply && cancel) apply.disabled = cancel.disabled = !dirty() };
+    const knob = (key, title, hint, min, max, def) => {
       const wrap = make('label', 'vs-meter-knob'), input = make('input');
-      input.type = 'range'; input.min = String(min); input.max = String(max); input.step = '1';
-      const saved = Number(stt()[key]);
-      input.value = Number.isFinite(saved) ? saved : def;
+      input.type = 'range'; input.min = String(min); input.max = String(max); input.step = '1'; input.title = hint;
+      input.value = draft[key] ?? value(key, def);
       const text = make('span', null, `${title}: ${input.value}`);
-      const back = () => { const v = Number(stt()[key]); input.value = Number.isFinite(v) ? v : def; text.textContent = `${title}: ${input.value}` };
       input.oninput = () => { text.textContent = `${title}: ${input.value}` };
-      input.onchange = () => saveStt({ [key]: Number(input.value) }, back);
+      input.onchange = () => { draft[key] = Number(input.value); sync() };
       wrap.append(text, input);
       return wrap;
     };
-    const sliders = make('div', 'vs-flags');
-    sliders.append(knob('pre_gain_db', 'Предусиление, дБ', -12, 24, 0),
-                   knob('level_target_dbfs', 'Цель нормализации, dBFS', -18, -3, -6));
-    const sync = () => { sliders.style.display = levelBox.checked ? '' : 'none' };
-    levelBox.onchange = () => { sync(); saveStt({ level: levelBox.checked ? 'yes' : 'no' }, () => { levelBox.checked = !levelBox.checked; sync() }) };
-    sync();
-    box.append(levelLabel, sliders, make('small', 'vs-help',
-      'Выравнивание само держит пик речи на цели нормализации — усиление видно в шапке метра. Предусиление поднимает тихий микрофон до выравнивания; у облачных потоковых источников своя нормализация в пресете.'));
-    return box;
+    const fill = (reset) => {
+      if (reset) for (const key of Object.keys(draft)) delete draft[key];  // смена колонки — черновик чужой
+      box.replaceChildren();
+      const actions = make('div', 'vs-meter-actions');
+      const tune = make('button', 'secondary', 'Автонастройка');
+      tune.type = 'button';
+      tune.title = 'Колонка слушает вас около 8 секунд: скажите «Алиса» и произнесите пару фраз обычным голосом — предусиление и уровень речи подберутся сами.';
+      tune.onclick = async () => {
+        if (meter.tuning || !meter.sn) return;
+        meter.tuning = true; tune.disabled = true;
+        meter.holdStatus = `Настройка «${columnLabel(meter.sn)}»: скажите «Алиса» и произнесите пару фраз обычным голосом…`;
+        try {
+          const r = await api('voice-autotune', 'POST', { sn: meter.sn });
+          say(`Настроено: предусиление ${fmtDb(r.pre_gain_db)} дБ, пик речи ${r.level_target_dbfs} dBFS` + (r.note ? `. ${r.note}` : ''));
+          cfg = await api('settings').catch(() => cfg);
+          fill(true);
+          meter.holdStatus = `Готово: речь ${r.speech_dbfs?.toFixed(1) ?? '—'} dBFS, шум ${r.noise_dbfs?.toFixed(1) ?? '—'} dBFS — сохранено в профиль колонки.`;
+          setTimeout(() => { meter.holdStatus = null }, 8000);
+        } catch (e) {
+          say(e.message, true);
+          meter.holdStatus = 'Автонастройка не удалась: ' + e.message;
+          setTimeout(() => { meter.holdStatus = null }, 10000);
+        }
+        meter.tuning = false; tune.disabled = false;
+        meter.pinUntil = performance.now() + 15000;  // настройка завершена: колонка не сменится, пока смотрят результат
+      };
+      apply = make('button', 'secondary', 'Применить');
+      apply.type = 'button';
+      apply.title = 'Записать правки колёс в профиль колонки (без колонки — в общие настройки).';
+      apply.onclick = async () => {
+        if (!dirty()) return;
+        const patch = { ...draft };
+        for (const key of Object.keys(draft)) delete draft[key];
+        sync();
+        if (await saveSttProfile(meter.sn, patch, () => fill(true))) fill();  // сбой: показано сохранённое, черновик сброшен
+      };
+      cancel = make('button', 'secondary', 'Отмена');
+      cancel.type = 'button';
+      cancel.title = 'Вернуть колёса к сохранённым значениям.';
+      cancel.onclick = () => {
+        if (!dirty()) return;
+        fill(true);
+      };
+      actions.append(tune, apply, cancel);
+      box.append(actions,
+        knob('pre_gain_db', 'Предусиление, дБ',
+          'Дополнительное усиление для совсем тихого микрофона колонки; выравнивание при этом остаётся главным.', -12, 24, 0),
+        knob('level_target_dbfs', 'Пик речи, dBFS',
+          'До какого уровня держать вашу речь (−6 — стандарт; тише — больше запас от перегруза).', -18, -3, -6),
+        make('small', 'vs-help',
+          '«Автонастройка» сама измерит микрофон колонки по вашей речи и впишет оба колеса в её профиль. Вручную: выравнивание держит речь на выбранном уровне (усиление видно в шапке метра), предусиление — только для совсем глухого микрофона; правки применяются «Применить», у облачных потоковых источников своя нормализация в пресете.'));
+      sync();
+    };
+    fill();
+    return { box, fill };
   }
 
   function meterBlock() {
     const box = make('section', 'vs-card vs-meter');
     const head = make('div', 'vs-meter-head');
     const gain = make('span', 'vs-meter-gain', '…');
+    gain.title = 'Итоговое усиление выравнивания — появится после первого звука колонки.';
     const led = make('button', 'vs-meter-led');
-    led.type = 'button'; led.title = 'Ограничение сигнала (клип). Клик — сбросить отметку.';
+    led.type = 'button';
+    led.title = 'Ограничение сигнала (клип): в звуке были сэмплы выше 0 dBFS — уменьшите предусиление. Клик — сбросить отметку.';
+    led.hidden = true;  // виден только при перегрузе — красная точка
     led.setAttribute('aria-label', 'Ограничение сигнала');
-    led.onclick = () => { meter.clip = false; led.classList.remove('on') };
+    led.onclick = () => { meter.clip = false; led.hidden = true };
     head.append(make('h3', null, 'Уровень микрофона'), gain, led);
+    // колонка: селектор (имя устройства или sn); метр сам переключается на говорящую
+    const device = make('select', 'vs-meter-device');
+    device.title = 'Чей микрофон показывать и какую колонку настраивать. Метр переключается на говорящую колонку сам; после ручного выбора на 15 секунд остаётся на ней.';
+    device.onchange = () => {
+      meter.sn = device.value || null;
+      meter.pinUntil = performance.now() + 15000;  // ручной выбор: не выдёргивать сразу
+      meterPoll();
+      meter.refs.fillControls?.(true);  // колёса и черновик — уже другой колонки
+    };
+    const devices = make('div', 'vs-meter-devices');
+    devices.append(device);
     const bars = { in: meterBar('Вход'), out: meterBar('В ASR') };
     const scale = make('div', 'vs-meter-row vs-meter-scale-row');
     const scaleRow = make('div', 'vs-meter-scale');
@@ -695,21 +779,60 @@
     const history = make('canvas', 'vs-meter-history');
     history.setAttribute('aria-hidden', 'true');
     const status = make('small', 'vs-help', 'Микрофон молчит.');
-    box.append(head, bars.in.row, bars.out.row, scale, history, status,
+    box.append(head, devices, bars.in.row, bars.out.row, scale, history, status,
       make('small', 'vs-help', 'Вход — микрофон колонки как есть, «В ASR» — после предусиления и выравнивания. Шкала −60…0 dBFS, пунктир — цель нормализации; в полосе цветные столбики — ASR, серые — вход.'));
-    if (data?.asr?.streaming === false) box.append(meterControls());
-    meter.refs = { bars, gain, led, status, row: bars.in.row, historyDraw: meterHistory(history) };
+    const controls = data?.asr?.streaming === false ? meterControlsBox() : null;
+    if (controls) box.append(controls.box);
+    meter.refs = { bars, gain, led, status, device, row: bars.in.row, historyDraw: meterHistory(history),
+                   fillControls: controls ? controls.fill : null };
     return box;
   }
 
   async function meterPoll() {
     if (!meter.refs?.row.isConnected) { meter.refs = null; meterSync(); return }  // вкладка перерисована — старый метр мёртв
-    try { meterDraw(await api('voice-levels')) }
+    meterNames();
+    try { meterDraw(await api('voice-levels' + (meter.sn ? '?sn=' + encodeURIComponent(meter.sn) : ''))) }
     catch (e) { meter.refs.status.textContent = 'Метр: нет связи — ' + e.message }
+  }
+
+  function meterColumns(refs, columns, shown) {
+    // селектор: колонки с данными хаба + привязанные устройства + показанная сейчас;
+    // перестраивается только при изменении списка (каждый опрос DOM не трогаем)
+    const wanted = new Map();
+    for (const c of columns || []) wanted.set(c.sn, null);
+    Object.keys(meter.names || {}).forEach(sn => { if (!wanted.has(sn)) wanted.set(sn, null) });
+    if (shown) wanted.set(shown, null);
+    const signature = [...wanted.keys()].join('\n') + '|' + shown;
+    if (signature === meter.columnsSignature) return;
+    meter.columnsSignature = signature;
+    refs.device.replaceChildren();
+    if (!shown) refs.device.append(new Option('— выберите колонку —', ''));
+    for (const sn of wanted.keys()) refs.device.append(new Option(columnLabel(sn), sn));
+    refs.device.value = shown || '';
   }
 
   function meterDraw(v) {
     const refs = meter.refs; if (!refs) return;
+    // смена колонки (выбор или авто): отметка клипа прежней колонки не обязана гореть
+    if (meter.sn !== meter.shown) {
+      meter.shown = meter.sn;
+      meter.clip = false;
+      refs.led.hidden = true;
+    }
+    // без выбора сервер отвечает колонкой со звуком (или последней говорившей) — принять её
+    if (!meter.sn && v.sn) meter.sn = v.sn;
+    // метр следует за говорящей колонкой: во время настройки и 15 с после ручного
+    // выбора или настройки — нет
+    if (!meter.tuning && performance.now() >= meter.pinUntil) {
+      const speaking = (v.columns || []).filter(c => c.active);
+      if (speaking.length && !speaking.some(c => c.sn === meter.sn)) {
+        meter.sn = speaking.sort((a, b) => b.last_sound - a.last_sound)[0].sn;
+        meterPoll();  // уровни выбранной колонки придут следующим опросом
+        refs.fillControls?.(true);  // колёса и черновик — уже другой колонки
+      }
+    }
+    meterColumns(refs, v.columns, meter.sn);
+    if (refs.device.value !== (meter.sn || '')) refs.device.value = meter.sn || '';
     const now = performance.now();
     const last = v.history[v.history.length - 1];
     const recent = last && v.now - last.t >= -0.05 && v.now - last.t <= 0.5;
@@ -717,16 +840,18 @@
     const outRms = pick(v.out.rms, 'o');
     meterSet(refs.bars.in, pick(v.in.rms, 'i'), pick(v.in.peak, 'ip'), 'in', now);
     meterSet(refs.bars.out, outRms, pick(v.out.peak, 'op'), 'out', now);
-    refs.gain.textContent = v.gain == null ? 'выравнивание выключено'
+    refs.gain.textContent = v.gain == null ? 'усиление —'
       : 'усиление ' + (v.gain > 0 ? '+' : '') + v.gain.toFixed(1) + ' дБ';
     // клип — и в текущем окне, и в закрытых с прошлого опроса (окно могло запечататься
     // между опросами); отметка держится до клика по LED
-    const fresh = v.history.filter(e => !meter.lastT || e.t > meter.lastT);
-    meter.lastT = last ? last.t : meter.lastT;
-    if ((v.in.clip || 0) + (v.out.clip || 0) > 0 || fresh.some(e => e.ic > 0 || e.oc > 0)) meter.clip = true;
-    refs.led.classList.toggle('on', meter.clip);
+    const fresh = v.history.filter(e => !meter.lastT[v.sn] || e.t > meter.lastT[v.sn]);
+    if (last) meter.lastT[v.sn] = last.t;
+    if ((v.in.clip || 0) + (v.out.clip || 0) > 0 || fresh.some(e => e.ic > 0 || e.oc > 0)) {
+      meter.clip = true;
+      refs.led.hidden = false;
+    }
     refs.historyDraw(v);
-    refs.status.textContent = meterStatus(v, outRms);
+    refs.status.textContent = meter.holdStatus || meterStatus(v, outRms);
   }
 
   function meterSync() {
@@ -745,6 +870,21 @@
       fresh.stt = { ...(fresh.stt || {}), ...patch };
       cfg = await api('settings', 'PUT', fresh);
     } catch (e) { revert?.(); say(e.message, true) }
+  }
+
+  // Колёса выбранной колонки — в её профиль (stt.profiles[sn]): прочие ключи профиля
+  // и профили других колонок не трогаются; без выбранной колонки — общие настройки.
+  // Возвращает true, если запись прошла.
+  async function saveSttProfile(sn, patch, revert) {
+    if (!sn) return saveStt(patch, revert);
+    try {
+      const fresh = await api('settings');
+      const profiles = { ...((fresh.stt || {}).profiles || {}) };
+      profiles[sn] = { ...(profiles[sn] || {}), ...patch };
+      fresh.stt = { ...(fresh.stt || {}), profiles };
+      cfg = await api('settings', 'PUT', fresh);
+      return true;
+    } catch (e) { revert?.(); say(e.message, true); return false }
   }
 
   // «Эмуляция потокового режима» (settings["stt"]): pseudo_stream — галочка,

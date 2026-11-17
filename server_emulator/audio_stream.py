@@ -7,11 +7,12 @@ class NativeCodecUnavailable(ValueError):
     pass
 
 
-async def transcode(chunks, source, target, level=False, level_gain=None):
+async def transcode(chunks, source, target, level=False, level_gain=None, meter=None):
     """Stateful in-process conversion for declared PCM and Ogg/Opus. level — звук микрофона
     колонки перед распознаванием: уровень выравнивает audio_gain.AutoGain (pcm16/f32_8000),
     level_gain — его колёса {'pre_gain_db': …, 'target': …} (asr_pseudo_stream.gain_config).
-    Уровни до и после усиления пишутся в audio_meter.LEVELS — живой метр «Голосового стека»."""
+    Уровни до и после усиления пишутся в audio_meter.LEVELS — живой метр «Голосового стека»;
+    meter — другой приёмник уровней (метр колонки sn из audio_meter.HUB)."""
     import numpy as np
     from .native_audio import decode_opus, encode_opus, resample
     match=re.fullmatch(r'audio/x-pcm;bit=(16|32);rate=(\d+);channels=(\d+)(;float=1)?',source)
@@ -95,18 +96,19 @@ async def transcode(chunks, source, target, level=False, level_gain=None):
         out_rate=8000 if target=='f32_8000' else 16000
         from .audio_gain import AutoGain
         from .audio_meter import LEVELS
+        sink=meter if meter is not None else LEVELS
         gain=AutoGain(out_rate, **(level_gain or {})) if level else None
         def encode(x):
             if target=='pcm16':return (np.clip(x,-1,32767/32768)*32768).astype('<i2').tobytes()
             return x.astype('<f4').tobytes()
         async for x in resample(audio,rate,out_rate):
-            LEVELS.observe_in(x)
+            sink.observe_in(x)
             if gain:x=np.frombuffer(gain.process(x.astype('<f4').tobytes()),dtype='<f4')
             if len(x):
-                LEVELS.observe_out(x, gain.gain_db if gain else None)
+                sink.observe_out(x, gain.gain_db if gain else None)
                 yield encode(x)
         if gain and (rest:=gain.flush()):
-            LEVELS.observe_out(np.frombuffer(rest,dtype='<f4'), gain.gain_db)
+            sink.observe_out(np.frombuffer(rest,dtype='<f4'), gain.gain_db)
             yield encode(np.frombuffer(rest,dtype='<f4'))
 
 

@@ -30,20 +30,22 @@ class InputLimit(Exception):
     """Превышен лимит длительности или размера входного аудио."""
 
 
-async def input_audio(data, fmt, level=False):
+async def input_audio(data, fmt, level=False, gain=None, meter=None):
     """Фрейм входного аудио → (данные для ASR, имя файла): PCM s16le → WAV,
     Opus в Ogg — декодированный WAV: буфер колонки — транспорт, а не
     самодостаточный файл (слово активации и реплика идут в нём разными
     логическими потоками, EOS обрывается), строгие декодеры HTTP-сервисов STT
     такой буфер не читают. level — звук микрофона колонки: уровень выравнивает
-    audio_gain.AutoGain. Иначе ValueError (формат не поддерживается)."""
+    audio_gain.AutoGain; gain — его колёса (asr_pseudo_stream.gain_config),
+    meter — приёмник уровней (asr_pseudo_stream.meter(sn)). Иначе ValueError
+    (формат не поддерживается)."""
     match = re.fullmatch(r'audio/x-pcm;bit=16;rate=(\d+);channels=(\d+)', fmt)
     if match:
         rate, channels = map(int, match.groups())
         if not MIN_SAMPLE_RATE <= rate <= MAX_SAMPLE_RATE or not 1 <= channels <= MAX_PCM_CHANNELS or len(data) % (channels * 2):
             raise ValueError('Некорректные параметры PCM или неполный сэмпл')
         if level:
-            data = _level(data, rate * channels)
+            data = _level(data, rate * channels, gain, meter)
         buffer = io.BytesIO()
         with wave.open(buffer, 'wb') as wav:
             wav.setnchannels(channels)
@@ -67,19 +69,27 @@ async def input_audio(data, fmt, level=False):
             wav.setframerate(48000)
             if samples:
                 pcm = (np.clip(np.concatenate(samples), -1.0, 1.0) * 32767).astype('<i2').tobytes()
-                wav.writeframes(_level(pcm, 48000) if level else pcm)
+                wav.writeframes(_level(pcm, 48000, gain, meter) if level else pcm)
         return buffer.getvalue(), 'input.wav'
     raise ValueError('Поддержаны PCM s16le и Opus в Ogg-контейнере')
 
 
-def _level(pcm, rate):
-    """PCM s16le → тот же PCM с выровненным уровнем (audio_gain.AutoGain)."""
+def _level(pcm, rate, gain=None, meter=None):
+    """PCM s16le → тот же PCM с выровненным уровнем (audio_gain.AutoGain).
+    Уровни до и после усиления — в meter окнами ~100 мс, как в живом тракте
+    transcode: автонастройка колонки мерит и batch-путь."""
     import numpy as np
 
     from .audio_gain import AutoGain
-    gain = AutoGain(rate)
-    samples = (np.frombuffer(pcm, dtype='<i2').astype(np.float32) / 32768).astype('<f4').tobytes()
-    out = np.frombuffer(gain.process(samples) + gain.flush(), dtype='<f4')
+    wheel = AutoGain(rate, **(gain or {}))
+    raw = np.frombuffer(pcm, dtype='<i2').astype(np.float32) / 32768
+    out = np.frombuffer(wheel.process(raw.astype('<f4').tobytes()) + wheel.flush(), dtype='<f4')
+    if meter is not None:
+        step = max(1, rate // 10)  # окна ~100 мс
+        for start in range(0, len(raw), step):
+            meter.observe_in(raw[start:start + step])
+            meter.observe_out(out[start:start + step], wheel.gain_db)
+            meter.seal()  # вся фраза приходит за миллисекунды — окна по wall time не образуются
     return (np.clip(out, -1.0, 32767 / 32768) * 32768).astype('<i2').tobytes()
 
 

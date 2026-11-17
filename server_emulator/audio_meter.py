@@ -11,6 +11,8 @@ SILENCE_DB не бывает. Сэмплы |x| ≥ CLIP считаются ог�
 
 LEVELS — реестр процесса (как providers.PROVIDERS): аудиотракт не знает ни
 runtime, ни API и пишет в него; домен ui/api/voice_stack.py отдаёт snapshot.
+HUB — метры по колонкам: аудиотракт со известной колонкой (sn) пишет в её метр,
+автонастройка и селектор UI читают их через voice-levels/voice-autotune.
 Несколько одновременных потоков ASR пишут в одно окно — метр показывает самый
 свежий звук, а не сумму микрофонов. История — последние окна (HISTORY_S) для
 полосы уровней в UI; окно без кусков не пишется — пауза в звуке видна как
@@ -54,6 +56,7 @@ class LevelMeter:
         self.history = collections.deque(maxlen=max(1, round(history_s / window)))
         self.gain_db = None  # текущее усиление выравнивания (дБ); None — выключено
         self.last_sound = 0.0  # monotonic последнего куска со звуком
+        self._record = None  # не None — окна пишутся и в эту запись измерения
         self._start()
 
     def _start(self):
@@ -62,18 +65,25 @@ class LevelMeter:
         self._out = [0.0, 0, 0.0, 0]
         self._gain = None
 
-    def _seal(self):
-        """Заполненное или запаздывающее окно — в историю; новое начинается сразу.
-        Окно без кусков не пишется: пауза в звуке остаётся разрывом истории."""
-        if time.monotonic() - self._t0 < self.window:
-            return
+    def _entry(self):
+        """Словарь окна текущих накоплений — формат истории и записи измерения."""
         entry = {"t": round(self._t0, 3), "g": self._gain}
         for key, acc in (("i", self._in), ("o", self._out)):
             sum_sq, count, peak, clip = acc
             entry[key] = to_db(math.sqrt(sum_sq / count)) if count else None
             entry[key + "p"] = to_db(peak) if peak > 0 else None
             entry[key + "c"] = clip
+        return entry
+
+    def _seal(self):
+        """Заполненное или запаздывающее окно — в историю; новое начинается сразу.
+        Окно без кусков не пишется: пауза в звуке остаётся разрывом истории."""
+        if time.monotonic() - self._t0 < self.window:
+            return
+        entry = self._entry()
         self.history.append(entry)
+        if self._record is not None:
+            self._record.append(entry)
         self._start()
 
     def observe_in(self, x):
@@ -98,6 +108,29 @@ class LevelMeter:
         self._out[2] = max(self._out[2], peak)
         self._out[3] += clip
 
+    def seal(self):
+        """Закрыть окно досрочно: batch-путь (input_audio) снабжает уровни за миллисекунды,
+        окна по wall time не образуются. Окно без кусков не пишется."""
+        if self._in[1] or self._out[1]:
+            entry = self._entry()
+            self.history.append(entry)
+            if self._record is not None:
+                self._record.append(entry)
+        self._start()
+
+    def start_record(self):
+        """Начать запись измерения: окна истории дублируются в запись (автонастройка)."""
+        self._record = []
+
+    def stop_record(self):
+        """Закончить запись: окна записанного + текущее незапечатанное (и пустое окно —
+        тишину во время настройки автотюн классифицирует сам). Повторный вызов — []."""
+        record, self._record = self._record, None
+        if record is None:
+            return []
+        record.append(self._entry())
+        return record
+
     def snapshot(self):
         """Текущее окно и история: in/out — {rms, peak, clip} в dBFS, gain — усиление
         выравнивания, active — звук свежий; история — окна {t, i/o (RMS), ip/op (пик),
@@ -117,4 +150,30 @@ class LevelMeter:
                 "history": list(self.history)}
 
 
+class MeterHub:
+    """Метры по колонкам: у каждой колонки (sn) свой LevelMeter — профили
+    выравнивания и автонастройка считаются по её микрофону. Колонка без sn не
+    различима — пишет в общий LEVELS. columns() — сводка для селектора UI."""
+
+    def __init__(self):
+        self.meters = {}
+
+    def meter(self, sn):
+        """Метр колонки, создаётся при первом звуке; без sn — общий LEVELS."""
+        return LEVELS if not sn else self.meters.setdefault(str(sn), LevelMeter())
+
+    def columns(self, active_s=ACTIVE_S):
+        """[{sn, last_sound, active}] по метрам колонок для селектора UI."""
+        now = time.monotonic()
+        return [{"sn": sn, "last_sound": round(meter.last_sound, 3),
+                 "active": now - meter.last_sound <= active_s}
+                for sn, meter in sorted(self.meters.items())]
+
+    def active(self):
+        """sn колонки со свежим звуком (самая свежая); все молчат — None."""
+        speaking = [column for column in self.columns() if column["active"]]
+        return max(speaking, key=lambda c: c["last_sound"])["sn"] if speaking else None
+
+
 LEVELS = LevelMeter()  # реестр процесса: transcode пишет, ui/api/voice_stack.py читает
+HUB = MeterHub()  # метры по колонкам: пишет аудиотракт со sn, читают метр и автотюн UI
