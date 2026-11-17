@@ -144,11 +144,14 @@ class Executor:
       исход errored (JSON и script), кроме прогона с dry-run; исключение колбэка глотается
     script_path: callable(scenario) → Path — резолвер файла .py для kind: script
       (Runtime: встроенный — рядом с JSON библиотеки, пользовательский — scenario_dir)
+    said: список произнесённых реплик ({ts, sn, text}, новыми последними) — тот же
+      список, что runtime.said: пишет голосовой тракт, сценарии читают через SDK
+      ctx.said; у SimpleNamespace SDK-контекста своего Runtime нет
     """
 
     def __init__(self, actions=None, resolvers=None, schemas_root=None, store=None,
                  fetcher=None, data_store=None, lexicons=None, plugins=None,
-                 on_error=None, script_path=None):
+                 on_error=None, script_path=None, said=None):
         self.actions = dict(actions or {})
         self.resolvers = dict(resolvers or {})
         self.fetcher = fetcher
@@ -160,6 +163,7 @@ class Executor:
         self.store = store
         self.live = {}  # dialog_id → (Execution, Task|None)
         self.on_error = on_error
+        self.said = said if said is not None else []
         # без резолвера (Executor вне Runtime: тесты, инструменты) — встроенная библиотека
         self.script_path = script_path or builtin_script_path
         self.scripts = ScriptRunner(prefix="scenario_script")  # один раннер на Executor
@@ -282,7 +286,7 @@ class Executor:
             # SDK-контекст по решению координатора: совместимый объект с scenario_executor —
             # сервисы SDK работают через реестры этого Executor, Runtime внутрь не передаётся;
             # ресурсы сценария (ctx.asset) — каталог <id>.assets рядом со скриптом
-            sdk_ctx = ScenarioContext(SimpleNamespace(scenario_executor=self), merged,
+            sdk_ctx = ScenarioContext(SimpleNamespace(scenario_executor=self, said=self.said), merged,
                                       dry_run=bool((ctx or {}).get("dry_run")),
                                       assets_dir=self._assets_dir(path))
             execution.effects = sdk_ctx.effects
@@ -388,7 +392,7 @@ class Executor:
         merged = self._ctx(execution, ctx)  # state — тот же dict исполнения (пережил рестарт)
         merged["ask"] = {"question": question or "", "expect": ask_data.get("expect")}
         execution.ctx = merged
-        sdk_ctx = ScenarioContext(SimpleNamespace(scenario_executor=self), merged,
+        sdk_ctx = ScenarioContext(SimpleNamespace(scenario_executor=self, said=self.said), merged,
                                   assets_dir=self._assets_dir(path))
         execution.effects = sdk_ctx.effects
         try:

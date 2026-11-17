@@ -69,7 +69,7 @@ class Lifecycle:
             roots = processes.find(
                 folder, local.script(package),
                 registered.pid if registered is not None and registered.poll() is None else None,
-                folder / "server.pid", shot)
+                folder / "server.pid", shot, owner=local.owner)
             if roots:
                 everyone = processes.tree(roots)
                 result.append({"package": package, "roots": roots, "procs": everyone,

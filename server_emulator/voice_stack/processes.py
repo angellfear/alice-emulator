@@ -9,6 +9,11 @@
   скрипт сервера пакета с рабочим каталогом в папке пакета — так находятся осиротевшие серверы
   и их рабочие процессы после падения панели.
 
+Сервер запускается с меткой владельца (`OWNER_ENV` — каталог данных панели): серверы одной папки
+данных (в том числе от прошлого запуска этой же панели) считаются своими, а серверы панели с
+другой папкой данных (`--state`) при общей папке пакетов — чужими: они не останавливаются и не
+заимствуются. Сервер без метки (запущен вручную или панелью до появления метки) — свой по папке.
+
 Остановка — всегда деревом: на Windows `venv\\Scripts\\python.exe` — пускатель, настоящий сервер
 его дочерний процесс, а рабочие процессы (multiprocessing) — внуки.
 """
@@ -23,6 +28,7 @@ TERMINATE_TIMEOUT = 5.0   # мягкое завершение, затем kill
 PORT_TIMEOUT = 5.0        # сколько ждать освобождения порта
 GPU_TIMEOUT = 5.0         # сколько ждать освобождения видеопамяти
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+OWNER_ENV = "ALICA_VOICE_OWNER"  # метка владельца сервера в его окружении
 
 
 def _norm(path):
@@ -45,20 +51,45 @@ def _info(proc):
     return list(cmd or []), exe or ""
 
 
-def belongs(proc, folder, script):
-    """Процесс — сервер пакета из этой папки (а не установка pip и не чужой процесс)."""
+def owner_token(path):
+    """Метка владельца серверов — папка данных панели (нормализованный путь).
+    Одинаковая у перезапущенной панели с той же папкой данных, разная у панели с другим `--state`."""
+    return _norm(path)
+
+
+def _process_owner(proc):
+    """Метка владельца из окружения процесса; '' — процесс запущен не этой схемой."""
+    read = getattr(proc, "environ", None)
+    if read is None:
+        return ""
+    try:
+        value = (read() or {}).get(OWNER_ENV) or ""
+    except (psutil.Error, OSError):
+        return ""
+    return _norm(value) if value else ""
+
+
+def belongs(proc, folder, script, owner=None):
+    """Процесс — сервер пакета из этой папки (а не установка pip и не чужой процесс).
+    owner — метка владельца (owner_token): сервер, помеченный панелью с другим каталогом данных,
+    чужой. Без метки — процесс запущен вручную или панелью до появления метки: он свой по папке,
+    как раньше. owner=None — проверка только по папке."""
     folder = _norm(folder)
     cmd, exe = _info(proc)
     if not cmd:
         return False
-    if any(_inside(item, folder) for item in (cmd[0], exe) if item):
-        return not (len(cmd) > 2 and cmd[1] == "-m" and cmd[2] in ("pip", "venv", "ensurepip"))
-    if script and any(_norm(arg) == _norm(script) for arg in cmd[1:] if arg and not arg.startswith("-")):
+    ours = any(_inside(item, folder) for item in (cmd[0], exe) if item)
+    if ours:
+        if len(cmd) > 2 and cmd[1] == "-m" and cmd[2] in ("pip", "venv", "ensurepip"):
+            return False
+    elif script and any(_norm(arg) == _norm(script) for arg in cmd[1:] if arg and not arg.startswith("-")):
         try:
-            return _norm(proc.cwd()) == folder
+            ours = _norm(proc.cwd()) == folder
         except (psutil.Error, OSError):
             return False
-    return False
+    else:
+        return False
+    return ours and (owner is None or not (marked := _process_owner(proc)) or marked == owner)
 
 
 def snapshot():
@@ -67,9 +98,11 @@ def snapshot():
     return list(psutil.process_iter(["pid", "exe", "cmdline"]))
 
 
-def find(folder, script, registered_pid=None, pid_file=None, processes=None):
+def find(folder, script, registered_pid=None, pid_file=None, processes=None, owner=None):
     """Корневые процессы сервера пакета. registered_pid — PID из реестра панели (доверяем: запустили мы),
-    pid_file — server.pid (проверяется по командной строке; устаревший файл удаляется)."""
+    pid_file — server.pid (проверяется по командной строке; устаревший файл удаляется).
+    owner — метка владельца: серверы панели с другой папкой данных не находятся и их pid-файл
+    не трогается (он принадлежит той панели)."""
     found = {}
     if registered_pid:
         try:
@@ -84,14 +117,16 @@ def find(folder, script, registered_pid=None, pid_file=None, processes=None):
         if pid is not None:
             try:
                 candidate = psutil.Process(pid)
-                if belongs(candidate, folder, script):
-                    found[pid] = candidate
-                else:
-                    pid_file.unlink(missing_ok=True)  # PID чужой или процесса нет: файл устарел
             except psutil.Error:
                 pid_file.unlink(missing_ok=True)
+            else:
+                if belongs(candidate, folder, script, owner):
+                    found[pid] = candidate
+                elif not belongs(candidate, folder, script):
+                    pid_file.unlink(missing_ok=True)  # PID чужой или процесса нет: файл устарел
+                # иначе — сервер этой папки, но другой панели: её файл, не трогаем
     for proc in processes if processes is not None else snapshot():
-        if proc.pid not in found and proc.pid != os.getpid() and belongs(proc, folder, script):
+        if proc.pid not in found and proc.pid != os.getpid() and belongs(proc, folder, script, owner):
             found[proc.pid] = proc
     members = set(found)
     return [p for p in found.values() if _parent(p) not in members]

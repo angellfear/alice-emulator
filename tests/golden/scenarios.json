@@ -28,7 +28,9 @@
       "smart_home.light",
       "system.agent_say",
       "system.dialog.reset",
+      "system.history",
       "system.push_tts",
+      "system.repeat",
       "system.service_ack",
       "system.timesync",
       "system.unavailable",
@@ -2925,6 +2927,10 @@
       "id": "system.dialog.reset"
     },
     {
+      "cases": [],
+      "id": "system.history"
+    },
+    {
       "cases": [
         {
           "effects": [],
@@ -2972,6 +2978,10 @@
         }
       ],
       "id": "system.push_tts"
+    },
+    {
+      "cases": [],
+      "id": "system.repeat"
     },
     {
       "cases": [

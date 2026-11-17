@@ -16,6 +16,8 @@ import os
 import numpy as np
 from aiohttp import web
 
+import speech_common as common
+
 
 def load_voice(model, VoiceClonePrompt):
     """Голос для клонирования: эталон WAV, запечённый один раз (create_voice_clone_prompt →
@@ -76,6 +78,9 @@ async def main():
     print("Голос:", mode, "· аргументы generate:", sorted(options), flush=True)
     lock = asyncio.Lock()  # одна видеокарта — один синтез за раз
     completed = 0
+
+    # один пробный синтез до открытия порта: первый запрос колонки не платит за холодный старт
+    common.warm_up(lambda text, voice=None: model.generate(text=text, **options))
 
     async def health(request):
         return web.json_response({"status": "ok", "engine": "omnivoice", "model": name, "device": device, "gpu": gpu,

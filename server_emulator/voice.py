@@ -30,7 +30,7 @@ from .scenario_engine.normalize import strip_wake_prefix
 
 from . import voice_response
 
-from .voice_response import failure_phrases, failure_speech, failure_text
+from .voice_response import failure_phrases, failure_speech, failure_text, report_tts_failure
 
 from .speech_trace import SLOW_REPLY_MS, SpeechTrace, reason_name, timing_message
 
@@ -437,6 +437,38 @@ class Conversation:
 
 
 
+    async def _asr_failed(self, channel, state, exc):
+        """Потоковое распознавание упало посреди фразы: канал снимается, а сбой отдаётся общему
+        пути этапа «asr» (run() закрывает канал и отвечает карточкой с причиной и голосом).
+        Исключение из обработчика аудио закрыло бы соединение колонки кодом 1011, и реплика
+        потерялась бы."""
+        trace = state.get('trace')
+
+        if trace:
+
+            trace.event('asr_failed', 'server', error=type(exc).__name__ + ': ' + str(exc)[:120])
+
+        self.channels.pop(channel, None)
+
+        incoming = state['incoming']
+
+        request_id = incoming.Event.VoiceInput.Header.RequestId or incoming.Event.Header.MessageId
+
+        self.completed.add(request_id)
+
+        if len(self.completed) > 128:
+
+            self.completed = {request_id}
+
+        self.runtime.server_log.log('warning', 'ws',
+                                    'Потоковое распознавание прервалось: ' + type(exc).__name__ + ': ' + str(exc)[:200],
+                                    device_sn=self.trace_context.get('sn') or None)
+
+        # Дальше — общий путь сбоя этапа «asr»: пустой звук и уже упавшая задача (run() её дождётся)
+
+        self.task = self.runtime.lifecycle.spawn(
+            self.run(incoming, 'VoiceInput', b'\0', state['asr_task'], trace=trace))
+
     async def receive_audio(self, data):
 
         if len(data) < 4:
@@ -483,9 +515,23 @@ class Conversation:
 
         if state.get('queue'):
 
-            if state['asr_task'].done():
+            task = state['asr_task']
 
-                await state['asr_task']
+            if task.done():
+
+                try:
+
+                    await task
+
+                except asyncio.CancelledError:
+
+                    return  # задачу сняли при отмене или закрытии канала — обрабатывает тот, кто снял
+
+                except Exception as exc:  # noqa: BLE001 — сбой ASR не должен рвать соединение колонки
+
+                    await self._asr_failed(channel, state, exc)
+
+                    return
 
             await asyncio.wait_for(state['queue'].put(bytes(data[4:])), timeout=5)
 
@@ -1102,9 +1148,7 @@ class Conversation:
                 if trace:
                     trace.event('tts_done', 'server', first_page_bytes=len(pages[0]) if pages else 0)
             except Exception as exc:
-                if trace:
-                    trace.event('tts_failed', 'server', error=type(exc).__name__)
-                self.runtime.recent = (self.runtime.recent + [{'kind': 'tts', 'error': type(exc).__name__ + ': ' + str(exc)[:120]}])[-30:]
+                report_tts_failure(self, exc, trace)
         if trace:
             trace.event('server_action_handled', 'server',
                         event=event_name, scenario=report.get('scenario'), voice=bool(pages))
@@ -1285,8 +1329,7 @@ class Conversation:
             pages, speech = await self._synthesize_cached([spoken], wait=OPEN_TTS_WAIT_S)
             answer['audio'] = await collect_pages(pages, speech)
         except Exception as exc:
-            if trace:
-                trace.event('tts_failed', 'server', error=type(exc).__name__, prerender=True)
+            report_tts_failure(self, exc, trace, prerender=True)
 
     async def _async_answer(self, incoming, request, event_obj, trace=None):
         """TextInput колонки по Push: отложенный ответ модели обычным AliceResponse с голосом."""
@@ -1623,11 +1666,7 @@ class Conversation:
 
                         except Exception as exc:
 
-                            if trace:
-
-                                trace.event('tts_failed', 'server', error=type(exc).__name__)
-
-                            self.runtime.recent = (self.runtime.recent + [{'kind': 'tts', 'error': type(exc).__name__ + ': ' + str(exc)[:120]}])[-30:]
+                            report_tts_failure(self, exc, trace)
 
                     if trace:
 
@@ -1645,6 +1684,12 @@ class Conversation:
                             message.Event.AliceResponse.VoiceResponse.HasVoiceResponse = True
 
                         await self.send(b'AAPI' + message.SerializeToString())
+
+                    # реплика доставлена — журнал повтора («повтори», «история, повтори последние N»)
+
+                    self.runtime.note_said(report.get('speech_parts') or report.get('speech'),
+
+                                           sn=self.trace_context.get('sn') or '')
 
                     if pages:
 

@@ -1,6 +1,7 @@
 """Речевой сервер пакета: чужой процесс на порту — ошибка, а не молчаливое использование;
-устаревший server.pid не считается своим; запуск неустановленного пакета — громкая ошибка;
-остановка на Windows снимает всё дерево (venv\\Scripts\\python.exe — пускатель)."""
+устаревший server.pid не считается своим; сервер той же папки пакетов, но панели с другим
+каталогом данных — чужой (не останавливается); запуск неустановленного пакета — громкая
+ошибка; остановка на Windows снимает всё дерево (venv\\Scripts\\python.exe — пускатель)."""
 import os
 
 import pytest
@@ -49,12 +50,40 @@ async def test_own_server_from_previous_panel_is_reused(local, monkeypatch):
         def ppid(self):
             return 1  # родитель не входит в найденные корни — фильтрация find() не отсеет процесс
 
+        def environ(self):
+            return {voice_stack.processes.OWNER_ENV: local.owner}
+
     monkeypatch.setattr(voice_stack.processes.psutil, "Process",
                         lambda pid: Owned() if pid == Owned.pid else pytest.fail(f"чужой pid {pid}"))
     (local.folder(PACKAGE) / "server.pid").write_text("12345", encoding="ascii")
     answering(monkeypatch, local, True)
     monkeypatch.setattr(voice_stack.subprocess, "Popen", lambda *a, **k: pytest.fail("не должен запускать"))
     assert await local.start(PACKAGE) is None
+
+
+async def test_other_panel_server_is_not_stopped(local, monkeypatch):
+    """Сервер пакета из той же папки, но панели с другим каталогом данных — чужой: его не
+    останавливают («Остановить», остановка панели) и его server.pid не удаляется."""
+    python = str(local.python(PACKAGE))
+
+    class OtherPanel:
+        pid = 12345
+        info = {"cmdline": [python], "exe": python}
+
+        def ppid(self):
+            return 1
+
+        def environ(self):
+            return {voice_stack.processes.OWNER_ENV: voice_stack.processes.owner_token("D:/other/state")}
+
+    monkeypatch.setattr(voice_stack.processes.psutil, "Process", lambda pid: OtherPanel())
+    monkeypatch.setattr(voice_stack.processes.psutil, "process_iter", lambda *a, **k: [])
+    killed = []
+    monkeypatch.setattr(voice_stack, "kill_tree", killed.append)
+    pid_file = local.folder(PACKAGE) / "server.pid"
+    pid_file.write_text("12345", encoding="ascii")
+    local.stop(PACKAGE)
+    assert killed == [] and pid_file.exists()
 
 
 async def test_stale_pid_file_with_healthy_port_is_an_error(local, monkeypatch):

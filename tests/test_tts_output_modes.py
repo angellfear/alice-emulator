@@ -187,7 +187,11 @@ async def test_autostart_skips_tts_and_warm_when_silent(tmp_path):
     started, warmed = [], []
     async def start(pkg):
         started.append(pkg)
+
+    async def wait_ready(pkg, timeout):
+        return "already"
     runtime.voice_stack.local.start = start
+    runtime.voice_stack.local.wait_ready = wait_ready
     runtime.voice_stack.package = lambda identifier: {"id": identifier}
     runtime.voice_stack.active = lambda service: {"tts": "k:tts-pkg", "asr": "k:asr-pkg"}.get(service, "")
 

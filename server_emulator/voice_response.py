@@ -67,6 +67,19 @@ def failure_phrases():
     return [_failure_phrase(head, reason) for stage, head in FAILURE_STAGE.items() if stage != 'tts'
             for reason in FAILURE_REASONS]
 
+
+def report_tts_failure(conv, exc, trace=None, **extra):
+    """Сбой синтеза — в трассу, в `runtime.recent` и в журнал сервера: без голоса колонка
+    молчит, и причина должна быть видна в «Дополнительно → Лог», а не только в трассе."""
+    if trace:
+        trace.event('tts_failed', 'server', error=type(exc).__name__, **extra)
+    conv.runtime.recent = (conv.runtime.recent + [{'kind': 'tts', 'error': type(exc).__name__ + ': ' + str(exc)[:120]}])[-30:]
+    journal = getattr(conv.runtime, 'server_log', None)
+    if journal is not None:
+        journal.log('warning', 'ws',
+                    'Озвучка не удалась: ' + type(exc).__name__ + ': ' + str(exc)[:200],
+                    device_sn=conv.trace_context.get('sn') or None, **extra)
+
 def fill_asr_result(event, text, final):
     """Поля AsrResult финального/частичного распознавания в outgoing.Event."""
     event.AsrResult.EndOfUtt = final
@@ -109,11 +122,7 @@ async def spoken_reply(conv, incoming, text, trace=None, request_id='', force_tt
 
                 tts_error = exc
 
-                if trace:
-
-                    trace.event('tts_failed', 'server', error=type(exc).__name__)
-
-                conv.runtime.recent = (conv.runtime.recent + [{'kind': 'tts', 'error': type(exc).__name__ + ': ' + str(exc)[:120]}])[-30:]
+                report_tts_failure(conv, exc, trace)
 
 
         outgoing = conv.event(incoming, 'AliceResponse')
@@ -139,6 +148,8 @@ async def spoken_reply(conv, incoming, text, trace=None, request_id='', force_tt
         finalize(outgoing, next(conv.runtime.sequence), conv.runtime.settings)
 
         await conv.message(outgoing)
+
+        conv.runtime.note_said(speech_text or text, sn=conv.trace_context.get('sn') or '')
 
         if trace:
 
@@ -220,11 +231,7 @@ async def model_reply(conv, incoming, request, text, answer, trace=None, screen=
 
             tts_error = exc
 
-            if trace:
-
-                trace.event('tts_failed', 'server', error=type(exc).__name__)
-
-            conv.runtime.recent = (conv.runtime.recent + [{'kind': 'tts', 'error': type(exc).__name__ + ': ' + str(exc)[:120]}])[-30:]
+            report_tts_failure(conv, exc, trace)
 
 
     outgoing = conv.event(incoming, 'AliceResponse')
@@ -306,6 +313,10 @@ async def model_reply(conv, incoming, request, text, answer, trace=None, screen=
     finalize(outgoing, next(conv.runtime.sequence), conv.runtime.settings)
 
     await conv.message(outgoing)
+
+    # реплика модели/агента доставлена — журнал повтора («повтори», «история, повтори последние N»)
+
+    conv.runtime.note_said(spoken or answer['text'], sn=conv.trace_context.get('sn') or '')
 
     if trace:
 

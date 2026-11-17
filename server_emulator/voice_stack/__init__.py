@@ -113,6 +113,8 @@ VOICE_FIELDS = {"voice_mode": {"key": "voice_mode", "type": "select"},
                 "baked_voice_title": {"key": "baked_voice_title", "type": "text"}}
 WAV_LIMIT = 15 * 1024 ** 2
 WAV_SECONDS = (2.0, 30.0)
+SUPERVISE_INTERVAL = 20.0             # как часто проверяется живость серверов применённых пакетов
+RESTART_DELAYS = (5.0, 30.0, 120.0)   # пауза перед перезапуском после 1-й, 2-й, 3-й неудачи
 KEEP = "__KEEP__"
 PLATFORM = {"win32": "windows", "linux": "linux", "darwin": "macos"}.get(sys.platform, sys.platform)
 # Ключи конфигураций конвейера (runtime.DEFAULT) — источник без поля получает пустое значение.
@@ -367,8 +369,11 @@ class LocalSpeech:
         self.options_dir = Path(options_dir)
         self.jobs = {}       # id → {"stage", "progress", "error"}
         self.processes = {}  # id → Popen
+        self.disabled = set()  # id пакетов, остановленных вручную: присмотр их не поднимает
         self.dirty = set()   # id пакетов с новым файлом-параметром: перезапуск при сохранении настроек
         self._tasks = set()
+        # метка владельца серверов — каталог данных панели: options_dir = <каталог данных>/voice_stack/packages
+        self.owner = processes.owner_token(self.options_dir.parent)
 
     def folder(self, package):
         return self.directory / package["id"]
@@ -706,7 +711,8 @@ class LocalSpeech:
         process = self.processes.get(package["id"])
         # свой — живой процесс из реестра или по server.pid; устаревший файл (процесс умер
         # или PID переиспользован чужим) find() удаляет, иначе он маскирует чужой сервер на порту
-        pid_server = processes.find(folder, self.script(package), None, folder / "server.pid", [])
+        pid_server = processes.find(folder, self.script(package), None, folder / "server.pid", [],
+                                    owner=self.owner)
         own = (process is not None and process.poll() is None) or bool(pid_server)
         if await self.healthy(package):
             if own:
@@ -726,7 +732,8 @@ class LocalSpeech:
         bake = package.get("bake")
         if bake and options.get("voice_mode") != bake.get("mode", "baked"):
             options[bake["audio"]] = options[bake["text"]] = ""  # другой режим голоса — эталон серверу не передаётся
-        env = dict(os.environ, HOST="127.0.0.1", PORT=str(options["port"]), PYTHONIOENCODING="utf-8")
+        env = dict(os.environ, HOST="127.0.0.1", PORT=str(options["port"]), PYTHONIOENCODING="utf-8",
+                   **{processes.OWNER_ENV: self.owner})
         env.update({k: fill(v, options) for k, v in package["server"].get("env", {}).items()})
         flags, extra = getattr(subprocess, "CREATE_NO_WINDOW", 0), {}
         if options.get("priority") == "low":  # не мешать остальной системе: фоновый приоритет процесса
@@ -743,6 +750,7 @@ class LocalSpeech:
         except OSError as exc:  # лог уже усечён: сбой запуска не должен выглядеть как тихий успех
             self.processes.pop(package["id"], None)
             raise ValueError(f"Не удалось запустить {self.python(package)}: {exc}") from exc
+        self.disabled.discard(package["id"])
         log.info("Речевой сервер %s запущен на порту %s", package["id"], options["port"])
 
     async def wait_ready(self, package, timeout):
@@ -764,20 +772,19 @@ class LocalSpeech:
             await asyncio.sleep(0.5)
 
     def stop(self, package):
-        """Остановить сервер, в том числе запущенный прошлым экземпляром панели (по server.pid)."""
+        """Остановить сервер, в том числе запущенный прошлым экземпляром панели (по server.pid).
+        Серверы панели с другой папкой данных не трогаются (владелец — processes.OWNER_ENV):
+        find() проверяет и pid-файл, и осиротевшие процессы папки."""
+        self.disabled.add(package["id"])  # остановлен вручную: присмотр не поднимает
         self.stop_key(package["id"])
         folder = self.folder(package)
-        pid_file = folder / "server.pid"
-        try:
-            pid = int(pid_file.read_text(encoding="ascii"))
-        except (OSError, ValueError):
-            pid = None
-        if pid is not None:
-            pid_file.unlink(missing_ok=True)
-            kill_tree(pid)
-        if folder.is_dir():  # осиротевшие серверы и рабочие процессы пакета (прошлые запуски)
-            for root in processes.find(folder, self.script(package)):
+        if folder.is_dir():
+            roots = processes.find(folder, self.script(package), None, folder / "server.pid",
+                                   owner=self.owner)
+            for root in roots:
                 kill_tree(root.pid)
+            if roots:  # наш сервер снят — его pid-файл больше не нужен (чужой find() не трогает)
+                (folder / "server.pid").unlink(missing_ok=True)
 
     def stop_key(self, identifier, wait=True):
         """Остановить процесс. wait=True (панель) — дождаться выхода (5 с, иначе kill);
@@ -811,6 +818,8 @@ class VoiceStack:
         # «python -m server_emulator.voice_stack.login» runpy найдёт модуль уже в sys.modules
         from .login import LoginRunner
         self.login = LoginRunner(runtime.directory)  # кнопка «Войти»: процесс кода устройства подписки
+        self.supervised = {}  # id → {"dead", "attempt", "due"} — память присмотра за серверами
+        self.stopping = False  # остановка панели: присмотр за серверами больше не поднимает их
 
     def _extension_layers(self, name):
         """Слои точки подключения name («voice/packages|adapters|presets») включённых
@@ -1095,7 +1104,8 @@ class VoiceStack:
         await self.runtime.save_settings(settings)
 
     async def shutdown(self):
-        """Остановка панели: завершить все локальные речевые серверы."""
+        """Остановка панели: присмотр прекращается, все локальные речевые серверы завершаются."""
+        self.stopping = True
         await self.lifecycle.shutdown()
 
     async def migrate(self):
@@ -1180,11 +1190,12 @@ class VoiceStack:
             result[service] = entry
         return result
 
-    async def autostart(self):
-        """Поднять серверы применённых пакетов (старт панели). Озвучка выключена —
-        сервер TTS не нужен (ASR/LLM поднимаются как обычно)."""
+    def wanted_packages(self):
+        """Пакеты применённых источников, чьи серверы должны работать: [(service, package)].
+        Озвучка выключена — сервер TTS не нужен (ASR/LLM поднимаются как обычно)."""
         from ..spoken import voice_output
         speak = voice_output(self.runtime)[0]
+        result = []
         for service in SERVICES:
             if service == "tts" and not speak:
                 continue
@@ -1192,6 +1203,103 @@ class VoiceStack:
             if kind != "k":
                 continue
             try:
-                await self.local.start(self.package(identifier))
+                result.append((service, self.package(identifier)))
+            except ValueError:  # пакет выключенного расширения: источник ссылается в пустоту
+                continue
+        return result
+
+    async def autostart(self):
+        """Поднять серверы применённых пакетов (старт панели) и дождаться готовности:
+        первый запрос колонки не должен попасть в ещё загружающуюся модель."""
+        ready = self.lifecycle.ready_timeout
+        for _, package in self.wanted_packages():
+            title = package.get("title", package["id"])
+            try:
+                await self.local.start(package)
+                outcome = await self.local.wait_ready(package, ready)
             except (OSError, ValueError) as exc:
-                log.warning("Не удалось запустить %s: %s", identifier, exc)
+                log.warning("Не удалось запустить %s: %s", package["id"], exc)
+                self._journal("warning", f"Речевой сервер «{title}» не запустился: {exc}", package=package["id"])
+                continue
+            if outcome == "loading":
+                self._journal("info", f"Речевой сервер «{title}» отвечает не сразу: модель ещё загружается "
+                                      f"(больше {ready:.0f} с)", package=package["id"])
+
+    def _journal(self, level, message, **detail):
+        """Строка о жизни речевых серверов в журнал сервера («Дополнительно → Лог»): падение,
+        перезапуск и сбой запуска видны там же, где ошибки HTTP и сценариев."""
+        journal = getattr(self.runtime, "server_log", None)
+        if journal is not None:
+            journal.log(level, "server", message, **detail)
+
+    async def supervise(self):
+        """Присмотр за серверами применённых пакетов: упавший сервер возвращается в строй с
+        нарастающей паузой, а его код выхода попадает в журнал сервера. Без присмотра падение
+        сервера оставляет колонку без речи и распознавания до перезапуска панели."""
+        while not self.stopping and not self.runtime.lifecycle.closed:
+            await asyncio.sleep(SUPERVISE_INTERVAL)
+            if self.stopping or self.runtime.lifecycle.closed:
+                return
+            try:
+                await self._supervise_once()
+            except Exception as exc:  # noqa: BLE001 — один сбой не должен останавливать присмотр
+                log.warning("Присмотр за речевыми серверами: %s", exc)
+
+    async def _supervise_once(self):
+        """Один проход присмотра. Пока идёт применение источника, серверы останавливает и
+        запускает оно само — проход пропускается."""
+        if self.lifecycle.lock.locked():
+            return
+        async with self.lifecycle.lock:
+            wanted = self.wanted_packages()
+            needed = {package["id"] for _, package in wanted}
+            for identifier in list(self.supervised):
+                if identifier not in needed:
+                    self.supervised.pop(identifier, None)  # сервер больше не нужен конфигурации
+            for _, package in wanted:
+                if self.stopping:
+                    return
+                await self._supervise_server(package)
+
+    async def _supervise_server(self, package):
+        """Сервер должен работать: не отвечает и процесс не жив — запуск заново.
+        Занятый сервер (распознаёт, синтезирует, грузит модель) порт принимает и не трогается;
+        остановленный вручную — не поднимается."""
+        identifier = package["id"]
+        local = self.local
+        if identifier in local.disabled:
+            self.supervised.pop(identifier, None)
+            return
+        status = (await local.state(package))["status"]
+        # установка, отсутствие пакета и ошибка установки — забота карточки пакета
+        if status in ("installing", "unsupported", "absent", "error"):
+            self.supervised.pop(identifier, None)
+            return
+        if status in ("running", "starting"):
+            self.supervised.pop(identifier, None)  # сервер в строю: счётчик неудач сброшен
+            return
+        state = self.supervised.setdefault(identifier, {"attempt": 0, "due": 0.0, "dead": False})
+        title = package.get("title", identifier)
+        process = local.processes.get(identifier)
+        code = process.returncode if process is not None and process.poll() is not None else None
+        if not state["dead"]:
+            state["dead"] = True
+            reason = f"с кодом {code}" if code else "и перестал отвечать"
+            self._journal("warning", f"Речевой сервер «{title}» завершился {reason} — перезапускаю",
+                          package=identifier, exit_code=code)
+        if self.stopping or time.monotonic() < state["due"]:
+            return  # панель останавливается — поднимать не нужно; пауза между попытками растёт
+        delay = RESTART_DELAYS[min(state["attempt"], len(RESTART_DELAYS) - 1)]
+        state["attempt"] += 1
+        try:
+            await local.start(package)
+            outcome = await local.wait_ready(package, self.lifecycle.ready_timeout)
+        except (OSError, ValueError) as exc:
+            state["due"] = time.monotonic() + delay
+            self._journal("warning", f"Речевой сервер «{title}» не запустился: {exc}", package=identifier)
+            return
+        if outcome == "loading":  # процесс жив и грузит модель: следующий проход увидит его живым
+            state["due"] = time.monotonic() + delay
+            return
+        self.supervised.pop(identifier, None)
+        self._journal("info", f"Речевой сервер «{title}» снова работает", package=identifier)

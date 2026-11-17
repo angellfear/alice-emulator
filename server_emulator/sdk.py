@@ -38,7 +38,7 @@ from .extensions.context import (ExtensionContext, action_context,  # ExtensionC
 from .scenario_engine import bindings as _bindings
 from .scenario_engine import parsers as _parsers
 
-SDK_VERSION = "2.8.0"  # 2.8.0: extension_runtime — фоновые задачи расширения; 2.7.0: smart_home_* — реестр устройств умного дома; 2.6.0: ctx.provider(kind); 2.5.0: dataset_context(name) — настройки для кода datasets/*.py; 2.4.0: ctx.music; 2.3.0: ctx.route_mode, ctx.player_owner; 2.2.0: ctx.intelligence, no_data_source; 2.1.0: ctx.data
+SDK_VERSION = "2.9.0"  # 2.9.0: ctx.said — последние реплики колонке; 2.8.0: extension_runtime — фоновые задачи расширения; 2.7.0: smart_home_* — реестр устройств умного дома; 2.6.0: ctx.provider(kind); 2.5.0: dataset_context(name) — настройки для кода datasets/*.py; 2.4.0: ctx.music; 2.3.0: ctx.route_mode, ctx.player_owner; 2.2.0: ctx.intelligence, no_data_source; 2.1.0: ctx.data
 DATASET_REFRESH_TIMEOUT_S = 10.0  # как у шага refresh без timeout
 
 
@@ -864,6 +864,17 @@ class ScenarioContext:
         scenario_id = str((scenario or {}).get("id") or (self._ctx.get("input") or {}).get("message_id") or "scenario")
         owner = str((self.user or {}).get("id") or self.sn or "")
         return _ScenarioData(getattr(executor, "data_store", None), scenario_id, owner, self.dry_run)
+
+    @property
+    def said(self):
+        """Последние произнесённые этой колонке реплики (2.9.0): голосовой тракт пишет
+        их при каждой доставке (runtime.said); список {'ts', 'sn', 'text'} новыми
+        последними, только записи этого устройства (по sn запроса). Копия: правки
+        не меняют журнал. Сценарии повтора (system.repeat, system.history) читают
+        последние."""
+        entries = getattr(self._runtime, "said", None) or []
+        sn = str(self.sn or "")
+        return [dict(entry) for entry in entries if str(entry.get("sn") or "") == sn]
 
     async def dataset(self, name, key, max_age=0, args=None):
         """Данные плагина (датасет): свежая запись из БД (age ≤ max_age секунд) — сразу;

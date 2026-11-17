@@ -41,7 +41,7 @@ async def test_golden_covers_builtin_library(tmp_path):
     from server_emulator.scenario_engine.library import ERRORS, SCENARIOS
 
     assert ERRORS == []
-    assert len(SCENARIOS) == 31  # видео в каталоге ядра; свет вынесен во встроенный плагин
+    assert len(SCENARIOS) == 33  # видео в каталоге ядра; свет вынесен во встроенный плагин
     runtime = Runtime(tmp_path)
     try:
         expected = sorted(str(scenario.get("id")) for scenario in runtime.dialog.scenarios())

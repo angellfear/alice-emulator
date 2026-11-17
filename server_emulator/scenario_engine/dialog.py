@@ -331,7 +331,8 @@ class DialogManager:
             # ctx.extension контекст своего поставщика (музыка — токен аккаунта) и
             # восстанавливает по окончании; общий контекст параллельных опросов
             # подменял бы токен соседу посреди его вызова
-            sdk_ctx = ScenarioContext(SimpleNamespace(scenario_executor=self.executor), ctx,
+            sdk_ctx = ScenarioContext(SimpleNamespace(scenario_executor=self.executor,
+                                                      said=getattr(self.executor, "said", None)), ctx,
                                       dry_run=bool((ctx or {}).get("dry_run")))
             record = providers_registry.for_ext(entry.get("kind") or "music", entry.get("ext_id"))
             if record is None or not callable(record.get("search")) or not self.extension_context:

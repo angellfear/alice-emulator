@@ -31,6 +31,7 @@ from .aapi_handlers import has_handler as aapi_has_handler
 from . import smart_home  # noqa: F401  (реестр умного дома и обработчик TextInput-действия)
 from .voice import Conversation
 from .identity import IdentityRegistry, collect_device_id
+from .spoken import speakable
 from .quasar import QuasarBackend
 from . import actions
 from .actions import push_message, execute_message
@@ -159,6 +160,10 @@ class Runtime:
         self.recent = []
         self.pending_calls = []
         self.speech_log = []
+        # произнесённые колонкам реплики ({ts, sn, text}, новыми последними):
+        # голосовой тракт пишет при каждой доставке, сценарии повтора
+        # (system.repeat, system.history) читают
+        self.said = []
         # состояние для строки панели — микросостояние текущего хода («ожидает/
         # слушает/думает/вызывает инструмент/отвечает/ошибка») и последний сбой речевого
         # сервиса. Оба — общие изменяемые объекты: scoped-копии runtime (copy.copy) делят их
@@ -407,7 +412,7 @@ class Runtime:
             fetcher=fetch_json, data_store=self.store, lexicons=LEXICONS,
             plugins=self.scenario_plugins,
             schemas_root=ROOT / "schemas", store=self.store,
-            on_error=self.note_recent, script_path=scenario_script_path)
+            on_error=self.note_recent, script_path=scenario_script_path, said=self.said)
         self.rebuild_extension_registries()  # действия/датасеты включённых расширений
 
         def _scenario_context(sn="", device_id=""):
@@ -1119,6 +1124,21 @@ class Runtime:
         del self.speech_log[:-SPEECH_LOG_LIMIT]
         self._note_activity(record)  # из тех же событий — состояние строки шапки
 
+    def note_said(self, text, sn=''):
+        """Реплика, отправленная колонке (текст или части речи; теги/разметка снимаются,
+        как перед синтезом). Пишет голосовой тракт при каждой доставке — журнал для
+        сценариев повтора (system.repeat и system.history читают его через SDK ctx.said).
+        In-place, как speech_log: scoped-копии runtime делят список с корнем."""
+        if isinstance(text, (list, tuple)):
+            text = ' '.join(str(part) for part in text)
+        elif text is None:
+            text = ''
+        text = ' '.join(speakable(str(text)).split())
+        if not text:
+            return
+        self.said.append({'ts': time.time(), 'sn': str(sn or ''), 'text': text})
+        del self.said[:-100]  # журнал повтора: последние 100 реплик по всем колонкам
+
     def _note_activity(self, record):
         """Микросостояние хода и сбои речевых сервисов — в одной точке, на существующем
         механизме событий (SpeechTrace). Состояние и флаги ошибок — общие dict'ы,
@@ -1152,6 +1172,8 @@ class Runtime:
         if not getattr(self, "_background_started", None):
             self._background_started = True
             self.lifecycle.spawn(self.voice_stack.autostart())
+            # присмотр за речевыми серверами: упавший поднимается сам, код выхода — в журнал
+            self.lifecycle.spawn(self.voice_stack.supervise())
             if not self.self_update.task:
                 self.self_update.start()  # проверка релизов с задержкой и по интервалу
             if self.routines is not None:
