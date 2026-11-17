@@ -1,6 +1,8 @@
 /* Голосовой стек: карточка на сервис (ASR / TTS / LLM).
    Список — пресеты (адаптер + настройки) и пакеты (установка сервера на этот ПК); под ним сразу
-   настройки выбранного. «Добавить» → выбор адаптера → поля → новый пресет.
+   настройки выбранного. Над карточками — метр микрофона: уровни «Вход» и «В ASR» до/после
+   выравнивания (api/voice-levels), полоса истории и колёса предусиления/нормализации.
+   «Добавить» → выбор адаптера → поля → новый пресет.
    Поля описывает адаптер/пакет: password (+ link «Получить ключ», help), required, group: advanced
    («Дополнительно»), options_from: voices (список голосов поставщика), when. Голос TTS — режимы
    voice_modes: preset / baked / clone (переключатель только из объявленных).
@@ -569,13 +571,188 @@
     return box;
   };
 
+  // --- Метр микрофона: живые уровни до и после выравнивания (api/voice-levels). ------------
+  // «Вход» — микрофон колонки как есть, «В ASR» — после предусиления и выравнивания
+  // (то, что слышит распознавание). Уровни снимает transcode у любого источника ASR,
+  // идущего через выравнивание. Шкала −60…0 dBFS, полоса истории — последние окна
+  // (RMS по 100 мс). Опрос 10 Гц, пока вкладка видима; чтение сервер не изменяет.
+  const meter = { refs: null, timer: null, hold: {}, clip: false };
+  const METER_MIN = -60;  // низ шкалы, dBFS
+  const pct = db => Math.max(0, Math.min(100, (db - METER_MIN) / -METER_MIN * 100));
+
+  function meterBar(label) {
+    const row = make('div', 'vs-meter-row');
+    row.append(make('span', 'vs-meter-label', label));
+    const track = make('div', 'vs-meter-track');
+    const fill = make('div', 'vs-meter-fill');
+    const peak = make('div', 'vs-meter-peak');
+    track.append(fill, peak);
+    const read = make('span', 'vs-meter-read', '−∞ dBFS');
+    row.append(track, read);
+    return { row, fill, peak, read };
+  }
+
+  function meterSet(bar, rms, peak, slot, now) {
+    bar.fill.style.width = (rms == null ? 0 : pct(rms)) + '%';
+    bar.fill.className = 'vs-meter-fill' + (peak != null && peak > -6 ? ' hot' : peak != null && peak > -18 ? ' warm' : '');
+    bar.read.textContent = rms == null ? '−∞ dBFS' : rms.toFixed(1) + ' dBFS';
+    const hold = meter.hold[slot] || (meter.hold[slot] = { db: METER_MIN, until: 0, t: now });
+    if (peak != null && peak >= hold.db) { hold.db = peak; hold.until = now + 1500 }  // удержание 1,5 с
+    else if (now > hold.until) hold.db = Math.max(rms ?? METER_MIN, hold.db - 0.03 * (now - hold.t));  // спад 30 дБ/с
+    hold.t = now;
+    bar.peak.style.left = pct(hold.db) + '%';
+    bar.peak.style.display = hold.db > METER_MIN + 1 ? '' : 'none';
+  }
+
+  function meterStatus(v, outRms) {
+    if (!v.active || (outRms != null && outRms <= -90)) return 'Микрофон молчит — скажите колонке что-нибудь, и метр покажет уровень речи.';
+    if (v.out?.peak != null && v.out.peak > -3) return 'Сигнал упирается в ограничение — уменьшите предусиление.';
+    if ((v.gain ?? 0) > 45) return 'Микрофон очень тихий: усиление на потолке. Добавьте предусиления или говорите ближе к колонке.';
+    return 'Речь ' + (outRms == null ? '—' : outRms.toFixed(1) + ' dBFS') + ' в ASR: норма −30…−12 dBFS, пик около −6.';
+  }
+
+  function meterHistory(canvas) {
+    const draw = v => {
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.clientWidth || 0, h = canvas.clientHeight || 44;
+      if (!w) return;
+      if (canvas.width !== Math.round(w * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr) }
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      const css = getComputedStyle(canvas);
+      const ok = css.getPropertyValue('--ok').trim() || '#8fe0a8';
+      const warn = css.getPropertyValue('--warning').trim() || '#e0c88f';
+      const hot = css.getPropertyValue('--danger').trim() || '#e08f8f';
+      const dim = 'rgba(127,127,127,.45)';
+      const yTarget = Math.round(h * (100 - pct(-6)) / 100) + .5;  // пунктир — цель нормализации −6 dBFS
+      ctx.strokeStyle = dim; ctx.setLineDash([3, 3]); ctx.beginPath();
+      ctx.moveTo(0, yTarget); ctx.lineTo(w, yTarget); ctx.stroke(); ctx.setLineDash([]);
+      const slot = 4, tail = v.history.slice(-Math.floor(w / slot));  // справа — свежие окна
+      tail.forEach((e, i) => {
+        const x = w - (tail.length - i) * slot;
+        if (e.o != null) {
+          const height = Math.max(1, Math.round(h * pct(e.o) / 100));
+          ctx.fillStyle = e.op != null && e.op > -6 ? hot : e.op != null && e.op > -18 ? warn : ok;
+          ctx.fillRect(x, h - height, 2, height);
+        }
+        if (e.i != null) {
+          const height = Math.max(1, Math.round(h * pct(e.i) / 100));
+          ctx.fillStyle = dim;
+          ctx.fillRect(x + 2, h - height, 1, height);
+        }
+        if (e.oc > 0 || e.ic > 0) { ctx.fillStyle = hot; ctx.fillRect(x, 0, 3, 2) }
+      });
+    };
+    return draw;
+  }
+
+  // Колёса выравнивания — только когда активный STT идёт через выравнивание
+  // (batch/эмуляция потока); у облачных потоковых своя нормализация в пресете.
+  function meterControls() {
+    const stt = () => (cfg?.stt || {});
+    const box = make('div', 'vs-flags');
+    const levelLabel = make('label', 'vs-flag'), levelBox = make('input');
+    levelBox.type = 'checkbox'; levelBox.checked = stt().level !== 'no';
+    levelLabel.append(levelBox, make('span', null, 'Выравнивание уровня микрофона'));
+    const knob = (key, title, min, max, def) => {
+      const wrap = make('label', 'vs-meter-knob'), input = make('input');
+      input.type = 'range'; input.min = String(min); input.max = String(max); input.step = '1';
+      const saved = Number(stt()[key]);
+      input.value = Number.isFinite(saved) ? saved : def;
+      const text = make('span', null, `${title}: ${input.value}`);
+      const back = () => { const v = Number(stt()[key]); input.value = Number.isFinite(v) ? v : def; text.textContent = `${title}: ${input.value}` };
+      input.oninput = () => { text.textContent = `${title}: ${input.value}` };
+      input.onchange = () => saveStt({ [key]: Number(input.value) }, back);
+      wrap.append(text, input);
+      return wrap;
+    };
+    const sliders = make('div', 'vs-flags');
+    sliders.append(knob('pre_gain_db', 'Предусиление, дБ', -12, 24, 0),
+                   knob('level_target_dbfs', 'Цель нормализации, dBFS', -18, -3, -6));
+    const sync = () => { sliders.style.display = levelBox.checked ? '' : 'none' };
+    levelBox.onchange = () => { sync(); saveStt({ level: levelBox.checked ? 'yes' : 'no' }, () => { levelBox.checked = !levelBox.checked; sync() }) };
+    sync();
+    box.append(levelLabel, sliders, make('small', 'vs-help',
+      'Выравнивание само держит пик речи на цели нормализации — усиление видно в шапке метра. Предусиление поднимает тихий микрофон до выравнивания; у облачных потоковых источников своя нормализация в пресете.'));
+    return box;
+  }
+
+  function meterBlock() {
+    const box = make('section', 'vs-card vs-meter');
+    const head = make('div', 'vs-meter-head');
+    const gain = make('span', 'vs-meter-gain', '…');
+    const led = make('button', 'vs-meter-led');
+    led.type = 'button'; led.title = 'Ограничение сигнала (клип). Клик — сбросить отметку.';
+    led.setAttribute('aria-label', 'Ограничение сигнала');
+    led.onclick = () => { meter.clip = false; led.classList.remove('on') };
+    head.append(make('h3', null, 'Уровень микрофона'), gain, led);
+    const bars = { in: meterBar('Вход'), out: meterBar('В ASR') };
+    const scale = make('div', 'vs-meter-row vs-meter-scale-row');
+    const scaleRow = make('div', 'vs-meter-scale');
+    for (let db = METER_MIN; db <= 0; db += 12) scaleRow.append(make('span', null, String(db)));
+    scale.append(make('span'), scaleRow, make('span'));
+    const history = make('canvas', 'vs-meter-history');
+    history.setAttribute('aria-hidden', 'true');
+    const status = make('small', 'vs-help', 'Микрофон молчит.');
+    box.append(head, bars.in.row, bars.out.row, scale, history, status,
+      make('small', 'vs-help', 'Вход — микрофон колонки как есть, «В ASR» — после предусиления и выравнивания. Шкала −60…0 dBFS, пунктир — цель нормализации; в полосе цветные столбики — ASR, серые — вход.'));
+    if (data?.asr?.streaming === false) box.append(meterControls());
+    meter.refs = { bars, gain, led, status, row: bars.in.row, historyDraw: meterHistory(history) };
+    return box;
+  }
+
+  async function meterPoll() {
+    if (!meter.refs?.row.isConnected) { meter.refs = null; meterSync(); return }  // вкладка перерисована — старый метр мёртв
+    try { meterDraw(await api('voice-levels')) }
+    catch (e) { meter.refs.status.textContent = 'Метр: нет связи — ' + e.message }
+  }
+
+  function meterDraw(v) {
+    const refs = meter.refs; if (!refs) return;
+    const now = performance.now();
+    const last = v.history[v.history.length - 1];
+    const recent = last && v.now - last.t >= -0.05 && v.now - last.t <= 0.5;
+    const pick = (cur, key) => cur != null ? cur : recent ? last[key] ?? null : null;  // пустое окно — последнее закрытое, если оно свежее
+    const outRms = pick(v.out.rms, 'o');
+    meterSet(refs.bars.in, pick(v.in.rms, 'i'), pick(v.in.peak, 'ip'), 'in', now);
+    meterSet(refs.bars.out, outRms, pick(v.out.peak, 'op'), 'out', now);
+    refs.gain.textContent = v.gain == null ? 'выравнивание выключено'
+      : 'усиление ' + (v.gain > 0 ? '+' : '') + v.gain.toFixed(1) + ' дБ';
+    // клип — и в текущем окне, и в закрытых с прошлого опроса (окно могло запечататься
+    // между опросами); отметка держится до клика по LED
+    const fresh = v.history.filter(e => !meter.lastT || e.t > meter.lastT);
+    meter.lastT = last ? last.t : meter.lastT;
+    if ((v.in.clip || 0) + (v.out.clip || 0) > 0 || fresh.some(e => e.ic > 0 || e.oc > 0)) meter.clip = true;
+    refs.led.classList.toggle('on', meter.clip);
+    refs.historyDraw(v);
+    refs.status.textContent = meterStatus(v, outRms);
+  }
+
+  function meterSync() {
+    const wanted = meter.refs?.row.isConnected
+      && location.hash === '#voice-stack' && document.visibilityState === 'visible';
+    if (wanted && !meter.timer) { meter.timer = setInterval(meterPoll, 100); meterPoll() }
+    else if (!wanted && meter.timer) { clearInterval(meter.timer); meter.timer = null }
+  }
+  document.addEventListener('visibilitychange', meterSync);
+
+  // Настройки stt (метр микрофона и «Эмуляция потока») пишутся точечно: свежие общие
+  // настройки, патч stt, PUT — как в «Режимах вывода ответа»; ошибка возвращает поле.
+  async function saveStt(patch, revert) {
+    try {
+      const fresh = await api('settings');
+      fresh.stt = { ...(fresh.stt || {}), ...patch };
+      cfg = await api('settings', 'PUT', fresh);
+    } catch (e) { revert?.(); say(e.message, true) }
+  }
+
   // «Эмуляция потокового режима» (settings["stt"]): pseudo_stream — галочка,
   // pseudo_partial_pause / pseudo_end_pause — паузы детектора (видны при включённой
-  // галочке), level — выравнивание уровня микрофона. Batch-STT не отдаёт частичные
-  // результаты — детектор пауз (Silero VAD) распознаёт накопленное по ходу речи,
-  // колонка закрывает микрофон в конце фразы, а не по тайм-ауту. Виден только когда
-  // активный STT не умеет настоящий поток (streaming === false); сохранение — общие
-  // настройки с _rev, как в «Режимах вывода ответа».
+  // галочке); выравнивание уровня микрофона живёт в метре над карточками. Batch-STT
+  // не отдаёт частичные результаты — детектор пауз (Silero VAD) распознаёт накопленное
+  // по ходу речи, колонка закрывает микрофон в конце фразы, а не по тайм-ауту. Виден
+  // только когда активный STT не умеет настоящий поток (streaming === false).
   function pseudoBlock() {
     const box = make('div', 'vs-output');
     const stt = () => (cfg?.stt || {});
@@ -591,29 +768,16 @@
       input.onchange = () => {
         const value = Number(input.value);
         if (input.value.trim() === '' || Number.isNaN(value)) { input.value = stt()[key] ?? ''; return }  // пустое и мусор — вернуться к сохранённому
-        save({ [key]: value }, () => { input.value = stt()[key] ?? '' });
+        saveStt({ [key]: value }, () => { input.value = stt()[key] ?? '' });
       };
       return wrap;
     };
     pauses.append(num('pseudo_partial_pause', 'Пауза между словами, с', 0.2, 2),
                   num('pseudo_end_pause', 'Конец фразы, с', 0.5, 5));
-    const levelLabel = make('label', 'vs-flag'), level = make('input');
-    level.type = 'checkbox'; level.checked = stt().level !== 'no';
-    levelLabel.append(level, make('span', null, 'Выравнивание уровня микрофона'));
     const sync = () => { pauses.style.display = check.checked ? '' : 'none' };
-    const save = async (patch, revert) => {
-      check.disabled = level.disabled = true;
-      try {
-        const fresh = await api('settings');
-        fresh.stt = { ...(fresh.stt || {}), ...patch };
-        await api('settings', 'PUT', fresh);
-        cfg = fresh;
-      } catch (e) { revert?.(); say(e.message, true) } finally { check.disabled = level.disabled = false }
-    };
-    check.onchange = () => { sync(); save({ pseudo_stream: check.checked ? 'yes' : 'no' }, () => { check.checked = !check.checked; sync() }) };
-    level.onchange = () => save({ level: level.checked ? 'yes' : 'no' }, () => { level.checked = !level.checked });
+    check.onchange = () => { sync(); saveStt({ pseudo_stream: check.checked ? 'yes' : 'no' }, () => { check.checked = !check.checked; sync() }) };
     sync();
-    box.append(label, pauses, levelLabel, make('small', 'vs-help', 'Пакетный движок распознаёт по паузам в речи: текст приходит по ходу, колонка закрывает микрофон в конце фразы, а не по тайм-ауту. Выключено — распознавание целиком после закрытия микрофона. Выравнивание усиливает тихий звук микрофона перед распознаванием.'));
+    box.append(label, pauses, make('small', 'vs-help', 'Пакетный движок распознаёт по паузам в речи: текст приходит по ходу, колонка закрывает микрофон в конце фразы, а не по тайм-ауту. Выключено — распознавание целиком после закрытия микрофона. Уровень микрофона и его усиление — в метре над карточками.'));
     return box;
   }
 
@@ -649,12 +813,14 @@
       const box = make('p', 'vs-state', loadError ? 'Не удалось загрузить: ' + loadError : 'Загружаю голосовой стек…');
       if (loadError) box.append(button('Повторить', 'secondary', load));
       hosts().forEach(h => h.replaceChildren(box));
+      meterSync();
       return;
     }
     if (!force && poll && hosts().some(h => h.contains(document.activeElement))) return;  // не сбивать ввод фоновым обновлением
-    host.replaceChildren(...SERVICES.filter(([s]) => s !== 'llm').map(([s, t]) => card(s, t)));
+    host.replaceChildren(meterBlock(), ...SERVICES.filter(([s]) => s !== 'llm').map(([s, t]) => card(s, t)));
     llmHost?.replaceChildren(card('llm', 'Модель (LLM)'));
     if (busy) hosts().forEach(h => h.querySelectorAll('button,select,input,textarea').forEach(b => b.disabled = true));
+    meterSync();
   }
 
   const sync = () => { clearTimeout(poll); poll = null;

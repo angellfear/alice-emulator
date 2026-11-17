@@ -26,6 +26,8 @@ POST   voice-stack-unbake     — {service, adapter, values, id?} удалить
 POST   voice-stack-preset-file — ?service=&id=&key= тело — WAV эталона клонирования пресета; GET — прослушать; DELETE — удалить
 POST   voice-stack-login       — {service} запустить вход подписки кодом устройства (отдельный процесс);
                                 GET — его состояние и вывод {running, done, exit, output, auth_ready, cooldown}; DELETE — отменить
+GET    voice-levels            — живые уровни микрофона для метра вкладки (окно ~100 мс + история):
+                                {active, gain, in, out, history}
 """
 import json
 import logging
@@ -345,3 +347,12 @@ async def _transcribe(runtime, path):
     if not text:
         raise ValueError("Распознавание вернуло пустой текст")
     return text
+
+
+@route("voice-levels", methods=("GET",))
+async def voice_levels(request, runtime, app):
+    """Живые уровни микрофона для метра вкладки «Голосовой стек»: текущее окно
+    (~100 мс) и история audio_meter.LEVELS — «Вход» и «В ASR» (после выравнивания).
+    Опрос UI ~10 Гц, пока вкладка видима; чтение состояние измерителя не меняет."""
+    from ...audio_meter import LEVELS
+    return web.json_response(LEVELS.snapshot())

@@ -260,6 +260,7 @@ details .fields{padding:12px 0 2px;border-bottom:1px solid var(--border)}
   body{padding:0 14px 40px}
   .split,.fields{grid-template-columns:1fr}
   section{padding:18px 16px}
+  .vs-meter-row{grid-template-columns:44px 1fr 84px}
 }
 
 /* ── Embedded-режим (встраивание в админку прокси) ──────────────── */
@@ -635,6 +636,28 @@ small.warn{color:var(--warning)}
 .vs-flags{display:flex;gap:16px;flex-wrap:wrap}
 .vs-flag{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}
 .vs-flag input:disabled{cursor:default}
+
+/* ── Метр микрофона: уровни «Вход» и «В ASR», история, колёса выравнивания ── */
+.vs-meter-head{display:flex;align-items:center;gap:10px}
+.vs-meter-head h3{flex:1}
+.vs-meter-gain{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.vs-meter-led{width:14px;height:14px;padding:0;border-radius:50%;border:1px solid var(--border);background:transparent;cursor:pointer;flex-shrink:0}
+.vs-meter-led.on{background:var(--danger);border-color:var(--danger);box-shadow:0 0 6px color-mix(in srgb,var(--danger) 60%,transparent)}
+.vs-meter-row{display:grid;grid-template-columns:56px 1fr 120px;align-items:center;gap:10px}
+.vs-meter-label{font-size:12.5px;color:var(--muted);white-space:nowrap}
+.vs-meter-track{position:relative;height:14px;border-radius:4px;background:var(--surface-3);overflow:hidden;min-width:0}
+.vs-meter-track::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0,transparent calc(100%/6 - 1px),color-mix(in srgb,var(--text) 22%,transparent) calc(100%/6 - 1px),color-mix(in srgb,var(--text) 22%,transparent) calc(100%/6))}
+.vs-meter-fill{position:absolute;top:0;bottom:0;left:0;width:0;background:var(--ok)}
+.vs-meter-fill.warm{background:var(--warning)}
+.vs-meter-fill.hot{background:var(--danger)}
+.vs-meter-peak{position:absolute;top:0;bottom:0;width:2px;background:var(--text);opacity:.75;display:none}
+.vs-meter-read{font-size:12px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.vs-meter-scale-row{margin-top:-6px}
+.vs-meter-scale{display:flex;justify-content:space-between;font-size:10px;color:var(--faint);font-variant-numeric:tabular-nums}
+.vs-meter-history{width:100%;height:44px;border-radius:4px;background:var(--surface-3)}
+.vs-meter-knob{display:flex;flex-direction:column;gap:4px;font-size:13px}
+.vs-meter-knob span{color:var(--muted)}
+.vs-meter-knob input{width:min(240px,100%)}
 
 /* ── Звуковой кеш ── */
 .sc-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:8px 0 10px}

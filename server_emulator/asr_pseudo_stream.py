@@ -90,6 +90,31 @@ def level(runtime):
     return str((runtime.settings.get("stt") or {}).get("level") or "").strip().lower() != "no"
 
 
+PRE_GAIN_DB = (0.0, -12.0, 24.0)      # предусиление: умолчание, минимум, максимум (дБ)
+LEVEL_TARGET_DBFS = (-6.0, -18.0, -3.0)  # цель нормализации: умолчание, минимум, максимум (dBFS)
+
+
+def _tuned(value, default, low, high):
+    """Число в диапазоне — оно; ключа нет, не число или вне диапазона — умолчание
+    (без ошибки, как pauses)."""
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return default
+    return value if low <= value <= high else default
+
+
+def gain_config(runtime):
+    """Колёса выравнивания для transcode ({'pre_gain_db': …, 'target': …}): pre_gain_db —
+    предусиление микрофона до выравнивания (stt.pre_gain_db, дБ), target — цель
+    нормализации (stt.level_target_dbfs, dBFS → линейный пик). Ключей нет, мусор или
+    вне диапазона — умолчания: 0 дБ и −6 dBFS (TARGET_PEAK AutoGain), без ошибки."""
+    stt = runtime.settings.get("stt") or {}
+    pre = _tuned(stt.get("pre_gain_db"), *PRE_GAIN_DB)
+    target_dbfs = _tuned(stt.get("level_target_dbfs"), *LEVEL_TARGET_DBFS)
+    return {"pre_gain_db": pre, "target": 10 ** (target_dbfs / 20)}
+
+
 def vad_model(runtime):
     """Путь silero_vad.onnx установленного голосового пакета: папка активного пакета
     ASR (k:<id>), иначе первый найденный в папке пакетов. Нет — ValueError с причиной."""
@@ -353,8 +378,10 @@ async def _run_one(runtime, transcribe, chunks, fmt, on_partial, vad, trace=None
         async with asyncio.timeout(120):
             # микрофон колонки тихий (пик около −55 dBFS): Silero VAD на таком уровне речи не
             # видит — уровень выравнивается при декодировании, фраза распознаётся выровненной
-            # (stt.level="no" выключает выравнивание)
-            async for chunk in transcode(chunks, fmt, "pcm16", level=level(runtime)):
+            # (stt.level="no" выключает выравнивание; колёса — stt.pre_gain_db и
+            # stt.level_target_dbfs, метр уровней при этом живёт в audio_meter.LEVELS)
+            async for chunk in transcode(chunks, fmt, "pcm16", level=level(runtime),
+                                         level_gain=gain_config(runtime)):
                 samples = np.frombuffer(chunk, dtype="<i2").astype(np.float32) / 32768.0
                 if totals is not None:
                     totals["samples"] += len(samples)
