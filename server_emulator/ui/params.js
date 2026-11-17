@@ -213,8 +213,21 @@
 
   function dialog(def) {
     const dlg = document.createElement('dialog'); dlg.className = 'params-dialog';
-    const form = document.createElement('form'); dlg.append(form); document.body.append(dlg);
-    const field = (labelText, input) => { const l = node('label', labelText); l.append(input); return l; };
+    const head = node('header');
+    const close = node('button', '✕'); close.type = 'button'; close.className = 'icon-btn';
+    close.title = 'Закрыть'; close.setAttribute('aria-label', 'Закрыть');
+    close.onclick = () => dlg.close();
+    head.append(node('h3', def ? 'Правка параметра · ' + def.key : 'Новый параметр'), close);
+    const form = document.createElement('form'); form.id = 'params-def-form'; form.className = 'pd-body';
+    const grid = node('div', null, 'pd-grid');
+    const foot = node('footer');
+    const cancel = node('button', 'Отмена'); cancel.type = 'button'; cancel.className = 'secondary';
+    cancel.onclick = () => dlg.close();
+    const save = node('button', 'Сохранить'); save.type = 'submit'; save.setAttribute('form', form.id);
+    foot.append(cancel, save);
+    dlg.append(head, form, foot); document.body.append(dlg);
+    const field = (labelText, input) => { const l = node('label', null, 'pd-field'); l.append(node('span', labelText), input); return l; };
+    const boolField = (labelText, input) => { const l = node('label', null, 'pd-field bool'); l.append(input, node('span', labelText)); return l; };
     const key = node('input'); key.value = def ? def.key : ''; key.placeholder = 'user.wifi_hash';
     const scope = node('select'); for (const s of data.scopes) scope.append(new Option(s, s));
     scope.value = def ? def.scope : 'user';
@@ -228,11 +241,11 @@
     options.placeholder = 'select: ["a","b"] · number: {"min":0,"max":10}';
     const defv = node('input'); defv.value = def && def.default_value !== null && def.default_value !== undefined ? JSON.stringify(def.default_value) : '';
     defv.placeholder = 'значение по умолчанию (JSON)';
-    const save = node('button', 'Сохранить'); save.type = 'submit';
-    form.append(field('Ключ', key), field('Область', scope), field('Тип', type),
-                field('Категория (группа UI)', category), field('Доступно пользователю (его морда /me)', editable),
+    grid.append(field('Ключ', key), field('Область', scope), field('Тип', type),
+                field('Категория (группа UI)', category), boolField('Доступно пользователю (его морда /me)', editable),
                 field('Подпись', title), field('Пояснение', hint), field('Опции (JSON)', options),
-                field('По умолчанию (JSON)', defv), save);
+                field('По умолчанию (JSON)', defv));
+    form.append(grid);
     form.onsubmit = event => { event.preventDefault(); work(async () => {
       const definition = { key: key.value.trim(), scope: scope.value, type: type.value,
                            category: category.value.trim() || scope.value, user_editable: editable.checked,
@@ -240,7 +253,7 @@
                            options: options.value.trim() ? JSON.parse(options.value) : null,
                            default_value: defv.value.trim() ? JSON.parse(defv.value) : null };
       await api('params', { definition });
-      dlg.close(); dlg.remove(); await load(); message('Определение сохранено: ' + definition.key);
+      dlg.close(); await load(); message('Определение сохранено: ' + definition.key);
     }) };
     dlg.showModal(); dlg.addEventListener('close', () => dlg.remove());
   }
