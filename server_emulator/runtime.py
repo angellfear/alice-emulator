@@ -1548,10 +1548,17 @@ def mount_ui(app, runtime, prefix="/emulator"):
 
     app.router.add_get("/favicon.ico", icon)
 
-    # Браузер на корне: с парольной системой — в кабинет (вход), без неё — в панель.
-    # Колонки на "/" не ходят — их пути ведут на API-хосты и legacy-цепочку.
+    # Браузер оператора на корне: с парольной системой — в кабинет (вход), без неё — в
+    # панель. Хосты станции и её API редирект не задевают: их корень прозрачен —
+    # эндпоинты, legacy-цепочка, 404 (см. front.panel_host).
+    from . import server_config
+    from .front import panel_host
+
     async def root(request):
-        raise web.HTTPFound("/me" if runtime.auth.enabled else "/emulator/")
+        local = server_config.load(runtime.directory).get("local_domain") or ""
+        if panel_host(request.host, local):
+            raise web.HTTPFound("/me" if runtime.auth.enabled else "/emulator/")
+        return await runtime.dispatch(request)
 
     app.router.add_get("/", root)
     app.router.add_post(prefix + "/api/setup/protocol", guarded(lambda request: setup_api.upload(request, runtime)))

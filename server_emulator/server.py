@@ -47,8 +47,6 @@ def create_app(config=None, archive=None, runtime=None, control_token=None):
     if control_token:  # остановка/перезапуск для трея — до общего маршрута устройств
         control.mount(app, control_token)
     async def dispatch(request):
-        if request.path == "/" and request.host.split(":",1)[0] in ("127.0.0.1", "localhost"):
-            raise web.HTTPFound("/emulator/")
         return await runtime.dispatch(request)
     app.router.add_route("*", "/{path:.*}", dispatch)
     return app

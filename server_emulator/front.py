@@ -60,6 +60,21 @@ CONNECT_TIMEOUT_S = 10
 IDLE_TIMEOUT_S = 300  # простой туннеля/сплайса дольше пяти минут — соединение закрыто
 DEFAULT_DNS = ("8.8.8.8", "1.1.1.1")
 LOCAL_SUFFIXES = (".local", ".lan", ".home", ".localdomain")
+
+
+def panel_host(name, local_domain=""):
+    """Хост браузера оператора: loopback, имя локальной сети (.local/.lan/.home/
+    .localdomain) или локальный домен. Прочие хосты — станция и её API: их корень
+    прозрачен (эндпоинты, legacy-цепочка, 404)."""
+    name = str(name or "").lower().strip()
+    if name.startswith("["):  # литерал IPv6 с портом: [::1]:8080
+        name = name[1:].split("]", 1)[0]
+    elif name.count(":") == 1:
+        name = name.split(":", 1)[0]  # имя или IPv4 с портом
+    name = name.strip(".")
+    return (name in ("127.0.0.1", "localhost", "::1")
+            or name.endswith(LOCAL_SUFFIXES)
+            or (bool(local_domain) and name == local_domain))
 # Потоки музыки поставщика качаются колонкой напрямую (storage/strm) — туннель для них
 # штатный путь, не ошибка: уровень info, имя в сообщении — шаблон (strm-mar-NNN и т.п.
 # меняется на каждый трек), чтобы повторы склеивал журнал (не по записи на NNN).

@@ -138,7 +138,8 @@ def test_set_user_login_creates_updates_and_links_session(tmp_path):
 
 async def test_root_redirects_by_auth_mode(tmp_path):
     """Браузер на «/»: открытый режим — в панель (/emulator/), с парольной системой — в
-    кабинет (/me); устройство на своих путях редирект не задевает."""
+    кабинет (/me); локальный домен — тоже браузер оператора; хосты станции редирект не
+    задевают даже на корне — их корень прозрачен (эндпоинты, legacy-цепочка, 404)."""
     runtime = Runtime(tmp_path)
     runner, port = await run_app(create_app(runtime=runtime))
     try:
@@ -150,6 +151,15 @@ async def test_root_redirects_by_auth_mode(tmp_path):
             async with client.get(base + "/check_updates",
                                   headers={"Host": "quasar.yandex.net"}) as response:
                 assert response.status == 200  # путь устройства — мимо редиректа
+            async with client.get(base + "/", headers={"Host": "quasar.yandex.net"},
+                                  allow_redirects=False) as response:
+                assert response.status == 404  # хост станции: корень прозрачен
+            async with client.get(base + "/", headers={"Host": "alica.lan"},
+                                  allow_redirects=False) as response:
+                assert response.status == 302  # локальный домен по умолчанию
+            async with client.get(base + "/", headers={"Host": "egress.test"},
+                                  allow_redirects=False) as response:
+                assert response.status == 404  # посторонний хост — не браузер оператора
     finally:
         await runner.cleanup()
     await runtime.close()
