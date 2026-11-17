@@ -1,6 +1,6 @@
 [project]
 name = "alice-emulator"
-version = "1.0.1"
+version = "1.1.0"
 description = "Эмулятор сервера Яндекс Алисы: HTTP, WebSocket и AAPI для колонок, сценарии, расширения"
 requires-python = ">=3.11"
 dependencies = [
