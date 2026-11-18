@@ -172,32 +172,38 @@ section.narrow{max-width:880px}
 .panel>h3:first-child{margin-top:0}
 
 /* ── Кнопки ─────────────────────────────────────────────────────── */
-button{font:inherit;font-size:14px;font-weight:600;color:var(--on-accent);min-height:38px;padding:8px 18px;cursor:pointer;
-  background:linear-gradient(180deg,var(--accent) 0%,var(--accent-strong) 100%);
-  border:1px solid var(--accent-border);border-radius:var(--radius-s);
-  box-shadow:0 1px 2px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.15);
-  transition:background .15s ease,border-color .15s ease,box-shadow .15s ease,color .15s ease}
-button:hover{background:linear-gradient(180deg,var(--accent-strong) 0%,var(--accent) 100%);
-  border-color:var(--accent);box-shadow:0 2px 10px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.15)}
-button:active{transform:translateY(1px);box-shadow:inset 0 2px 4px rgba(0,0,0,.3)}
+/* Компактные плоские кнопки обычного размера во всём интерфейсе; навигация и
+   сегментные переключатели задают свои метрики сами и перебивают эту базу.
+   Hover — через :where(:hover): нулевая специфичность, чтобы прозрачные вкладки
+   nav/subnav/segmented не подхватывали акцентный фон и рамку при наведении. */
+button{font:inherit;font-size:13.5px;font-weight:500;color:var(--on-accent);min-height:30px;padding:4px 13px;cursor:pointer;
+  background:var(--accent);border:1px solid var(--accent-border);border-radius:var(--radius-s);
+  transition:background .15s ease,border-color .15s ease,color .15s ease}
+button:where(:hover){background:var(--accent-strong);border-color:var(--accent)}
+button:active{transform:translateY(1px)}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.secondary{background:var(--surface-2);color:var(--text);border-color:var(--border-strong);box-shadow:0 1px 2px rgba(0,0,0,.25)}
-.secondary:hover{background:var(--surface-3);border-color:var(--accent-border);color:var(--accent-strong);box-shadow:0 2px 8px rgba(0,0,0,.35)}
-.danger{background:transparent;color:var(--danger);border-color:var(--danger-border);box-shadow:none}
-.danger:hover{background:var(--danger-bg);color:var(--danger);box-shadow:none}
+.secondary{background:var(--surface-2);color:var(--text);border-color:var(--border-strong)}
+.secondary:where(:hover){background:var(--surface-3);border-color:var(--accent-border);color:var(--accent-strong)}
+.danger{background:transparent;color:var(--danger);border-color:var(--danger-border)}
+.danger:where(:hover){background:var(--danger-bg);color:var(--danger)}
 button:disabled{opacity:.45;cursor:wait;filter:none;transform:none}
 
 /* ── Формы ──────────────────────────────────────────────────────── */
 label{display:flex;flex-direction:column;font-size:13px;color:var(--muted);gap:6px;margin-bottom:14px}
 input,select,textarea{font:inherit;font-size:14px;background:var(--surface-3);border:1px solid var(--border-strong);
   border-radius:var(--radius-s);color:var(--text);padding:10px 12px;width:100%;min-height:40px;transition:border-color .12s}
+/* Чекбокс и радио — нативный размер, не текстовое поле (без padding/width/min-height);
+   подпись рядом с ним — в строку, а не под ним (глобальный label — column) */
+input[type=checkbox],input[type=radio]{width:auto;min-height:0;height:auto;padding:0;margin:0;
+  background:none;border:none;flex-shrink:0;accent-color:var(--accent);cursor:pointer;vertical-align:middle}
+label:has(> input[type=checkbox]),label:has(> input[type=radio]){flex-direction:row;align-items:center}
 input:hover,select:hover,textarea:hover{border-color:var(--border-strong)}
 input::placeholder,textarea::placeholder{color:var(--faint)}
 textarea{resize:vertical}
 .code,pre{font-family:Consolas,'Cascadia Mono',monospace;font-size:12.5px}
 .fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}
 .check{flex-direction:row;align-items:center;gap:10px;font-size:14px;color:var(--text);cursor:pointer;padding:3px 0}
-.check input{width:20px;min-height:20px;height:20px;flex-shrink:0;accent-color:var(--accent);cursor:pointer}
+.check input{flex-shrink:0;accent-color:var(--accent);cursor:pointer}
 .actions{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 4px}
 
 /* ── Списки ─────────────────────────────────────────────────────── */
@@ -359,7 +365,7 @@ body:has(.sc-edit-dialog[open]){overflow:hidden}
 .catalog-card .info{min-width:0;flex:1;display:grid;gap:2px}
 .catalog-card .info b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .catalog-card .info small{color:var(--faint);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-input[type=file]::file-selector-button{font:inherit;font-size:13px;font-weight:600;color:var(--text);
+input[type=file]::file-selector-button{font:inherit;font-size:13px;font-weight:500;color:var(--text);
   background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-s);
   padding:6px 12px;margin-right:10px;cursor:pointer}
 input[type=file]::file-selector-button:hover{border-color:var(--accent-border);color:var(--accent-strong)}
@@ -1058,3 +1064,11 @@ label.srv-check input{flex:none;width:auto;height:auto;margin:0}
 .order-row[draggable="true"]{user-select:none}
 /* Первичный конфигуратор обязательных параметров — 400px без горизонтальной прокрутки */
 .configurator-dialog{width:min(400px,calc(100vw - 40px))}
+/* Настройки → Авторизация в сервисах: строки аккаунтов и колонок копилки.
+   Без flex-wrap: подпись сжимается (min-width:0) и переносится внутри себя —
+   «Удалить» всегда остаётся справа в своей строке, не уезжает на отдельную. */
+.sa-row{display:flex;align-items:center;gap:10px}
+.sa-row .sa-title{font-weight:500;overflow-wrap:anywhere}
+.sa-row .hint{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
+.sa-row .danger{flex-shrink:0;margin-left:auto}
+.sa-qr{display:block;width:220px;height:220px;margin:4px 0}

@@ -1,7 +1,8 @@
-"""«Подтянуть из аккаунта» (конфигуратор): клиент аккаунта Яндекса и импорт значений
-в каталог «Параметры» — против поддельного сервера Яндекса и фейковой записи журнала
-get_sync_info. Настоящий Яндекс не вызывается; в фикстурах фиктивные данные
-(серийник-плейсхолдер, московские координаты центра, test-* значения, секретов нет).
+"""«Подтянуть из аккаунта» (конфигуратор) и вход в Яндекс по QR (реестр «Авторизации
+в сервисах»): клиент аккаунта Яндекса и импорт значений в каталог «Параметры» —
+против поддельного сервера Яндекса и фейковой записи журнала get_sync_info.
+Настоящий Яндекс не вызывается; в фикстурах фиктивные данные (серийник-плейсхолдер,
+московские координаты центра, test-* значения, секретов нет).
 Секреты (x_token, glagol-ключи) наружу API не выходят — проверяется по ответам.
 """
 import http.cookies
@@ -42,6 +43,7 @@ class FakeYandex:
     def __init__(self):
         self.seen = []  # (path, заголовки интереса)
         self.exchanges = []  # формы /1/token (обмен x_token на токен сервиса)
+        self.magic_waiting = False  # QR: приложение ещё не подтвердило вход
 
     async def route(self, request):
         path = request.path
@@ -53,7 +55,8 @@ class FakeYandex:
         if path == "/pwl-yandex/api/passport/auth/magic/code":
             return web.json_response({"link": "https://passport.example/qr"})
         if path == "/pwl-yandex/api/passport/auth/magic/code/status":
-            return web.json_response({"state": "otp_auth_finished", "trackId": "track-2"})
+            return web.json_response({"state": "waiting" if self.magic_waiting else "otp_auth_finished",
+                                      "trackId": "track-2"})
         if path == "/pwl-yandex/api/passport/sessions/get_session":
             response = web.Response(text="")
             response.headers["Set-Cookie"] = "yandexuid=testuid; Domain=.yandex.ru; Path=/"
@@ -118,93 +121,117 @@ def headers_write():
     return {"X-Emulator": "1", "Content-Type": "application/json"}
 
 
-async def test_account_status_and_token_login(tmp_path, fake):
-    runtime = make_runtime(tmp_path)
-    app_runner_url = None  # API поднимается через create_app — как в surface-тесте
-    from server_emulator.server import create_app
-    from tests.conftest import listen
-    app = create_app(runtime=runtime)
-    runner, url = await listen(app)
-    try:
-        async with runtime.lifecycle.client_session().get(
-                f"{url}/emulator/api/account?user=u1") as response:
-            assert await response.json() == {"login": False, "login_name": None}
-        async with runtime.lifecycle.client_session().post(
-                f"{url}/emulator/api/account", headers=headers_write(),
-                json={"op": "login_token", "token": "test-x-token", "user": "u1"}) as response:
-            assert await response.json() == {"login": True, "login_name": "tester"}
-        stored = (runtime.directory / "account" / "sessions" / "u1.json").read_text(encoding="utf-8")
-        assert json.loads(stored)["x_token"] == "test-x-token"  # секрет в state/, не в ответе
-        assert json.loads(stored)["user_id"] == "u1"  # пользователь внутри файла — коллизии имён видны
-        async with runtime.lifecycle.client_session().post(
-                f"{url}/emulator/api/account", headers=headers_write(),
-                json={"op": "logout", "user": "u1"}) as response:
-            assert (await response.json())["login"] is False
-        assert not (runtime.directory / "account" / "sessions" / "u1.json").exists()
-    finally:
-        await runner.cleanup()
-        await runtime.close()
-
-
-async def test_account_api_requires_user(tmp_path, fake):
-    """Без user или с несуществующим id — 400 с понятным текстом (GET и POST)."""
+async def test_service_accounts_api_qr(tmp_path, fake):
+    """QR-вход через API реестра: ссылка от паспорта, подтверждение (cookies сессии) →
+    аккаунт «yandex» в реестре; секрет в state/service_accounts/, в ответах его нет."""
     runtime = make_runtime(tmp_path)
     from server_emulator.server import create_app
     from tests.conftest import listen
     runner, url = await listen(create_app(runtime=runtime))
     try:
         async with runtime.lifecycle.client_session().get(
-                f"{url}/emulator/api/account") as response:
-            assert response.status == 400
-            assert "user" in (await response.json())["error"]
-        async with runtime.lifecycle.client_session().get(
-                f"{url}/emulator/api/account?user=ghost") as response:
-            assert response.status == 400
-            assert "ghost" in (await response.json())["error"]
+                f"{url}/emulator/api/service-accounts") as response:
+            assert await response.json() == {"accounts": [], "columns": []}
         async with runtime.lifecycle.client_session().post(
-                f"{url}/emulator/api/account", headers=headers_write(),
-                json={"op": "logout"}) as response:
-            assert response.status == 400
-            assert "user" in (await response.json())["error"]
+                f"{url}/emulator/api/service-accounts", headers=headers_write(),
+                json={"op": "qr_start"}) as response:
+            started = await response.json()
+        assert started["link"] == "https://passport.example/qr"
+        assert started["qr"].startswith("data:image/png;base64,")  # QR — картинка в панели
+        assert any(path == "/pwl-yandex/api/passport/auth/magic/code" for path, _ in fake.seen)
+        # приложение ещё не подтвердило: waiting, сессия хранится до исхода
+        fake.magic_waiting = True
+        async with runtime.lifecycle.client_session().post(
+                f"{url}/emulator/api/service-accounts", headers=headers_write(),
+                json={"op": "qr_poll"}) as response:
+            assert (await response.json())["state"] == "waiting"
+        assert runtime.service_accounts._qr is not None  # вход не потерян после waiting
+        fake.magic_waiting = False
+        # get_session настоящего потока кладёт cookies паспорта (Domain=.yandex.ru) в jar;
+        # фейк с другим доменом — подкладываем тот же cookie с доменом паспорта:
+        passport_cookies = http.cookies.SimpleCookie()
+        passport_cookies["yandexuid"] = "testuid"
+        passport_cookies["yandexuid"]["domain"] = ".yandex.ru"
+        passport_cookies["Session_id"] = "test"
+        passport_cookies["Session_id"]["domain"] = ".yandex.ru"
+        runtime.service_accounts._qr._session().cookie_jar.update_cookies(
+            passport_cookies, response_url=yarl.URL("https://passport.yandex.ru/"))
+        async with runtime.lifecycle.client_session().post(
+                f"{url}/emulator/api/service-accounts", headers=headers_write(),
+                json={"op": "qr_poll"}) as response:
+            done = await response.json()
+        assert done["state"] == "done" and done["title"] == "tester" and done["default"] is True
+        accounts = runtime.service_accounts.list("yandex")
+        assert len(accounts) == 1 and accounts[0]["login"] is True
+        assert not (runtime.service_accounts.root / "_qr.json").exists()  # scratch удалён
+        stored = json.loads(runtime.service_accounts.secret_path(accounts[0]["id"]).read_text("utf-8"))
+        assert stored["x_token"] == "test-x-token"  # секрет в state/, не в ответе
+        # удаление аккаунта: запись и файл секретов уходят вместе
+        async with runtime.lifecycle.client_session().post(
+                f"{url}/emulator/api/service-accounts", headers=headers_write(),
+                json={"op": "remove", "id": accounts[0]["id"]}) as response:
+            assert await response.json() == {"ok": True}
+        assert runtime.service_accounts.list("yandex") == []
+        assert not runtime.service_accounts.secret_path(accounts[0]["id"]).exists()
     finally:
         await runner.cleanup()  # закрывает и runtime (create_app.on_cleanup)
 
 
-async def test_two_users_separate_sessions(tmp_path, fake):
-    """Два пользователя — два входа одновременно: разные x_token в разных файлах
-    sessions/, сессии не путаются; забытый вход первого не трогает второй."""
+async def test_service_accounts_ops_errors(tmp_path, fake):
+    """Незавершённый или неначатый QR, неизвестный аккаунт и неизвестный op — 400."""
     runtime = make_runtime(tmp_path)
-    runtime.identities.mutate({"operation": "user", "id": "u2", "name": "Тест 2"})
+    from server_emulator.server import create_app
+    from tests.conftest import listen
+    runner, url = await listen(create_app(runtime=runtime))
     try:
-        first = account.AccountSession(runtime, "u1")
-        second = account.AccountSession(runtime, "u2")
-        await first.login_token("test-x-token-1")
-        await second.login_token("test-x-token-2")
-        stored1 = json.loads((runtime.directory / "account" / "sessions" / "u1.json").read_text("utf-8"))
-        stored2 = json.loads((runtime.directory / "account" / "sessions" / "u2.json").read_text("utf-8"))
-        assert stored1["x_token"] == "test-x-token-1" and stored2["x_token"] == "test-x-token-2"
+        async with runtime.lifecycle.client_session().post(
+                f"{url}/emulator/api/service-accounts", headers=headers_write(),
+                json={"op": "qr_poll"}) as response:
+            assert response.status == 400 and "QR-вход не начат" in (await response.json())["error"]
+        async with runtime.lifecycle.client_session().post(
+                f"{url}/emulator/api/service-accounts", headers=headers_write(),
+                json={"op": "remove", "id": "yandex-ghost"}) as response:
+            assert response.status == 400 and "не найден" in (await response.json())["error"]
+        async with runtime.lifecycle.client_session().post(
+                f"{url}/emulator/api/service-accounts", headers=headers_write(),
+                json={"op": "unknown"}) as response:
+            assert response.status == 400 and "op:" in (await response.json())["error"]
+    finally:
+        await runner.cleanup()  # закрывает и runtime (create_app.on_cleanup)
+
+
+async def test_two_accounts_separate_sessions(tmp_path, fake):
+    """Два аккаунта Яндекса в реестре — два входа одновременно: разные x_token в
+    разных файлах секретов, сессии не путаются; удалённый аккаунт не трогает второй."""
+    runtime = make_runtime(tmp_path)
+    try:
+        r1 = runtime.service_accounts.add("yandex", {"x_token": "test-x-token-1",
+                                                     "display_login": "tester-1"})
+        r2 = runtime.service_accounts.add("yandex", {"x_token": "test-x-token-2",
+                                                     "display_login": "tester-2"})
+        first = account.AccountSession(runtime, runtime.service_accounts.secret_path(r1["id"]))
+        second = account.AccountSession(runtime, runtime.service_accounts.secret_path(r2["id"]))
+        assert first.path != second.path
+        assert first.load()["x_token"] == "test-x-token-1"
+        assert second.load()["x_token"] == "test-x-token-2"
         linked = account.linked_sessions(runtime)
-        assert [s.user_id for s in linked] == ["u1", "u2"]  # обе сессии, в порядке реестра
-        first.forget()
-        assert first.status()["login"] is False and second.status()["login"] is True
-        assert [s.user_id for s in account.linked_sessions(runtime)] == ["u2"]
+        assert [s.load()["x_token"] for s in linked] == ["test-x-token-1", "test-x-token-2"]  # порядок реестра
+        runtime.service_accounts.remove(r1["id"])
+        assert [s.load()["x_token"] for s in account.linked_sessions(runtime)] == ["test-x-token-2"]
+        assert second.status()["login"] is True
     finally:
         await runtime.close()
 
 
-async def test_login_cookies_raw_and_qr(tmp_path, fake):
+async def test_qr_flow_to_session_file(tmp_path, fake):
+    """QR-вход на уровне AccountSession: magic-код → подтверждение → cookies сессии
+    → x_token в файле сессии."""
     runtime = make_runtime(tmp_path)
-    session = account.AccountSession(runtime, "u1")
+    session = account.AccountSession(runtime, runtime.directory / "qr-test.json")
     try:
-        assert await session.login_cookies("yandexuid=testuid; Session_id=test") == \
-            {"login": True, "login_name": "tester"}
-        assert fake.seen[-1][0] == "/1/bundle/account/short_info/"
-        session.forget()
         link = await session.qr_start()
         assert link["link"] == "https://passport.example/qr"
-        assert any(path == "/pwl-yandex/api/passport/auth/magic/code" for path, _ in fake.seen)
-        # get_session настоящего потока кладёт cookies паспорта (Domain=.yandex.ru) в jar;
-        # фейк с другим доменом — подкладываем тот же cookie с доменом паспорта:
+        # cookies паспорта с доменом .yandex.ru — как от get_session настоящего потока
         passport_cookies = http.cookies.SimpleCookie()
         passport_cookies["yandexuid"] = "testuid"
         passport_cookies["yandexuid"]["domain"] = ".yandex.ru"
@@ -214,6 +241,8 @@ async def test_login_cookies_raw_and_qr(tmp_path, fake):
             passport_cookies, response_url=yarl.URL("https://passport.yandex.ru/"))
         result = await session.qr_poll()
         assert result["state"] == "done" and result["login"] is True  # cookies сессии → токен
+        assert session.load()["x_token"] == "test-x-token"  # секрет в файле сессии
+        assert fake.seen[-1][0] == "/1/bundle/account/short_info/"  # имя входа из short_info
     finally:
         await runtime.close()
 
@@ -272,8 +301,7 @@ async def test_import_from_get_sync_info_journal(tmp_path, fake):
 async def test_import_iot_after_login(tmp_path, fake):
     runtime = make_runtime(tmp_path)
     try:
-        session = account.AccountSession(runtime, "u1")
-        await session.login_token("test-x-token")
+        _logged_session(runtime)  # аккаунт в реестре — импорт идёт по всем сессиям реестра
         from server_emulator.server import create_app
         from tests.conftest import listen
         runner, url = await listen(create_app(runtime=runtime))
@@ -316,17 +344,17 @@ async def test_import_iot_without_login_is_400(tmp_path, fake):
 
 # --- токены сервисов из привязанного аккаунта -----------------------------------
 
-async def _logged_session(runtime, user_id="u1", x_token="test-x-token"):
-    """Сессия с выполненным входом (short_info по test-* токенам известен фикстуре)."""
-    session = account.AccountSession(runtime, user_id)
-    await session.login_token(x_token)
-    return session
+def _logged_session(runtime, x_token="test-x-token"):
+    """Аккаунт Яндекса в реестре с выполненным входом (short_info по test-* токенам
+    известен фикстуре); возвращает его сессию."""
+    record = runtime.service_accounts.add("yandex", {"x_token": x_token, "display_login": "tester"})
+    return account.AccountSession(runtime, runtime.service_accounts.secret_path(record["id"]))
 
 
 async def test_service_token_exchange_and_cache(tmp_path, fake):
     runtime = make_runtime(tmp_path)
     try:
-        session = await _logged_session(runtime)
+        session = _logged_session(runtime)
         token = await session.service_token("music")
         assert token == f"music-token-1-of-test-x-token"
         assert len(fake.exchanges) == 1
@@ -351,11 +379,11 @@ async def test_service_token_exchange_and_cache(tmp_path, fake):
 async def test_service_token_without_login_and_unknown_service(tmp_path, fake):
     runtime = make_runtime(tmp_path)
     try:
-        session = account.AccountSession(runtime, "u1")
+        session = account.AccountSession(runtime, runtime.directory / "empty.json")
         with pytest.raises(account.AccountError):
             await session.service_token("music")  # вход не выполнен
         assert fake.exchanges == []
-        logged = await _logged_session(runtime)
+        logged = _logged_session(runtime)
         with pytest.raises(account.AccountError):
             await logged.service_token("video")  # сервис не заведён
         assert fake.exchanges == []
@@ -366,13 +394,13 @@ async def test_service_token_without_login_and_unknown_service(tmp_path, fake):
 async def test_service_token_exchange_failure_keeps_cache(tmp_path, fake):
     runtime = make_runtime(tmp_path)
     try:
-        session = await _logged_session(runtime)
+        session = _logged_session(runtime)
         token = await session.service_token("music")
         # сессия с мёртвым x_token не обменяется: честная ошибка, кеш не тронут
-        # (другой файл сессии — свой у каждого пользователя)
-        dead = account.AccountSession(runtime, "u2")
-        dead.path.write_text(json.dumps({"user_id": "u2", "x_token": "dead-token",
-                                         "display_login": "tester"}), encoding="utf-8")
+        # (другой файл сессии — свой у каждого аккаунта)
+        dead = account.AccountSession(runtime, runtime.directory / "dead.json")
+        dead.path.write_text(json.dumps({"x_token": "dead-token", "display_login": "tester"}),
+                             encoding="utf-8")
         with pytest.raises(account.AccountError):
             await dead.service_token("music")
         assert len(fake.exchanges) == 2  # первая — удачный, вторая — 401 от Яндекса
@@ -384,7 +412,7 @@ async def test_service_token_exchange_failure_keeps_cache(tmp_path, fake):
 async def test_service_token_forget_drops_cache(tmp_path, fake):
     runtime = make_runtime(tmp_path)
     try:
-        session = await _logged_session(runtime)
+        session = _logged_session(runtime)
         await session.service_token("music")
         session.forget()
         assert not session.path.exists()
@@ -398,9 +426,8 @@ async def test_service_token_forget_drops_cache(tmp_path, fake):
 async def test_service_token_per_user(tmp_path, fake):
     runtime = make_runtime(tmp_path)
     try:
-        runtime.identities.mutate({"operation": "user", "id": "u2", "name": "Вторая"})
-        first = await _logged_session(runtime, "u1", "test-x-token-1")
-        second = await _logged_session(runtime, "u2", "test-x-token-2")
+        first = _logged_session(runtime, "test-x-token-1")
+        second = _logged_session(runtime, "test-x-token-2")
         token1 = await first.service_token("music")
         token2 = await second.service_token("music")
         assert token1.endswith("of-test-x-token-1") and token2.endswith("of-test-x-token-2")

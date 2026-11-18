@@ -3,14 +3,14 @@
 Авторизация и iot-API — по образцу Home Assistant-интеграции AlexxIT/YandexStation
 (MIT, https://github.com/AlexxIT/YandexStation, файлы core/yandex_session.py и
 core/yandex_quasar.py): QR-вход (pwl-yandex magic-код), обмен cookies на x_token
-(mobileproxy token_by_sessionid), проверка токена (short_info), вход по x_token
-(x_token → сессия), список устройств iot. Лицензия и происхождение —
-docs/LICENSE-NOTICE.md.
+(mobileproxy token_by_sessionid), проверка токена (short_info), список устройств iot.
+Лицензия и происхождение — docs/LICENSE-NOTICE.md.
 
-Секреты (x_token) живут в state/account/sessions/<пользователь>.json — вход свой у
-каждого пользователя, наружу API отдаёт только статус; там же кешируются токены
-сервисов (service_token — обмен x_token на oauth.mobile.yandex.net). В журналы и
-тексты ошибок значения не попадают. Пароля клиент не спрашивает и не хранит.
+Секреты (x_token) живут в файле сессии (state/service_accounts/<id>.json — путь задаёт
+ServiceAccounts, scratch QR-входа — временный _qr.json) — наружу API отдаёт только
+статус; там же кешируются токены сервисов (service_token — обмен x_token на
+oauth.mobile.yandex.net). В журналы и тексты ошибок значения не попадают. Пароля
+клиент не спрашивает и не хранит.
 
 Второй источник значений — журнал трафика (get_sync_info настоящего облака, ответы
 записаны при проходе наверх): то, что колонка уже сообщила аккаунту, — wifi_hash,
@@ -38,7 +38,7 @@ COOKIE_CLIENT_SECRET = "ad0a908f0aa341a182a37ecd75bc319e"
 # core/yandex_session.py::get_music_token; они же ссылаются на MarshalX/yandex-music-api;
 # происхождение — docs/LICENSE-NOTICE.md): обмен x_token на токен сервиса.
 SERVICE_CLIENTS = {"music": ("23cabbbdc6cd418abb4b39c32c41195d", "53bc75238f0c4d08a118e51fe9203300")}
-QR_POLL_TIMEOUT_S = 120
+QR_POLL_TIMEOUT_S = 300  # окно подтверждения QR в приложении Яндекса (панель показывает «ждём»)
 
 # Пути значений в ответе get_sync_info настоящего облака (журнал upstream).
 SYNC_WIFI_PATH = "/config/account_config/user_wifi_config/wifi_hash"
@@ -52,16 +52,12 @@ class AccountError(ValueError):
 
 
 class AccountSession:
-    """Состояние входа аккаунта одного пользователя: x_token в
-    state/account/sessions/<пользователь>.json, наружу — статус."""
+    """Состояние входа аккаунта: x_token в файле сессии (path — задаёт ServiceAccounts),
+    наружу — статус."""
 
-    def __init__(self, runtime, user_id):
+    def __init__(self, runtime, path):
         self.runtime = runtime
-        self.user_id = user_id
-        # в user_id допустим любой текст (не-ASCII, пробелы) — имя файла безопасное,
-        # сам user_id пишется в JSON: коллизии имён файлов видно по содержимому
-        name = re.sub(r"[^A-Za-z0-9_.-]", "_", user_id) or "_"
-        self.path = runtime.directory / "account" / "sessions" / f"{name}.json"
+        self.path = path
         self._qr = None  # csrf/track от начала QR-входа (в памяти, не на диск)
 
     def _session(self):
@@ -77,8 +73,7 @@ class AccountSession:
 
     def _save(self, x_token, display_login):
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(json.dumps({"user_id": self.user_id, "x_token": x_token,
-                                         "display_login": display_login},
+        self.path.write_text(json.dumps({"x_token": x_token, "display_login": display_login},
                                         ensure_ascii=False), encoding="utf-8")
 
     def forget(self):
@@ -139,38 +134,16 @@ class AccountSession:
         return {"login": bool(data), "login_name": data.get("display_login") or None}
 
     # --- вход ------------------------------------------------------------------
-    async def login_token(self, x_token):
-        """Вход готовым x_token: проверка short_info, токен — в state/."""
-        info = await self._validate_token(x_token)
-        self._save(x_token, info.get("display_login") or "")
-        return self.status()
-
-    async def login_cookies(self, cookies=""):
-        """Cookies → x_token (YandexStation login_cookies): строка «k=v; …», JSON
-        расширения Copy Cookies или пусто (cookies уже в сессии — после QR)."""
-        host = "passport.yandex.ru"
-        text = str(cookies or "").strip()
-        if not text:
-            jar = "; ".join(f"{c.key}={c.value}" for c in self._session().cookie_jar
-                            if c["domain"].endswith("yandex.ru"))
-            if not jar:
-                raise AccountError("Cookies в сессии нет — передайте строку cookies")
-            cookies, text = jar, jar
-        elif text[0] == "[":
-            try:
-                raw = json.loads(text)
-            except ValueError as exc:
-                raise AccountError("Cookies: не JSON") from exc
-            domains = [item for item in raw if str(item.get("domain", "")).startswith(".yandex.")]
-            if not domains:
-                raise AccountError("Cookies: нет домена .yandex.*")
-            host = domains[0]["domain"]
-            text = "; ".join(f"{p['name']}={p['value']}" for p in raw)
+    async def login_cookies(self):
+        """Cookies сессии → x_token (YandexStation login_cookies): после get_session
+        QR-входа cookies паспорта уже в jar сессии."""
+        jar = "; ".join(f"{c.key}={c.value}" for c in self._session().cookie_jar
+                        if c["domain"].endswith("yandex.ru"))
         try:
             async with self._session().post(
                     f"{MOBILEPROXY}/oauth/token_by_sessionid",
                     data={"client_id": COOKIE_CLIENT_ID, "client_secret": COOKIE_CLIENT_SECRET},
-                    headers={"Ya-Client-Host": host, "Ya-Client-Cookie": text},
+                    headers={"Ya-Client-Host": "passport.yandex.ru", "Ya-Client-Cookie": jar},
                     timeout=aiohttp.ClientTimeout(total=30)) as response:
                 body = await response.json()
         except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as exc:
@@ -192,6 +165,11 @@ class AccountSession:
         except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as exc:
             raise AccountError(f"Яндекс недоступен ({type(exc).__name__})") from exc
 
+    def qr_pending(self):
+        """QR-вход ещё ждёт подтверждения: трек начат и не исходил (после таймаута,
+        ошибки обмена или успешного завершения — False)."""
+        return self._qr is not None
+
     async def qr_start(self):
         """Начало QR-входа (YandexStation get_qr): страница pwl-yandex → CSRF →
         трек → ссылка QR-кода. Ссылка пользователь подтверждает в приложении Яндекса."""
@@ -202,7 +180,7 @@ class AccountSession:
                 page = await response.text()
             found = re.search(r'__CSRF__ = "([^"]+)', page)
             if not found:
-                raise AccountError("Страница входа без CSRF — попробуйте вход по cookies/token")
+                raise AccountError("Страница входа без CSRF — попробуйте позже")
             headers = {"X-CSRF-Token": found.group(1)}
             async with session.post(f"{PASSPORT}/pwl-yandex/api/passport/auth/password/submit",
                                     json={"retpath": f"{PASSPORT}/"}, headers=headers,
@@ -250,8 +228,8 @@ class AccountSession:
 
     # --- iot-API аккаунта ------------------------------------------------------
     async def _iot_headers(self):
-        """Сессия по x_token (YandexStation login_token) — cookies браузерной сессии;
-        для iot-запросов они нужны вместе с CSRF страницы iot."""
+        """Сессия по x_token (обмен на cookies браузерной сессии): для iot-запросов
+        они нужны вместе с CSRF страницы iot."""
         data = self.load()
         if not data:
             raise AccountError("Вход в аккаунт не выполнен")
@@ -374,11 +352,17 @@ async def import_sync_info(runtime):
 
 
 def linked_sessions(runtime):
-    """Сессии всех пользователей с выполненным входом (в порядке реестра):
+    """Сессии всех аккаунтов Яндекса реестра с выполненным входом (в порядке реестра):
     импорт «Подтянуть из аккаунта» идёт по каждой из них по очереди."""
-    return [AccountSession(runtime, user["id"])
-            for user in runtime.identities.data["users"]
-            if AccountSession(runtime, user["id"]).status()["login"]]
+    accounts = getattr(runtime, "service_accounts", None)
+    if accounts is None:
+        return []
+    sessions = []
+    for record in accounts.list("yandex"):
+        session = AccountSession(runtime, path=accounts.secret_path(record["id"]))
+        if session.status()["login"]:
+            sessions.append(session)
+    return sessions
 
 
 async def import_iot(runtime):

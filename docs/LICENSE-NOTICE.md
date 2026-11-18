@@ -17,14 +17,15 @@
   с заголовками `Ya-Client-Host`/`Ya-Client-Cookie`; публичные client_id/client_secret
   клиента Яндекса из того же файла.
 - Проверка токена (`validate_token`) — `1/bundle/account/short_info/`.
-- Вход по x_token в браузерную сессию (`login_token`) — `1/bundle/auth/x_token/`
-  → `{passport_host}/auth/session/?track_id` (без редиректов, `Location` с `/auth/finish`).
+- Сессия аккаунта для iot (`_iot_headers`, образец — сессия по x_token) —
+  `1/bundle/auth/x_token/` → `{passport_host}/auth/session/?track_id`
+  (без редиректов, `Location` с `/auth/finish`).
 - CSRF страницы iot и обращения к iot-API (`core/yandex_session.py: request`,
   `core/yandex_quasar.py`) — `yandex.ru/iot` (`csrfToken2`), заголовок `x-csrf-token`
   на изменяющих запросах, `iot.quasar.yandex.ru/m/v3/user/devices` (дом и устройства),
   `/m/v2/user/devices/<id>/configuration` (quasar_config колонки).
 
 Перенос адаптирован под проект: aiohttp вместо HA-обвязки, секреты — только в
-`state/account/`, ответы API — только статус, тексты ошибок без секретов.
+`state/service_accounts/`, ответы API — только статус, тексты ошибок без секретов.
 Лицензия MIT распространяется на перенесённые приёмы; текст лицензии
 YandexStation — по ссылке выше.

@@ -59,16 +59,13 @@
       });
       const paramsBtn = node('button', 'Параметры'); paramsBtn.type = 'button'; paramsBtn.className = 'secondary';
       paramsBtn.onclick = () => work(() => paramsDialog(user));
-      const yandex = node('button', 'Яндекс'); yandex.type = 'button'; yandex.className = 'secondary';
-      yandex.title = 'Вход в аккаунт Яндекса этого пользователя';
-      yandex.onclick = () => work(() => yandexDialog(user));
       // Кабинет пользователя (/me) в новой вкладке; с включённым входом — по токену, без логина
       const cabinet = node('button', 'Кабинет'); cabinet.type = 'button'; cabinet.className = 'secondary';
       cabinet.onclick = () => work(async () => {
         const link = await api('me_link', 'POST', { user: user.id });
         window.open(link.url, '_blank', 'noopener');
       });
-      actions.append(cabinet, paramsBtn, yandex, remove); row.append(actions);
+      actions.append(cabinet, paramsBtn, remove); row.append(actions);
       tbody.append(row);
     }
     if (!registry.users.length) {
@@ -310,71 +307,6 @@
         dialog.close(); dialog.remove();
       } catch (err) { errLine.hidden = false; errLine.textContent = err.message; }
     };
-    openDialog(dialog);
-  }
-
-  // ── Яндекс-аккаунт пользователя: статус, вход (токен / cookies / QR), выход ─────
-  // Секреты (x_token) остаются в state/ эмулятора; наружу — только имя входа.
-  function yandexDialog(user) {
-    const { dialog, form } = dialogFrame('Яндекс · ' + (user.name || user.id));
-    const body = node('div');
-    const errLine = errorLine(form);
-    form.append(body, errLine);
-    let poll = null;  // таймер опроса QR-подтверждения
-    const stopPoll = () => { if (poll) { clearInterval(poll); poll = null; } };
-    dialog.addEventListener('close', stopPoll);
-
-    const hint = text => { const p = node('p', text); p.className = 'hint'; return p; };
-    const render = () => work(async () => {
-      const status = await api('account?user=' + encodeURIComponent(user.id));
-      body.replaceChildren();
-      if (status.login) {
-        const forget = node('button', 'Забыть аккаунт'); forget.type = 'button'; forget.className = 'secondary danger';
-        forget.onclick = () => work(async () => {
-          await api('account', 'POST', { op: 'logout', user: user.id });
-          stopPoll(); await render(); message('Аккаунт забыт.');
-        });
-        const row = node('div'); row.className = 'row'; row.append(forget);
-        body.append(node('p', 'Аккаунт: ' + (status.login_name || 'вход выполнен')), row);
-        return;
-      }
-      const token = node('input'); token.placeholder = 'x_token аккаунта';
-      const tokenBtn = node('button', 'Войти по токену');
-      tokenBtn.type = 'button'; tokenBtn.className = 'secondary';
-      tokenBtn.onclick = () => work(async () => {
-        await api('account', 'POST', { op: 'login_token', token: token.value.trim(), user: user.id });
-        await render(); message('Вход выполнен.');
-      });
-      const cookies = node('textarea'); cookies.rows = 2;
-      cookies.placeholder = 'yandexuid=…; Session_id=… или JSON «Copy Cookies»';
-      const cookiesBtn = node('button', 'Войти по cookies');
-      cookiesBtn.type = 'button'; cookiesBtn.className = 'secondary';
-      cookiesBtn.onclick = () => work(async () => {
-        await api('account', 'POST', { op: 'login_cookies', cookies: cookies.value.trim(), user: user.id });
-        await render(); message('Вход выполнен.');
-      });
-      const qrBtn = node('button', 'Получить ссылку QR');
-      qrBtn.type = 'button'; qrBtn.className = 'secondary';
-      const qrLink = node('p');
-      qrBtn.onclick = () => work(async () => {
-        const {link} = await api('account', 'POST', { op: 'qr_start', user: user.id });
-        qrLink.replaceChildren(node('a', 'Подтвердите вход по ссылке'));
-        qrLink.firstChild.href = link;
-        qrLink.firstChild.target = '_blank';
-        qrLink.firstChild.rel = 'noopener';
-        stopPoll();
-        poll = setInterval(() => work(async () => {
-          const state = await api('account', 'POST', { op: 'qr_poll', user: user.id });
-          if (state.state === 'done') { stopPoll(); await render(); message('Вход выполнен.'); }
-        }).catch(() => {}), 2000);
-      });
-      body.append(hint('Вход не выполнен.'),
-                  hint('Вход по токену'), token, tokenBtn,
-                  hint('Вход по cookies'), cookies, cookiesBtn,
-                  hint('QR-вход: ссылка подтверждается в приложении Яндекса'),
-                  qrBtn, qrLink);
-    });
-    render();
     openDialog(dialog);
   }
 

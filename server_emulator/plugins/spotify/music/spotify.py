@@ -75,6 +75,7 @@ PROVIDER = {"id": "builtin.spotify", "title": "Spotify"}
 
 # URL сервисов — константы с возможностью подмены (тесты ставят локальный сервер)
 ACCOUNTS_URL = "https://accounts.spotify.com/api/token"
+PROFILE_URL = "https://api.spotify.com/v1/me"
 SEARCH_URL = "https://api.spotify.com/v1/search"
 TRACK_URL = "https://api.spotify.com/v1/tracks/"
 EMBED_URL = "https://open.spotify.com/embed/track/{}"
@@ -530,6 +531,17 @@ async def login_start(ctx, redirect_uri):
     return {"url": url, "state": state}
 
 
+async def _login_profile(access_token):
+    """Имя входа аккаунта Spotify (GET /me, display_name) — заголовок карточки
+    аккаунта в реестре «Авторизации в сервисах». Сбой сети имя не портит: будет
+    технический заголовок, вход всё равно состоялся."""
+    try:
+        profile = await _json(PROFILE_URL, headers={"Authorization": f"Bearer {access_token}"})
+    except SpotifyError:
+        return ""
+    return str(profile.get("display_name") or profile.get("email") or "")
+
+
 async def login_callback(ctx, params):
     """Обмен кода на токены (точка login): params — query-параметры колбэка. Заявку ищет
     по state (authlib дополнительно валидирует state против authorization_response).
@@ -565,7 +577,8 @@ async def login_callback(ctx, params):
     tokens = _tokens_of(token)
     if not tokens["access_token"]:
         return {"authorized": False, "error": "Spotify вернул пустой токен входа."}
-    return {"authorized": True, "tokens": tokens}
+    return {"authorized": True, "tokens": tokens,
+            "login": await _login_profile(tokens["access_token"])}
 
 
 async def login_status(ctx, tokens):

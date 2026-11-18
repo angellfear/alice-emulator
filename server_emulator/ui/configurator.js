@@ -1,12 +1,12 @@
 // Первичный конфигуратор обязательных параметров (<dialog>): список незаполненных
-// (GET api/params_required), поля ввода, сводка привязанных Яндекс-аккаунтов и
-// «Подтянуть из аккаунта Яндекса» — журнал get_sync_info (без входа) + iot-API по
-// всем входам пользователей сразу. Вход/выход — кнопка «Яндекс» у пользователя на
-// вкладке «Пользователи»; секреты остаются в state/, наружу только статус.
+// (GET api/params_required), поля ввода, сводка аккаунтов Яндекса реестра
+// «Авторизации в сервисах» и «Подтянуть из аккаунта Яндекса» — журнал get_sync_info
+// (без входа) + iot-API по всем аккаунтам реестра сразу. Секреты остаются в state/,
+// наружу только статусы.
 // Заполненное пишется в каталог «Параметры», закреплённые уведомления снимаются
 // следующей сборкой конфига сами.
 // Открытие — window.configuratorOpen(): из закреплённого уведомления и из «Параметров».
-// API — ui/api/account.py (account.py).
+// API — ui/api/account.py (account.py), сводка аккаунтов — api/service-accounts.
 (() => {
   const node = (tag, text, cls) => { const n = document.createElement(tag); if (text != null) n.textContent = text; if (cls) n.className = cls; return n; };
   const $ = id => document.getElementById(id);
@@ -50,22 +50,17 @@
     return required;
   }
 
-  // ── аккаунты Яндекса: сводка по всем пользователям ────────────────────────────
-  async function linkedCount() {
-    const {users} = await api('identities');
-    let linked = 0;
-    for (const user of users || []) {
-      const status = await api('account?user=' + encodeURIComponent(user.id)).catch(() => null);
-      if (status && status.login) linked++;
-    }
-    return {linked, total: (users || []).length};
+  // ── аккаунты Яндекса: сводка по реестру «Авторизации в сервисах» ──────────────
+  async function linkedYandex() {
+    const {accounts} = await api('service-accounts');
+    return (accounts || []).filter(a => a.service === 'yandex' && a.login).length;
   }
 
   async function renderAccountSummary() {
-    const {linked, total} = await linkedCount();
+    const linked = await linkedYandex();
     $('configurator-account-summary').textContent = linked
-      ? `Вход выполнен у ${linked} из ${total} пользователей; вход и выход — на вкладке «Пользователи».`
-      : 'Входа в Яндекс нет ни у одного пользователя — вход настраивается на вкладке «Пользователи». Импорт из журнала работает и без него.';
+      ? `Аккаунтов Яндекса в реестре: ${linked} (импорт по всем сразу); вход — в разделе «Настройки → Авторизация в сервисах».`
+      : 'Аккаунтов Яндекса нет — вход настраивается в разделе «Настройки → Авторизация в сервисах». Импорт из журнала работает и без него.';
   }
 
   async function importAccount() {
@@ -75,7 +70,7 @@
     const sync = await api('params_import', {source: 'get_sync_info'});
     parts.push('журнал get_sync_info: значений ' + sync.items.length +
                (sync.answers ? ' (ответов колонок: ' + sync.answers + ')' : ''));
-    const {linked} = await linkedCount();
+    const linked = await linkedYandex();
     if (linked) {
       const iot = await api('params_import', {source: 'iot'});
       parts.push('аккаунт: значений ' + iot.items.length);

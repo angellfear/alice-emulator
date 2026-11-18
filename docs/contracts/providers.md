@@ -173,13 +173,17 @@ Spotify не используются (пользовательский токе
   автообновлением истёкшего access через refresh_token; свежий набор возвращается в
   `tokens` для перезаписи).
 
-Хранение токенов — `state/`: meta `provider_login:<ext_id>` (JSON access/refresh/expires_at),
-запись и чтение — API-домен, плагин получает их аргументом. Наружу только статусы: GET
-`providers` — флаг `login` и `status.login_authorized` у поставщика. API входа:
+Хранение токенов — реестр «Авторизация в сервисах» (`docs/contracts/service-accounts.md`):
+аккаунт сервиса поставщика (Spotify — `spotify`; повторный вход с тем же логином обновляет
+запись, свежий набор после refresh — перезапись основного), плагин получает токены
+аргументом точки `login_status`. Старый meta `provider_login:<ext_id>` переезжает в реестр
+лениво при первом чтении статуса. Наружу только статусы: GET `providers` — флаг `login` и
+`status.login_authorized` у поставщика. API входа:
 `POST /emulator/api/providers_login {kind, id, action: "start"|"status"}` (`start` → `{url}`;
 `status` → `{authorized, expires_in?}`) и `GET /emulator/api/providers_login_callback?…` —
 цель redirect (браузер после страницы входа, без заголовка X-Emulator; отвечает
-страницей-статусом). Тесты — `tests/test_provider_login.py` (подделка токен-эндпойнта).
+страницей-статусом). Тесты — `tests/test_provider_login.py` (подделка токен-эндпойнта
+и профиля).
 
 ## API
 
@@ -188,7 +192,7 @@ Spotify не используются (пользовательский токе
 | GET | `/emulator/api/providers` | `{kinds: {<вид>: {title, selected, providers: [{id, title, extension, origin, enabled, login, status}]}}}` — только виды, у которых есть поставщики; `origin` — `builtin` или `extension`; `login` — у поставщика есть точки входа (кнопка в UI); `status` — у Яндекс.Музыки `oauth_captured`, у поставщиков с входом `login_authorized` (сам токен не выводится) |
 | PUT | `/emulator/api/providers` | `{kind, id}` — выбор активного; `id: ""` — авто. Сохраняется только ключ `settings["providers"][kind]` (как у intelligence); неизвестный вид или выключенный/неизвестный id — 400 |
 | POST | `/emulator/api/providers_login` | `{kind, id, action}` — `start` → `{url}` страницы входа (redirect — loopback из Host; поставщик без client_id — 502 с текстом), `status` → `{authorized, expires_in?}`; поставщик без точек login — 400 |
-| GET | `/emulator/api/providers_login_callback?…` | цель redirect входа (браузер после страницы входа, без X-Emulator): обмен кода на токены (в meta state/) и страница-статус; неизвестный state или отказ сервиса — страница ошибки |
+| GET | `/emulator/api/providers_login_callback?…` | цель redirect входа (браузер после страницы входа, без X-Emulator): обмен кода на токены (в реестр сервисных аккаунтов) и страница-статус; неизвестный state или отказ сервиса — страница ошибки |
 
 ## UI
 
@@ -197,9 +201,9 @@ Spotify не используются (пользовательский токе
 Одна вкладка-шаблон на любой вид (`providers.js`): секция `#providers-<вид>`
 создаётся динамически. Радио-список «Авто — первый включённый» + поставщики
 (встроенные — с пометкой; Яндекс Музыка — статус захвата токена аккаунта; поставщики
-с точками login — кнопка «Войти в <название>» со статусом «вход выполнен / ещё не
-выполнен», клик ведёт на страницу входа сервиса; одно пояснение на раздел — условия
-Dashboard сервиса и требование входа в панель по `http://127.0.0.1:<порт>`). Настройки
+с точками login — кнопка-редирект «Войти в <название>» со статусом «аккаунт подключён /
+ещё не выполнен», ведёт в «Настройки → Авторизация в сервисах»: сам вход и
+мультиаккаунт живут там). Настройки
 выбранного поставщика — готовая форма вкладки «Расширений»
 (`window.extensionSettingsBlock`), сохранение — `POST api/extensions {op: "set"}`.
 

@@ -150,7 +150,9 @@ class Runtime:
         self.store = StateStore(self.directory / "emulator.sqlite3")
         self.store.on_scenario_data = self._scenario_data_changed  # справочник фраз: lists_from
         from . import music
-        music.load_token(self.store)  # захваченный OAuth аккаунта — из БД в кеш поставщика
+        music.load_token(self.store)  # захваченные OAuth токены колонок — из БД в кеш поставщика
+        from . import service_accounts
+        self.service_accounts = service_accounts.ServiceAccounts(self)  # «Авторизация в сервисах»
         # (DEBT-01): дефолты, миграции, валидация и сохранение настроек —
         # в settings_service.SettingsService; runtime держит текущий dict и оркестрацию.
         self.settings_service = SettingsService(self.store, self.directory)
@@ -1367,9 +1369,9 @@ class Runtime:
         if oauth_header and header_device_id:
             device = self.identities.resolve(header_device_id)
             if device and device.get('sn'):
-                # OAuth аккаунта из WS-handshake: только от опознанной колонки — в БД для поставщика
+                # OAuth аккаунта из WS-handshake: только от опознанной колонки — копилка по SN для поставщика
                 from . import music
-                music.note_token(self, oauth_header)
+                music.note_token(self, oauth_header, sn=device['sn'], ip=request.remote)
         ws = web.WebSocketResponse(max_msg_size=16 * 1024**2, heartbeat=30)
         await ws.prepare(request)
         if not schemas_ready():  # протокол ещё не извлечён из APK станции
@@ -1532,7 +1534,7 @@ def mount_ui(app, runtime, prefix="/emulator"):
 
     # Каталог картинок устройств (модель по SN): только существующие
     # PNG/WebP из каталога картинок (device_images.images_dir) — путь проверяется на выход за пределы папки.
-    ASSETS = ("index.html", "toast.js", "theme.js", "ws.js", "templates.js", "app.js", "style.css", "users.js", "backend.js", "updates.js", "catalog.js", "replies.js", "animations.js", "endpoints.js", "misses.js", "endpoints.css", "devices_common.js", "device_cards.js", "mcp.js", "agent.js", "memory.js", "routines.js", "scenario_drafts.js", "params.js", "voice_stack.js", "voice_stack_local.js", "live_status.js", "sound_cache.js", "extensions.js", "setup.js", "server_config.js", "server_log.js", "smart_home.js", "traffic.js", "providers.js", "configurator.js")
+    ASSETS = ("index.html", "toast.js", "theme.js", "ws.js", "templates.js", "app.js", "style.css", "users.js", "backend.js", "updates.js", "catalog.js", "replies.js", "animations.js", "endpoints.js", "misses.js", "endpoints.css", "devices_common.js", "device_cards.js", "mcp.js", "agent.js", "memory.js", "routines.js", "scenario_drafts.js", "params.js", "voice_stack.js", "voice_stack_local.js", "live_status.js", "sound_cache.js", "extensions.js", "setup.js", "server_config.js", "server_log.js", "smart_home.js", "traffic.js", "providers.js", "service_accounts.js", "configurator.js")
     GENERIC_IMAGES = ROOT / "ui" / "img" / "generic"
     VENDOR = ROOT / "ui" / "vendor"
 

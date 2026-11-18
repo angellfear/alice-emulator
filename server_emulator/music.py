@@ -92,32 +92,71 @@ YANDEX_PROVIDER_ID = "yandex-music"
 # имена из enum Alice.Music.MusicProvider для карт меты и поля Entities.MusicProvider:
 PROVIDER_KEYS = {YANDEX_PROVIDER_ID: "MUSIC_PROVIDER_YANDEX_MUSIC"}
 
-# OAuth-токен аккаунта, захваченный из реальных обращений колонки к Яндексу:
-# заголовок Authorization: OAuth … (HTTP к quasar и др.) или X-UPRX-OAUTH-TOKEN (WS-handshake).
-# Запасной источник для поставщика Яндекс.Музыки (основной — токен владельца из
-# привязанного аккаунта), персистентность — StateStore meta.
+# OAuth-токены аккаунтов, захваченные из реальных обращений колонок к Яндексу:
+# заголовок Authorization: OAuth … (HTTP к quasar и др.) или X-UPRX-OAUTH-TOKEN
+# (WS-handshake). Колонки могут быть разных пользователей — токены собираются по
+# SN каждой ("oauth" — последний захваченный, запасной источник для колонки,
+# чей токен ещё не встречался). Персистентность — StateStore meta.
 _CAPTURED = {}
+_CAPT_DETAILS = {}  # sn → {"ts", "ip"} — когда и откуда захвачен токен (meta + память)
 
 
-def note_token(runtime, token):
-    """Захват OAuth-токена аккаунта из реального запроса колонки к Яндексу: кеш для
-    поставщиков музыки + персистентность в БД состояния (meta yandex_oauth). Токен
-    в журнал/лог не пишется; вызывается до маскирования журналом."""
+def note_token(runtime, token, sn=None, ip=None):
+    """Захват OAuth-токена из реального запроса колонки: копилка по SN (токены
+    колонок разные, ip — адрес колонки из запроса) + meta yandex_oauth_columns в БД
+    состояния; "oauth" — последний захваченный (запасной для колонки без своего
+    токена). Токен в журнал/лог не пишется; вызывается до маскирования журналом."""
     token = str(token or "").strip()
     if not _is_oauth(token):
         return False
-    known = _CAPTURED.get("oauth")
-    if known == token:
+    changed = False
+    if sn and _CAPTURED.get(sn) != token:
+        _CAPTURED[sn] = token
+        changed = True
+    if _CAPTURED.get("oauth") != token:
+        _CAPTURED["oauth"] = token
+        changed = True
+    if not changed:
         return True
-    _CAPTURED["oauth"] = token
+    if sn:
+        _CAPT_DETAILS[sn] = {"ts": time.time(), "ip": str(ip or "")}
+    _persist(runtime)
+    return True
+
+
+def forget_token(runtime, sn):
+    """Удаление захваченного токена колонки (панель «Авторизация в сервисах»):
+    из копилки уходят и запись по SN, и запасной, если это тот же токен. Неизвестный
+    SN — ошибка (честный отказ панели). Колонка принесёт токен снова при следующем
+    обращении к Яндексу."""
+    sn = str(sn or "")
+    token = _CAPTURED.pop(sn, None)
+    if token is None:
+        raise ValueError("Токен этой колонки не захвачен")
+    _CAPT_DETAILS.pop(sn, None)
+    if _CAPTURED.get("oauth") == token:
+        _CAPTURED.pop("oauth", None)
+    _persist(runtime)
+    return True
+
+
+def _persist(runtime):
+    """Копилка в БД состояния: meta yandex_oauth_columns (по SN, с деталями захвата)
+    и запасной yandex_oauth; сбой хранения не влияет на запрос колонки."""
     try:
         store = getattr(runtime, "store", None)
-        if store is not None:
-            store.set_meta("yandex_oauth", json.dumps(
-                {"token": token, "ts": time.time()}, ensure_ascii=False))
+        if store is None:
+            return
+        store.set_meta("yandex_oauth_columns", json.dumps(
+            {sn: {"token": _CAPTURED[sn],
+                  "ts": (_CAPT_DETAILS.get(sn) or {}).get("ts") or time.time(),
+                  "ip": (_CAPT_DETAILS.get(sn) or {}).get("ip") or ""}
+             for sn in _CAPTURED if sn != "oauth"}, ensure_ascii=False))
+        oauth = _CAPTURED.get("oauth")
+        store.set_meta("yandex_oauth", json.dumps({"token": oauth, "ts": time.time()},
+                                                  ensure_ascii=False) if oauth else "")
     except Exception:
         pass  # сбой хранения не влияет на запрос колонки
-    return True
 
 
 def _is_oauth(token):
@@ -126,16 +165,44 @@ def _is_oauth(token):
     return bool(re.fullmatch(r"[\x21-\x7e]{20,}", token))
 
 
-def captured_oauth():
-    """Захваченный OAuth-токен аккаунта (кеш) или пусто — поставщик Яндекс.Музыки."""
+def captured_oauth(sn=None):
+    """Токен колонки sn из копилки (свой — приоритет), без SN или без своего —
+    последний захваченный. Пусто — колонка ещё не обращалась к Яндексу."""
+    if sn and _CAPTURED.get(sn):
+        return str(_CAPTURED[sn])
     return str(_CAPTURED.get("oauth") or "")
 
 
+def captured_columns():
+    """SN колонок, чьи токены лежат в копилке (без значений токенов)."""
+    return sorted(key for key in _CAPTURED if key != "oauth")
+
+
+def captured_column_details():
+    """Детали захвата по каждой колонке копилки: [{sn, ts, ip}] — для панели
+    «Авторизация в сервисах» (токены наружу не идут; платформа добирает API из
+    реестра устройств)."""
+    return [{"sn": sn,
+             "ts": (_CAPT_DETAILS.get(sn) or {}).get("ts"),
+             "ip": (_CAPT_DETAILS.get(sn) or {}).get("ip") or ""}
+            for sn in captured_columns()]
+
+
 def load_token(store):
-    """Гидратация кеша из БД состояния (meta yandex_oauth) — старт сервера: захваченный
-    раньше токен доступен поставщику до первого нового обращения колонки."""
+    """Гидратация копилки из БД состояния (meta yandex_oauth_columns и запасной
+    yandex_oauth) — старт сервера: захваченные раньше токены доступны поставщику
+    до первого нового обращения колонок."""
     if store is None:
         return
+    try:
+        columns = json.loads(store.meta("yandex_oauth_columns") or "{}")
+        for sn, item in columns.items():
+            token = str((item or {}).get("token") or "")
+            if sn != "oauth" and _is_oauth(token):
+                _CAPTURED[sn] = token
+                _CAPT_DETAILS[sn] = {"ts": item.get("ts"), "ip": str(item.get("ip") or "")}
+    except (ValueError, AttributeError):
+        pass
     raw = store.meta("yandex_oauth")
     if not raw:
         _CAPTURED.pop("oauth", None)  # пустая БД (другой Runtime) — чужой токен из кеша убрать
@@ -201,8 +268,8 @@ class _WithSystemValues:
 
 def extension_context(ctx, provider, token=None):
     """ExtensionContext расширения-поставщика на этот вызов (настройки свежие) или None.
-    token — OAuth-токен аккаунта для поставщика Яндекс.Музыки (токен владельца колонки
-    из привязанного аккаунта или захваченный из трафика; пусто — не передавать)."""
+    token — OAuth-токен аккаунта для поставщика Яндекс.Музыки (токен этой колонки из
+    копилки или из основного аккаунта реестра; пусто — не передавать)."""
     runtime = ctx._services_runtime()
     manager = getattr(runtime, "extensions", None)
     build = getattr(manager, "context", None)
@@ -215,35 +282,54 @@ def extension_context(ctx, provider, token=None):
 
 
 async def _oauth_token(ctx, provider):
-    """(токен, обновить) для поставщика: у Яндекс.Музыки — токен аккаунта владельца
-    колонки из привязанной сессии (account.AccountSession.service_token), иначе
-    захваченный из трафика. refresh — обмен заново мимо кеша (сервис ответил 401);
-    сессии нет или обмен не удался — пустой токен, чужой захваченный подменять нельзя.
-    Остальным поставщикам — (None, None)."""
+    """(токен, обновить) для поставщика: у Яндекс.Музыки — токен своей колонки из
+    копилки (выхватили — используем его), нет своего — последний захваченный, и
+    только затем токен сервиса основного QR-аккаунта реестра «Авторизации в
+    сервисах» (обмен x_token на oauth.mobile.yandex.net). refresh — сервис ответил
+    401: реестр обменивает x_token заново мимо кеша; у захваченного токена своего
+    обновления нет — колонка принесёт новый сама. Остальным поставщикам — (None, None)."""
     if not is_yandex_music(provider):
         return None, None
-    captured = _CAPTURED.get("oauth")
-    user = getattr(ctx, "user", None) or {}
-    user_id = str((user or {}).get("id") or "").strip()
-    if not user_id:
-        return str(captured or ""), None
-    from . import account
-    session = account.AccountSession(ctx._services_runtime(), user_id)
-    if not session.status()["login"]:
-        return str(captured or ""), None
+    runtime = ctx._services_runtime()
+    captured = captured_oauth(getattr(ctx, "sn", None))
+    if captured:
+        async def refresh():
+            try:
+                return await _registry_service_token(runtime, refresh=True)
+            except Exception:  # noqa: BLE001 — запасной источник недоступен, честный отказ
+                return ""
+        return captured, refresh
 
     async def refresh():
         try:
-            return await session.service_token("music", refresh=True)
-        except account.AccountError as exc:  # обмен не удался — пустой токен, честный отказ
-            logging.getLogger(__name__).warning("Токен сервиса аккаунта %s: %s", user_id, exc)
+            return await _registry_service_token(runtime, refresh=True)
+        except Exception:  # noqa: BLE001 — обмен не удался, честный отказ
             return ""
 
     try:
-        return await session.service_token("music"), refresh
-    except account.AccountError as exc:
-        logging.getLogger(__name__).warning("Токен сервиса аккаунта %s: %s", user_id, exc)
+        return await _registry_service_token(runtime), refresh
+    except Exception:  # noqa: BLE001 — реестр недоступен: пустой токен
+        logging.getLogger(__name__).warning("Токен музыки из реестра не получен")
         return "", None
+
+
+async def _registry_service_token(runtime, refresh=False):
+    """Токен сервиса «music» из основного QR-аккаунта Яндекса реестра: обмен x_token
+    на oauth.mobile.yandex.net (account.AccountSession.service_token). Входа нет или
+    обмен не удался — пусто (честный отказ поставщику, без секретов)."""
+    accounts = getattr(runtime, "service_accounts", None)
+    record = accounts.default("yandex") if accounts else None
+    if record is None:
+        return ""
+    from . import account
+    session = account.AccountSession(runtime, path=accounts.secret_path(record["id"]))
+    if not session.status()["login"]:
+        return ""
+    try:
+        return await session.service_token("music", refresh=refresh)
+    except account.AccountError as exc:
+        logging.getLogger(__name__).warning("Токен музыки аккаунта «%s»: %s", record["title"], exc)
+        return ""
 
 
 async def invoke(ctx, provider, function, *args):

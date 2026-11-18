@@ -44,7 +44,7 @@ const GROUPS=[
   {title:'Поставщики данных',tabs:[]},
   {title:'Голос',tabs:[['voice-stack','Голосовой стек'],['replies','Звуковой кеш']]},
   {title:'Интеллект',tabs:[['intelligence','Режим',null,'hidden'],['llm','Модель','model'],['agent','Агент','agent'],['mcp','MCP','agent'],['memory','Память','agent'],['routines','Задания','agent']]},
-  {title:'Дополнительно',tabs:[['extensions','Расширения'],['server','Сервер'],['server-log','Лог'],['setup','Настройка'],['studio','Проверка']]}];
+  {title:'Настройки',tabs:[['service-accounts','Авторизация в сервисах'],['extensions','Расширения'],['server','Сервер'],['server-log','Лог'],['setup','Настройка'],['studio','Проверка']]}];
 const level=()=>LEVELS.includes(settings?.intelligence)?settings.intelligence:'agent';
 const allowed=([,,min])=>!min||LEVELS.indexOf(level())>=LEVELS.indexOf(min);
 const listed=t=>allowed(t)&&t[3]!=='hidden';  // в подвкладках; скрытая — запасная страница группы

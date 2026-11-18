@@ -1267,9 +1267,9 @@ async def test_tracks_without_stream_stay_in_queue(tmp_path):
     assert music.normalize_track({"id": "a", "title": "А"}) is None  # воспроизведение — только со ссылкой
 
 
-# --- токен Яндекс.Музыки владельца колонки (service=yandex-music) ---------------
+# --- токен Яндекс.Музыки: колонка → запасной → QR-аккаунт реестра ---------------
 
-async def _link_exchange(monkeypatch, tokens):
+async def _registry_exchange(monkeypatch, tokens):
     """Подменный oauth.mobile.yandex.net/1/token: обмен x_token → токен сервиса
     (tokens — выдача по порядку обменов); x_token=dead-token — 401 (мёртвый токен)."""
     from server_emulator import account
@@ -1293,17 +1293,9 @@ async def _link_exchange(monkeypatch, tokens):
     return runner
 
 
-def _link_owner(runtime, user_id="u1", x_token="test-x-token"):
-    """Колонка SN-M за владельцем user_id и привязанный аккаунт (сессия с x_token)."""
-    from server_emulator import account
-    runtime.identities.mutate({"operation": "user", "id": user_id, "name": "Хозяин"})
-    runtime.identities.mutate({"operation": "device", "sn": "SN-M", "user_id": user_id,
-                               "device_ids": ["id-1"]})
-    session = account.AccountSession(runtime, user_id)
-    session.path.parent.mkdir(parents=True, exist_ok=True)
-    session.path.write_text(json.dumps({"user_id": user_id, "x_token": x_token,
-                                        "display_login": "tester"}), encoding="utf-8")
-    return session
+def _registry_account(runtime, x_token="test-x-token"):
+    """QR-аккаунт Яндекса в реестре с выполненным входом (x_token в файле секретов)."""
+    return runtime.service_accounts.add("yandex", {"x_token": x_token, "display_login": "tester"})
 
 
 def _token_provider_runtime(tmp_path, marker):
@@ -1314,13 +1306,13 @@ def _token_provider_runtime(tmp_path, marker):
     return runtime
 
 
-async def test_yandex_music_token_of_linked_owner(tmp_path, monkeypatch):
-    """Владелец привязал аккаунт — поставщик получает токен его аккаунта (обмен x_token)."""
-    runner = await _link_exchange(monkeypatch, ["owner-token-music"])
+async def test_yandex_music_token_of_registry_account(tmp_path, monkeypatch):
+    """QR-аккаунт в реестре — поставщик получает токен его аккаунта (обмен x_token)."""
+    runner = await _registry_exchange(monkeypatch, ["owner-token-music"])
     marker = tmp_path / "marker.json"
     runtime = _token_provider_runtime(tmp_path, marker)
     try:
-        _link_owner(runtime, "u1")
+        _registry_account(runtime)
         report = await say(runtime, "включи музыку")
         assert report["handled"], report
         calls = json.loads(marker.read_text(encoding="utf-8"))
@@ -1330,8 +1322,43 @@ async def test_yandex_music_token_of_linked_owner(tmp_path, monkeypatch):
         await runtime.close()
 
 
+async def test_yandex_music_token_captured_used_first(tmp_path, monkeypatch):
+    """Токен, выхваченный из трафика колонки, приоритетнее аккаунта реестра:
+    реестр не опрашивается (обменов нет), поставщик видит захваченный."""
+    runner = await _registry_exchange(monkeypatch, [])
+    marker = tmp_path / "marker.json"
+    runtime = _token_provider_runtime(tmp_path, marker)
+    try:
+        _registry_account(runtime, x_token="dead-token")
+        music.note_token(runtime, "y0_" + "c" * 30)
+        report = await say(runtime, "включи музыку")
+        assert report["handled"], report
+        calls = json.loads(marker.read_text(encoding="utf-8"))
+        assert calls[0] == ["search", "y0_" + "c" * 30]
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
+async def test_yandex_music_token_without_any_source_is_empty(tmp_path, monkeypatch):
+    """Ни токена колонки, ни живого QR-аккаунта (мёртвый x_token) — пустой токен:
+    честный отказ поставщику, чужих токенов не подставляем."""
+    runner = await _registry_exchange(monkeypatch, [])
+    marker = tmp_path / "marker.json"
+    runtime = _token_provider_runtime(tmp_path, marker)
+    try:
+        _registry_account(runtime, x_token="dead-token")
+        report = await say(runtime, "включи музыку")
+        assert report["handled"], report
+        calls = json.loads(marker.read_text(encoding="utf-8"))
+        assert calls[0] == ["search", ""]
+    finally:
+        await runner.cleanup()
+        await runtime.close()
+
+
 async def test_yandex_music_token_unlinked_uses_captured(tmp_path, monkeypatch):
-    """Без привязки — как раньше: захваченный из трафика токен."""
+    """Без QR-аккаунта в реестре — захваченный из трафика токен."""
     marker = tmp_path / "marker.json"
     runtime = _token_provider_runtime(tmp_path, marker)
     try:
@@ -1347,34 +1374,16 @@ async def test_yandex_music_token_unlinked_uses_captured(tmp_path, monkeypatch):
 async def test_yandex_music_retry_on_token_expired(tmp_path, monkeypatch):
     """Сервис ответил 401 (token_expired) — ядро обменивает токен заново и повторяет
     вызов: второй вызов видит свежий токен."""
-    runner = await _link_exchange(monkeypatch, ["stale-token", "fresh-token"])
+    runner = await _registry_exchange(monkeypatch, ["stale-token", "fresh-token"])
     marker = tmp_path / "marker.json"
     runtime = _token_provider_runtime(tmp_path, marker)
     try:
-        _link_owner(runtime, "u1")
+        _registry_account(runtime)
         report = await say(runtime, "включи музыку expired")
         assert report["handled"], report
         calls = json.loads(marker.read_text(encoding="utf-8"))
         searches = [c for c in calls if c[0] == "search"]
         assert searches == [["search", "stale-token", "token_expired"], ["search", "fresh-token"]]
-    finally:
-        await runner.cleanup()
-        await runtime.close()
-
-
-async def test_yandex_music_token_isolated_per_owner(tmp_path, monkeypatch):
-    """Привязанный владелец с мёртвым x_token: обмен не удался — пустой токен
-    (честный отказ поставщика), чужой захваченный подменять нельзя."""
-    runner = await _link_exchange(monkeypatch, [])
-    marker = tmp_path / "marker.json"
-    runtime = _token_provider_runtime(tmp_path, marker)
-    try:
-        _link_owner(runtime, "u1", x_token="dead-token")
-        music.note_token(runtime, "y0_" + "c" * 30)  # чужой захваченный в кеше
-        report = await say(runtime, "включи музыку")
-        assert report["handled"], report
-        calls = json.loads(marker.read_text(encoding="utf-8"))
-        assert calls[0] == ["search", ""]
     finally:
         await runner.cleanup()
         await runtime.close()

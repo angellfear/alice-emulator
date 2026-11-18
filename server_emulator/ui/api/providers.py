@@ -12,8 +12,9 @@ intelligence: полная копия настроек откатывала бы
 только у объявивших): POST start возвращает URL страницы входа (redirect — loopback
 из Host запроса; Spotify разрешает любой порт для http://127.0.0.1), GET callback —
 цель redirect из браузера (без X-Emulator: браузер после Spotify): код меняется на
-токены, они сохраняются в meta state/ (ключ provider_login:<ext_id>) и наружу не идут —
-браузеру и GET отдают только статус.
+токены, они сохраняются в реестре «Авторизации в сервисах» (service_accounts,
+аккаунт «spotify», основной) и наружу не идут — браузеру и GET отдают только статус.
+Старый meta provider_login:<ext_id> переезжает в реестр при первом чтении статуса.
 """
 import copy
 import json
@@ -54,27 +55,19 @@ def _login_context(runtime, record):
     return runtime.extensions.context(record["ext_id"])
 
 
-def _login_meta(runtime, record):
-    """Сохранённые токены входа из meta state/ (JSON) или None — наружу не отдаются."""
-    raw = runtime.store.meta(LOGIN_META_PREFIX + str(record["ext_id"]))
-    if not raw:
-        return None
-    try:
-        data = json.loads(raw)
-    except ValueError:
-        return None
-    return data if isinstance(data, dict) else None
-
-
 def _login_tokens(runtime, record):
-    """Сохранённые токены входа (для точек login поставщика) или None."""
-    return _login_meta(runtime, record)
+    """Токены входа поставщика: основной аккаунт «spotify» реестра «Авторизации в
+    сервисах»; старый meta provider_login:<ext_id> переезжает в реестр при первом
+    чтении (расширения к старту сервера не загружены — перенос ленивый). Наружу
+    значения не отдаются."""
+    return runtime.service_accounts.migrate_plugin_login(
+        LOGIN_META_PREFIX + str(record["ext_id"]), "spotify")
 
 
-def _save_login_tokens(runtime, record, tokens):
-    """Токены входа → meta state/ (не в логи и не в ответы API)."""
-    runtime.store.set_meta(LOGIN_META_PREFIX + str(record["ext_id"]),
-                           json.dumps(tokens, ensure_ascii=False))
+def _save_login_tokens(runtime, record, tokens, title=None):
+    """Токены входа → аккаунт «spotify» реестра (повторный вход тем же логином
+    обновляет запись, без логина — перезапись основного); не в логи и не в ответы API."""
+    runtime.service_accounts.save_login("spotify", tokens, title=title or None)
 
 
 def _record(runtime, kind, pid):
@@ -109,7 +102,7 @@ async def providers_login(request, runtime, app):
             tokens = _login_tokens(runtime, record)
             result = await record["login"]["login_status"](_login_context(runtime, record), tokens)
             if result.get("tokens"):
-                _save_login_tokens(runtime, record, result["tokens"])
+                _save_login_tokens(runtime, record, result["tokens"], title=result.get("login"))
             return web.json_response({"authorized": bool(result.get("authorized")),
                                       "expires_in": result.get("expires_in"),
                                       "error": result.get("error")})
@@ -138,7 +131,7 @@ async def providers_login_callback(request, runtime, app):
         return web.Response(status=400, content_type="text/html",
                             text=LOGIN_CALLBACK_PAGE.format("Вход не удался: " + str(exc)[:200]))
     if result.get("tokens"):
-        _save_login_tokens(runtime, record, result["tokens"])
+        _save_login_tokens(runtime, record, result["tokens"], title=result.get("login"))
     ok = bool(result.get("authorized"))
     text = ("Вход в «" + str(record.get("title") or pid) + "» выполнен." if ok
             else "Вход не удался: " + str(result.get("error") or "неизвестная ошибка"))

@@ -76,5 +76,5 @@ def guarded(handler):
 
 from . import (account, actions, agent_ops, animations, catalog, endpoints, extensions, identities,  # noqa: E402,F401  (регистрация доменов)
                live, me, misses, mcp, memory, params_api, providers, quasar_config_api, routines, scenario_drafts,
-               scenarios, self_update, server_config, server_log, settings, setup, smart_home, sound_cache, speech,
-               status, templates, traffic, updates, voice_stack, voice_test, ws_handlers)
+               scenarios, self_update, server_config, server_log, service_accounts, settings, setup, smart_home,
+               sound_cache, speech, status, templates, traffic, updates, voice_stack, voice_test, ws_handlers)

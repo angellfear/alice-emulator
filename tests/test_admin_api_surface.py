@@ -13,7 +13,7 @@ from server_emulator.server import create_app
 from tests.conftest import listen
 
 CATALOG_ACTIONS = ["settings", "status", "live", "identities", "actions", "updates",
-                   "speech", "scenarios", "catalog", "endpoints",
+                   "speech", "scenarios", "catalog", "endpoints", "service-accounts",
                    "quasar_platforms", "quasar_rules", "quasar_composed", "params", "param_values",
                    "animations", "animations-media"]
 POST_ONLY = ["chat", "stt", "tts", "mcp-discover", "tool-call"]

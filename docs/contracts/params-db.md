@@ -113,29 +113,13 @@ device.name/room (editable); server.* — стартовые серверные 
 - **iot-API аккаунта** (нужен вход): комнаты и имена колонок (`/m/v3/user/devices`:
   households[].all[] — name, room, quasar_info.device_id), координаты из конфигурации
   колонки (`/m/v2/user/devices/<id>/configuration` → quasar_config.device_config.location).
-  Импорт идёт по всем пользователям с выполненным входом (`account.linked_sessions`)
-  по очереди — результаты объединяются. Города и таймзоны в наблюдаемых ответах iot
-  нет — заполняются вручную.
+  Импорт идёт по всем аккаунтам Яндекса реестра «Авторизация в сервисах» с выполненным
+  входом (`account.linked_sessions`) по очереди — результаты объединяются. Города и
+  таймзоны в наблюдаемых ответах iot нет — заполняются вручную.
 
-Авторизация — по образцу YandexStation (MIT; происхождение и лицензия —
-[LICENSE-NOTICE.md](../LICENSE-NOTICE.md)): вход по x_token, по cookies (строка
-или JSON Copy-Cookies) и QR-вход (ссылка подтверждается в приложении Яндекса,
-клиент опрашивает статус до 2 минут). Вход — свой у каждого пользователя
-(кнопка «Яндекс» на вкладке «Пользователи»): `AccountSession(runtime, user_id)`
-держит x_token в
-`state/account/sessions/<пользователь>.json` — в user_id допустим любой текст,
-имя файла безопасное, сам user_id пишется внутрь JSON. Там же кешируются токены
-сервисов (`AccountSession.service_token(service)`: обмен x_token на
-oauth.mobile.yandex.net с идентификаторами приложения сервиса; повторный обмен —
-только без кеша или когда сервис ответил 401, `refresh=True`; выход удаляет файл
-вместе с кешем). Наружу API отдаёт только
-статус (`login`, `login_name`), в отчётах импорта значений секретов нет — только
-ключи и статусы.
-
-API (X-Emulator, как весь админ-API):
-- `GET /api/account?user=<id>` — статус входа пользователя;
-- `POST /api/account {user, op: login_token | login_cookies | qr_start | qr_poll | logout, token?, cookies?}`;
-  без `user` или с несуществующим id — 400;
+Вход в Яндекс — QR-вход реестра «Авторизация в сервисах»
+([service-accounts.md](service-accounts.md)), не часть этого домена. API домена
+(X-Emulator, как весь админ-API):
 - `GET /api/params_required` — обязательные параметры без значения на всех уровнях
   цепочки каждого устройства (ключ, подпись, владельцы для записи). Обязательные —
   `account.REQUIRED_KEYS`: `user.wifi_hash`, `user.location.latitude`,

@@ -1,12 +1,13 @@
 """Вход аккаунта поставщика (точки login_start/login_callback/login_status).
 
 Кнопка «Войти в Spotify»: Authorization Code + PKCE через authlib — на локальной
-заглушке (токен-эндпойнт подменой константы ACCOUNTS_URL; настоящий Spotify из
-тестов не дёргается). PKCE: челлендж authorize-URL = S256(verifier заявки плагина);
-колбэк меняет код на токены (authlib сам валидирует state против
-authorization_response и кладёт code_verifier в тело); токены — в meta state/
-(ключ provider_login:<ext_id>), наружу (браузер, GET провайдеров) — только статус;
-refresh — login_status при истёкшем access.
+заглушке (токен-эндпойнт и профиль подменой констант ACCOUNTS_URL/PROFILE_URL;
+настоящий Spotify из тестов не дёргается). PKCE: челлендж authorize-URL =
+S256(verifier заявки плагина); колбэк меняет код на токены (authlib сам валидирует
+state против authorization_response и кладёт code_verifier в тело); токены — в
+реестр «Авторизации в сервисах» (аккаунт «spotify», с логином — свой аккаунт),
+наружу (браузер, GET провайдеров) — только статус; refresh — login_status при
+истёкшем access, старый meta provider_login:<ext_id> переезжает в реестр лениво.
 """
 import json
 import time
@@ -53,21 +54,25 @@ def spotify_record():
     return providers.PROVIDERS["music"]["builtin.spotify"]
 
 
-def meta_tokens(runtime):
-    raw = runtime.store.meta("provider_login:builtin.spotify")
-    return json.loads(raw) if raw else None
+def spotify_tokens(runtime):
+    """Секреты основного аккаунта «spotify» реестра (или None — аккаунта нет)."""
+    return runtime.service_accounts.tokens("spotify")
 
 
 async def fake_spotify(requests):
-    """Подмена accounts.spotify.com: /api/token пишет form-тело в requests и отдаёт токен."""
+    """Подмена Spotify на локальной заглушке: /api/token пишет form-тело в requests
+    и отдаёт токен, /v1/me — профиль с display_name (источник имени аккаунта)."""
     async def token(request):
         form = await request.post()
         requests.append({k: form[k] for k in form})
         return web.json_response({"access_token": "AT-" + str(len(requests)),
                                   "refresh_token": "RT-" + str(len(requests)),
                                   "token_type": "Bearer", "expires_in": 3600})
+    async def profile(request):
+        return web.json_response({"display_name": "Tester", "email": "tester@example.com"})
     app = web.Application()
     app.router.add_post("/api/token", token)
+    app.router.add_get("/v1/me", profile)
     return await listen(app)
 
 
@@ -122,6 +127,7 @@ async def test_login_callback_exchanges_code_and_stores_tokens(tmp_path, monkeyp
     try:
         spotify_module = spotify_record()["_module"]
         monkeypatch.setattr(spotify_module, "ACCOUNTS_URL", token_url + "/api/token")
+        monkeypatch.setattr(spotify_module, "PROFILE_URL", token_url + "/v1/me")
         async with ClientSession() as client:
             _status, body = await api_post(url, client,
                                            {"kind": "music", "id": "builtin.spotify", "action": "start"})
@@ -135,8 +141,10 @@ async def test_login_callback_exchanges_code_and_stores_tokens(tmp_path, monkeyp
                 page = await r.text()
             assert "выполнен" in page and "THE-CODE" not in page  # код/токены в странице не светятся
             assert spotify_module.PENDING.get(state) is None  # заявка погашена колбэком
-            saved = meta_tokens(runtime)
+            saved = spotify_tokens(runtime)
             assert saved["access_token"].startswith("AT-") and saved["refresh_token"].startswith("RT-")
+            records = runtime.service_accounts.list("spotify")
+            assert len(records) == 1 and records[0]["title"] == "Tester" and records[0]["default"]
             assert requests[0]["grant_type"] == "authorization_code"
             assert requests[0]["code"] == "THE-CODE"
             assert requests[0]["client_id"] == CLIENT_ID
@@ -161,7 +169,7 @@ async def test_login_callback_error_from_spotify(tmp_path):
             async with client.get(url + "/emulator/api/providers_login_callback",
                                   params={"error": "access_denied", "state": state}) as r:
                 assert r.status == 400 and "отклонил вход" in (await r.text())
-            assert meta_tokens(runtime) is None
+            assert spotify_tokens(runtime) is None
     finally:
         await stop(runtime, runner)
 
@@ -173,7 +181,7 @@ async def test_login_callback_unknown_state(tmp_path):
             async with client.get(url + "/emulator/api/providers_login_callback",
                                   params={"code": "x", "state": "no-such"}) as r:
                 assert r.status == 400 and "неизвестная заявка" in (await r.text())
-            assert meta_tokens(runtime) is None
+            assert spotify_tokens(runtime) is None
     finally:
         await stop(runtime, runner)
 
@@ -188,15 +196,18 @@ async def test_status_refreshes_expired_access(tmp_path, monkeypatch):
              "token_type": "Bearer", "expires_at": time.time() - 10}))
         spotify_module = spotify_record()["_module"]
         monkeypatch.setattr(spotify_module, "ACCOUNTS_URL", token_url + "/api/token")
+        monkeypatch.setattr(spotify_module, "PROFILE_URL", token_url + "/v1/me")
         async with ClientSession() as client:
             status, body = await api_post(url, client,
                                           {"kind": "music", "id": "builtin.spotify", "action": "status"})
             assert status == 200 and body["authorized"] is True and body["expires_in"] > 3500
             assert requests[0]["grant_type"] == "refresh_token"
             assert requests[0]["refresh_token"] == "RT-seeded"
-            fresh = meta_tokens(runtime)
+            fresh = spotify_tokens(runtime)
             assert fresh["access_token"].startswith("AT-") and fresh["access_token"] != "AT-old"
             assert fresh["refresh_token"] == "RT-1"  # ротация: refresh-токен из ответа
+            assert len(runtime.service_accounts.list("spotify")) == 1  # refresh без логина — перезапись основного
+            assert runtime.store.meta("provider_login:builtin.spotify") == ""  # meta переехал один раз
     finally:
         await token_runner.cleanup()
         await stop(runtime, runner)

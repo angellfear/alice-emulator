@@ -414,9 +414,9 @@ class Dispatcher:
         sn, device_id, route_mode = self.route_mode_for(request)
         auth = request.headers.get("Authorization", "")
         if sn and auth.startswith("OAuth "):
-            # OAuth аккаунта: захват только от опознанной колонки — в БД для поставщика Яндекс.Музыки
+            # OAuth аккаунта: захват только от опознанной колонки — копилка по SN для поставщика Яндекс.Музыки
             from . import music
-            music.note_token(runtime, auth[6:])
+            music.note_token(runtime, auth[6:], sn=sn, ip=request.remote)
         is_ws = request.headers.get("Upgrade", "").lower() == "websocket"
         canonical = self.canonical_host(request, host)
         if is_auth_host(canonical):
