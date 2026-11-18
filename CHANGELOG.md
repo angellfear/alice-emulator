@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.1.0](https://github.com/angellfear/alice-emulator/compare/v1.0.1...v1.1.0) (2026-11-17)
+
+
+### Features
+
+* карточка погоды на неделю (WeatherDaysRangeData), 7 дней прогноза и подписи времени в карточке часов ([a01da2f](https://github.com/angellfear/alice-emulator/commit/a01da2f1846ae5ef9766e4afd99caeebebe33edb))
+* метр микрофона в голосовом стеке — уровни входа и ASR, предусиление и цель нормализации ([228e949](https://github.com/angellfear/alice-emulator/commit/228e9492d975e4b9c6d8a9a1a92ce74bef968336))
+* обслуживаемые домены фронта, проверка DNS и редирект корня ([fb961a3](https://github.com/angellfear/alice-emulator/commit/fb961a32097667b39c5b4fd088e35d3c8c4adeb8))
+* присмотр за речевыми серверами, сценарий «повтори» (ctx.said) и честные сбои ASR и озвучки ([c6fa18f](https://github.com/angellfear/alice-emulator/commit/c6fa18fb5c50022d5a8039391f5bc941487c3f09))
+* профили выравнивания по колонкам — селектор, автопереключение и «Автонастройка» в метре ([ec08571](https://github.com/angellfear/alice-emulator/commit/ec08571dcb534180793b3928779e038de194314c))
+
+
+### Bug Fixes
+
+* GET / редиректит только браузеру оператора — корень станции и эндпоинтов прозрачен ([bea1042](https://github.com/angellfear/alice-emulator/commit/bea10423e9aa457b2ebf0dac3caf50a7c6ac7035))
+* updater дозаписывает файлы, которые dulwich не перенёс при переключении тега ([a27461b](https://github.com/angellfear/alice-emulator/commit/a27461b3f8447444e84effb15499d7d2fb8ca939))
+* диалог правки параметра — крестик и отмена, поля сеткой без прокруток; заголовки диалогов на мобильной в строку ([db19f65](https://github.com/angellfear/alice-emulator/commit/db19f65e9d75614a7fd862e70a10110a9368d3ce))
+
 ## [1.0.1](https://github.com/angellfear/alice-emulator/compare/v1.0.0...v1.0.1) (2026-11-16)
 
 
