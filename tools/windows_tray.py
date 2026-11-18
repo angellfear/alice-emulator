@@ -3,7 +3,8 @@
 Запускает `python -m server_emulator.server` без окна (настройки — state/server.json), следит за ним:
 упал — перезапуск через паузу, код RESTART_CODE — сразу; штатная остановка — `/__control/stop`
 (ключ из state/control.token), зависла — taskkill. Один экземпляр на папку (mutex). Логи сервера —
-state/logs/server.log с ротацией. Решения перенесены из трея внешнего прокси (supervisor не умирает,
+state/logs/server.log с ротацией. Новая версия — уведомление трея (опрос статуса UI API раз в
+минуту, один раз на версию). Решения перенесены из трея внешнего прокси (supervisor не умирает,
 эскалация зависшей остановки, GUI не грузится при импорте сервера).
 """
 import json
@@ -29,6 +30,7 @@ ICON = ROOT / "tools" / "assets" / "alica.ico"  # логотип трея и я�
 LOG_LIMIT = 5 * 1024 ** 2
 LOG_KEEP = 3
 STOP_TIMEOUT = 45
+UPDATE_NOTICE_INTERVAL = 60
 AUTOSTART = Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup" / "Алиса — эмулятор.lnk"
 
 
@@ -101,21 +103,31 @@ class Server:
         except Exception:
             return None
 
+    def update_status(self):
+        """Статус самообновления из UI API (X-Emulator): available уже учитывает
+        «Позже» и «Пропустить версию» панели — трей показывает то же, что и она."""
+        request = urllib.request.Request(self.url() + "/emulator/api/self_update",
+                                         headers={"X-Emulator": "1"})
+        context = ssl._create_unverified_context()  # свой сервер на 127.0.0.1
+        with urllib.request.urlopen(request, timeout=3, context=context) as response:
+            return json.load(response)
+
     def stop(self):
         self._request("/__control/stop", method="POST", timeout=4)
 
 
 class Controller:
     def __init__(self, root=ROOT, state=STATE, server=None, on_change=lambda: None, on_exit=lambda: None,
-                 open_panel=False, opener=webbrowser.open):
+                 open_panel=False, opener=webbrowser.open, on_update=lambda version: None):
         self.root, self.state = Path(root).resolve(), Path(state).resolve()
         self.logs = self.state / "logs"
         self.logs.mkdir(parents=True, exist_ok=True)
         self.server = server or Server(self.state)
         self.commands = queue.Queue()
-        self.on_change, self.on_exit, self.opener = on_change, on_exit, opener
+        self.on_change, self.on_exit, self.opener, self.on_update = on_change, on_exit, opener, on_update
         self.desired, self.exiting, self.stopping, self.stop_error, self.ready = True, False, False, False, False
         self.updating, self.update_deadline = False, 0  # ждём план state/update/plan.json
+        self.notified_update, self.update_notice_at = None, 0  # уведомление — один раз на версию
         self.state_text = "Запуск сервера…"
         self.child, self.pid, self.retry_at, self.stop_deadline, self.value_missing_since = None, None, 0, 0, 0
         self.open_panel = open_panel
@@ -160,6 +172,24 @@ class Controller:
         if self.value_missing_since and now - self.value_missing_since > 45 and self.child is None:
             self.note("Status timeout with pid " + str(self.pid) + "; treating server as dead")
             self.pid, self.value_missing_since = None, 0
+
+    def check_update_notice(self, now):
+        """Уведомление трея о новой версии: раз в минуту читаем статус UI API
+        (доступность уже учитывает «Позже» и «Пропустить» панели), сообщение —
+        один раз на версию; сервер не готов или не ответил — молчим."""
+        if not self.ready or now < self.update_notice_at:
+            return
+        self.update_notice_at = now + UPDATE_NOTICE_INTERVAL
+        try:
+            status = self.server.update_status()
+        except Exception:
+            return
+        latest = status.get("latest") if isinstance(status, dict) else None
+        version = (latest or {}).get("version")
+        if isinstance(status, dict) and status.get("available") and version and version != self.notified_update:
+            self.notified_update = version
+            self.note("Update available: " + str(version))
+            self.on_update(str(version))
 
     def update_plan(self):
         """План самообновления state/update/plan.json: None — ещё не готов или битый."""
@@ -234,6 +264,7 @@ class Controller:
         self.ready = bool(value and self.own(value))
         if self.ready:
             self.pid = value.get("pid")
+        self.check_update_notice(now)
         alive = (self.child is not None and self.child.poll() is None) or (self.child is None and process_alive(self.pid))
         if value:
             if not self.desired and not self.stop_error:
@@ -345,7 +376,11 @@ def run_tray(open_panel=False):
     import pystray
     write_icon(STATE / "alica.ico")
     icon = pystray.Icon("alice-emulator", picture("#e8a33d"), "Алиса — эмулятор · запуск…")
-    controller = Controller(on_change=lambda: update(), on_exit=icon.stop, open_panel=open_panel)
+    controller = Controller(on_change=lambda: update(), on_exit=icon.stop,
+                            on_update=lambda version: icon.notify(
+                                "Доступна версия " + version + " — обновите в панели",
+                                "Алиса — эмулятор"),
+                            open_panel=open_panel)
     shown = {"color": None, "menu": None}
 
     def update():

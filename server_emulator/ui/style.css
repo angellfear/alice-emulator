@@ -80,12 +80,17 @@ nav .active{background:color-mix(in srgb,var(--accent) 22%,transparent);color:va
 .src-head h3{margin:0}
 .src-head .segmented{margin-left:auto}
 @media (max-width:600px){.src-head .segmented{margin-left:0}}
-/* Кнопка самообновления в полосе навигации, перед переключателем режима:
-   акцентная, с одной пульсацией при появлении (prefers-reduced-motion её отключает) */
-.update-btn{flex:0 0 auto;margin-left:auto;border-radius:999px;font-size:13px;min-height:32px;padding:5px 14px}
-.update-btn.pulse{animation:update-pulse 1.4s ease-out 1}
-@keyframes update-pulse{from{box-shadow:0 0 0 0 var(--accent-bg)}to{box-shadow:0 0 0 14px transparent}}
-@media (prefers-reduced-motion:reduce){.update-btn.pulse{animation:none}}
+/* Кнопка самообновления в полосе навигации, перед переключателем режима: красная
+   и непрерывно пульсирует, пока доступна новая версия (prefers-reduced-motion
+   отключает пульс). Видна только при новой версии — hidden гасит и анимацию. */
+.update-btn{flex:0 0 auto;margin-left:auto;border-radius:999px;font-size:13px;min-height:32px;padding:5px 14px;
+  background:var(--danger);border-color:var(--danger-border);color:var(--on-accent);
+  animation:update-pulse 1.6s ease-out infinite}
+/* hover — с nav в селекторе: nav button:hover (0,1,2) перебивал бы короткое правило */
+nav .update-btn:where(:hover){background:color-mix(in srgb,var(--danger) 85%,var(--text));border-color:var(--danger);
+  color:var(--on-accent)}
+@keyframes update-pulse{from{box-shadow:0 0 0 0 color-mix(in srgb,var(--danger) 55%,transparent)}to{box-shadow:0 0 0 14px transparent}}
+@media (prefers-reduced-motion:reduce){.update-btn{animation:none}}
 /* Строка состояния слева от переключателя режимов: значки ASR / TTS / Модель +
    микросостояние агента (только в режиме «AI агент»). По одному title на элементе, подписей нет;
    на 400px чип с многоточием — полоса навигации прокручивается внутри себя, страница нет. */

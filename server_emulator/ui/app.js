@@ -305,11 +305,10 @@ window.addEventListener('hashchange',syncScenarios);syncScenarios();
 
 // Самообновление: кнопка в навигации видна при новой версии, клик — окно с заметками
 // релиза. Обновление перезапускает сервер (updater) — окно опрашивает статус, пока тот не вернётся.
-const updateState={shown:false,status:null};
+const updateState={status:null};
 async function refreshUpdate(){try{const s=await api('self_update');updateState.status=s;const btn=$('update-btn');
   btn.hidden=!s.available;if(!s.available)return;
-  btn.textContent='Обновление '+s.latest.version;btn.title='Доступна версия '+s.latest.version+' (сейчас '+s.current.version+')';
-  if(!updateState.shown){btn.classList.add('pulse');updateState.shown=true;setTimeout(()=>btn.classList.remove('pulse'),1600)}}catch(e){}}
+  btn.textContent='Обновление '+s.latest.version;btn.title='Доступна версия '+s.latest.version+' (сейчас '+s.current.version+')'}catch(e){}}
 window.refreshUpdate=refreshUpdate;
 const ubtn=(label,cls,onclick)=>{const b=document.createElement('button');b.type='button';b.textContent=label;if(cls)b.className=cls;b.onclick=()=>work(onclick);return b};
 function renderUpdateDialog(){const s=updateState.status||{},d=$('update-dialog');

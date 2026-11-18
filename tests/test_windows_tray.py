@@ -31,6 +31,7 @@ class FakeChild:
 class FakeServer:
     def __init__(self, state):
         self.state, self.value, self.stops = state, None, 0
+        self.update_value, self.update_calls = None, 0
 
     def status(self):
         return self.value
@@ -44,13 +45,20 @@ class FakeServer:
     def panel(self):
         return self.url() + "/emulator/"
 
+    def update_status(self):
+        self.update_calls += 1
+        if isinstance(self.update_value, type) and issubclass(self.update_value, Exception):
+            raise self.update_value("offline")
+        return self.update_value
+
 
 @pytest.fixture
 def controller(tmp_path, monkeypatch):
     state = tmp_path / "state"
     fake = FakeServer(state)
-    opened = []
-    item = windows_tray.Controller(root=tmp_path, state=state, server=fake, opener=opened.append, open_panel=True)
+    opened, notices = [], []
+    item = windows_tray.Controller(root=tmp_path, state=state, server=fake, opener=opened.append,
+                                   open_panel=True, on_update=notices.append)
     launches = []
 
     def launch():
@@ -59,7 +67,7 @@ def controller(tmp_path, monkeypatch):
 
     monkeypatch.setattr(item, "launch", launch)
     monkeypatch.setattr(windows_tray, "process_alive", lambda pid: False)
-    item.fake, item.launches, item.opened = fake, launches, opened
+    item.fake, item.launches, item.opened, item.notices = fake, launches, opened, notices
     return item
 
 
@@ -164,6 +172,38 @@ def test_refuses_to_stop_foreign_server(controller):
     controller.request("stop")
     controller.iterate()
     assert controller.fake.stops == 0 and controller.state_text == "На порту другой сервер"
+
+
+def test_update_available_notifies_once_per_version(controller):
+    """Новая версия — уведомление один раз на версию; смена версии уведомляет снова."""
+    controller.iterate()
+    assert controller.notices == [] and controller.fake.update_calls == 0  # сервер ещё не готов
+    controller.fake.value = running(controller)
+    controller.fake.update_value = {"available": True, "latest": {"version": "1.2.0"}}
+    controller.iterate()
+    assert controller.notices == ["1.2.0"]
+    controller.iterate()  # тот же ответ: троттлинг минуты и «один раз на версию»
+    assert controller.notices == ["1.2.0"]
+    controller.fake.update_value = {"available": True, "latest": {"version": "1.3.0"}}
+    controller.update_notice_at = 0
+    controller.iterate()
+    assert controller.notices == ["1.2.0", "1.3.0"]
+
+
+def test_no_notice_when_update_not_available(controller):
+    """«Позже» и «Пропустить версию» гасят available в API — трей молчит вместе с панелью."""
+    controller.fake.value = running(controller)
+    controller.fake.update_value = {"available": False, "latest": {"version": "1.2.0"}}
+    controller.iterate()
+    assert controller.notices == []
+
+
+def test_update_status_failure_is_silent(controller):
+    """Сервер не ответил на запрос статуса — итерация трея не падает, поворот по расписанию."""
+    controller.fake.value = running(controller)
+    controller.fake.update_value = RuntimeError
+    controller.iterate()
+    assert controller.notices == [] and controller.state_text == "Сервер работает"
 
 
 @pytest.mark.no_state_template
