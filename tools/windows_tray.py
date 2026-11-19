@@ -1,7 +1,9 @@
 """Трей-лаунчер эмулятора для Windows; код сервера от этого модуля не зависит.
 
 Запускает `python -m server_emulator.server` без окна (настройки — state/server.json), следит за ним:
-упал — перезапуск через паузу, код RESTART_CODE — сразу; штатная остановка — `/__control/stop`
+упал — перезапуск через паузу, код RESTART_CODE — сразу; мгновенная смерть при занятых портах —
+пауза в минуту и статус «Порты заняты другим сервером» (здоровый сервер своего state трей считает
+своим — ready по own(), дубликат поверх него не запускается); штатная остановка — `/__control/stop`
 (ключ из state/control.token), зависла — taskkill. Один экземпляр на папку (mutex). Логи сервера —
 state/logs/server.log с ротацией. Новая версия — уведомление трея (опрос статуса UI API раз в
 минуту, один раз на версию). Решения перенесены из трея внешнего прокси (supervisor не умирает,
@@ -30,6 +32,10 @@ ICON = ROOT / "tools" / "assets" / "alica.ico"  # логотип трея и я�
 LOG_LIMIT = 5 * 1024 ** 2
 LOG_KEEP = 3
 STOP_TIMEOUT = 45
+RETRY = 10          # пауза до перезапуска после падения сервера
+FAST_EXIT = 8       # ребёнок прожил меньше — запуск не удался (не «упал в работе»)
+BUSY_RETRY = 60     # порты заняты другим сервером: он может жить долго — попытки раз в минуту
+BUSY_MARK = "Ни один порт не открыт"  # строка из server.log, которой сервер сообщает о занятых портах
 UPDATE_NOTICE_INTERVAL = 60
 AUTOSTART = Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup" / "Алиса — эмулятор.lnk"
 
@@ -130,6 +136,7 @@ class Controller:
         self.notified_update, self.update_notice_at = None, 0  # уведомление — один раз на версию
         self.state_text = "Запуск сервера…"
         self.child, self.pid, self.retry_at, self.stop_deadline, self.value_missing_since = None, None, 0, 0, 0
+        self.launched_at = 0  # когда запустили текущего ребёнка: мгновенная смерть — не «падение в работе»
         self.open_panel = open_panel
 
     def request(self, command):
@@ -214,6 +221,16 @@ class Controller:
         self.exiting = True
         self.on_exit()
 
+    def log_tail(self, limit=4096):
+        """Хвост server.log: чем жил последний запуск (детект «порты заняты»)."""
+        try:
+            with (self.logs / "server.log").open("rb") as handle:
+                handle.seek(0, os.SEEK_END)
+                handle.seek(max(0, handle.tell() - limit))
+                return handle.read().decode("utf-8", "replace")
+        except OSError:
+            return ""
+
     def launch(self):
         log = self.logs / "server.log"
         rotate(log)
@@ -223,6 +240,7 @@ class Controller:
                 cwd=self.root, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT,
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                 env={**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8", "ALICA_LAUNCHER": "1"})
+        self.launched_at = time.monotonic()
         self.note("Started server PID " + str(self.child.pid))
 
     def run(self):
@@ -288,9 +306,18 @@ class Controller:
                     self.state_text = "Обновление…"
                     self.note("Server exited for self-update; waiting for plan")
                 elif not self.stopping:
-                    self.retry_at = time.monotonic() + 10
-                    self.note("Server exited: " + str(code))
-                    self.state_text = "Сервер завершился. Повторный запуск…"
+                    uptime = now - self.launched_at if self.launched_at else RETRY * 10
+                    busy = uptime < FAST_EXIT and BUSY_MARK in self.log_tail()
+                    if busy:
+                        # мгновенная смерть с «порты заняты»: держатель (другой сервер) живёт
+                        # долго — редкие попытки и честный статус вместо петли запусков
+                        self.retry_at = now + BUSY_RETRY
+                        self.state_text = "Порты заняты другим сервером"
+                        self.note("Launch failed: ports busy; retry in %d s" % BUSY_RETRY)
+                    else:
+                        self.retry_at = now + RETRY
+                        self.note("Server exited: " + str(code))
+                        self.state_text = "Сервер завершился. Повторный запуск…"
             self.stopping = False
             if self.exiting:
                 self.on_exit()
@@ -385,7 +412,8 @@ def run_tray(open_panel=False):
 
     def update():
         color = COLORS.get(controller.state_text, "#c92a2a" if "Ошибка" in controller.state_text
-                           or "завершился" in controller.state_text else "#e8a33d")
+                           or "завершился" in controller.state_text
+                           or "заняты" in controller.state_text else "#e8a33d")
         if color != shown["color"]:
             icon.icon, shown["color"] = picture(color), color
         icon.title = ("Алиса — эмулятор · " + controller.state_text + " · " + controller.server.url())[:127]

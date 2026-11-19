@@ -63,6 +63,7 @@ def controller(tmp_path, monkeypatch):
 
     def launch():
         launches.append(time.monotonic())
+        item.launched_at = launches[-1]
         item.child = FakeChild()
 
     monkeypatch.setattr(item, "launch", launch)
@@ -92,6 +93,41 @@ def test_crashed_server_is_restarted_after_pause(controller):
     controller.retry_at = 0
     controller.iterate()
     assert len(controller.launches) == 2
+
+
+def test_busy_ports_backs_off_and_tells(controller):
+    """Мгновенная смерть при занятых портах — пауза в минуту и честный статус
+    вместо петли запусков каждые 10 секунд (инцидент 2026-11-20)."""
+    controller.iterate()
+    controller.child.returncode = 1
+    (controller.logs / "server.log").write_text("Ни один порт не открыт: порт 443: …\n", encoding="utf-8")
+    controller.iterate()
+    assert controller.state_text == "Порты заняты другим сервером"
+    assert len(controller.launches) == 1
+    controller.iterate()  # retry_at ещё далеко — не долбим запусками
+    assert len(controller.launches) == 1
+    controller.retry_at = 0
+    controller.iterate()
+    assert len(controller.launches) == 2
+
+
+def test_slow_death_keeps_short_retry(controller):
+    """Падение в работе (прожил дольше FAST_EXIT) — прежняя пауза 10 с, не «порты заняты»."""
+    controller.iterate()
+    controller.child.returncode = 1
+    controller.launched_at -= windows_tray.RETRY * 10  # прожил «долго»
+    (controller.logs / "server.log").write_text("Ни один порт не открыт: порт 443: …\n", encoding="utf-8")
+    controller.iterate()
+    assert "завершился" in controller.state_text and len(controller.launches) == 1
+
+
+def test_running_server_of_same_state_is_own(controller):
+    """Здоровый сервер своего набора данных (осиротевший, не ребёнок трея) — свой:
+    трей показывает «Сервер работает» и не запускает дубликат поверх него."""
+    controller.fake.value = {"pid": 9999, "state": str(controller.state)}
+    controller.iterate()
+    assert controller.ready and controller.pid == 9999 and controller.state_text == "Сервер работает"
+    assert len(controller.launches) == 0
 
 
 def test_restart_code_relaunches_immediately(controller):
