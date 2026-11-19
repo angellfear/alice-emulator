@@ -7,7 +7,9 @@
   let state = null, busy = false;
   const FIELDS = ['host', 'port', 'ssl', 'cert', 'key', 'http_port', 'front', 'front_dns', 'local_domain', 'speech_dir'];
 
-  const make = (tag, props = {}, ...children) => { const n = Object.assign(document.createElement(tag), props); n.append(...children); return n; };
+  // null/false среди детей — «не добавить ничего» (как el() в animations.js): append(null)
+  // превращается в текст «null» — так в списке доменов рос хвост «domainnull»
+  const make = (tag, props = {}, ...children) => { const n = Object.assign(document.createElement(tag), props); n.append(...children.flat().filter(c => c != null && c !== false)); return n; };
   const call = async (method, body) => {
     const r = await fetch('api/server', { method, headers: { 'X-Emulator': '1', 'Content-Type': 'application/json' }, body: body && JSON.stringify(body) });
     const v = await r.json().catch(() => ({}));
