@@ -140,7 +140,7 @@
         return note;
       })(),
       make('p', { className: 'hint' }, [version, 'Сейчас: ' + (listeners || '—') + (notes.length ? ' ' + notes.join(' ') : '')].filter(Boolean).join(' · ')),
-      form, selfUpdatePanel(), journalPanel(), protocolPanel(), appearancePanel());
+      form, selfUpdatePanel(), journalPanel(), protocolPanel(), appearancePanel(), streamPanel());
   }
 
   // Обслуживаемые домены (serve_domains из GET api/server, покрытие — SAN текущего сертификата):
@@ -381,6 +381,18 @@
       make('h3', {}, 'Оформление'),
       make('p', { className: 'hint' }, 'Тема панели — тот же выбор, что переключатель в правом верхнем углу шапки.'),
       ...rows);
+  }
+
+  // Стрим-режим: размазывание чувствительных данных по всей панели (stream.js, localStorage).
+  // Как оформление — настройка этого браузера, без обращения к серверу и перезапуска.
+  function streamPanel() {
+    const check = make('input', { type: 'checkbox', checked: !!window.AppStream && AppStream.current() });
+    check.onchange = () => window.AppStream && AppStream.set(check.checked);
+    return make('div', { className: 'panel' },
+      make('h3', {}, 'Стрим-режим'),
+      make('label', { className: 'srv-check' }, check,
+        make('span', {}, 'Скрывать IP, серийники и другие данные')),
+      make('p', { className: 'hint' }, 'Размазывание поверх серийников, публичных адресов, почты, идентификаторов и токенов во всех вкладках; поле или список размазывается, только если само значение чувствительное — локальные адреса, порты и версии видны. Настройка этого браузера, применяется сразу — снимите галочку, чтобы вернуть всё как было.'));
   }
 
   // адрес панели после перезапуска: сервер слушает все адреса (0.0.0.0 / ::) — остаёмся на хосте, по которому

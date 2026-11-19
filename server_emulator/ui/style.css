@@ -1077,3 +1077,10 @@ label.srv-check input{flex:none;width:auto;height:auto;margin:0}
 .sa-row .hint{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
 .sa-row .danger{flex-shrink:0;margin-left:auto}
 .sa-qr{display:block;width:220px;height:220px;margin:4px 0}
+
+/* ── Стрим-режим (stream.js, галочка в «Настройки → Сервер»): размазывание
+   чувствительных данных. Текстовые совпадения — span.stream-mask; поле ввода
+   или список размазывается только если само значение совпало с паттерном
+   (stream-field выставляет stream.js) — пустые поля и локальные адреса видны. ── */
+.stream-on .stream-mask{filter:blur(5px);border-radius:2px}
+.stream-on .stream-field{filter:blur(5px)}
