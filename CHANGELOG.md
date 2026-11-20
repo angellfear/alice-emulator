@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.2.0](https://github.com/angellfear/alice-emulator/compare/v1.1.0...v1.2.0) (2026-11-20)
+
+
+### Features
+
+* авторизация в сервисах — QR-вход Яндекса в панели, мультиаккаунты и копилка токенов колонок ([a122eed](https://github.com/angellfear/alice-emulator/commit/a122eed6e4595b6345627440e97bfc6e6fd37919))
+* генерируемые ответы семейства поиска, sba urlinfo и кеш аватар — «Эмуляция» отвечает сама; push-канал живёт: ts подписки — срок действия (now + 8 часов, как у настоящего канала), кадры открытия точные по живому мосту (ping + один subscribed messenger-prod), кадры обеих сторон в журнале трафика ([ce4c5a2](https://github.com/angellfear/alice-emulator/commit/ce4c5a29924b384ec60b5f916b6ea651f560ac79))
+* заметка об ограничении входа в карточке аккаунта и честные подписи Spotify без Premium ([50a7d07](https://github.com/angellfear/alice-emulator/commit/50a7d07f8c6a982f7f0d1844dc47d76b3f878b4e))
+* стрим-режим панели — размазывание серийников, публичных адресов, идентификаторов и токенов; правка DOM маскируется до отрисовки кадра, поля — только по чувствительному значению; локальные адреса и порты видны; галочка в «Настройки → Сервер», состояние в localStorage ([58e2f36](https://github.com/angellfear/alice-emulator/commit/58e2f36e00805b001b0f0b01becbcad6860691d7))
+* уведомление трея о новой версии и красная пульсирующая кнопка обновления ([76ea7fd](https://github.com/angellfear/alice-emulator/commit/76ea7fd8c0f51d6941090be68e05732adbf37382))
+
+
+### Bug Fixes
+
+* занятые порты — пауза в минуту и честный статус вместо петли запусков каждые 10 секунд ([b23a323](https://github.com/angellfear/alice-emulator/commit/b23a3232ce57e9d2d1bf1ce4b61b1344ac9afac4))
+* ключ управления пишется в файл только после удачного bind — запуск, которому не достались порты, не затирает ключ живого держателя, и трей берёт его под опеку вместо петли дубликатов; смерть усыновлённого сервера видна в журнале трея ([8d73bce](https://github.com/angellfear/alice-emulator/commit/8d73bce9db4675c9302525aedee2a7f6e1dfd5de))
+* маршрут запроса — устройство соединения (peer-IP), заявленный device_id только фолбэком; IP соединения пишут только доверенные каналы (WS-handshake, sync, get_sync_info, OTA), расхождение заявки с соединением — в журнал ([1a07a0e](https://github.com/angellfear/alice-emulator/commit/1a07a0e1a89c5fb6bbfc2be175e2e8d6ef35ded5))
+* хвост «null» в списке обслуживаемых доменов — make() фильтрует null/false среди детей, как el() в animations.js ([e6c43af](https://github.com/angellfear/alice-emulator/commit/e6c43affb2e1f53d827b54175ec09b6c9b02477f))
+
 ## [1.1.0](https://github.com/angellfear/alice-emulator/compare/v1.0.1...v1.1.0) (2026-11-17)
 
 
