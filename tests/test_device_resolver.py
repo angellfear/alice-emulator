@@ -71,10 +71,12 @@ def test_observe_unknown_registers_unbound_device(tmp_path):
 
 def test_observe_repeat_keeps_single_device_and_refreshes_activity(tmp_path):
     identities = registry(tmp_path)
-    identities.observe("dev-new", source="header.x-uprx-device-id", ip="192.0.2.11", register=True)
-    identities.observe("dev-new", source="sync.Application.DeviceId", ip="192.0.2.12", register=True)
+    identities.observe("dev-new", source="header.x-uprx-device-id", ip="192.0.2.11", register=True, trusted=True)
+    identities.observe("dev-new", source="sync.Application.DeviceId", ip="192.0.2.12", register=True, trusted=True)
     assert len([d for d in identities.data["devices"] if d["sn"] == "dev-new"]) == 1
-    assert identities.activity["dev-new"]["ip"] == "192.0.2.12"  # последний наблюдённый
+    assert identities.activity["dev-new"]["ip"] == "192.0.2.12"  # последний доверенный
+    identities.observe("dev-new", source="header.x-ya-device-id", ip="192.0.2.99")  # заявка — не соединение
+    assert identities.activity["dev-new"]["ip"] == "192.0.2.12"
 
 
 def test_observe_known_device_does_not_create_rows(tmp_path):

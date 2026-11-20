@@ -116,6 +116,49 @@ async def test_serve_journals_device_via_request(tmp_path):
         await runner.cleanup()
 
 
+async def test_hybrid_miss_forward_uses_connection_device_route(tmp_path):
+    """Смешанный парк: экран hybrid-станции подписывает запрос device_id другой
+    колонки (эмулируемой) — маршрут берётся у устройства соединения, промах уходит
+    в Яндекс без включения hybrid второй колонке; заявленный device_id остаётся
+    фактом запроса в записи и промахе."""
+    runtime = Runtime(tmp_path)
+    runtime.identities.mutate({"operation": "user", "id": "u", "name": "U"})
+    runtime.identities.mutate({"operation": "device", "sn": "SN-HYB", "user_id": "u", "device_ids": ["hyb-id"]})
+    runtime.identities.mutate({"operation": "device", "sn": "SN-EMU", "user_id": "u", "device_ids": ["emu-id"]})
+    runtime.identities.mutate({"operation": "route_mode", "sn": "SN-HYB", "mode": "hybrid"})
+    runtime.identities.observe("hyb-id", ip="127.0.0.1", trusted=True)  # соединение тестового клиента
+    runtime.identities.mutate({"operation": "record", "sn": "SN-EMU", "mode": "on"})
+    hits = []
+
+    async def handler(request):
+        hits.append(request.headers.get("X-Ya-Device-Id"))
+        return web.json_response({"found": True})
+
+    upstream_app = web.Application()
+    upstream_app.router.add_route("*", "/{p:.*}", handler)
+    upstream_runner, upstream_url = await listen(upstream_app)
+    port = int(upstream_url.rsplit(":", 1)[1])
+    runtime.upstream.forwarder.resolver = StubResolver()
+    runtime.settings["aliases"] = {"rpc.alice.yandex.net": f"http://127.0.0.1:{port}"}
+    runner, url = await listen(create_app(runtime=runtime))
+    try:
+        async with ClientSession() as client:
+            async with client.post(url + "/gproxy/music_search",
+                                   headers={"Host": "rpc.alice.yandex.net", "X-Ya-Device-Id": "emu-id"},
+                                   json={"query": "леди гага"}) as response:
+                assert response.status == 200 and await response.json() == {"found": True}
+        assert hits == ["emu-id"]  # ушло наверх, хотя у второй колонки маршрут emulate
+        miss = next(iter(runtime.endpoints.misses().values()))
+        assert miss["forwarded"] == "upstream"
+        await runtime.upstream.journal.flush()
+        items = (await runtime.upstream.journal.list())["items"]
+        assert any(item["device_id"] == "emu-id" and item["device_sn"] == "SN-EMU" for item in items)
+    finally:
+        await upstream_runner.cleanup()
+        await runner.cleanup()
+        await runtime.close()
+
+
 async def test_ws_bridge_forwards_frames_both_ways_and_closes(tmp_path):
     runtime = Runtime(tmp_path)
     runtime.identities.mutate({"operation": "device", "sn": "SN-WS", "device_ids": ["ws-id"]})

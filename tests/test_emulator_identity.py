@@ -66,11 +66,16 @@ def test_observe_records_activity_for_known_devices(tmp_path):
     registry = IdentityRegistry(tmp_path)
     registry.mutate({'operation':'user','id':'u','name':'U'})
     registry.mutate({'operation':'device','sn':'SN-A','user_id':'u','device_ids':['id-a']})
-    registry.observe('id-a', source='header.x-uprx-device-id', ip='192.0.2.107')
+    registry.observe('id-a', source='header.x-uprx-device-id', ip='192.0.2.107', trusted=True)
     entry = registry.activity['SN-A']
     assert entry['ip'] == '192.0.2.107' and entry['source'] == 'header.x-uprx-device-id' and entry['ts'] > 0
     registry.observe('id-a')  # повторное наблюдение без IP сохраняет последний
     assert registry.activity['SN-A']['ip'] == '192.0.2.107'
+    # заявка заголовка обычного HTTP — не соединение: IP не перезаписывается
+    registry.observe('id-a', source='header.x-ya-device-id', ip='192.0.2.200')
+    assert registry.activity['SN-A']['ip'] == '192.0.2.107'
+    assert registry.resolve_by_ip('192.0.2.107')['sn'] == 'SN-A'
+    assert registry.resolve_by_ip('192.0.2.200') is None
     assert registry.public()['devices'][0]['user_id'] == 'u'  # активность не меняет реестр
 
 

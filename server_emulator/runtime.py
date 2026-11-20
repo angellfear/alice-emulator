@@ -1450,9 +1450,10 @@ class Runtime:
 
         if header_device_id:
             # Заголовок WS-хендшейка — представление устройства: неизвестный
-            # DeviceId сразу попадает в реестр (без владельца).
+            # DeviceId сразу попадает в реестр (без владельца). Голосовой канал —
+            # сама станция: заявка совпадает с соединением, IP — доверенный.
             device = self.identities.observe(header_device_id, source='header.x-uprx-device-id', ip=self.client_ip(request),
-                                             register=True)
+                                             register=True, trusted=True)
             adopt(header_device_id, device)
         tap.start()
         try:
@@ -1497,9 +1498,11 @@ class Runtime:
                             await ws.close(code=1008, message=b'Device identity changed')
                             break
                         # sync — авторитетное представление устройства: как и header,
-                        # регистрирует неизвестный DeviceId (без владельца)
+                        # регистрирует неизвестный DeviceId (без владельца); канал —
+                        # сама станция, IP соединения — доверенный
                         device = self.identities.observe(resolved, source=id_report['resolved_from'],
-                                                         ip=self.client_ip(request), register=True) if resolved else None
+                                                         ip=self.client_ip(request), register=True,
+                                                         trusted=True) if resolved else None
                         adopt(resolved, device)
                     # Обработчики событий — реестр aapi_handlers (Conversation и служебные ответы)
                     if not await conversation.receive(incoming, trigger):

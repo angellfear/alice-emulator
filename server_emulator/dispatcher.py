@@ -7,8 +7,10 @@ Dispatcher получает runtime как аргумент и ведёт зап
 WS-сессия остаётся у runtime (sessions — его состояние).
 
 resolve DeviceId , IP клиента через client_peer и журнал recent — здесь;
-маршрут запроса — route_mode_for: (sn, device_id, mode) по заголовкам/
-query и реестру; устройство без своего маршрута и неизвестное — emulate.
+маршрут запроса — route_mode_for: (sn, device_id, mode); устройство СОЕДИНЕНИЯ
+(IP → resolve_by_ip) приоритетнее заявленного в заголовках device_id (экранные
+приложения станции подписывают запросы чужим device_id из профиля аккаунта);
+устройство без своего маршрута и неизвестное — emulate.
 Режимы: emulate — локально; proxy — upstream; hybrid — локально, где есть обработчик,
 промах — наверх с отметкой в «Без ответа». Что писать в журнал, решает не маршрут, а опция
 устройства «Запись»: local_handler определяет «есть ли обработчик» одной функцией
@@ -70,11 +72,17 @@ class Dispatcher:
         return str(identifier).strip() if identifier else ''
 
     def route_mode_for(self, request):
-        """(sn, device_id, mode) маршрута запроса. Идентичность — тот же
-        resolver и в том же порядке приоритета, что у основного пути (collect_device_id:
-        uprx → quasar → ya → X-Ya-Application.device_id → query); расхождение источников
-        здесь не журналируется — журнал ведёт handle() после повторного сбора. Разрешение
-        чистым resolve (без регистрации). Устройство без route_mode и неизвестное — emulate."""
+        """(sn, device_id, mode) маршрута запроса. Маршрут — устройство СОЕДИНЕНИЯ:
+        peer-IP → resolve_by_ip (activity.ip пишут только доверенные каналы);
+        заявленный в заголовках device_id — фолбэк, если IP не опознан: экранное
+        приложение станции подписывает запросы device_id последнего активного
+        устройства профиля аккаунта, не своим — маршрут одной колонки не должен
+        переключаться чужой заявкой. Расхождение заявки с соединением журналируется.
+        Идентичность заявки — тот же resolver и в том же порядке приоритета, что у
+        основного пути (collect_device_id: uprx → quasar → ya → X-Ya-Application.device_id
+        → query); расхождение источников заявки здесь не журналируется — журнал ведёт
+        handle() после повторного сбора. Разрешение чистым resolve (без регистрации).
+        Устройство без route_mode и неизвестное — emulate."""
         runtime = self.runtime
         device_id, _report = collect_device_id(
             ('header.x-uprx-device-id', request.headers.get('x-uprx-device-id')),
@@ -82,7 +90,14 @@ class Dispatcher:
             ('header.x-ya-device-id', request.headers.get('X-Ya-Device-Id')),
             ('header.x-ya-application.device_id', self.application_device_id(request.headers.get('X-Ya-Application'))),
             ('query.device_id', request.query.get('device_id')))
-        device = runtime.identities.resolve(device_id) if device_id else None
+        claimed = runtime.identities.resolve(device_id) if device_id else None
+        connection = runtime.identities.resolve_by_ip(self.client_ip(request))
+        if connection is not None and claimed is not None and connection.get('sn') != claimed.get('sn'):
+            report = {'connection': connection.get('sn'), 'claimed': claimed.get('sn'), 'device_id': device_id}
+            runtime.recent = (runtime.recent + [{'kind': 'http', 'host': request.host, 'route_mismatch': report}])[-30:]
+            runtime.server_log.log("warning", "http", "Маршрут по соединению: заявленный DeviceId чужой",
+                                   host=request.host, route_mismatch=report)
+        device = connection or claimed
         if device:
             return device.get('sn'), device_id or None, (device.get('route_mode') or 'emulate')
         return None, device_id or None, 'emulate'
@@ -364,9 +379,10 @@ class Dispatcher:
             runtime.recent = (runtime.recent + [{'kind': 'http', 'host': host, 'device_id_report': id_report}])[-30:]
             runtime.server_log.log("warning", "http", "Расхождение DeviceId в OTA-запросе",
                                    host=host, device_id_report=id_report)
-        # OTA-запрос — тоже представление устройства: маркер есть — строка в реестре
+        # OTA-запрос — тоже представление устройства: маркер есть — строка в реестре.
+        # Обновление просит сам updater станции, не экранное приложение — IP доверенный
         device = runtime.identities.observe(device_id, source=id_report['resolved_from'], ip=self.client_ip(request),
-                                            register=True) if device_id else None
+                                            register=True, trusted=True) if device_id else None
         status, output, headers, original, attempt = await runtime.updates.handle(
             endpoint, request.query_string, request.headers, body, device, device_id, runtime.update_fetch,
             client_ip=self.client_ip(request))
@@ -528,6 +544,9 @@ class Dispatcher:
         silencer_used = False  # встроенный ответ без эндпоинта — журнал «Запись» не пишется
         host = host or request.host.split(':', 1)[0]
         canonical_host = self.canonical_host(request, host)
+        # /get_sync_info — свой конфиг-поллинг станции: заявка совпадает с
+        # соединением по построению, её IP — доверенный (для маршрута по соединению)
+        sync_info_route = canonical_host == 'quasar.yandex.net' and (path or request.path) == '/get_sync_info'
         # v9 §8: в /glagol/token query device_id — ЦЕЛЬ (токен другого устройства),
         # вызывающий определяется заголовками; цель resolve-only (не регистрируется
         # как наблюдение вызывающего). Вызывающий с заголовками — представление
@@ -557,8 +576,8 @@ class Dispatcher:
                 runtime.server_log.log("warning", "http", "Расхождение DeviceId в запросе",
                                        host=host, device_id_report=id_report)
             device = runtime.identities.observe(device_id, source=id_report['resolved_from'], ip=self.client_ip(request),
-                                                register=True) if device_id else None
-        if canonical_host == 'quasar.yandex.net' and (path or request.path) == '/get_sync_info':
+                                                register=True, trusted=sync_info_route) if device_id else None
+        if sync_info_route:
             # заголовки последнего опроса конфига — только в памяти, по SN
             # (кнопка «Получить с оригинального сервера»); в БД/state не пишутся.
             if device is not None:

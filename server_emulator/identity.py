@@ -249,8 +249,8 @@ class IdentityRegistry:
         return copy.deepcopy(group)
 
     def resolve_by_ip(self, ip):
-        """Устройство по последнему наблюдённому IP. Неизвестный IP или неоднозначность
-        (несколько устройств на одном IP) — None."""
+        """Устройство по последнему доверенному IP соединения. Неизвестный IP или
+        неоднозначность (несколько устройств на одном IP) — None."""
         if not ip:
             return None
         matches = [sn for sn, seen in self.activity.items() if seen.get('ip') == ip]
@@ -408,18 +408,25 @@ class IdentityRegistry:
         self.commit(value)
         return self.public()
 
-    def observe(self, device_id, source=None, ip=None, register=False):
+    def observe(self, device_id, source=None, ip=None, register=False, trusted=False):
         """Наблюдение DeviceId. register=False (по умолчанию) — resolve-only:
         известные устройства обновляют activity, реестр не пополняется.
         register=True — колонка представилась (/get_sync_info): неизвестное
         устройство сразу попадает в список БЕЗ владельца (временно, до активации).
-        IP и источник — метаданные наблюдения (activity, память), не ownership."""
+        Источник и время — метаданные видимости (activity, память), не ownership.
+        IP соединения обновляют только доверенные наблюдения — канал, чья заявка
+        совпадает с устройством по построению (WS-handshake и sync голосового
+        канала, /get_sync_info). Заявка заголовка обычного HTTP о соединении
+        ничего не доказывает: экранное приложение станции шлёт device_id
+        последнего активного устройства профиля аккаунта — чужой перезаписал бы
+        IP и сломал resolve_by_ip."""
         device_id = self.text(device_id, 'DeviceId')
         device = self.resolve(device_id)
         if device:
             # Активность известного устройства — для индикатора «виден» и последнего IP.
             previous = self.activity.get(device['sn'], {})
-            self.activity[device['sn']] = {'ts': time.time(), 'ip': ip or previous.get('ip'),
+            self.activity[device['sn']] = {'ts': time.time(),
+                                           'ip': (ip or previous.get('ip')) if trusted else previous.get('ip'),
                                            'source': source or previous.get('source')}
         if not device and register:
             value = self.public()
