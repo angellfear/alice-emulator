@@ -108,10 +108,12 @@ class ServiceAccounts:
         """Основной аккаунт сервиса (или None — ещё не входили)."""
         return next((item for item in self.list(service) if item.get("default")), None)
 
-    def add(self, service, payload, title=None):
+    def add(self, service, payload, title=None, note=None):
         """Новый аккаунт сервиса: payload (токены) — в файл секретов, запись — в index.
         Повторный вход с тем же логином (title) обновляет существующий аккаунт, а не
-        плодит дубликаты; первый аккаунт сервиса становится основным."""
+        плодит дубликаты; первый аккаунт сервиса становится основным. note — ограничение
+        входа, видимое в карточке (например, отказ Spotify на личные данные без
+        Premium); без note прежняя заметка снимается."""
         accounts = self._index()
         existing = next((item for item in accounts
                          if item["service"] == service and title and item.get("title") == title), None)
@@ -123,6 +125,10 @@ class ServiceAccounts:
             others = accounts
         record["default"] = not any(item.get("default")
                                     for item in others if item["service"] == service)
+        if note:
+            record["note"] = note
+        else:
+            record.pop("note", None)
         self._save_secret(record["id"], payload)
         self._save_index(others + [record])
         return dict(record)
@@ -191,16 +197,17 @@ class ServiceAccounts:
                 "default": bool(record.get("default"))}
 
     # --- Spotify ---------------------------------------------------------------------
-    def save_login(self, service, payload, title=None):
+    def save_login(self, service, payload, title=None, note=None):
         """Токены входа поставщика (точки login плагина) → аккаунт реестра: с логином —
         свой аккаунт (повторный вход тем же логином обновляет запись), без логина
-        (например, обновление токена по статусу) — перезапись основного аккаунта."""
+        (например, обновление токена по статусу) — перезапись основного аккаунта.
+        note — ограничение входа, видимое в карточке."""
         if title is None:
             record = self.default(service)
             if record is not None:
                 self._save_secret(record["id"], payload)
                 return dict(record)
-        return self.add(service, payload, title=title)
+        return self.add(service, payload, title=title, note=note)
 
     def tokens(self, service):
         """Секреты основного аккаунта сервиса (для точек login и вызовов поставщика)

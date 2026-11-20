@@ -9,12 +9,13 @@ intelligence: полная копия настроек откатывала бы
 выключенный/неизвестный id — 400.
 
 Вход аккаунта (точки login_start/login_callback/login_status поставщика, кнопка «Войти»
-только у объявивших): POST start возвращает URL страницы входа (redirect — loopback
-из Host запроса; Spotify разрешает любой порт для http://127.0.0.1), GET callback —
-цель redirect из браузера (без X-Emulator: браузер после Spotify): код меняется на
-токены, они сохраняются в реестре «Авторизации в сервисах» (service_accounts,
-аккаунт «spotify», основной) и наружу не идут — браузеру и GET отдают только статус.
-Старый meta provider_login:<ext_id> переезжает в реестр при первом чтении статуса.
+только у объявивших): POST start возвращает URL страницы входа (redirect — фиксированный
+loopback LOGIN_REDIRECT_URI), GET callback — цель redirect из браузера (без X-Emulator:
+браузер после Spotify): код меняется на токены, они сохраняются в реестре «Авторизации
+в сервисах» (service_accounts, аккаунт «spotify», основной) и наружу не идут — браузеру
+и GET отдают только статус. Вход не влияет на воспроизведение: поиск и превью работают
+по ключам Web API поставщика (client credentials). Старый meta provider_login:<ext_id>
+переезжает в реестр при первом чтении статуса.
 """
 import copy
 import json
@@ -26,6 +27,13 @@ from ... import providers
 from . import route
 
 LOGIN_META_PREFIX = "provider_login:"  # + ext_id — JSON токенов входа в meta state/
+# Redirect входа Spotify: один фиксированный loopback — внешний адрес не нужен (браузер
+# возвращается на ту же машину), в Dashboard Spotify регистрируется ровно эта строка.
+# https обязателен: Dashboard в 2025+ отклоняет http и для loopback (без порта — SSL-порт
+# сервера). Spotify требует точного совпадения URI — поэтому без зависимости от того,
+# как открыта панель; при возврате браузер покажет предупреждение самоподписанного
+# сертификата — это свой сервер.
+LOGIN_REDIRECT_URI = "https://127.0.0.1/emulator/api/providers_login_callback"
 LOGIN_CALLBACK_PAGE = ("<!doctype html><html lang=ru><meta charset=utf-8>"
                        "<title>Вход в аккаунт</title>"
                        "<body style='font-family:sans-serif;max-width:400px;margin:40px auto'>"
@@ -64,10 +72,12 @@ def _login_tokens(runtime, record):
         LOGIN_META_PREFIX + str(record["ext_id"]), "spotify")
 
 
-def _save_login_tokens(runtime, record, tokens, title=None):
+def _save_login_tokens(runtime, record, tokens, title=None, note=None):
     """Токены входа → аккаунт «spotify» реестра (повторный вход тем же логином
-    обновляет запись, без логина — перезапись основного); не в логи и не в ответы API."""
-    runtime.service_accounts.save_login("spotify", tokens, title=title or None)
+    обновляет запись, без логина — перезапись основного); не в логи и не в ответы API.
+    note — ограничение входа (например, отказ Spotify на личные данные без Premium),
+    видимое в карточке аккаунта."""
+    runtime.service_accounts.save_login("spotify", tokens, title=title or None, note=note or None)
 
 
 def _record(runtime, kind, pid):
@@ -83,8 +93,8 @@ def _record(runtime, kind, pid):
 
 @route("providers_login", methods=("POST",))
 async def providers_login(request, runtime, app):
-    """Вход аккаунта поставщика: POST start → URL страницы входа (redirect — loopback
-    из Host); POST status → {"authorized", "expires_in"?} — при истёкшем access
+    """Вход аккаунта поставщика: POST start → URL страницы входа (redirect —
+    LOGIN_REDIRECT_URI); POST status → {"authorized", "expires_in"?} — при истёкшем access
     поставщик сам обновляет токен (новый набор перезаписывается в meta). Цель redirect —
     отдельный GET providers_login_callback (браузер после Spotify, без X-Emulator)."""
     body = await request.json()
@@ -94,7 +104,7 @@ async def providers_login(request, runtime, app):
         record = _record(runtime, kind, pid)
         action = str(body.get("action") or "").strip()
         if action == "start":
-            redirect_uri = f"http://{request.host}/emulator/api/providers_login_callback"
+            redirect_uri = LOGIN_REDIRECT_URI
             result = await record["login"]["login_start"](_login_context(runtime, record), redirect_uri)
             LOGIN_PENDING[str(result.get("state") or "")] = (kind, pid)
             return web.json_response({"url": result["url"]})
@@ -131,7 +141,8 @@ async def providers_login_callback(request, runtime, app):
         return web.Response(status=400, content_type="text/html",
                             text=LOGIN_CALLBACK_PAGE.format("Вход не удался: " + str(exc)[:200]))
     if result.get("tokens"):
-        _save_login_tokens(runtime, record, result["tokens"], title=result.get("login"))
+        _save_login_tokens(runtime, record, result["tokens"], title=result.get("login"),
+                           note=result.get("note"))
     ok = bool(result.get("authorized"))
     text = ("Вход в «" + str(record.get("title") or pid) + "» выполнен." if ok
             else "Вход не удался: " + str(result.get("error") or "неизвестная ошибка"))

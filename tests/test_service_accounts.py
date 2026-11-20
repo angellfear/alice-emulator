@@ -75,6 +75,21 @@ async def test_registry_add_default_remove(tmp_path):
         await runtime.close()
 
 
+async def test_registry_note_of_login_limitation(tmp_path):
+    """note — ограничение входа, видимое в карточке: сохраняется с записью,
+    повторный вход без причины снимает заметку."""
+    runtime = Runtime(tmp_path)
+    try:
+        record = runtime.service_accounts.add("spotify", {"access_token": "t"},
+                                              title="Аккаунт", note="HTTP 403: premium")
+        assert record["note"] == "HTTP 403: premium"
+        assert runtime.service_accounts.list("spotify")[0]["note"] == "HTTP 403: premium"
+        runtime.service_accounts.add("spotify", {"access_token": "t2"}, title="Аккаунт")
+        assert "note" not in runtime.service_accounts.list("spotify")[0]
+    finally:
+        await runtime.close()
+
+
 async def test_registry_services_do_not_mix(tmp_path):
     """Аккаунты разных сервисов не влияют друг на друга (основной у каждого свой)."""
     runtime = Runtime(tmp_path)

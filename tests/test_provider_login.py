@@ -59,9 +59,10 @@ def spotify_tokens(runtime):
     return runtime.service_accounts.tokens("spotify")
 
 
-async def fake_spotify(requests):
+async def fake_spotify(requests, profile_status=200, profile_body=None):
     """Подмена Spotify на локальной заглушке: /api/token пишет form-тело в requests
-    и отдаёт токен, /v1/me — профиль с display_name (источник имени аккаунта)."""
+    и отдаёт токен, /v1/me — профиль с display_name (источник имени аккаунта);
+    profile_status — отказ на профиль (Spotify без Premium у владельца приложения)."""
     async def token(request):
         form = await request.post()
         requests.append({k: form[k] for k in form})
@@ -69,6 +70,8 @@ async def fake_spotify(requests):
                                   "refresh_token": "RT-" + str(len(requests)),
                                   "token_type": "Bearer", "expires_in": 3600})
     async def profile(request):
+        if profile_status != 200:
+            return web.json_response(profile_body or {}, status=profile_status)
         return web.json_response({"display_name": "Tester", "email": "tester@example.com"})
     app = web.Application()
     app.router.add_post("/api/token", token)
@@ -99,8 +102,9 @@ async def test_login_start_builds_pkce_url(tmp_path):
             params = {k: v[0] for k, v in
                       urllib.parse.parse_qs(urllib.parse.urlsplit(body["url"]).query).items()}
             assert params["response_type"] == "code" and params["client_id"] == CLIENT_ID
-            assert params["redirect_uri"].startswith("http://127.0.0.1:")
-            assert params["redirect_uri"].endswith("/emulator/api/providers_login_callback")
+            # redirect фиксированный — ровно то, что регистрируют в Spotify Dashboard
+            # (только https: Dashboard отклоняет http и для loopback)
+            assert params["redirect_uri"] == "https://127.0.0.1/emulator/api/providers_login_callback"
             verifier = providers.PROVIDERS["music"]["builtin.spotify"]["_module"].PENDING[params["state"]]["verifier"]
             assert params["code_challenge"] == create_s256_code_challenge(verifier)
             assert params["code_challenge_method"] == "S256"
@@ -149,11 +153,44 @@ async def test_login_callback_exchanges_code_and_stores_tokens(tmp_path, monkeyp
             assert requests[0]["code"] == "THE-CODE"
             assert requests[0]["client_id"] == CLIENT_ID
             assert requests[0]["code_verifier"] == verifier
-            assert requests[0]["redirect_uri"].endswith("/emulator/api/providers_login_callback")
+            assert requests[0]["redirect_uri"] == "https://127.0.0.1/emulator/api/providers_login_callback"
             async with ClientSession() as client:
                 data = await providers_view(url, client)
                 item = {p["id"]: p for p in data["kinds"]["music"]["providers"]}["builtin.spotify"]
                 assert item["status"]["login_authorized"] is True
+    finally:
+        await token_runner.cleanup()
+        await stop(runtime, runner)
+
+
+async def test_login_callback_premium_refusal_becomes_note(tmp_path, monkeypatch):
+    """Spotify отдаёт личные данные только при Premium у владельца Dashboard-приложения:
+    без него вход состоялся (токены живы), имя профиля недоступно, причина отказа
+    сохраняется заметкой записи."""
+    runtime, runner, url = await start(tmp_path)
+    requests = []
+    token_runner, token_url = await fake_spotify(
+        requests, profile_status=403,
+        profile_body={"error": {"status": 403,
+                                "message": "Active premium subscription required for the owner of the app"}})
+    try:
+        spotify_module = spotify_record()["_module"]
+        monkeypatch.setattr(spotify_module, "ACCOUNTS_URL", token_url + "/api/token")
+        monkeypatch.setattr(spotify_module, "PROFILE_URL", token_url + "/v1/me")
+        async with ClientSession() as client:
+            _status, body = await api_post(url, client,
+                                           {"kind": "music", "id": "builtin.spotify", "action": "start"})
+            state = urllib.parse.parse_qs(urllib.parse.urlsplit(body["url"]).query)["state"][0]
+            async with client.get(url + "/emulator/api/providers_login_callback",
+                                  params={"code": "THE-CODE", "state": state}) as r:
+                assert r.status == 200
+                assert "выполнен" in (await r.text())
+            records = runtime.service_accounts.list("spotify")
+            assert len(records) == 1
+            assert records[0]["title"] == "spotify"  # имя профиля недоступно
+            assert "premium subscription" in records[0]["note"]
+            saved = spotify_tokens(runtime)
+            assert saved["access_token"].startswith("AT-") and saved["refresh_token"].startswith("RT-")
     finally:
         await token_runner.cleanup()
         await stop(runtime, runner)

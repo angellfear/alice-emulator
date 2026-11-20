@@ -38,9 +38,10 @@ rate — None: лайков без Premium API нет (честно, интер�
 
 Вход аккаунта (login_start/login_callback/login_status — точки login поставщика,
 кнопка «Войти в Spotify» в UI): Authorization Code + PKCE через authlib
-(OAuth2Session), redirect — loopback `http://127.0.0.1:<порт>` (Spotify разрешает
-любой порт; владелец регистрирует `http://127.0.0.1` в Dashboard без порта; кнопка
-работает при входе в UI по 127.0.0.1). Токены (access/refresh/expires_at) возвращает
+(OAuth2Session); redirect задаёт вызывающий — один фиксированный loopback
+`http://127.0.0.1/emulator/api/providers_login_callback` (его же регистрируют в
+Dashboard Spotify; вход не влияет на воспроизведение — поиск и превью работают
+по ключам Web API). Токены (access/refresh/expires_at) возвращает
 вызывающему (API-домен providers) для персистентности в state/ (meta) — в браузер и
 журнал не идут, наружу только статус. refresh-токен обновляется сам: login_status
 обновляет истёкший access через refresh_token.
@@ -150,12 +151,31 @@ def _http(url, data=None, headers=None):
         return response.read().decode("utf-8", "replace")
 
 
+def _http_reason(exc):
+    """Причина отказа из тела ответа Spotify: Web API отдаёт {"error": {message}},
+    токен-эндпойнт — {"error_description"}; не разобралось — пусто (останется код)."""
+    try:
+        data = json.loads(exc.read().decode("utf-8", "replace"))
+    except Exception:  # noqa: BLE001 — тело не обязано быть JSON, важен сам код
+        return ""
+    err = data.get("error") if isinstance(data, dict) else None
+    if isinstance(err, dict):
+        return str(err.get("message") or "")
+    if isinstance(err, str):
+        return str(data.get("error_description") or err)
+    return ""
+
+
 async def _request(url, data=None, headers=None):
-    """HTTP в отдельном потоке — событийный цикл сервера ждёт, не блокируется."""
+    """HTTP в отдельном потоке — событийный цикл сервера ждёт, не блокируется.
+    Отказ сервиса — с причиной из тела (Spotify объясняет требования, например
+    Premium у владельца приложения на личные данные)."""
     try:
         return await asyncio.to_thread(_http, url, data, headers)
     except urllib.error.HTTPError as exc:  # subclasses URLError — раньше
-        raise SpotifyError(f"HTTP {exc.code} от {urllib.parse.urlsplit(url).netloc}") from exc
+        reason = _http_reason(exc)
+        detail = f": {reason}" if reason else ""
+        raise SpotifyError(f"HTTP {exc.code} от {urllib.parse.urlsplit(url).netloc}{detail}") from exc
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         raise SpotifyError(f"{urllib.parse.urlsplit(url).netloc} не отвечает "
                            f"({type(exc).__name__})") from exc
@@ -479,14 +499,15 @@ async def rate(ctx, track_id, like):
 # --- вход аккаунта: Authorization Code + PKCE (authlib) ---------------------------------
 
 AUTHORIZE_URL = "https://accounts.spotify.com/authorize"
-LOGIN_SCOPE = "user-read-private user-library-read"
+LOGIN_SCOPE = ("user-read-private user-library-read playlist-read-private "
+               "playlist-read-collaborative user-read-playback-state user-modify-playback-state")
 LOGIN_TTL_S = 600  # владелец должен успеть войти; Spotify гасит code за ~10 минут
 
 PENDING = {}  # state → {"client_id", "redirect_uri", "verifier", "ts"} — старт → колбэк
 
 NOTE_LOGIN_NO_CLIENT = ("Для кнопки входа задайте Client ID в настройках плагина «Spotify» "
-                        "(developer.spotify.com, Dashboard; redirect http://127.0.0.1 — "
-                        "без порта).")
+                        "(developer.spotify.com, Dashboard; redirect "
+                        "https://127.0.0.1/emulator/api/providers_login_callback).")
 NOTE_LOGIN_EXPIRED = "Время на вход истекло — нажмите кнопку ещё раз."
 NOTE_LOGIN_NO_CODE = "Spotify не вернул код входа."
 
@@ -533,13 +554,14 @@ async def login_start(ctx, redirect_uri):
 
 async def _login_profile(access_token):
     """Имя входа аккаунта Spotify (GET /me, display_name) — заголовок карточки
-    аккаунта в реестре «Авторизации в сервисах». Сбой сети имя не портит: будет
-    технический заголовок, вход всё равно состоялся."""
+    аккаунта в реестре «Авторизации в сервисах». Сбой имя не портит: вход всё равно
+    состоялся, пара (имя, причина) — причина сохраняется в записи заметкой
+    (Spotify отдаёт личные данные только при Premium у владельца Dashboard-приложения)."""
     try:
         profile = await _json(PROFILE_URL, headers={"Authorization": f"Bearer {access_token}"})
-    except SpotifyError:
-        return ""
-    return str(profile.get("display_name") or profile.get("email") or "")
+    except SpotifyError as exc:
+        return "", str(exc)
+    return str(profile.get("display_name") or profile.get("email") or ""), None
 
 
 async def login_callback(ctx, params):
@@ -577,8 +599,8 @@ async def login_callback(ctx, params):
     tokens = _tokens_of(token)
     if not tokens["access_token"]:
         return {"authorized": False, "error": "Spotify вернул пустой токен входа."}
-    return {"authorized": True, "tokens": tokens,
-            "login": await _login_profile(tokens["access_token"])}
+    login, note = await _login_profile(tokens["access_token"])
+    return {"authorized": True, "tokens": tokens, "login": login, "note": note}
 
 
 async def login_status(ctx, tokens):

@@ -55,8 +55,7 @@
       serviceCard('yandex', 'Яндекс',
         'Вход по QR: код сканируется приложением Яндекса на телефоне — страница входа не открывается. Аккаунтов может быть несколько — помечьте основной: им пользуется распознавание музыки, когда у колонки нет своего токена.',
         qrEntry),
-      serviceCard('spotify', 'Spotify',
-        'Вход через страницу Spotify. Поставщик музыки должен быть установлен, у него заданы ключи Web API, а панель открыта по http://127.0.0.1:<порт> — redirect регистрируется в Spotify Dashboard без порта.',
+      serviceCard('spotify', 'Spotify', spotifyHint(),
         () => spotifyEntry(providers)));
     const others = state.accounts.filter(a => a.service !== 'yandex' && a.service !== 'spotify');
     if (others.length) {
@@ -94,8 +93,28 @@
     box.append(node('h3', title));
     const accounts = state.accounts.filter(a => a.service === service);
     box.append(...accounts.map(a => accountRow(a)),
-               node('p', hint, 'hint'), entry(box));
+               typeof hint === 'string' ? node('p', hint, 'hint') : hint, entry(box));
     if (!accounts.length) box.append(node('p', 'Аккаунтов пока нет.', 'hint'));
+    return box;
+  }
+
+  // Spotify: проигрывание (30-секундные превью) работает без входа и Premium — по ключам
+  // Web API у поставщика; кнопка входа только привязывает аккаунт к реестру. Вход делает
+  // редирект на один фиксированный локальный адрес — его регистрируют в Spotify Dashboard
+  // дословно (API задаёт тем же значением, service_accounts API домен providers).
+  const SPOTIFY_REDIRECT = 'https://127.0.0.1/emulator/api/providers_login_callback';
+
+  function spotifyHint() {
+    const box = node('div');
+    box.append(node('p', 'Проигрывание не требует входа и Premium: колонка играет 30-секундные превью Spotify. Для поиска по реплике задайте ключи Web API (client_id/client_secret) в настройках поставщика музыки.', 'hint'),
+               node('p', 'Вход привязывает аккаунт к панели. Личные данные — профиль, плейлисты, лайки, управление плеером — Spotify отдаёт только при Premium у владельца Dashboard-приложения; без него API отвечает отказом, причина сохраняется в строке аккаунта. Вход выполняется в браузере на этой машине и вернётся на локальный адрес: добавьте его в Dashboard Spotify (developer.spotify.com → приложение → Settings → Redirect URIs) и сохраните. Dashboard принимает только https — при возврате браузер покажет предупреждение о самоподписанном сертификате, это ваш сервер: «Перейти на сайт».', 'hint'));
+    const uriRow = node('div', null, 'sa-row');
+    uriRow.append(node('code', SPOTIFY_REDIRECT));
+    const copy = node('button', 'Скопировать');
+    copy.type = 'button'; copy.className = 'secondary';
+    copy.onclick = () => navigator.clipboard.writeText(SPOTIFY_REDIRECT).then(() => say('Адрес скопирован.'), () => {});
+    uriRow.append(copy);
+    box.append(uriRow);
     return box;
   }
 
@@ -111,7 +130,7 @@
     remove.onclick = () => api('service-accounts', { op: 'remove', id: account.id }).then(() => { say('Аккаунт удалён.'); load() }).catch(e => say(e.message, true));
     row.append(radio,
                node('span', account.title || account.id, 'sa-title'),
-               node('span', account.login ? '' : 'нет входа', 'hint'),
+               node('span', account.note || (account.login ? '' : 'нет входа'), 'hint'),
                remove);
     return row;
   }
@@ -142,18 +161,19 @@
   }
 
   function spotifyEntry(providers) {
+    const row = node('div', null, 'sa-row');
     const provider = loginProvider(providers);
     const btn = node('button', 'Войти в Spotify');
     btn.type = 'button';
-    if (!provider) { btn.disabled = true; btn.title = 'Поставщик музыки Spotify не установлен'; return btn }
-    btn.onclick = async () => {
+    if (!provider) { btn.disabled = true; btn.title = 'Поставщик музыки Spotify не установлен' }
+    else btn.onclick = async () => {
       stopPoll();
       let url;
       try { url = (await api('providers_login', { kind: provider.kind, id: provider.id, action: 'start' })).url; }
       catch (e) { return say(e.message, true) }
       window.open(url, '_blank', 'noopener');
       const hint = node('p', 'Подтвердите вход в открывшейся вкладке Spotify — ждём…', 'hint');
-      btn.replaceWith(hint);
+      row.replaceWith(hint);
       state.poll = setInterval(async () => {
         try {
           const status = await api('providers_login', { kind: provider.kind, id: provider.id, action: 'status' });
@@ -164,6 +184,59 @@
         } catch (e) { stopPoll(); say(e.message, true); load() }
       }, 3000);
     };
-    return btn;
+    const player = node('button', 'Плеер на колонке');
+    player.type = 'button'; player.className = 'secondary';
+    player.onclick = stationPlayerDialog;
+    row.append(btn, player);
+    return row;
+  }
+
+  // Диалог «Плеер на колонке»: официальный Spotify APK на колонке с Android —
+  // нативный плеер с входом на экране колонки; приложение на телефоне видит её как
+  // Connect-устройство (у аккаунта без Premium Connect ограничен Spotify). Управление
+  // плеером из панели — Premium у владельца Dashboard-приложения (API плеера закрыт).
+  function stationPlayerDialog() {
+    const dlg = document.createElement('dialog');
+    dlg.className = 'catalog-dialog';
+    const form = document.createElement('form');
+    form.method = 'dialog';
+    dlg.append(form);
+    form.append(node('h3', 'Spotify на колонке'));
+    const code = text => {
+      const c = node('code', text);
+      c.style.display = 'block';
+      c.style.margin = '4px 0';
+      c.style.whiteSpace = 'pre-wrap';
+      return c;
+    };
+    const step = (title, ...parts) => {
+      const box = node('p', null, 'hint');
+      box.style.margin = '10px 0';
+      const b = node('b', title);
+      b.style.display = 'block';
+      box.append(b, ...parts);
+      form.append(box);
+    };
+    form.append(node('p', 'Колонка с Android становится устройством Spotify Connect: на самой колонке играет нативное приложение Spotify (вход один раз на её экране). Выбор колонки из приложения на телефоне при аккаунте без Premium ограничен Spotify; при Premium колонка работает как обычное Connect-устройство.', 'hint'));
+    step('1. Установить Spotify на колонку — на ПК с adb:',
+         code('adb connect 192.168.x.x:5555'),
+         node('span', 'Официальный бандл com.spotify.music (APKPure, XAPK; адрес колонки — в списке «Токены колонок» ниже; adb-порт закрыт — колонка слушает SSH 22): ', 'hint'),
+         code('adb install-multiple base.apk config.arm64_v8a.apk config.ru.apk config.en.apk config.xxhdpi.apk'));
+    step('2. Открыть и войти:',
+         code('adb shell am start -n com.spotify.music/.MainActivity'),
+         node('span', 'На экране часы станции — коснитесь экрана. Войдите в аккаунт Spotify на самой колонке.', 'hint'));
+    step('3. Привязать аккаунт в панели:',
+         node('span', 'Кнопка «Войти в Spotify». Заранее добавьте redirect-адрес из карточки выше в Dashboard Spotify (только https; при возврате — предупреждение самоподписанного сертификата, жмите «Перейти на сайт»).', 'hint'));
+    step('4. Проверить Connect:',
+         node('span', 'В приложении Spotify на телефоне включите трек и выберите колонку в списке устройств. Колонки в списке нет — Connect у аккаунта без Premium ограничен Spotify: тогда включайте музыку прямо на экране колонки.', 'hint'));
+    form.append(node('p', 'Управление плеером колонки из панели (реплики «включи трек», ваши плейлисты) требует Premium у владельца Dashboard-приложения — без него Spotify закрывает API плеера.', 'hint'));
+    const row = node('div', null, 'row');
+    const close = node('button', 'Понятно');
+    close.type = 'submit';
+    row.append(close);
+    form.append(row);
+    document.body.append(dlg);
+    dlg.addEventListener('close', () => dlg.remove());
+    dlg.showModal();
   }
 })();
