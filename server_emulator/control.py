@@ -1,8 +1,11 @@
 """Локальное управление сервером: состояние, штатная остановка и перезапуск.
 
 `/__control/status|stop|restart` принимают запросы только с этого компьютера (127.0.0.1 / ::1) и с
-заголовком `X-Control-Token`, равным ключу из `state/control.token` (новый при каждом старте). Этим
-пользуются трей-лаунчер, смена порта и самообновление. Остановка и
+заголовком `X-Control-Token`, равным ключу из `state/control.token`. Этим
+пользуются трей-лаунчер, смена порта и самообновление. Ключ новый при каждом старте и пишется
+в файл только когда сервер реально слушает (после bind в `serve()`): запуск, которому
+не достались порты (держатель жив), не затирает ключ здорового держателя — трей по нему
+берёт сервер под опеку вместо петли дубликатов. Остановка и
 перезапуск мгновенны, ничего не ждёт: фронт отменяет обработчики туннелей, aiohttp закрывает
 соединения колонок сразу (`AppRunner shutdown_timeout=0.1` в `serve()` — открытый WS не
 удерживает процесс), `Runtime.close()` через on_cleanup убивает дочерние процессы без ожидания
@@ -23,11 +26,19 @@ TOKEN_FILE = "control.token"
 HEADER = "X-Control-Token"
 EXIT_KEY = web.AppKey("alica_exit", object)          # функция exit(code) — задаёт server.serve
 INFO_KEY = web.AppKey("emulator_info", dict)     # pid, папка данных, слушатели
+TOKEN_KEY = web.AppKey("alica_control_token", str)   # ключ этого старта — serve пишет его после bind
 LOOPBACK = ("127.0.0.1", "::1")
 
 
-def write_token(state):
-    token = secrets.token_urlsafe(32)
+def new_token():
+    """Ключ управления: генерация без записи — файл пишет write_token после bind."""
+    return secrets.token_urlsafe(32)
+
+
+def write_token(state, token=None):
+    """Ключ в state/control.token (атомарно). token=None — новый случайный."""
+    if token is None:
+        token = new_token()
     path = Path(state) / TOKEN_FILE
     path.parent.mkdir(parents=True, exist_ok=True)
     temp = path.with_name(TOKEN_FILE + ".tmp")

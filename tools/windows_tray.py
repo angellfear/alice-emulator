@@ -295,6 +295,8 @@ class Controller:
         elif alive:
             self.state_text = "Остановка…" if self.stopping else "Сервер запускается…"
         else:
+            if self.child is None and self.pid:  # усыновлённый сервер исчез — иначе перезапуск без объяснения
+                self.note("Adopted server gone: PID " + str(self.pid))
             self.pid = None
             if self.child is not None:
                 code, self.child = self.child.returncode, None

@@ -177,6 +177,45 @@ async def test_serve_rolls_back_settings_when_port_is_busy(tmp_path):
         blocker.close()
 
 
+async def test_control_token_written_only_when_listening(tmp_path):
+    """Ключ управления пишется в файл только после удачного bind: несостоявшийся
+    запуск (порты заняты) не затирает ключ живого держателя — трей берёт его под
+    опеку вместо петли дубликатов; поднявшийся сервер пишет ключ этого старта."""
+    import asyncio
+
+    control.write_token(tmp_path, "holder-token")
+    blocker = socket.socket()
+    blocker.bind(("127.0.0.1", 0))
+    blocker.listen()
+    config = {"host": "127.0.0.1", "port": blocker.getsockname()[1], "ssl": False, "http_port": 0}
+    runtime = Runtime(tmp_path)
+    app = server.create_app(runtime=runtime, control_token="doomed-token")
+    app[control.INFO_KEY] = {}
+    app[control.TOKEN_KEY] = "doomed-token"
+    try:
+        assert await server.serve(app, tmp_path, config) == 1
+        assert control.read_token(tmp_path) == "holder-token"  # ключ держателя цел
+    finally:
+        blocker.close()
+        await runtime.close()
+    token = control.new_token()
+    app = server.create_app(runtime=Runtime(tmp_path), control_token=token)
+    app[control.INFO_KEY] = {}
+    app[control.TOKEN_KEY] = token
+    task = asyncio.ensure_future(server.serve(app, tmp_path, config))
+    try:
+        for _ in range(50):
+            if control.read_token(tmp_path) == token:
+                break
+            await asyncio.sleep(0.05)
+        assert control.read_token(tmp_path) == token  # сервер слушает — ключ этого старта в файле
+        assert control.request_exit(app, 0)
+        assert await task == 0
+    finally:
+        if not task.done():
+            task.cancel()
+
+
 def test_main_restarts_itself_with_same_arguments(tmp_path, monkeypatch):
     calls = {}
     monkeypatch.delenv("ALICA_LAUNCHER", raising=False)

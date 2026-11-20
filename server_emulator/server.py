@@ -128,6 +128,12 @@ async def serve(app, state, config):
             print("Ни один порт не открыт: " + "; ".join(errors), file=sys.stderr, flush=True)
             return 1
         server_config.confirm(state)
+        # Ключ управления — в файл только после удачного bind: запуск, которому не
+        # достались порты (держатель жив), не затирает ключ здорового держателя —
+        # трей по нему берёт сервер под опеку вместо петли дубликатов
+        token = app.get(control.TOKEN_KEY)
+        if token:
+            control.write_token(state, token)
         # старт — версия и слушатели (событие для «Дополнительно → Лог»)
         server_log.log_event("info", "server",
                              "Сервер запущен" + (f" (версия {info['version']})" if info.get("version") else "")
@@ -171,7 +177,9 @@ def main(argv=None):
                  "cert": str(args.cert) if args.cert else None, "key": str(args.key) if args.key else None}
     config, overridden = server_config.effective(server_config.load(args.state), overrides)
     runtime = Runtime(args.state)
-    app = create_app(runtime=runtime, control_token=control.write_token(args.state))
+    token = control.new_token()  # в файл — serve(), только когда сервер реально слушает
+    app = create_app(runtime=runtime, control_token=token)
+    app[control.TOKEN_KEY] = token
     from .version import current
     app[INFO_KEY] = {"state": str(Path(args.state).resolve()), "config": config, "overridden": overridden,
                      "url": server_config.local_url(config), "launcher": bool(os.environ.get("ALICA_LAUNCHER")),

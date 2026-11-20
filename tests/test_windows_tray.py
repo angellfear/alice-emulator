@@ -130,6 +130,20 @@ def test_running_server_of_same_state_is_own(controller):
     assert len(controller.launches) == 0
 
 
+def test_adopted_server_death_is_journaled(controller, monkeypatch):
+    """Смерть усыновлённого сервера видна в журнале трея: раньше перезапуск после
+    неё шёл без записи и запутывал разбор инцидентов."""
+    notes = []
+    monkeypatch.setattr(controller, "note", notes.append)
+    controller.fake.value = running(controller)
+    controller.iterate()
+    assert controller.pid == 4242 and len(controller.launches) == 0
+    controller.fake.value = None
+    controller.iterate()
+    assert len(controller.launches) == 1
+    assert any("Adopted server gone" in note for note in notes)
+
+
 def test_restart_code_relaunches_immediately(controller):
     controller.iterate()
     controller.child.returncode = server_config.RESTART_CODE
