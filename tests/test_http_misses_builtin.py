@@ -10,6 +10,7 @@ from server_emulator.endpoints import builtin_covers, find_builtin
 from server_emulator.runtime import Runtime
 from server_emulator.server import create_app
 from tests.conftest import listen
+from tests.test_device_route_modes import alias_upstream, start_upstream
 
 DEAD = "http://0.0.0.0:1"  # адрес не существует: отказ мгновенный, не 2 с Windows-рефузла
 
@@ -57,8 +58,116 @@ def test_builtin_covers_avatars_and_misses():
     assert builtin_covers("avatars.yandex.net", "GET", "/get-music-content/123/700x700")
     assert builtin_covers("avatars.yandex.net", "GET", "/get-video-content/9/b700x700")
     assert builtin_covers("clck.yandex.net", "POST", "/tv/write/json/batch")
+    assert builtin_covers("rpc.alice.yandex.net", "POST", "/gproxy/music_search")
+    assert builtin_covers("rpc.alice.yandex.net", "POST", "/gproxy/save_search_suggest_history")
     assert not builtin_covers("avatars.yandex.net", "GET", "/unrelated/path")
     assert not builtin_covers("quasar.yandex.net", "GET", "/get_sync_info")
+
+
+async def test_music_search_generated_answer(tmp_path):
+    """Поиск музыки с экрана в «Эмуляции» — генерируемый пустой результат по схеме:
+    Type — эхо типа запроса, галерей нет (экран показывает «ничего не найдено»),
+    промахов нет. В «Прозрачном» поиск уходит настоящему сервису. Сохранение
+    подсказок — пустое подтверждение в «Эмуляции»."""
+    from server_emulator.schema import load_type, schema_file, schemas_dir
+
+    runtime = Runtime(tmp_path)
+    registry(runtime)
+    runtime.identities.mutate({"operation": "record", "sn": "SN-S", "mode": "on"})
+    calls = []
+    upstream_runner, port = await start_upstream(calls)
+    alias_upstream(runtime, port)
+    runner, url = await listen(create_app(runtime=runtime))
+    root = schemas_dir()
+    name = schema_file(root, "centaur")
+    request_type = load_type(root, name, "NAlice.NMusic.TMusicSearchRequest")
+    response_type = load_type(root, name, "NAlice.NMusic.TMusicSearchResponse")
+    try:
+        query = request_type(Query="тест", Type=request_type.Track, Limit=20).SerializeToString()
+        async with ClientSession() as client:
+            async with client.post(url + "/gproxy/music_search",
+                                   headers={"Host": "rpc.alice.yandex.net", "X-YaQuasarDeviceId": "s-id"},
+                                   data=query) as response:
+                assert response.status == 200
+                assert response.headers["Content-Type"].startswith("application/x-protobuf")
+                answer = response_type.FromString(await response.read())
+                assert answer.Type == request_type.Track and not answer.SearchElements
+        assert runtime.endpoints.misses() == {}  # генерируемый ответ — не промах
+        assert not calls  # в «Эмуляции» настоящий сервис не звался
+
+        async with ClientSession() as client:
+            async with client.post(url + "/gproxy/save_search_suggest_history",
+                                   headers={"Host": "rpc.alice.yandex.net", "X-YaQuasarDeviceId": "s-id"},
+                                   data=b"\x0a\x04test") as response:
+                assert response.status == 200
+                # пустое подтверждение: TSaveSearchSuggestHistoryResponse без полей — пустое тело
+                assert await response.read() == b""
+
+        runtime.identities.mutate({"operation": "route_mode", "sn": "SN-S", "mode": "hybrid"})
+        async with ClientSession() as client:
+            async with client.post(url + "/gproxy/music_search",
+                                   headers={"Host": "rpc.alice.yandex.net", "X-YaQuasarDeviceId": "s-id"},
+                                   data=query) as response:
+                assert response.status == 200
+                assert await response.json() == {"from": "upstream", "path": "/gproxy/music_search"}
+        assert calls  # в «Прозрачном» выдача настоящая
+    finally:
+        await upstream_runner.cleanup()
+        await runner.cleanup()
+        await runtime.close()
+
+
+async def test_search_family_generated_answers(tmp_path):
+    """Голосовой поиск и обслуги (подсказки, промо-фразы, голосовое управление
+    аккаунтами) — в «Эмуляции» пустые ответы по схеме (своей выдачи нет), промахов
+    нет; urlinfo браузера — пустой JSON. В «Прозрачном» всё уходит настоящему
+    сервису. Тела запросов — формы захваченных промахов (без данных аккаунта)."""
+    runtime = Runtime(tmp_path)
+    registry(runtime)
+    calls = []
+    upstream_runner, port = await start_upstream(calls)
+    alias_upstream(runtime, port)
+    runtime.settings["aliases"]["sba.yandex.net"] = f"http://127.0.0.1:{port}"
+    runner, url = await listen(create_app(runtime=runtime))
+    posts = [("/gproxy/search", b"\x12\x08moderate"),
+             ("/gproxy/get_search_suggests", b"\x18\x05"),
+             ("/gproxy/get_tv_promo_phrases", b"\x12\n2147483647"),
+             ("/gproxy/get_account_list_voice_controls", b"\x0a\x04test")]
+    try:
+        async with ClientSession() as client:
+            for path, body in posts:
+                async with client.post(url + path,
+                                       headers={"Host": "rpc.alice.yandex.net", "X-YaQuasarDeviceId": "s-id"},
+                                       data=body) as response:
+                    assert response.status == 200
+                    assert response.headers["Content-Type"].startswith("application/x-protobuf")
+                    assert await response.read() == b""  # пустое сообщение по умолчанию — валидный ответ
+            async with client.get(url + "/urlinfo",
+                                  headers={"Host": "sba.yandex.net", "X-YaQuasarDeviceId": "s-id"},
+                                  params={"pver": "1.0", "url": "https://m.youtube.com/watch?v=x"}) as response:
+                assert response.status == 200
+                assert response.headers["Content-Type"].startswith("application/json")
+                assert await response.json() == {}
+        assert runtime.endpoints.misses() == {}  # ни один из запросов — не промах
+        assert not calls  # в «Эмуляции» настоящий сервис не звался
+
+        runtime.identities.mutate({"operation": "route_mode", "sn": "SN-S", "mode": "hybrid"})
+        async with ClientSession() as client:
+            async with client.post(url + "/gproxy/search",
+                                   headers={"Host": "rpc.alice.yandex.net", "X-YaQuasarDeviceId": "s-id"},
+                                   data=b"\x12\x08moderate") as response:
+                assert response.status == 200
+                assert await response.json() == {"from": "upstream", "path": "/gproxy/search"}
+            async with client.get(url + "/urlinfo",
+                                  headers={"Host": "sba.yandex.net", "X-YaQuasarDeviceId": "s-id"},
+                                  params={"url": "https://m.youtube.com"}) as response:
+                assert response.status == 200
+                assert (await response.json())["path"].startswith("/urlinfo?")
+        assert calls  # в «Прозрачном» выдача настоящая
+    finally:
+        await upstream_runner.cleanup()
+        await runner.cleanup()
+        await runtime.close()
 
 
 async def test_dispatch_answers_builtins_without_miss_or_journal(tmp_path):

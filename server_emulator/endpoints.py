@@ -18,6 +18,7 @@ JSON-шаблон (строки-листья могут нести {{плейс�
 device_id, client_ip, now и пр.). При наличии template тело генерируется
 на каждом запросе: захваченные ответы не стареют там, где есть динамика.
 """
+import ipaddress
 import json
 import os
 import re
@@ -124,6 +125,55 @@ def clck_json_batch(body):
     return json.dumps([{"ResponseStatus": "OK"} for _ in items], ensure_ascii=False).encode()
 
 
+def empty_music_search(body=b""):
+    """Пустой ответ поиска музыки с экрана (NAlice.NMusic.TMusicSearchResponse):
+    Type — эхо типа запроса (по образцу пустых ответов настоящего сервера — там
+    только тип, без галерей), экран честно показывает «ничего не найдено»:
+    в «Эмуляции» своей фонотеки нет. Схемы нет — пустое тело."""
+    try:
+        from .schema import load_type, schema_file, schemas_dir
+        root = schemas_dir()
+        name = schema_file(root, "centaur")
+        request = load_type(root, name, "NAlice.NMusic.TMusicSearchRequest").FromString(body or b"")
+        response = load_type(root, name, "NAlice.NMusic.TMusicSearchResponse")(Type=request.Type)
+        return response.SerializeToString()
+    except Exception:  # noqa: BLE001 — без протокола честный пустой ответ всё равно лучше 404
+        return b""
+
+
+def empty_save_suggest_history():
+    """Пустое подтверждение сохранения подсказок поиска (NAlice.NTv.
+    TSaveSearchSuggestHistoryResponse) — по умолчанию без полей."""
+    try:
+        from . import proto_schemas
+        return proto_schemas.message_class(
+            "NAlice.NTv.TSaveSearchSuggestHistoryResponse")().SerializeToString()
+    except Exception:  # noqa: BLE001 — пустое тело вместо 404
+        return b""
+
+
+SEARCH_FAMILY_RESPONSES = {
+    "search": "NAlice.NOrder.TSearchResponse",
+    "get_search_suggests": "NAlice.NTv.TGetSearchSuggestsResponse",
+    "get_tv_promo_phrases": "NAlice.NSmartTv.TGetTvPromoPhrasesResponse",
+}
+
+
+def empty_search_family(path):
+    """Пустые ответы gproxy-поиска: выдачи и подсказок в «Эмуляции» нет — честный
+    пустой результат по схеме; для методов без привязки в наборе схем — пустое
+    тело (в protobuf это валидное сообщение со всеми полями по умолчанию)."""
+    method = (path or "").rsplit("/gproxy/", 1)[-1]
+    name = SEARCH_FAMILY_RESPONSES.get(method)
+    if not name:
+        return b""
+    try:
+        from . import proto_schemas
+        return proto_schemas.message_class(name)().SerializeToString()
+    except Exception:  # noqa: BLE001 — без набора схем пустое тело вместо 404
+        return b""
+
+
 def protobuf_string_field(value):
     """Поле 1 (length-delimited) protobuf со строкой — форма ответа
     /ats_client/register_user (у настоящего сервера там uid пользователя);
@@ -184,13 +234,73 @@ def find_builtin(host, method, path):
     return None
 
 
+# Контент с настоящих серверов (обложки, значки, картины, JS сценариев дисплеев,
+# видео-заставки, мета анимаций, LED, словари клавиатуры, фавиконки): пересылка
+# с кешем на диске (dispatcher._avatar). Промахов по ним быть не должно — колонка
+# запрашивает их тысячами повторов, когда ответа нет. Прошивка (quasar.s3/chiron/ota)
+# здесь не нужна: обновления решает политика обновлений.
+REMOTE_CACHE = (
+    ("avatars.yandex.net", ("/get-music-content/", "/get-video-content/", "/get-music-user-playlist/"),
+     "обложки музыки — пересылка с кешем на диске"),
+    ("avatars.mds.yandex.net", ("/get-ott/",),
+     "обложки OTT (ТВ, кино) — пересылка с кешем на диске"),
+    ("androidtvprod.s3.yandex.net", ("/badges/",),
+     "значки источников ТВ — пересылка с кешем на диске"),
+    ("dialogs.s3.yandex.net", ("/smart_displays/tretyakovka/", "/smart_displays/ariadne/"),
+     "картины заставки (Третьяковка) и JS сценариев дисплеев — пересылка с кешем на диске"),
+    ("smart-display-res.s3.yandex.net", ("/generated/weather_video/",),
+     "видео-заставки погоды — пересылка с кешем на диске"),
+    ("quasar.s3.yandex.net", ("/animations/",),
+     "мета-описания анимаций колонки — пересылка с кешем на диске"),
+    ("static-alice.s3.yandex.net", ("/led-production/",),
+     "LED-анимации подсветки — пересылка с кешем на диске"),
+    ("ya-keyboard.s3.yandex.net", ("/android/configs/",),
+     "конфиги и словари экранной клавиатуры — пересылка с кешем на диске"),
+    ("favicon.yandex.net", ("/favicon/",),
+     "фавиконки источников — пересылка с кешем на диске"),
+    ("browser-resources.s3.yandex.net", ("/video-translations/",),
+     "скрипты переводов видео — пересылка с кешем на диске"),
+)
+
+
+def remote_cache_prefix(host, method, path):
+    """Хост из REMOTE_CACHE, чьим префиксом покрыт запрос, или None."""
+    host = (host or "").lower()
+    path = path or "/"
+    for cache_host, prefixes, _note in REMOTE_CACHE:
+        if cache_host == host and method in ("GET", "HEAD") \
+                and path.startswith(tuple(prefixes)):
+            return cache_host
+    return None
+
+
+def _local_noise(host):
+    """Запросы не от колонки: браузер владельца к UI и DevTools ходят на
+    loopback/локальные адреса, настольная обёртка — на wails.localhost."""
+    host = (host or "").lower()
+    if host == "wails.localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_private
+    except ValueError:
+        return False
+
+
 def builtin_covers(host, method, path):
-    """Обслуживается ли запрос встроенным ответом (включая обложки аватаров):
-    такие запросы не попадают в «HTTP без эндпоинта»."""
+    """Обслуживается ли запрос встроенным ответом (включая кеш-пересылку контента
+    и генерируемые ответы поиска): такие запросы не попадают в «HTTP без эндпоинта»."""
     if find_builtin(host, method, path) is not None:
         return True
-    return (host or "").lower() == "avatars.yandex.net" and method in ("GET", "HEAD") \
-        and (path or "").startswith(("/get-music-content/", "/get-video-content/"))
+    if method == "POST" and (host or "").lower() == "rpc.alice.yandex.net" \
+            and path in ("/gproxy/music_search", "/gproxy/save_search_suggest_history",
+                         "/gproxy/search", "/gproxy/get_search_suggests",
+                         "/gproxy/get_tv_promo_phrases", "/gproxy/get_account_list_voice_controls"):
+        return True
+    if method == "POST" and (host or "").lower() == "quasar.yandex.net" and path == "/push_subscribe":
+        return True
+    if method == "GET" and (host or "").lower() == "sba.yandex.net" and path == "/urlinfo":
+        return True
+    return remote_cache_prefix(host, method, path) is not None
 
 
 def builtin_entries():
@@ -204,12 +314,13 @@ def builtin_entries():
                         "category": "builtin", "enabled": True, "readonly": True, "owner": "endpoints",
                         "title": item["note"],
                         "notes": "Встроенный ответ: перекрывается своим эндпоинтом с тем же URL."})
-    entries.append({"id": "builtin.avatars", "host": "avatars.yandex.net", "method": "GET",
-                    "path": "/get-music-content/…", "category": "builtin", "enabled": True,
-                    "readonly": True, "owner": "endpoints",
-                    "title": "обложки музыки — пересылка с кешем на диске",
-                    "notes": "Пересылается настоящему серверу, ответ кешируется в state/cache/avatars; "
-                             "без сети — кеш, затем 404."})
+    for cache_host, prefixes, note in REMOTE_CACHE:
+        entries.append({"id": "builtin.remote." + cache_host, "host": cache_host, "method": "GET",
+                        "path": prefixes[0] + "…", "category": "builtin", "enabled": True,
+                        "readonly": True, "owner": "endpoints",
+                        "title": note,
+                        "notes": "Пересылается настоящему серверу, ответ кешируется в state/cache/avatars; "
+                                 "без сети — кеш, затем 404."})
     return entries
 
 
@@ -485,7 +596,11 @@ class EndpointCatalog:
     def note_miss(self, host, method, path, query="", body=b"", content_type="", headers=(), forwarded=None):
         """Запомнить запрос без обработчика: из него UI создаёт эндпоинт (+).
         forwarded (гибрид): 'upstream' — промах ушёл в Яндекс, 'error: …' —
-        попытка не удалась; отметка показывается в «Без ответа»."""
+        попытка не удалась; отметка показывается в «Без ответа».
+        Локальный шум (запросы браузера владельца к UI, DevTools, Wails-прокси —
+        IP-адреса и wails.localhost) не пишется: колонка тут ни при чём."""
+        if _local_noise(host):
+            return
         import base64
         misses = self.misses()
         key = method + " " + host.lower() + path

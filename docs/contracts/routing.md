@@ -46,8 +46,14 @@ WS `/v2/subscribe/websocket` — на локальном домене (`system_c
 Локальный канал: `POST /push_subscribe` подписывает `sign`/`ts` локальным ключом
 `quasar-secret.json` (HMAC-SHA256 по ts, 32 hex — тот же ключ станция предъявляет в query WS,
 сервер канала проверяет; невалидная — кадр `"bad sign"` и закрытие, как у настоящего сервиса).
-Кадры открытия — ping (`server-interval-sec` 60), затем `subscribed`; дальше ping раз в 60 с;
-входящие кадры дренируются — уведомлений канал не доставляет, push эмулятор шлёт по uniproxy
+`ts` в ответе — срок действия подписки, а не текущее время: у настоящего канала это
+`now + 8 часов` (`SUBSCRIPTION_TTL`), pushd станции кладёт его в дедлайн соединения —
+при ts, меньшем часов станции, mainLoop пишет «No ping messages for long» и
+переподписывается каждые ~2 с. Кадры открытия — байт-в-байт по образцу живого моста:
+ping (`server-interval-sec` 60, компактный JSON) и один `subscribed` для `messenger-prod`
+(независимо от списка сервисов подписки; `subscription-id` — 40 hex-символов); дальше ping
+раз в 60 с; pushd сам обновляет подписку раз в 5 минут (закрытие 1006 и новое соединение).
+Входящие кадры дренируются — уведомлений канал не доставляет, push эмулятор шлёт по uniproxy
 (`docs/contracts/uniproxy.md`). pushd не передаёт device_id — режим маршрута берётся по SN из
 `session` (идентификатор станции в query, `identities.resolve_sn`), затем по последнему IP
 устройства. Тесты: test_push_channel, test_device_route_modes.

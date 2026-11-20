@@ -47,10 +47,14 @@ class Upstream:
         return str(load(self.runtime.directory).get("local_domain") or "").strip().lower().rstrip(".")
 
     def target_for(self, request, host=None, path=None, websocket=False):
-        """URL настоящего сервера для запроса колонки — см. target_for_host."""
+        """URL настоящего сервера для запроса колонки — см. target_for_host.
+        Query-строка запроса сохраняется: вызывающие передают путь без неё
+        (request.path), а настоящему сервису она нужна (push_subscribe без
+        device_id — 400)."""
         host = (host or request.host or "").split(":", 1)[0].lower()
-        return self.target_for_host(host, path if path is not None else request.raw_path,
-                                    websocket=websocket)
+        path = path if path is not None else request.path
+        query = "" if "?" in (path or "") else (request.query_string or "")
+        return self.target_for_host(host, path, query, websocket=websocket)
 
     def target_for_host(self, host, path, query="", websocket=False):
         """URL настоящего сервера по хосту и пути (без запроса: action: fetch).

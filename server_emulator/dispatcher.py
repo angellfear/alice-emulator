@@ -25,7 +25,7 @@ from aiohttp import web
 from multidict import CIMultiDict
 
 from .identity import collect_device_id
-from .endpoints import builtin_covers, clck_json_batch, find_builtin, protobuf_string_field, startup_payload, CLCK_JSON_BATCHES
+from .endpoints import builtin_covers, clck_json_batch, empty_music_search, empty_save_suggest_history, empty_search_family, find_builtin, protobuf_string_field, remote_cache_prefix, startup_payload, CLCK_JSON_BATCHES
 from .front import is_auth_host
 from . import push_channel
 from . import screensaver_settings
@@ -220,7 +220,7 @@ class Dispatcher:
     AVATARS_CACHE_LIMIT = 200 * 1024 * 1024  # суммарный размер кеша обложек
     AVATARS_TTL = 7 * 86400
 
-    async def builtin_answer(self, request, host, path):
+    async def builtin_answer(self, request, host, path, route_mode="emulate"):
         """Ответы, для которых не нужен ни эндпоинт, ни Яндекс: метрики и телеметрия
         (принять и выбросить), проверки связи, RPC-подсказки и тизеры, обложки музыки
         (пересылка с кешем на диске), подписка на push. Вызывается, когда
@@ -230,17 +230,51 @@ class Dispatcher:
             # проверка исходящего IP: адрес, с которого колонка пришла (как видит сервер)
             return 200, self.client_ip(request).encode(), {'Content-Type': 'text/plain'}
         if request.method == 'POST' and (host or '').lower() == 'quasar.yandex.net' \
-                and path == '/push_subscribe':
+                and path == '/push_subscribe' and route_mode == 'emulate':
             # подписка на push-канал: sign/ts подписывает локальный ключ — тот же
-            # ключ сервер канала «Эмуляции» проверяет при открытии WS (push_channel)
+            # ключ сервер канала «Эмуляции» проверяет при открытии WS (push_channel).
+            # В «Прозрачном»/«Вместе» подписка остаётся настоящему сервису: WS там
+            # мостится к нему, чужой знак он отверг бы (петля переподписок)
             return 200, json.dumps(push_channel.subscribe(self.runtime.quasar.key)).encode(), \
                 {'Content-Type': 'application/json'}
+        if request.method == 'POST' and (host or '').lower() == 'rpc.alice.yandex.net' \
+                and path == '/gproxy/music_search' and route_mode == 'emulate':
+            # поиск по музыке с экрана: в «Эмуляции» своей фонотеки нет — честный
+            # пустой результат, сгенерированный по схеме (Type — эхо запроса), экран
+            # показывает «ничего не найдено»; в «Прозрачном»/«Вместе» поиск уходит
+            # настоящему сервису — там выдача живая
+            return 200, empty_music_search(await request.read()), \
+                {'Content-Type': 'application/x-protobuf'}
+        if request.method == 'POST' and (host or '').lower() == 'rpc.alice.yandex.net' \
+                and path == '/gproxy/save_search_suggest_history' and route_mode == 'emulate':
+            # сохранение подсказок поиска: пустое подтверждение (историю ведёт
+            # настоящий сервис в «Прозрачном»/«Вместе»)
+            return 200, empty_save_suggest_history(), \
+                {'Content-Type': 'application/x-protobuf'}
+        if request.method == 'POST' and (host or '').lower() == 'rpc.alice.yandex.net' \
+                and path in ('/gproxy/search', '/gproxy/get_search_suggests',
+                             '/gproxy/get_tv_promo_phrases',
+                             '/gproxy/get_account_list_voice_controls') \
+                and route_mode == 'emulate':
+            # голосовой поиск и обслуги (подсказки, промо-фразы, голосовое управление
+            # аккаунтами): своей выдачи в «Эмуляции» нет — честный пустой результат
+            # по схеме; в «Прозрачном»/«Вместе» отвечает настоящий сервис
+            return 200, empty_search_family(path), \
+                {'Content-Type': 'application/x-protobuf'}
+        if request.method == 'GET' and (host or '').lower() == 'sba.yandex.net' \
+                and path == '/urlinfo' and route_mode == 'emulate':
+            # браузер экрана спрашивает метаданные и безопасность адреса: в «Эмуляции»
+            # сети нет — пустой объект, страница открывается без обогащения; в
+            # «Прозрачном»/«Вместе» — настоящий ответ сервиса
+            return 200, b'{}', {'Content-Type': 'application/json'}
         entry = find_builtin(host, request.method, path)
         if entry is not None:
             return entry['status'], entry['body'], entry['headers']
-        if (host or '').lower() == 'avatars.yandex.net' and request.method in ('GET', 'HEAD') \
-                and path.startswith(('/get-music-content/', '/get-video-content/')):
-            return await self._avatar(request, path)
+        cache_host = remote_cache_prefix(host, request.method, path)
+        if cache_host is not None:
+            # обложки, значки, картины, JS дисплеев, видео-заставки, словари —
+            # пересылка с кешем на диске
+            return await self._avatar(request, cache_host, path)
         return None
 
     def _read_avatar(self, key):
@@ -272,27 +306,28 @@ class Dispatcher:
         except OSError:
             pass
 
-    async def _avatar(self, request, path):
-        """Обложка avatars.yandex.net: пересылка настоящему серверу (в эмуляции и гибриде),
-        ответ кешируется; без сети — кеш (даже протухший), затем 404. Range-запросы
-        проходят насквозь без кеша (частичный ответ нельзя сохранять как целый)."""
+    async def _avatar(self, request, host, path):
+        """Контент с настоящего сервера (REMOTE_CACHE — обложки, JS дисплеев, видео-заставки…):
+        пересылка настоящему серверу (в эмуляции и гибриде), ответ кешируется;
+        без сети — кеш (даже протухший), затем 404. Range-запросы проходят
+        насквозь без кеша (частичный ответ нельзя сохранять как целый)."""
         import hashlib
         runtime = self.runtime
-        key = hashlib.sha1((path + '?' + request.query_string).encode('utf-8', 'ignore')).hexdigest()
+        key = hashlib.sha1((host + path + '?' + request.query_string).encode('utf-8', 'ignore')).hexdigest()
         ranged = bool(request.headers.get('Range'))
         if not ranged:
             cached = self._read_avatar(key)
             if cached is not None and time.time() - cached[2] <= self.AVATARS_TTL:
                 return 200, cached[0], {'Content-Type': cached[1], 'Cache-Control': 'max-age=86400'}
-        target = runtime.upstream.target_for_host('avatars.yandex.net', str(request.rel_url))
+        target = runtime.upstream.target_for_host(host, str(request.rel_url))
         status, headers, payload = 0, [], b''
         try:
             status, headers, payload = await runtime.upstream.forwarder.http(
                 request.method, target, request.headers, b'', journal=False,
-                host='avatars.yandex.net', path=path)
+                host=host, path=path)
         except UpstreamError as exc:
             runtime.server_log.log('warning', 'http', 'Обложка не получена — отвечаю из кеша',
-                                   host='avatars.yandex.net', error=str(exc)[:200])
+                                   host=host, error=str(exc)[:200])
         keep = ('content-type', 'cache-control', 'etag', 'expires', 'accept-ranges')
         if status == 200 and payload and not ranged:
             content_type = next((v for k, v in headers if k.lower() == 'content-type'), 'image/jpeg')
@@ -477,6 +512,7 @@ class Dispatcher:
             # передаёт device_id — режим маршрута берём у устройства по SN из session
             # (его станция называет сама), затем по IP; устройство из заголовков уже
             # учтено в route_mode выше.
+            device = None
             if not sn and not device_id:
                 device = runtime.identities.resolve_sn(request.query.get("session")) \
                     or runtime.identities.resolve_by_ip(self.client_ip(request))
@@ -491,8 +527,26 @@ class Dispatcher:
                                             journal=lambda: upstream.record_mode(xiva_sn),
                                             device_sn=xiva_sn, device_id=device_id or xiva_sn)
             # «Эмуляция» (и устройства без маршрута): локальный сервер канала —
-            # подпись локальным ключом, кадры по образцу живого обмена
-            return await push_channel.serve(request, runtime)
+            # подпись локальным ключом, кадры по образцу живого обмена; соединение
+            # пишется в журнал трафика по опции «Запись» устройства — с реальным
+            # путём и заголовками: по ним видно, чем подписывается колонка
+            tap = None
+            if upstream is not None:
+                real_path = request.path + ("?" + request.query_string if request.query_string else "")
+                tap = upstream.ws_tap('emulator', XIVA_HOST, real_path,
+                                      headers=list(request.headers.items()),
+                                      sn=sn or (device or {}).get('sn'),
+                                      device_id=device_id or (device or {}).get('device_id'))
+                tap.start()
+            ws = None
+            try:
+                ws = await push_channel.serve(request, runtime, tap=tap)
+                return ws
+            finally:
+                if tap is not None:
+                    # код закрытия различает: 1000 — канал закрыл сам (невалидный
+                    # знак), 0/None — колонка оборвала TCP
+                    tap.close(ws.close_code if ws is not None else None)
         if upstream is not None and route_mode == "proxy":
             # прямой проход — WS мостом, HTTP пересылкой. Запись в журнал — по опции
             # «Запись» устройства: HTTP решается здесь, WS — на каждом кадре.
@@ -675,7 +729,8 @@ class Dispatcher:
             # встроенные ответы без эндпоинтов (метрики, проверки связи, подсказки,
             # обложки) — до пересылки гибрида и 404; пользовательский эндпоинт перекрывает
             # (каталог ищется выше). В промахи и журнал «Запись» не пишется (шум).
-            silencer = None if catalog_covered else await self.builtin_answer(request, canonical_host, path or request.path)
+            silencer = None if catalog_covered else await self.builtin_answer(
+                request, canonical_host, path or request.path, route_mode)
             if silencer is not None:
                 silencer_used = True
                 status, output, headers = silencer

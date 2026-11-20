@@ -581,3 +581,47 @@ async def test_register_user_without_owner_gives_empty_uid(tmp_path):
     finally:
         await runner.cleanup()
         await runtime.close()
+
+
+def test_misses_skip_local_noise(tmp_path):
+    """Запросы не от колонки (браузер владельца к UI, DevTools, Wails) в промахи не пишутся."""
+    catalog = EndpointCatalog(tmp_path / "endpoints")
+    for host in ("127.0.0.1", "192.168.0.60", "wails.localhost", "::1"):
+        catalog.note_miss(host, "GET", "/api/extensions")
+    assert catalog.public()["misses"] == []
+    catalog.note_miss("rpc.alice.yandex.net", "POST", "/gproxy/get_tv_categories")
+    assert [m["path"] for m in catalog.public()["misses"]] == ["/gproxy/get_tv_categories"]
+
+
+def test_remote_images_covered_as_builtin():
+    """Контент настоящих серверов (обложки, значки, картины, JS дисплеев, видео-заставки,
+    мета анимаций, словари, LED, фавиконки) — builtin-пересылка с кешем: не попадают
+    в промахи и видны в каталоге встроенного. Прошивка — не здесь: политика обновлений."""
+    from server_emulator.endpoints import builtin_covers, builtin_entries
+    assert builtin_covers("avatars.mds.yandex.net", "GET", "/get-ott/123/2a00/orig")
+    assert builtin_covers("androidtvprod.s3.yandex.net", "GET", "/badges/internet.png")
+    assert builtin_covers("dialogs.s3.yandex.net", "GET", "/smart_displays/tretyakovka/horizontal/rye.webp")
+    assert builtin_covers("avatars.yandex.net", "HEAD", "/get-music-content/1")
+    assert builtin_covers("dialogs.s3.yandex.net", "GET", "/smart_displays/ariadne/stable/11.0/browser.js")
+    assert builtin_covers("smart-display-res.s3.yandex.net", "GET",
+                          "/generated/weather_video/chiron_common_day_cloudy_LOOP.webm")
+    assert builtin_covers("quasar.s3.yandex.net", "GET", "/animations/player_play/chiron/meta.txt")
+    assert builtin_covers("static-alice.s3.yandex.net", "GET", "/led-production/weather/v1.4/temperature/0.gif")
+    assert builtin_covers("ya-keyboard.s3.yandex.net", "GET", "/android/configs/v20.4/dictionaries.json")
+    assert builtin_covers("favicon.yandex.net", "GET", "/favicon/v2/https://m.youtube.com/")
+    assert builtin_covers("browser-resources.s3.yandex.net", "GET",
+                          "/video-translations/scripts/production/1/tv.js")
+    # POST не контент; прошивка — вне кеш-пересылки (обновления решает политика обновлений)
+    assert not builtin_covers("avatars.mds.yandex.net", "POST", "/get-ott/123/2a00/orig")
+    assert not builtin_covers("quasar.s3.yandex.net", "GET", "/chiron/ota/user/8b02/5000001388.zip")
+    hosts = {e["host"] for e in builtin_entries() if e["id"].startswith("builtin.remote.")}
+    assert hosts == {"avatars.yandex.net", "avatars.mds.yandex.net", "androidtvprod.s3.yandex.net",
+                     "dialogs.s3.yandex.net", "smart-display-res.s3.yandex.net", "quasar.s3.yandex.net",
+                     "static-alice.s3.yandex.net", "ya-keyboard.s3.yandex.net", "favicon.yandex.net",
+                     "browser-resources.s3.yandex.net"}
+
+
+def test_aapi_notifications_expect_no_reply():
+    """Уведомления колонки без ответа облака не считаются промахами."""
+    from server_emulator.runtime import AAPI_NO_REPLY
+    assert {'MatchedUser', 'CapabilityUpdateState', 'ContinueRequest'} <= AAPI_NO_REPLY

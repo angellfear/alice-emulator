@@ -101,7 +101,8 @@ async def test_builtin_gap_handlers(tmp_path):
         status, body, headers = await dispatcher.builtin_answer(request, "quasar.yandex.net", "/push_subscribe")
         payload = json.loads(body)
         assert status == 200 and payload["status"] == "ok" and len(payload["sign"]) == 32
-        assert payload["ts"] == str(int(time.time()))  # свежая метка, как у Яндекса
+        # ts — срок действия подписки: у настоящего канала now + 8 часов
+        assert int(payload["ts"]) - int(time.time()) == push_channel.SUBSCRIPTION_TTL
         # подпись проверит сервер канала «Эмуляции» при открытии WS
         assert push_channel.verify(runtime.quasar.key, payload["sign"], payload["ts"])
         assert not push_channel.verify(runtime.quasar.key, payload["sign"], str(int(payload["ts"]) + 60))
